@@ -1,11 +1,6 @@
-import React from 'react'
+// app/admin-dashboard/page.tsx (dashboard content)
+import DashboardContent from '@/components/admin/DashboardContent';
 
-function page() {
-  return (
-    <div className="p-10 text-3xl font-semibold text-center">
-      Welcome Admin 🚀
-    </div>
-  )
+export default function AdminDashboardPage() {
+  return <DashboardContent />;
 }
-
-export default page

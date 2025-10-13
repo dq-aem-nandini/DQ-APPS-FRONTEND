@@ -1,5 +1,4 @@
-
-// context/AuthContext.tsx
+// context/AuthContext.tsx (updated to handle extracted tokens)
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
@@ -57,28 +56,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = localStorage.getItem('accessToken');
         const refreshToken = localStorage.getItem('refreshToken');
         const userStr = localStorage.getItem('user');
-        if (token && refreshToken && userStr) {
+        if (userStr) { // Restore if user data exists (tokens optional)
           try {
-            // Validate and parse userStr
             if (userStr === 'null' || userStr === 'undefined' || userStr.trim() === '') {
-              // Clear invalid data
               localStorage.removeItem('user');
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
               return;
             }
             const user: User = JSON.parse(userStr);
             if (user && user.userId && user.role) { // Basic validation
-              dispatch({ type: 'LOGIN_SUCCESS', payload: { user, accessToken: token, refreshToken } });
+              dispatch({ type: 'LOGIN_SUCCESS', payload: { user, accessToken: token || null, refreshToken: refreshToken || null } });
+              return; // Exit early if restored
             } else {
-              // Clear invalid data
               localStorage.removeItem('user');
               localStorage.removeItem('accessToken');
               localStorage.removeItem('refreshToken');
             }
           } catch (parseError) {
             console.error('Failed to parse user from localStorage:', parseError);
-            // Clear corrupted data
             localStorage.removeItem('user');
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
@@ -93,12 +87,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (credentials: { inputKey: string; password: string }) => {
     try {
       const { user, accessToken, refreshToken } = await authService.login(credentials);
+      console.log('Login result:', { user, accessToken, refreshToken }); // Debug
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('accessToken', accessToken || '');
-        localStorage.setItem('refreshToken', refreshToken || '');
+        if (accessToken) localStorage.setItem('accessToken', accessToken);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       }
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, accessToken: accessToken || null, refreshToken: refreshToken || null } });
+      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, accessToken: accessToken ?? null, refreshToken: refreshToken ?? null } });
       alert('Login successful! Redirecting to your dashboard...');
       // Immediate redirect
       const targetPath = user.role === 'ADMIN' ? '/admin-dashboard' : '/dashboard';
