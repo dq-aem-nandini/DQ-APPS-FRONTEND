@@ -1,30 +1,32 @@
-// src/lib/api/authService.ts
-"use client";
+// lib/api/authService.ts (updated to return full response for token extraction)
+import api from './axios';
+import { LoginRequest, User, WebResponseDTO } from './types';
 
-import axiosInstance from "./axios";
-import { getDeviceId, getDeviceName } from "./deviceUtils";
-import { LoginDTO, WebResponseDTOApiResponseObject } from "./types";
-
-
-export const login = async (
-  credentials: LoginDTO
-): Promise<WebResponseDTOApiResponseObject> => {
-  try {
-    const response = await axiosInstance.post<WebResponseDTOApiResponseObject>(
-      "/auth/login",
-      credentials,
-      {
-        headers: {
-          "X-Device-Id": getDeviceId(),
-          "X-Device-Name": getDeviceName(),
-        },
-      }
-    );
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      throw new Error(error.response.data.message || "Login failed");
+export const authService = {
+  async login(credentials: LoginRequest): Promise<{ user: User; accessToken?: string; refreshToken?: string }> {
+    const response = await api.post<WebResponseDTO<{ data: User; message: string }>>('/auth/login', credentials);
+    if (response.data.flag) {
+      const user = response.data.response.data;
+      // Extract tokens from headers if backend sets them (e.g., Set-Cookie or Authorization)
+      const accessToken = response.headers['authorization']?.replace('Bearer ', '') || '';
+      const refreshToken = response.headers['x-refresh-token'] || ''; // Adjust header name if different
+      return { user, accessToken, refreshToken };
     }
-    throw new Error(error.message || "Server error");
-  }
+    throw new Error(response.data.message || 'Login failed');
+  },
+
+  async presetDevice(): Promise<void> {
+    await api.post('/auth/preset-device');
+  },
+
+  async refreshToken(refreshToken: string): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    const response = await api.post<WebResponseDTO<{ data: User; message: string }>>('/auth/refreshToken', { refreshToken });
+    if (response.data.flag) {
+      const user = response.data.response.data;
+      const accessToken = response.headers['authorization']?.replace('Bearer ', '') || '';
+      const newRefreshToken = response.headers['x-refresh-token'] || refreshToken;
+      return { user, accessToken, refreshToken: newRefreshToken };
+    }
+    throw new Error(response.data.message || 'Refresh failed');
+  },
 };
