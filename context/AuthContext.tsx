@@ -1,17 +1,17 @@
 // context/AuthContext.tsx (updated to handle extracted tokens)
 'use client';
-
+ 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthState, AuthAction, User } from '@/lib/api/types';
 import { authService } from '@/lib/api/authService';
-
+ 
 const AuthContext = createContext<{
   state: AuthState;
   login: (credentials: { inputKey: string; password: string }) => Promise<void>;
   logout: () => void;
 } | null>(null);
-
+ 
 const initialState: AuthState = {
   user: null,
   accessToken: null,
@@ -19,7 +19,7 @@ const initialState: AuthState = {
   isLoading: true,
   isAuthenticated: false,
 };
-
+ 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'LOGIN_SUCCESS':
@@ -45,11 +45,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return state;
   }
 };
-
+ 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const router = useRouter();
-
+ 
   useEffect(() => {
     const initAuth = async () => {
       if (typeof window !== 'undefined') {
@@ -83,34 +83,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     initAuth();
   }, [router]);
-
+ 
   const login = async (credentials: { inputKey: string; password: string }) => {
     try {
       const { user, accessToken, refreshToken } = await authService.login(credentials);
-      console.log('Login result:', { user, accessToken, refreshToken }); // Debug
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(user));
         if (accessToken) localStorage.setItem('accessToken', accessToken);
         if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       }
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, accessToken: accessToken ?? null, refreshToken: refreshToken ?? null } });
-      alert('Login successful! Redirecting to your dashboard...');
-      // Immediate redirect
+  
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user, accessToken: accessToken ?? null, refreshToken: refreshToken ?? null },
+      });
+  
+      // use router.push (no full reload)
       const targetPath = user.role === 'ADMIN' ? '/admin-dashboard' : '/dashboard';
-      window.location.href = targetPath;
+      router.push(targetPath);
     } catch (error: any) {
       console.error('Login failed:', error);
-      // Handle specific errors
       let errorMsg = 'An unexpected error occurred. Please try again.';
-      if (error.message.includes('incorrect') || error.message.includes('failed')) {
-        errorMsg = 'Incorrect credentials. Please check your username/email and password and try again.';
-      } else if (error.message.includes('Server internal error')) {
-        errorMsg = 'Server error. Please try again later or contact support.';
+      if (error.message?.includes('incorrect') || error.message?.includes('failed')) {
+        errorMsg = 'Incorrect credentials. Please check your username/email and password.';
       }
       throw new Error(errorMsg);
     }
   };
-
+  
   const logout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
@@ -120,14 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'LOGOUT' });
     window.location.href = '/auth/login';
   };
-
+ 
   return (
     <AuthContext.Provider value={{ state, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
-
+ 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

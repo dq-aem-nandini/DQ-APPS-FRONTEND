@@ -8,29 +8,29 @@ export interface User {
   createdAt: string;
   updatedAt: string;
 }
-
+ 
 export interface LoginRequest {
   inputKey: string;
   password: string;
 }
-
+ 
 export interface LoginDTO {
   inputKey: string;
   password: string;
 }
-
+ 
 export interface TokenResponseData {
   accessToken?: string;
   refreshToken?: string;
   refreshExpiresAt?: string;
   tokenType?: string;
 }
-
+ 
 export interface ApiResponseObject<T = any> {
   data: T;
   message: string;
 }
-
+ 
 export interface WebResponseDTO<T> {
   flag: boolean;
   message: string;
@@ -39,7 +39,7 @@ export interface WebResponseDTO<T> {
   totalRecords: number;
   otherInfo: any;
 }
-
+ 
 export type AuthState = {
   user: User | null;
   accessToken: string | null;
@@ -47,12 +47,12 @@ export type AuthState = {
   isLoading: boolean;
   isAuthenticated: boolean;
 };
-
+ 
 export type AuthAction =
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; accessToken: string | null; refreshToken: string | null } }
   | { type: 'LOGOUT' }
   | { type: 'SET_LOADING'; payload: boolean };
-
+ 
 // Employee Model (for add/update)
 export interface EmployeeModel {
   firstName: string;
@@ -87,7 +87,7 @@ export interface EmployeeModel {
   degreeCftUrl: string;
   postGraduationCftUrl: string;
 }
-
+ 
 // Client Model (for add/update)
 export interface ClientModel {
   companyName: string;
@@ -103,7 +103,7 @@ export interface ClientModel {
   pinCode: string;
   country: string;
 }
-
+ 
 // Address
 export interface Address {
   addressId: string;
@@ -114,7 +114,7 @@ export interface Address {
   country: string;
   pincode: string;
 }
-
+ 
 // BankDetails
 export interface BankDetails {
   bankAccountId: string;
@@ -126,7 +126,7 @@ export interface BankDetails {
   createdAt: string;
   updatedAt: string;
 }
-
+ 
 // Client
 export interface Client {
   clientId: string;
@@ -142,7 +142,7 @@ export interface Client {
   createdAt: string;
   updatedAt: string;
 }
-
+ 
 // Employee
 export interface Employee {
   employeeId: string;
@@ -174,7 +174,7 @@ export interface Employee {
   createdAt: string;
   updatedAt: string;
 }
-
+ 
 // EmployeeDTO (for list/get)
 export interface EmployeeDTO {
   employeeId: string;
@@ -193,17 +193,6 @@ export interface EmployeeDTO {
   aadharNumber: string;
   clientId: string;
   clientName: string;
-  accountNumber: string;
-  accountHolderName: string;
-  bankName: string;
-  ifscCode: string;
-  branchName: string;
-  houseNo: string;
-  streetName: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  country: string;
   panCardUrl: string;
   aadharCardUrl: string;
   bankPassbookUrl: string;
@@ -213,7 +202,7 @@ export interface EmployeeDTO {
   postGraduationCftUrl: string;
   status: string;
 }
-
+ 
 // ClientDTO (for list/get)
 export interface ClientDTO {
   clientId: string;
@@ -235,12 +224,12 @@ export interface ClientDTO {
   pinCode: string;
   country: string;
 }
-
+ 
 // RefreshTokenRequestDTO
 export interface RefreshTokenRequestDTO {
   refreshToken: string;
 }
-
+ 
 // RefreshTokenResponseDTO
 export interface RefreshTokenResponseDTO {
   accessToken: string;
@@ -248,40 +237,53 @@ export interface RefreshTokenResponseDTO {
   refreshExpiresAt: string;
   tokenType: string;
 }
-
-// Login-specific response structures
-export interface LoginResponseData {
-  userId: string;
-  userName: string;
-  email?: string;
-  role: string;
-  createdAt: string;
-  updatedAt: string;
-  token: null;
-  loginResponseDTO: {
-    accessToken: string;
-    refreshToken: string;
-    refreshExpiresAt: string;
-    tokenType: string;
-    role: string;
-  };
+ 
+// LoginDTO
+export interface LoginDTO {
+  inputKey: string;
+  password: string;
 }
-
-export interface LoginInnerResponse {
-  data: LoginResponseData;
+ 
+export interface TimeSheetModel {
+  workDate: string; // date
+  hoursWorked: number;
+  taskName: string;
+  taskDescription: string;
+  status: string;
+}
+ 
+export interface TimeSheet {
+  timesheetId: string; // uuid
+  workDate: string; // date
+  hoursWorked: number;
+  taskName: string;
+  taskDescription: string;
+  status: string;
+  createdAt: string; // date-time
+  updatedAt: string; // date-time
+}
+ 
+export interface WebResponseDTOTimeSheet {
+  flag: boolean;
   message: string;
+  status: number; // int32
+  response: TimeSheet;
+  totalRecords: number; // int64
+  otherInfo: Record<string, any>;
 }
-
-// Refresh-specific response structures
-export interface RefreshResponseData {
-  user: User;
+ 
+ 
+// Refresh Token Inner Response
+export interface RefreshInnerResponse {
   accessToken: string;
   refreshToken: string;
-  refreshExpiresAt: string;
+  refreshExpiresAt: string; // ISO date string
   tokenType: string;
+  data:any;
 }
-
-export interface RefreshInnerResponse {
-  data: RefreshResponseData;
+ 
+export interface LoginInnerResponse {
+  data: any; // Can replace `any` with a more specific login response if known
   message: string;
 }
+ 

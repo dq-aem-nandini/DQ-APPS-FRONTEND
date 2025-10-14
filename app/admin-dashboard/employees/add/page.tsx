@@ -19,10 +19,14 @@ const AddEmployeePage = () => {
     personalEmail: '',
     companyEmail: '',
     contactNumber: '',
+    alternativeContactNumber: '9876543210',
     clientId: '',
     designation: '',
+    reportingManagerId: '',
     dateOfBirth: '',
     dateOfJoining: '',
+    gender: '',
+    numberOfChildren: 0,
     currency: '',
     rateCard: 0,
     panNumber: '',
@@ -38,6 +42,7 @@ const AddEmployeePage = () => {
     state: '',
     pinCode: '',
     country: '',
+    photoUrl: '',
     panCardUrl: '',
     aadharCardUrl: '',
     bankPassbookUrl: '',
@@ -48,6 +53,7 @@ const AddEmployeePage = () => {
   });
   const [clients, setClients] = useState<Client[]>([]);
   const [documentFiles, setDocumentFiles] = useState({
+    photo: null as File | null,
     panCard: null as File | null,
     aadharCard: null as File | null,
     bankPassbook: null as File | null,
@@ -61,6 +67,11 @@ const AddEmployeePage = () => {
   const [success, setSuccess] = useState('');
   const { state } = useAuth();
   const router = useRouter();
+
+  const today = new Date().toISOString().split('T')[0];
+  const maxJoiningDate = new Date();
+  maxJoiningDate.setMonth(maxJoiningDate.getMonth() + 3);
+  const maxJoiningDateStr = maxJoiningDate.toISOString().split('T')[0];
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -80,7 +91,8 @@ const AddEmployeePage = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    const parsedValue = name === 'rateCard' ? parseFloat(value) || 0 : value;
+    const parsedValue = name === 'rateCard' ? parseFloat(value) || 0 : 
+                       name === 'numberOfChildren' ? parseInt(value) || 0 : value;
     setFormData((prev) => ({
       ...prev,
       [name]: parsedValue,
@@ -123,10 +135,11 @@ const AddEmployeePage = () => {
     // Validate mandatory fields (excluding document URLs)
     const requiredFields: (keyof EmployeeModel)[] = [
       'firstName', 'lastName', 'personalEmail', 'companyEmail', 'contactNumber',
-      'clientId', 'designation', 'dateOfBirth', 'dateOfJoining', 'currency',
-      'rateCard', 'panNumber', 'aadharNumber', 'accountNumber', 'accountHolderName',
-      'bankName', 'ifscCode', 'branchName', 'houseNo', 'streetName', 'city',
-      'state', 'pinCode', 'country',
+      'alternativeContactNumber', 'clientId', 'designation', 'reportingManagerId',
+      'dateOfBirth', 'dateOfJoining', 'gender', 'currency', 'rateCard',
+      'panNumber', 'aadharNumber', 'accountNumber', 'accountHolderName',
+      'bankName', 'ifscCode', 'branchName', 'houseNo',
+      'streetName', 'city', 'state', 'pinCode', 'country',
     ];
 
     const missingFields = requiredFields.filter((field) => !formData[field] || formData[field] === '');
@@ -136,7 +149,35 @@ const AddEmployeePage = () => {
       return;
     }
 
-    // Validate aadharNumber (12 digits)
+    // Name validations (firstName, lastName, accountHolderName)
+    const nameRegex = /^[A-Za-z ]+$/;
+    const names = ['firstName', 'lastName', 'accountHolderName'];
+    for (const name of names) {
+      const value = formData[name as keyof EmployeeModel] as string;
+      if (value.length > 30 || !nameRegex.test(value.trim()) || (name === 'accountHolderName' && value.trim().length < 3)) {
+        setError(`${name.replace(/([A-Z])/g, ' $1').toLowerCase()} must be 3-30 characters with alphabets and spaces only`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // Email validations
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.personalEmail) || !emailRegex.test(formData.companyEmail)) {
+      setError('Personal and company emails must be valid email addresses');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // PAN validation
+    const panRegex = /^[A-Z]{5}\d{4}[A-Z]{1}$/;
+    if (!panRegex.test(formData.panNumber)) {
+      setError('PAN must be 10 alphanumeric characters (5 letters + 4 digits + 1 letter)');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Aadhar validation
     const aadharRegex = /^\d{12}$/;
     if (!aadharRegex.test(formData.aadharNumber)) {
       setError('Aadhar number must be exactly 12 digits');
@@ -144,10 +185,50 @@ const AddEmployeePage = () => {
       return;
     }
 
-    // Validate contactNumber (10 digits)
-    const contactRegex = /^\d{10}$/;
-    if (!contactRegex.test(formData.contactNumber)) {
-      setError('Contact number must be exactly 10 digits');
+    // Contact numbers validation
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(formData.contactNumber) || !phoneRegex.test(formData.alternativeContactNumber)) {
+      setError('Contact and alternative numbers must be 10 digits starting with 6-9');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Bank account number
+    const accountRegex = /^\d{9,18}$/;
+    if (!accountRegex.test(formData.accountNumber)) {
+      setError('Account number must be 9-18 digits');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // IFSC code
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscRegex.test(formData.ifscCode)) {
+      setError('IFSC code must follow format AAAA0BBBBBB (e.g., HDFC0001234)');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Bank name
+    const bankNameRegex = /^[A-Za-z .]+$/;
+    if (!bankNameRegex.test(formData.bankName)) {
+      setError('Bank name must contain only alphabets, spaces, and dots');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Branch name
+    const branchNameRegex = /^[A-Za-z ]+$/;
+    if (!branchNameRegex.test(formData.branchName)) {
+      setError('Branch name must contain only alphabets and spaces');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Pincodes
+    const pincodeRegex = /^[1-9]\d{5}$/;
+    if (!pincodeRegex.test(formData.pinCode) || !pincodeRegex.test(formData.pinCode)) {
+      setError('Pincodes must be exactly 6 digits starting with 1-9');
       setIsSubmitting(false);
       return;
     }
@@ -186,6 +267,9 @@ const AddEmployeePage = () => {
                     required
                     value={formData.firstName}
                     onChange={handleChange}
+                    maxLength={30}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only, up to 30 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -200,6 +284,9 @@ const AddEmployeePage = () => {
                     required
                     value={formData.lastName}
                     onChange={handleChange}
+                    maxLength={30}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only, up to 30 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -217,12 +304,144 @@ const AddEmployeePage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
+                <div>
+                  <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
+                    Date of Birth *
+                  </label>
+                  <input
+                    type="date"
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    required
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                    max={today}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    PAN Number *
+                  </label>
+                  <input
+                    type="text"
+                    id="panNumber"
+                    name="panNumber"
+                    required
+                    value={formData.panNumber}
+                    onChange={handleChange}
+                    pattern="[A-Z]{5}\d{4}[A-Z]{1}"
+                    title="5 uppercase letters + 4 digits + 1 uppercase letter"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="aadharNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Aadhar Number *
+                  </label>
+                  <input
+                    type="text"
+                    id="aadharNumber"
+                    name="aadharNumber"
+                    required
+                    value={formData.aadharNumber}
+                    onChange={handleChange}
+                    pattern="\d{12}"
+                    title="Exactly 12 digits"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                    Gender *
+                  </label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    required
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="numberOfChildren" className="block text-sm font-medium text-gray-700 mb-2">
+                    Number of Children
+                  </label>
+                  <input
+                    type="number"
+                    id="numberOfChildren"
+                    name="numberOfChildren"
+                    value={formData.numberOfChildren}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Photo
+                  </label>
+                  <input
+                    type="file"
+                    id="photo"
+                    name="photo"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange('photo', e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {formData.photoUrl && <p className="text-sm text-gray-500 mt-1">{formData.photoUrl}</p>}
+                </div>
               </div>
             </div>
 
             {/* Contact Details */}
             <div className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Contact Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="contactNumber"
+                    name="contactNumber"
+                    required
+                    value={formData.contactNumber}
+                    onChange={handleChange}
+                    pattern="[6-9]\d{9}"
+                    title="10 digits starting with 6-9"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="alternativeContactNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Alternative Contact Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="alternativeContactNumber"
+                    name="alternativeContactNumber"
+                    required
+                    value={formData.alternativeContactNumber}
+                    onChange={handleChange}
+                    pattern="[6-9]\d{9}"
+                    title="10 digits starting with 6-9"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Professional Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="companyEmail" className="block text-sm font-medium text-gray-700 mb-2">
@@ -239,20 +458,23 @@ const AddEmployeePage = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Contact Number *
+                  <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-2">
+                    Designation *
                   </label>
-                  <input
-                    type="tel"
-                    id="contactNumber"
-                    name="contactNumber"
+                  <select
+                    id="designation"
+                    name="designation"
                     required
-                    value={formData.contactNumber}
+                    value={formData.designation}
                     onChange={handleChange}
-                    pattern="\d{10}"
-                    title="Contact number must be 10 digits"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                  >
+                    <option value="">Select Designation</option>
+                    {/* Backend API integration pending - placeholder options */}
+                    <option value="Developer">Developer</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Designer">Designer</option>
+                  </select>
                 </div>
                 <div>
                   <label htmlFor="clientId" className="block text-sm font-medium text-gray-700 mb-2">
@@ -274,42 +496,6 @@ const AddEmployeePage = () => {
                     ))}
                   </select>
                 </div>
-              </div>
-            </div>
-
-            {/* Professional Details */}
-            <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-2">
-                    Designation *
-                  </label>
-                  <input
-                    type="text"
-                    id="designation"
-                    name="designation"
-                    required
-                    value={formData.designation}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Birth *
-                  </label>
-                  <input
-                    type="date"
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    required
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
                 <div>
                   <label htmlFor="dateOfJoining" className="block text-sm font-medium text-gray-700 mb-2">
                     Date of Joining *
@@ -321,11 +507,36 @@ const AddEmployeePage = () => {
                     required
                     value={formData.dateOfJoining}
                     onChange={handleChange}
+                    min={today}
+                    max={maxJoiningDateStr}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
+                <div>
+                  <label htmlFor="reportingManagerId" className="block text-sm font-medium text-gray-700 mb-2">
+                    Reporting Manager *
+                  </label>
+                  <select
+                    id="reportingManagerId"
+                    name="reportingManagerId"
+                    required
+                    value={formData.reportingManagerId}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">Select Reporting Manager</option>
+                    {/* Backend API integration pending - placeholder options */}
+                    <option value="mgr1">Manager 1</option>
+                    <option value="mgr2">Manager 2</option>
+                  </select>
+                </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            </div>
+
+            {/* Billing Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Billing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">
                     Currency *
@@ -368,36 +579,6 @@ const AddEmployeePage = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    PAN Number *
-                  </label>
-                  <input
-                    type="text"
-                    id="panNumber"
-                    name="panNumber"
-                    required
-                    value={formData.panNumber}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="aadharNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Aadhar Number *
-                  </label>
-                  <input
-                    type="text"
-                    id="aadharNumber"
-                    name="aadharNumber"
-                    required
-                    value={formData.aadharNumber}
-                    onChange={handleChange}
-                    pattern="\d{12}"
-                    title="Aadhar number must be 12 digits"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
                   <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 mb-2">
                     Account Number *
                   </label>
@@ -408,6 +589,8 @@ const AddEmployeePage = () => {
                     required
                     value={formData.accountNumber}
                     onChange={handleChange}
+                    pattern="\d{9,18}"
+                    title="9-18 digits only"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -422,6 +605,9 @@ const AddEmployeePage = () => {
                     required
                     value={formData.accountHolderName}
                     onChange={handleChange}
+                    maxLength={30}
+                    pattern="[A-Za-z ]{3,}"
+                    title="Alphabets and spaces only, minimum 3 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -436,6 +622,8 @@ const AddEmployeePage = () => {
                     required
                     value={formData.bankName}
                     onChange={handleChange}
+                    pattern="[A-Za-z .]+"
+                    title="Alphabets, spaces, and dots only"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -450,6 +638,8 @@ const AddEmployeePage = () => {
                     required
                     value={formData.ifscCode}
                     onChange={handleChange}
+                    pattern="[A-Z]{4}0[A-Z0-9]{6}"
+                    title="Format: AAAA0BBBBBB"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -464,9 +654,12 @@ const AddEmployeePage = () => {
                     required
                     value={formData.branchName}
                     onChange={handleChange}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
+          
               </div>
             </div>
 
@@ -541,6 +734,8 @@ const AddEmployeePage = () => {
                     required
                     value={formData.pinCode}
                     onChange={handleChange}
+                    pattern="[1-9]\d{5}"
+                    title="Exactly 6 digits starting with 1-9"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
