@@ -1,8 +1,8 @@
-// lib/api/types.ts
+// lib/api/types.ts (updated to make email optional in User)
 export interface User {
   userId: string;
   userName: string;
-  email: string;
+  email?: string; // Made optional to handle null values from backend
   password?: string; // Optional, as it's not always included
   role: 'ADMIN' | 'EMPLOYEE' | 'CLIENT';
   createdAt: string;
@@ -10,6 +10,11 @@ export interface User {
 }
 
 export interface LoginRequest {
+  inputKey: string;
+  password: string;
+}
+
+export interface LoginDTO {
   inputKey: string;
   password: string;
 }
@@ -233,8 +238,39 @@ export interface RefreshTokenResponseDTO {
   tokenType: string;
 }
 
-// LoginDTO
-export interface LoginDTO {
-  inputKey: string;
-  password: string;
+// Login-specific response structures
+export interface LoginResponseData {
+  userId: string;
+  userName: string;
+  email?: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  token: null;
+  loginResponseDTO: {
+    accessToken: string;
+    refreshToken: string;
+    refreshExpiresAt: string;
+    tokenType: string;
+    role: string;
+  };
+}
+
+export interface LoginInnerResponse {
+  data: LoginResponseData;
+  message: string;
+}
+
+// Refresh-specific response structures
+export interface RefreshResponseData {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+  refreshExpiresAt: string;
+  tokenType: string;
+}
+
+export interface RefreshInnerResponse {
+  data: RefreshResponseData;
+  message: string;
 }

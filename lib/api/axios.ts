@@ -3,7 +3,7 @@ import axios from 'axios';
 import { getDeviceHeaders } from './deviceUtils';
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.19:8081/web/api/v1',
+  baseURL: 'http://192.168.1.43:8081/web/api/v1',
   headers: {
     'Content-Type': 'application/json',
     ...getDeviceHeaders(),
