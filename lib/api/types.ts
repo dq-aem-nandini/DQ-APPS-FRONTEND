@@ -193,6 +193,17 @@ export interface EmployeeDTO {
   aadharNumber: string;
   clientId: string;
   clientName: string;
+  accountNumber: string;
+  accountHolderName: string;
+  bankName: string;
+  ifscCode: string;
+  branchName: string;
+  houseNo: string;
+  streetName: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country: string;
   panCardUrl: string;
   aadharCardUrl: string;
   bankPassbookUrl: string;
