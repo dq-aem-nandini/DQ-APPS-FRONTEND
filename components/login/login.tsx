@@ -18,7 +18,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (state.isAuthenticated && state.user) {
       console.log('Auto-redirecting based on updated state:', state.user.role); // Debug
-      const path = state.user.role === 'EMPLOYEE' ? '/dashboard' :  // Fixed: Match actual route
+      const path = state.user.role === 'EMPLOYEE' ? '/dashboard' :  
                    state.user.role === 'ADMIN' ? '/admin-dashboard' :
                    '/client-dashboard';  // Default fallback
       router.push(path);
