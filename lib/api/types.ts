@@ -2,7 +2,7 @@
 export interface User {
   userId: string;
   userName: string;
-  email?: string; // Made optional to handle null values from backend
+  companyEmail?: string; // Made optional to handle null values from backend
   password?: string; // Optional, as it's not always included
   role: 'ADMIN' | 'EMPLOYEE' | 'CLIENT';
   createdAt: string;

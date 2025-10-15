@@ -58,7 +58,7 @@ const Header = () => {
                   />
                   <div>
                     <div className="font-medium text-gray-900">{user?.userName || 'Employee'}</div>
-                    <div className="text-sm text-gray-500">{user?.email || 'No email'}</div>
+                    {/* <div className="text-sm text-gray-500">{user?.companyEmail || 'No email'}</div> */}
                   </div>
                 </div>
                 <div className="mt-2 text-xs text-gray-500">Role: {user?.role || 'EMPLOYEE'}</div>

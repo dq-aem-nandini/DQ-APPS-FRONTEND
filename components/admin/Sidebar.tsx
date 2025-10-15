@@ -85,7 +85,9 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
+    // <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
+    <div className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm">
+      <div className="text-2xl font-bold text-indigo-600 mb-8 text-center">DigiQuad</div>
       <div className="p-4 border-b border-gray-200">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
