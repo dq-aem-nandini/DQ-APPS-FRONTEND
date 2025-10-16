@@ -1,4 +1,3 @@
-// app/admin-dashboard/employees/[id]/page.tsx (view page - handles optional fields with N/A fallback; logs for debugging)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -77,9 +76,18 @@ const ViewEmployee = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">Personal Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <p><strong>Name:</strong> {employee.firstName} {employee.lastName}</p>
+                {employee.photoUrl && (
+                  <div className="col-span-2">
+                    <p><strong>Photo:</strong></p>
+                    <img src={employee.photoUrl} alt="Employee Photo" className="w-20 h-20 rounded object-cover mt-1" />
+                  </div>
+                )}
                 <p><strong>Personal Email:</strong> {getFieldValue(employee.personalEmail)}</p>
                 <p><strong>Company Email:</strong> {getFieldValue(employee.companyEmail)}</p>
                 <p><strong>Contact Number:</strong> {getFieldValue(employee.contactNumber)}</p>
+                {/* <p><strong>Alternative Contact Number:</strong> {getFieldValue(employee.alternativeContactNumber)}</p> */}
+                <p><strong>Gender:</strong> {getFieldValue(employee.gender)}</p>
+                <p><strong>Number of Children:</strong> {employee.numberOfChildren || 'N/A'}</p>
                 <p><strong>Date of Birth:</strong> {getFieldValue(employee.dateOfBirth)}</p>
                 <p><strong>Date of Joining:</strong> {getFieldValue(employee.dateOfJoining)}</p>
               </div>
@@ -90,12 +98,13 @@ const ViewEmployee = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">Professional Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <p><strong>Designation:</strong> {getFieldValue(employee.designation)}</p>
+                <p><strong>Reporting Manager ID:</strong> {getFieldValue(employee.reportingManagerId)}</p>
+                <p><strong>Client:</strong> {getFieldValue(employee.clientName)}</p>
                 <p><strong>Currency:</strong> {getFieldValue(employee.currency)}</p>
                 <p><strong>Rate Card:</strong> {employee.rateCard || 'N/A'}</p>
                 <p><strong>Available Leaves:</strong> {employee.availableLeaves || 'N/A'}</p>
                 <p><strong>PAN Number:</strong> {getFieldValue(employee.panNumber)}</p>
                 <p><strong>Aadhar Number:</strong> {getFieldValue(employee.aadharNumber)}</p>
-                <p><strong>Client:</strong> {getFieldValue(employee.clientName)}</p>
                 <p><strong>Status:</strong> 
                   <span className={`inline-flex px-2 py-1 ml-2 text-xs font-semibold rounded-full ${
                     employee.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

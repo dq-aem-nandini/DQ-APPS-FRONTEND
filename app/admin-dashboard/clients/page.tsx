@@ -22,11 +22,11 @@ export default function ClientsPage() {
               <p className="text-sm text-gray-600">View, edit, update, and delete clients.</p>
             </div>
           </Link>
-          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          {/* <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
             <div className="text-4xl mb-4">🗑️</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Client</h3>
             <p className="text-sm text-gray-600">Delete clients from the list page.</p>
-          </div>
+          </div> */}
         </div>
       </div>
     </ProtectedRoute>
