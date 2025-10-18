@@ -1,171 +1,189 @@
-//component/employee/TimeSheetRegister.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { employeeService } from '@/lib/api/employeeService';
-import { TimeSheetModel } from '@/lib/api/types';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { employeeService } from "@/lib/api/employeeService";
+import { TimeSheetModel, TimeSheetResponse } from "@/lib/api/types";
+import dayjs from "dayjs";
 
-const TimeSheetRegister: React.FC = () => {
-  const { state } = useAuth();
-  const [timeSheets, setTimeSheets] = useState<TimeSheetModel[]>([]);
+const TimeSheetRegister: React.FC<{ userId?: string }> = ({ userId: propUserId }) => {
+  const joiningDate = dayjs("2024-04-10");
+  const today = dayjs();
+  
+  const { state: authState } = useAuth();
+  const userId = propUserId ?? authState.user?.userId ?? null;
+  
+  const [weekStart, setWeekStart] = useState(dayjs().startOf("week"));
+  const [weekEnd, setWeekEnd] = useState(dayjs().endOf("week"));
+  const [timeSheets, setTimeSheets] = useState<TimeSheetResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<TimeSheetModel>({
-  workDate: '',
-  taskName: '',
-  taskDescription: '',
-  hoursWorked: 0,
-  status: 'Pending',          // Must provide status
-  // employeeId: state.user?.userId || '', // now valid
-  });
-
-
-  /** 🔹 Fetch existing timesheets on load */
-  const fetchTimeSheets = async () => {
+  const fetchData = async () => {
+    if (!userId) {
+      console.warn('No userId provided to TimeSheetRegister; skipping fetch.');
+      return;
+    }
     try {
       setLoading(true);
-      const res = await employeeService.viewTimeSheet(state.user?.userId);
+      const res = await employeeService.viewTimeSheet(userId);
       setTimeSheets(res.response || []);
-
-    } catch (error) {
-      console.error('Error fetching timesheets:', error);
+    } catch (e) {
+      console.error('Error fetching timesheets:', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (state.user?.userId) fetchTimeSheets();
-  }, [state.user?.userId]);
+    if (authState.isLoading) return;        // wait until auth init done
+    if (!userId) {
+      console.warn('No userId provided to TimeSheetRegister; skipping fetch.');
+      return;
+    }
 
-  /** 🔹 Handle input changes */
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    fetchData();
+  }, [userId, weekStart, weekEnd, authState.isLoading]);
+
+  const handlePrevWeek = () => {
+    const newStart = weekStart.subtract(1, "week");
+    const newEnd = weekEnd.subtract(1, "week");
+    if (newStart.isBefore(joiningDate)) return;
+    setWeekStart(newStart);
+    setWeekEnd(newEnd);
   };
 
-  /** 🔹 Submit or update timesheet */
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      await employeeService.registerTimeSheet(formData);
-      await fetchTimeSheets();
-      setFormData({
-        workDate: '',
-        taskName: '',
-        taskDescription: '',
+  const handleNextWeek = () => {
+    const newStart = weekStart.add(1, "week");
+    const newEnd = weekEnd.add(1, "week");
+    if (newEnd.isAfter(today)) return;
+    setWeekStart(newStart);
+    setWeekEnd(newEnd);
+  };
+
+  // Create empty rows for all 7 days of the week (Sat & Sun included)
+  const allDays = Array.from({ length: 7 }).map((_, i) => {
+    const date = weekStart.add(i, "day");
+    const existing = timeSheets.find(ts => dayjs(ts.workDate).isSame(date, "day"));
+    return (
+      existing || {
+        timesheetId: "",
+        workDate: date.format("YYYY-MM-DD"),
+        taskName: "",
+        taskDescription: "",
         hoursWorked: 0,
-        status: 'Pending',  
-        // employeeId: state.user?.userId || '',
-      });
-      alert('Timesheet saved successfully!');
-    } catch (error) {
-      console.error('Error submitting timesheet:', error);
+        status: "Draft",
+      }
+    );
+  });
+
+// const handleChange = (index: number, field: string, value: string | number) => {
+  //   const updated = [...allDays];
+    
+  //   updated[index][field] = value;
+  //   setTimeSheets(updated);
+  // };
+
+
+  const handleChange = (index: number, field: keyof TimeSheetResponse, value: string | number) => {
+    const updated = [...allDays] as TimeSheetResponse[];
+    const item = { ...updated[index], [field]: value } as TimeSheetResponse;
+    updated[index] = item;
+    setTimeSheets(updated);
+  };
+
+ 
+  const handleSave = async (entry: TimeSheetResponse | TimeSheetModel) => {
+    try {
+      if ((entry.taskName ?? "").trim() === "") {
+        alert("Task name cannot be empty");
+        return;
+      }
+      setLoading(true);
+      // employeeService does not expose updateTimeSheet; use registerTimeSheet for create/update
+      // cast to TimeSheetModel to satisfy the API typing (status in TimeSheetResponse is a plain string)
+      await employeeService.registerTimeSheet(entry as TimeSheetModel);
+      await fetchData();
+      setEditingId(null);
+    } catch (err) {
+      console.error("Error saving timesheet:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-white rounded-2xl shadow">
-      <h2 className="text-2xl font-semibold mb-4">Timesheet Register</h2>
+    <div className="p-6">
+      <h2 className="text-lg font-semibold mb-4">Weekly Timesheet Register</h2>
 
-      {/* 🔸 Form */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <input
-          type="date"
-          name="date"
-          value={formData.workDate}
-          onChange={handleChange}
-          className="border rounded p-2"
-        />
-        <input
-          type="text"
-          name="taskName"
-          placeholder="Project Name"
-          value={formData.taskName}
-          onChange={handleChange}
-          className="border rounded p-2"
-        />
-        <textarea
-          name="taskDescription"
-          placeholder="Task Description"
-          value={formData.taskDescription}
-          onChange={handleChange}
-          className="col-span-2 border rounded p-2"
-        />
-        <input
-          type="number"
-          name="hoursWorked"
-          placeholder="Hours Worked"
-          value={formData.hoursWorked}
-          onChange={handleChange}
-          className="border rounded p-2"
-        />
+      <div className="flex items-center gap-3 mb-3">
+        <button onClick={handlePrevWeek} className="px-3 py-1 bg-gray-200 rounded">←</button>
+        <span>
+          {weekStart.format("MMM DD")} - {weekEnd.format("MMM DD, YYYY")}
+        </span>
+        <button onClick={handleNextWeek} className="px-3 py-1 bg-gray-200 rounded">→</button>
       </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        {loading ? 'Saving...' : 'Save'}
-      </button>
-
-      {/* 🔸 Timesheet List */}
-      <h3 className="text-xl font-semibold mt-8 mb-4">Your Timesheets</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full border text-sm">
+      {loading ? (
+        <div>Loading...</div>
+      ) : (
+        <table className="w-full border-collapse border text-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-2 border">Date</th>
-              <th className="p-2 border">Project</th>
-              <th className="p-2 border">Hours</th>
-              <th className="p-2 border">Description</th>
-              <th className="p-2 border">Status</th>
-              <th className="p-2 border">Action</th>
+              <th className="border p-2">Date</th>
+              <th className="border p-2">Task</th>
+              <th className="border p-2">Description</th>
+              <th className="border p-2">Hours</th>
+              <th className="border p-2">Status</th>
+              <th className="border p-2">Action</th>
             </tr>
           </thead>
           <tbody>
-            {timeSheets.map((sheet, index) => (
-              <tr key={index} className="text-center">
-                <td className="border p-2">{sheet.workDate}</td>
-                <td className="border p-2">{sheet.taskName}</td>
-                <td className="border p-2">{sheet.hoursWorked}</td>
-                <td className="border p-2">{sheet.taskDescription}</td>
-                <td
-                  className={`border p-2 font-medium ${
-                    sheet.status === 'Approved'
-                      ? 'text-green-600'
-                      : sheet.status === 'Rejected'
-                      ? 'text-red-600'
-                      : 'text-yellow-600'
-                  }`}
-                >
-                  {sheet.status}
+            {allDays.map((entry, i) => (
+              <tr key={entry.workDate}>
+                <td className="border p-2">{dayjs(entry.workDate).format("ddd, DD MMM")}</td>
+                <td className="border p-2">
+                  <input
+                    type="text"
+                    value={entry.taskName}
+                    disabled={entry.status === "Submitted"}
+                    onChange={(e) => handleChange(i, "taskName", e.target.value)}
+                    className="border p-1 rounded w-full"
+                  />
                 </td>
                 <td className="border p-2">
-                  {sheet.status === 'Rejected' ? (
-                    <button
-                      onClick={() => setFormData(sheet)}
-                      className="text-blue-600 underline"
-                    >
-                      Edit & Resubmit
-                    </button>
-                  ) : sheet.status === 'Approved' ? (
-                    <span className="text-gray-500">View Only</span>
-                  ) : (
-                    <span className="text-yellow-500">Pending</span>
-                  )}
+                  <input
+                    type="text"
+                    value={entry.taskDescription}
+                    disabled={entry.status === "Submitted"}
+                    onChange={(e) => handleChange(i, "taskDescription", e.target.value)}
+                    className="border p-1 rounded w-full"
+                  />
+                </td>
+                <td className="border p-2">
+                  <input
+                    type="number"
+                    value={entry.hoursWorked}
+                    disabled={entry.status === "Submitted"}
+                    onChange={(e) => handleChange(i, "hoursWorked", Number(e.target.value))}
+                    className="border p-1 rounded w-20"
+                  />
+                </td>
+                <td className="border p-2">{entry.status}</td>
+                <td className="border p-2">
+                  <button
+                    onClick={() => handleSave(entry)}
+                    disabled={entry.status === "Submitted"}
+                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                  >
+                    {entry.timesheetId ? "Update" : "Save"}
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      )}
     </div>
   );
 };
