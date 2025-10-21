@@ -31,7 +31,13 @@ export const adminService = {
     }
     throw new Error(response.data.message || 'Failed to fetch employee');
   },
-
+  async getEmployeesByDesignation(designation: string): Promise<EmployeeDTO[]> {
+    const response = await api.get<WebResponseDTO<EmployeeDTO[]>>(`/employee/designation/${designation}`);
+    if (response.data.flag) {
+      return response.data.response;
+    }
+    throw new Error(response.data.message || 'Failed to fetch employees by designation');
+  },
   async updateEmployee(empId: string, employeeModel: EmployeeModel): Promise<string> {
     const params = new URLSearchParams();
     Object.keys(employeeModel).forEach(key => {
@@ -51,19 +57,18 @@ export const adminService = {
     }
     throw new Error(response.data.message || 'Failed to delete employee');
   },
-
-  // Client Operations
-  async addClient(clientModel: ClientModel): Promise<ClientDTO> {
-    const params = new URLSearchParams();
-    Object.keys(clientModel).forEach(key => {
-      params.append(key, (clientModel as any)[key]);
-    });
-    const response = await api.post<WebResponseDTO<ClientDTO>>(`/admin/add/client?${params.toString()}`);
-    if (response.data.flag) {
-      return response.data.response;
-    }
-    throw new Error(response.data.message || 'Failed to add client');
-  },
+ // Client Operations
+ async addClient(clientModel: ClientModel): Promise<ClientDTO> {
+  const response = await api.post<WebResponseDTO<ClientDTO>>(
+    '/admin/add/client',
+    clientModel // send as JSON body
+  );
+  if (response.data.flag) {
+    return response.data.response;
+  }
+  throw new Error(response.data.message || 'Failed to add client');
+}
+,
 
   async getAllClients(): Promise<ClientDTO[]> {
     const response = await api.get<WebResponseDTO<ClientDTO[]>>('/admin/client/all');

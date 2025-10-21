@@ -35,7 +35,7 @@ export const authService = {
         userName: isAdmin
           ? (innerData.userName as string)
           : `${innerData.firstName ?? ""} ${innerData.lastName ?? ""}`.trim(),
-        email: innerData.email || undefined,
+          companyEmail: innerData.companyEmail || undefined,
         role: innerData.loginResponseDTO?.role as "ADMIN" | "EMPLOYEE" | "CLIENT",
         createdAt: isAdmin ? (innerData.createdAt as string) : (innerData.dateOfJoining as string),
         updatedAt: isAdmin

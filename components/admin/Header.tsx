@@ -19,7 +19,7 @@ const Header = () => {
     <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
       <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
       <div className="flex items-center space-x-4">
-        <span className="text-sm text-gray-500 hidden md:block">Welcome </span>
+        <span className="text-sm text-gray-500 hidden md:block">Welcome {user?.userName}</span>
         <div className="relative">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
@@ -30,7 +30,7 @@ const Header = () => {
               src="https://via.placeholder.com/32?text=U" // Use user avatar if available
               alt="Profile"
             />
-            <span className="hidden md:block text-sm font-medium text-gray-700">{user?.userName}</span>
+            {/* <span className="hidden md:block text-sm font-medium text-gray-700">{user?.userName}</span> */}
             <svg className={`h-4 w-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -47,7 +47,7 @@ const Header = () => {
                   />
                   <div>
                     <div className="font-medium text-gray-900">{user?.userName}</div>
-                    <div className="text-sm text-gray-500">{user?.email}</div>
+                    {/* <div className="text-sm text-gray-500">{user?.companyEmail}</div> */}
                   </div>
                 </div>
                 <div className="mt-2 text-xs text-gray-500">Role: {user?.role}</div>

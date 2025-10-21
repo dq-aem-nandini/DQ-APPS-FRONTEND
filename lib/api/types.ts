@@ -1,24 +1,48 @@
-// lib/api/types.ts (updated to make email optional in User)
+// lib/api/types.ts (updated based on backend OpenAPI schema)
+export type Role = 'ADMIN' | 'EMPLOYEE' | 'CLIENT';
+
+export type Designation = 
+  | 'INTERN'
+  | 'TRAINEE'
+  | 'ASSOCIATE_ENGINEER'
+  | 'SOFTWARE_ENGINEER'
+  | 'SENIOR_SOFTWARE_ENGINEER'
+  | 'LEAD_ENGINEER'
+  | 'TEAM_LEAD'
+  | 'TECHNICAL_ARCHITECT'
+  | 'REPORTING_MANAGER'
+  | 'DELIVERY_MANAGER'
+  | 'DIRECTOR'
+  | 'VP_ENGINEERING'
+  | 'CTO'
+  | 'HR'
+  | 'FINANCE'
+  | 'OPERATIONS';
+
+export type LeaveType = 'PAID' | 'UNPAID' | 'SICK' | 'CASUAL';
+
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export interface User {
   userId: string;
   userName: string;
-  email?: string; // Made optional to handle null values from backend
+  companyEmail: string;
   password?: string; // Optional, as it's not always included
-  role: 'ADMIN' | 'EMPLOYEE' | 'CLIENT';
+  role: Role;
   createdAt: string;
   updatedAt: string;
 }
- 
+
 export interface LoginRequest {
   inputKey: string;
   password: string;
 }
- 
+
 export interface LoginDTO {
   inputKey: string;
   password: string;
 }
- 
+
 export interface TokenResponseData {
   accessToken?: string;
   refreshToken?: string;
@@ -30,7 +54,7 @@ export interface ApiResponseObject<T = unknown> {
   data: T;
   message: string;
 }
- 
+
 export interface WebResponseDTO<T> {
   flag: boolean;
   message: string;
@@ -39,7 +63,7 @@ export interface WebResponseDTO<T> {
   totalRecords: number;
   otherInfo?: Record<string, unknown>;
 }
- 
+
 export type AuthState = {
   user: User | null;
   accessToken: string | null;
@@ -47,47 +71,55 @@ export type AuthState = {
   isLoading: boolean;
   isAuthenticated: boolean;
 };
- 
+
 export type AuthAction =
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; accessToken: string | null; refreshToken: string | null } }
   | { type: 'LOGOUT' }
   | { type: 'SET_LOADING'; payload: boolean };
- 
-// Employee Model (for add/update)
+
+// EmployeeModel (for add/update)
+
 export interface EmployeeModel {
   firstName: string;
   lastName: string;
   personalEmail: string;
   companyEmail: string;
   contactNumber: string;
-  clientId: string;
-  designation: string;
+  alternateContactNumber: string;
+  gender: string;
+  maritalStatus?: string;
+  numberOfChildren?: number;
+  employeePhotoUrl?: string;
+  clientId?: string;
+  reportingManagerId?: string;
+  designation: Designation;
   dateOfBirth: string;
   dateOfJoining: string;
   currency: string;
   rateCard: number;
   panNumber: string;
   aadharNumber: string;
-  accountNumber: string;
-  accountHolderName: string;
-  bankName: string;
-  ifscCode: string;
-  branchName: string;
-  houseNo: string;
-  streetName: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  country: string;
-  panCardUrl: string;
-  aadharCardUrl: string;
-  bankPassbookUrl: string;
-  tenthCftUrl: string;
-  interCftUrl: string;
-  degreeCftUrl: string;
-  postGraduationCftUrl: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  bankName?: string;
+  ifscCode?: string;
+  branchName?: string;
+  houseNo?: string;
+  streetName?: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  country?: string;
+  addressType?: string;
+  panCardUrl?: string;
+  aadharCardUrl?: string;
+  bankPassbookUrl?: string;
+  tenthCftUrl?: string;
+  interCftUrl?: string;
+  degreeCftUrl?: string;
+  postGraduationCftUrl?: string;
 }
- 
+
 // Client Model (for add/update)
 export interface ClientModel {
   companyName: string;
@@ -96,25 +128,21 @@ export interface ClientModel {
   gst: string;
   currency: string;
   panNumber: string;
-  houseNo: string;
-  streetName: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  country: string;
+  addressModel: AddressModel;
 }
- 
-// Address
-export interface Address {
-  addressId: string;
+
+// AddressModel
+export interface AddressModel {
+  addressId?: string;
   houseNo: string;
   streetName: string;
   city: string;
   state: string;
   country: string;
   pincode: string;
+  addressType: string;
 }
- 
+
 // BankDetails
 export interface BankDetails {
   bankAccountId: string;
@@ -126,39 +154,56 @@ export interface BankDetails {
   createdAt: string;
   updatedAt: string;
 }
- 
+
+// ClientPoc
+export interface ClientPoc {
+  pocId: string;
+  name: string;
+  email: string;
+  contactNumber: string;
+  designation: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Client
 export interface Client {
   clientId: string;
   user: User;
-  address: Address;
   companyName: string;
   contactNumber: string;
   email: string;
   gst: string;
+  tanNumber?: string;
   currency: string;
   panNumber: string;
   status: string;
   createdAt: string;
   updatedAt: string;
+  pocs?: ClientPoc[];
 }
- 
+
 // Employee
 export interface Employee {
   employeeId: string;
   user: User;
   client: Client;
-  address: Address;
-  bankDetails: BankDetails;
+  bankDetails?: BankDetails;
+  reportingManager?: Employee; // Recursive reference
   firstName: string;
   lastName: string;
   personalEmail: string;
   companyEmail: string;
   contactNumber: string;
-  currency: string;
+  alternateContactNumber: string;
+  gender: string;
+  maritalStatus: string;
+  numberOfChildren: number;
+  employeePhotoUrl?: string;
   dateOfBirth: string;
   dateOfJoining: string;
-  designation: string;
+  designation: Designation;
   rateCard: number;
   panNumber: string;
   availableLeaves: number;
@@ -174,8 +219,8 @@ export interface Employee {
   createdAt: string;
   updatedAt: string;
 }
- 
-// EmployeeDTO (for list/get)
+
+// EmployeeDTO (for list/get) - extended with optional fields for view page compatibility
 export interface EmployeeDTO {
   employeeId: string;
   firstName: string;
@@ -183,16 +228,31 @@ export interface EmployeeDTO {
   personalEmail: string;
   companyEmail: string;
   contactNumber: string;
+  alternateContactNumber?: string;
   dateOfBirth: string;
-  designation: string;
+  designation: Designation;
   dateOfJoining: string;
+  gender?: string;
+  maritalStatus?: string;
+  numberOfChildren?: number;
   currency: string;
   rateCard: number;
   availableLeaves: number;
   panNumber: string;
   aadharNumber: string;
-  clientId: string;
-  clientName: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  bankName?: string;
+  ifscCode?: string;
+  branchName?: string;
+  houseNo?: string;
+  streetName?: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  country?: string;
+  addressType?: string;
+  photoUrl?: string;
   panCardUrl: string;
   aadharCardUrl: string;
   bankPassbookUrl: string;
@@ -200,11 +260,14 @@ export interface EmployeeDTO {
   interCftUrl: string;
   degreeCftUrl: string;
   postGraduationCftUrl: string;
+  reportingManagerId?: string;
+  clientId: string;
+  clientName: string;
   status: string;
 }
- 
+
 // ClientDTO (for list/get)
-export interface ClientDTO {
+export type ClientDTO = {
   clientId: string;
   userId: string;
   addressId: string;
@@ -217,19 +280,16 @@ export interface ClientDTO {
   status: string;
   createdAt: string;
   updatedAt: string;
-  houseNo: string;
-  streetName: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  country: string;
-}
- 
+
+  // Nested address object
+  addressModel: AddressModel;
+};
+
 // RefreshTokenRequestDTO
 export interface RefreshTokenRequestDTO {
   refreshToken: string;
 }
- 
+
 // RefreshTokenResponseDTO
 export interface RefreshTokenResponseDTO {
   accessToken: string;
@@ -237,11 +297,16 @@ export interface RefreshTokenResponseDTO {
   refreshExpiresAt: string;
   tokenType: string;
 }
- 
-// LoginDTO
-export interface LoginDTO {
-  inputKey: string;
-  password: string;
+
+// LeaveRequestDTO
+export interface LeaveRequestDTO {
+  leaveId?: string;
+  approvalName: string;
+  type: LeaveType;
+  fromDate: string;
+  toDate: string;
+  subject: string;
+  context: string;
 }
  
 
