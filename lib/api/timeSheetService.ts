@@ -1,4 +1,3 @@
-// lib/api/timesheetService.ts
 import { AxiosError, AxiosResponse, Method } from "axios";
 import api from "./axios";
 import { TimeSheetModel, TimeSheetResponseDto, WebResponseDTO } from "./types";
@@ -8,9 +7,7 @@ type WebResponseDTOObject = WebResponseDTO<any>; // For generic object responses
 
 class TimesheetService {
   /**
-   * Private helper for mutation operations (create, update, delete, submit).
-   * Handles common response normalization and error handling.
-   * Supports form-urlencoded for specific methods like update.
+   * 🔹 Private helper for mutation operations (create, update, delete, submit, approve, reject).
    */
   private async _mutation<T = string>(
     url: string,
@@ -26,6 +23,7 @@ class TimesheetService {
       if (isFormData && data && typeof data === 'string') {
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
       }
+
       const response: AxiosResponse<WebResponseDTO<T>> = await api({
         method,
         url,
@@ -33,7 +31,9 @@ class TimesheetService {
         ...config,
         headers: { ...config?.headers, ...headers },
       });
+
       console.log(`🧩 Full ${method.toUpperCase()} API response:`, response.data);
+
       const { flag, message, status, response: resp, totalRecords, otherInfo } = response.data;
       return {
         flag,
@@ -63,12 +63,19 @@ class TimesheetService {
   }
 
   /**
-   * Private helper for query operations (get).
-   * Returns the response if successful, throws otherwise.
+   * 🔹 Private helper for GET queries.
    */
   private async _query<T>(url: string, config?: any): Promise<WebResponseDTO<T>> {
     try {
-      const response: AxiosResponse<WebResponseDTO<T>> = await api.get(url, config);
+      // Clean params to remove undefined values
+      const cleanConfig = config ? { ...config } : {};
+      if (cleanConfig.params) {
+        cleanConfig.params = Object.fromEntries(
+          Object.entries(cleanConfig.params).filter(([_, v]) => v !== undefined && v !== null)
+        );
+      }
+
+      const response: AxiosResponse<WebResponseDTO<T>> = await api.get(url, cleanConfig);
       console.log(`🧩 Full GET API response:`, response.data);
       if (response.data.flag) {
         return response.data;
@@ -84,7 +91,7 @@ class TimesheetService {
   }
 
   /**
-   * Register new timesheet(s) (POST with body as array of TimeSheetModel, supports single or multiple).
+   * ➕ Register new timesheets (POST)
    */
   async createTimesheets(timesheets: TimeSheetModel | TimeSheetModel[]): Promise<WebResponseDTOObject> {
     const list = Array.isArray(timesheets) ? timesheets : [timesheets];
@@ -107,7 +114,7 @@ class TimesheetService {
   }
 
   /**
-   * Update an existing timesheet (PUT with query param timesheetIds as string and body as array of TimeSheetModel).
+   * ✏️ Update timesheet (PUT)
    */
   async updateTimesheet(timesheetId: string, timesheet: TimeSheetModel): Promise<WebResponseDTO<string>> {
     if (!timesheetId) {
@@ -120,6 +127,7 @@ class TimesheetService {
         otherInfo: null,
       };
     }
+
     const model = {
       ...(timesheet.timesheetId && { timesheetId: timesheet.timesheetId }),
       workDate: timesheet.workDate,
@@ -127,9 +135,11 @@ class TimesheetService {
       taskName: timesheet.taskName ?? '',
       taskDescription: timesheet.taskDescription ?? '',
     };
+
     const payload = [model];
     const params = { timesheetIds: timesheetId };
     console.debug('[TimesheetService] updateTimesheet params:', params, 'payload:', payload);
+
     return this._mutation(
       "/employee/timesheet/update",
       "put",
@@ -142,7 +152,7 @@ class TimesheetService {
   }
 
   /**
-   * Delete a timesheet entry by id (DELETE with query param timesheetId).
+   * ❌ Delete a timesheet (DELETE)
    */
   async deleteTimesheet(timesheetId: string): Promise<WebResponseDTO<string>> {
     if (!timesheetId) {
@@ -155,6 +165,7 @@ class TimesheetService {
         otherInfo: null,
       };
     }
+
     return this._mutation(
       "/employee/timesheet/delete",
       "delete",
@@ -167,7 +178,7 @@ class TimesheetService {
   }
 
   /**
-   * Submit timesheets for manager approval (GET with query param timesheetIds array).
+   * 📤 Submit timesheets for manager approval (GET)
    */
   async submitForApproval(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
     if (!timesheetIds || timesheetIds.length === 0) {
@@ -180,6 +191,7 @@ class TimesheetService {
         otherInfo: null,
       };
     }
+
     return this._mutation(
       "/employee/timesheet/approvaltomanager",
       "get",
@@ -192,7 +204,59 @@ class TimesheetService {
   }
 
   /**
-   * Fetch list of timesheets with pagination and filtering (GET with query params).
+   * ✅ Manager Approves timesheets (PATCH)
+   */
+  async approveTimesheetsByManager(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
+    if (!timesheetIds || timesheetIds.length === 0) {
+      return {
+        flag: false,
+        message: "At least one timesheet ID is required for approval",
+        status: 400,
+        response: '',
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+
+    return this._mutation(
+      "/employee/manager/approve",
+      "patch",
+      undefined,
+      { params: { timesheetsIds: timesheetIds } },
+      false,
+      "Timesheets approved successfully",
+      "Failed to approve timesheets"
+    );
+  }
+
+  /**
+   * 🚫 Manager Rejects timesheets (PATCH)
+   */
+  async rejectTimesheetsByManager(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
+    if (!timesheetIds || timesheetIds.length === 0) {
+      return {
+        flag: false,
+        message: "At least one timesheet ID is required for rejection",
+        status: 400,
+        response: '',
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+
+    return this._mutation(
+      "/employee/manager/reject",
+      "patch",
+      undefined,
+      { params: { timesheetsIds: timesheetIds } },
+      false,
+      "Timesheets rejected successfully",
+      "Failed to reject timesheets"
+    );
+  }
+
+  /**
+   * 📄 Fetch timesheets list (GET)
    */
   async getAllTimesheets(params?: {
     page?: number;
@@ -202,11 +266,15 @@ class TimesheetService {
     startDate?: string;
     endDate?: string;
   }): Promise<WebResponseDTOList<TimeSheetResponseDto>> {
-    return this._query<TimeSheetResponseDto[]>("/employee/view/timesheet", { params });
+    // Clean params before passing
+    const cleanParams = params ? Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null)
+    ) : {};
+    return this._query<TimeSheetResponseDto[]>("/employee/view/timesheet", { params: cleanParams });
   }
 
   /**
-   * Get a single timesheet by ID (GET with path param).
+   * 🔍 Get single timesheet by ID (GET)
    */
   async getTimesheetById(timesheetId: string): Promise<WebResponseDTO<TimeSheetResponseDto>> {
     return this._query<TimeSheetResponseDto>(`/employee/view/timesheet/${timesheetId}`);
