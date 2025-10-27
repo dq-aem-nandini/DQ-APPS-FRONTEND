@@ -46,7 +46,7 @@ const ManagerEmployeesPage: React.FC = () => {
         const managerId = localStorage.getItem('userId') || 'manager-id-placeholder';
         console.log('🧩 Manager ID:', managerId);
 
-        const employeeResponse = await adminService.getAllEmployees();
+        const employeeResponse = await adminService.getAllManagerEmployees();
         console.log('🧩 Employees Response:', employeeResponse);
         if (employeeResponse.flag && employeeResponse.response) {
           const filteredEmployees = employeeResponse.response.filter(
@@ -160,7 +160,7 @@ const ManagerEmployeesPage: React.FC = () => {
               setError(null);
               setLoading(true);
               const managerId = localStorage.getItem('userId') || 'manager-id-placeholder';
-              adminService.getAllEmployees()
+              adminService.getAllManagerEmployees()
                 .then((employeeResponse) => {
                   if (employeeResponse.flag && employeeResponse.response) {
                     const filteredEmployees = employeeResponse.response.filter(

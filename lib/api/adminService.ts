@@ -15,6 +15,7 @@ import {
   WebResponseDTOListTimeSheetResponseDto,
   EmployeeDTO,
   WebResponseDTO,
+  Designation,
 } from './types';
 import { AxiosResponse } from 'axios';
 
@@ -153,16 +154,24 @@ class AdminService {
       throw new Error(`Failed to get all employees: ${error}`);
     }
   }
-  async getEmployeesByDesignation(designation: string): Promise<WebResponseDTOListEmployeeDTO> {
-    try {
-      const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get(
-        `/admin/emp/designation/${designation}`
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(`Failed to get employees by designation: ${error}`);
+/**
+ * Get employees by designation (GET with path param).
+ */
+async getEmployeesByDesignation(designation: Designation): Promise<EmployeeDTO[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get(
+      `/employee/designation/${designation}`
+    );
+    console.log('🧩 Full get employees by designation API response:', response.data);
+    if (response.data.flag && Array.isArray(response.data.response)) {
+      return response.data.response;
     }
+    throw new Error(response.data.message || 'Failed to get employees by designation');
+  } catch (error) {
+    console.error('❌ Error fetching employees by designation:', error);
+    throw new Error(`Failed to get employees by designation: ${error}`);
   }
+}
   // Unassign employee from client
   async unassignEmployeeFromClient(empId: string): Promise<WebResponseDTOString> {
     try {
@@ -184,6 +193,19 @@ class AdminService {
       return response.data;
     } catch (error) {
       throw new Error(`Failed to get all admin names: ${error}`);
+    }
+  }
+  // New uploadFile method
+  async uploadFile(file: File): Promise<WebResponseDTO<string>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response: AxiosResponse<WebResponseDTO<string>> = await api.post('/admin/upload/file', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to upload file: ${error}`);
     }
   }
 }

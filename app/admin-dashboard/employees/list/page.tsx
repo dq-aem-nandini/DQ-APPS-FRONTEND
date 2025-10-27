@@ -7,12 +7,12 @@ import { adminService } from '@/lib/api/adminService';
 import { EmployeeDTO } from '@/lib/api/types';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import Swal from 'sweetalert2';
 
 const EmployeeList = () => {
   const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<EmployeeDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof EmployeeDTO; direction: 'asc' | 'desc' } | null>(null);
@@ -24,16 +24,26 @@ const EmployeeList = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const data = await adminService.getAllEmployees();
-        // Filter to show only ACTIVE employees
-        const activeEmployees = data.filter((emp) => emp.status === 'ACTIVE');
-        setEmployees(activeEmployees);
-
-        // Extract unique designations
-        const uniqueDesignations = [...new Set(activeEmployees.map((emp) => emp.designation).filter(Boolean))].sort();
-        setDesignations(uniqueDesignations);
+        const response = await adminService.getAllEmployees();
+        if (response.flag && Array.isArray(response.response)) {
+          // Filter to show only ACTIVE employees
+          const activeEmployees = response.response.filter((emp: EmployeeDTO) => emp.status === 'ACTIVE');
+          setEmployees(activeEmployees);
+  
+          // Extract unique designations
+          const uniqueDesignations = [...new Set(
+            activeEmployees.map((emp: EmployeeDTO) => emp.designation)
+          )].sort();
+          setDesignations(uniqueDesignations);
+        } else {
+          throw new Error(response.message || 'Failed to fetch employees');
+        }
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch employees');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.message || 'Failed to fetch employees',
+        });
       } finally {
         setLoading(false);
       }
@@ -82,20 +92,56 @@ const EmployeeList = () => {
   }, [employees, searchTerm, filterDesignation, sortConfig]);
 
   const handleDelete = async (empId: string) => {
-    if (!confirm('Are you sure you want to delete this employee? This will set the status to inactive.')) return;
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Are you sure?',
+      text: 'This will set the employee status to inactive.',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+    });
+
+    if (!result.isConfirmed) return;
+
     setDeletingId(empId);
     try {
-      await adminService.deleteEmployee(empId);
-      // Filter out the deleted (now inactive) employee from local state
-      setEmployees(employees.filter((emp) => emp.employeeId !== empId));
+      const response = await adminService.deleteEmployeeById(empId);
+      if (response.flag) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Employee deleted successfully!',
+          confirmButtonColor: '#3085d6',
+        });
+        // Filter out the deleted employee from local state
+        setEmployees(employees.filter((emp) => emp.employeeId !== empId));
+      } else {
+        throw new Error(response.message || 'Failed to delete employee');
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to delete employee');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message || 'Failed to delete employee',
+      });
     } finally {
       setDeletingId(null);
     }
   };
 
   const getFieldValue = (value: string | undefined) => value || 'N/A';
+
+  const getStatusColor = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'ACTIVE':
+        return 'bg-green-100 text-green-800';
+      case 'INACTIVE':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   const requestSort = (key: keyof EmployeeDTO) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -114,14 +160,6 @@ const EmployeeList = () => {
     return (
       <ProtectedRoute allowedRoles={['ADMIN']}>
         <div className="p-8 text-center">Loading employees...</div>
-      </ProtectedRoute>
-    );
-  }
-
-  if (error) {
-    return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
-        <div className="p-8 text-center text-red-600">{error}</div>
       </ProtectedRoute>
     );
   }
@@ -222,9 +260,7 @@ const EmployeeList = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFieldValue(employee.clientName)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFieldValue(employee.designation)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        employee.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.status)}`}>
                         {employee.status}
                       </span>
                     </td>

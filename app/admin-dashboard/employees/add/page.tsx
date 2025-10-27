@@ -4,23 +4,31 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { adminService } from '@/lib/api/adminService';
-import { EmployeeModel, ClientDTO, Designation, EmployeeDTO } from '@/lib/api/types';
+import {
+  EmployeeDTO,
+  ClientDTO,
+  Designation,
+  EmployeeDocumentDTO,
+  EmployeeSalaryDTO,
+  EmployeeAdditionalDetailsDTO,
+  EmployeeEmploymentDetailsDTO,
+  EmployeeInsuranceDetailsDTO,
+  EmployeeStatutoryDetailsDTO,
+  EmployeeEquipmentDTO,
+  DocumentType,
+  EmploymentType,
+  EmployeeModel,
+} from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import Swal from 'sweetalert2';
 
 interface Client {
   id: string;
   name: string;
 }
 
-interface FormEmployeeModel extends Omit<EmployeeModel, 'designation' | 'clientId'> {
-  designation: string;
-  clientId?: string;
-  confirmPanNumber: string;
-  confirmAadharNumber: string;
-}
-
 const AddEmployeePage = () => {
-  const [formData, setFormData] = useState<FormEmployeeModel>({
+  const [formData, setFormData] = useState<EmployeeModel>({
     firstName: '',
     lastName: '',
     personalEmail: '',
@@ -28,29 +36,84 @@ const AddEmployeePage = () => {
     contactNumber: '',
     alternateContactNumber: '',
     gender: '',
-    reportingManagerId: '',
     maritalStatus: '',
     numberOfChildren: 0,
     employeePhotoUrl: '',
+    nationality: '',
+    emergencyContactName: '',
+    emergencyContactNumber: '',
+    remarks: '',
+    skillsAndCertification: '',
     clientId: '',
-    designation: '',
+    reportingManagerId: '',
+    designation: '' as Designation,
     dateOfBirth: '',
     dateOfJoining: '',
-    currency: '',
     rateCard: 0,
+    employmentType: 'FULLTIME' as EmploymentType,
     panNumber: '',
     aadharNumber: '',
-    confirmPanNumber: '',
-    confirmAadharNumber: '',
+    accountNumber: '',
+    accountHolderName: '',
+    bankName: '',
+    ifscCode: '',
+    branchName: '',
+    addresses: [],
+    documents: [],
+    employeeSalaryDTO: {
+      employeeId: '',
+      basicPay: 0,
+      payType: 'MONTHLY',
+      standardHours: 40,
+      bankAccountNumber: '',
+      ifscCode: '',
+      payClass: 'STANDARD',
+    },
+    employeeAdditionalDetailsDTO: {
+      offerLetterUrl: '',
+      contractUrl: '',
+      taxDeclarationFormUrl: '',
+      workPermitUrl: '',
+      backgroundCheckStatus: '',
+      remarks: '',
+    },
+    employeeEmploymentDetailsDTO: {
+      employmentId: '',
+      employeeId: '',
+      probationApplicable: false,
+      bondApplicable: false,
+    },
+    employeeInsuranceDetailsDTO: {
+      insuranceId: '',
+      employeeId: '',
+      policyNumber: '',
+      providerName: '',
+      coverageStart: '',
+      coverageEnd: '',
+      nomineeName: '',
+      nomineeRelation: '',
+      nomineeContact: '',
+      groupInsurance: false,
+    },
+    employeeStatutoryDetailsDTO: {
+      statutoryId: '',
+      employeeId: '',
+      passportNumber: '',
+      taxRegime: '',
+      pfUanNumber: '',
+      esiNumber: '',
+      ssnNumber: '',
+    },
+    employeeEquipmentDTO: [],
   });
-  const [clients, setClients] = useState<Client[]>([]);
-  const [managers, setManagers] = useState<EmployeeDTO[]>([]);
+
   const [documentFiles, setDocumentFiles] = useState({
-    photo: null as File | null,
+    offerLetter: null as File | null,
+    contract: null as File | null,
+    taxDeclarationForm: null as File | null,
+    workPermit: null as File | null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const { state } = useAuth();
   const router = useRouter();
 
@@ -60,65 +123,191 @@ const AddEmployeePage = () => {
   const maxJoiningDateStr = maxJoiningDate.toISOString().split('T')[0];
 
   const designations: Designation[] = [
-    'INTERN',
-    'TRAINEE',
-    'ASSOCIATE_ENGINEER',
-    'SOFTWARE_ENGINEER',
-    'SENIOR_SOFTWARE_ENGINEER',
-    'LEAD_ENGINEER',
-    'TEAM_LEAD',
-    'TECHNICAL_ARCHITECT',
-    'REPORTING_MANAGER',
-    'DELIVERY_MANAGER',
-    'DIRECTOR',
-    'VP_ENGINEERING',
-    'CTO',
-    'HR',
-    'FINANCE',
-    'OPERATIONS'
+    'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
+    'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
+    'DIRECTOR', 'VP_ENGINEERING', 'CTO', 'HR', 'FINANCE', 'OPERATIONS'
   ];
 
   const managerDesignations: Designation[] = [
-    'REPORTING_MANAGER',
-    'DELIVERY_MANAGER',
-    'DIRECTOR',
-    'VP_ENGINEERING',
-    'CTO'
+    'REPORTING_MANAGER', 'DELIVERY_MANAGER', 'DIRECTOR', 'VP_ENGINEERING', 'CTO'
   ];
+
+  const documentTypes: DocumentType[] = [
+    'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
+    'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'INTERMEDIATE_CERTIFICATE',
+    'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
+  ];
+
+  const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
+
+  const [clients, setClients] = useState<Client[]>([]);
+  const [managers, setManagers] = useState<EmployeeDTO[]>([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [clientList, managerPromises] = await Promise.all([
-          adminService.getAllClients(),
-          Promise.all(managerDesignations.map(des => adminService.getEmployeesByDesignation(des)))
+        const [clientResponse, managerResponses] = await Promise.all([
+          adminService.getAllClients().catch(err => ({
+            flag: false,
+            message: `Failed to fetch clients: ${err.message}`,
+            response: null,
+          })),
+          Promise.all(
+            managerDesignations.map(des =>
+              adminService.getEmployeesByDesignation(des).catch(err => {
+                console.error(`Failed to fetch managers for designation ${des}:`, err);
+                return [];
+              })
+            )
+          ),
         ]);
-        setClients(clientList.map((client: ClientDTO) => ({
-          id: client.clientId,
-          name: client.companyName,
-        })));
-        const managerLists = await Promise.all(managerPromises);
-        const allManagers = managerLists.flat();
-        setManagers(allManagers);
+
+        if (clientResponse.flag && Array.isArray(clientResponse.response)) {
+          setClients(
+            clientResponse.response.map((client: ClientDTO) => ({
+              id: client.clientId,
+              name: client.companyName,
+            }))
+          );
+        } else {
+          console.error('Client fetch failed:', clientResponse.message);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: clientResponse.message || 'Failed to fetch clients',
+          });
+        }
+
+        const allManagers = managerResponses.flat().filter(manager => manager !== null);
+        if (allManagers.length > 0) {
+          setManagers(allManagers);
+        } else {
+          console.warn('No managers found for the specified designations');
+          setManagers([]);
+        }
       } catch (err: any) {
-        console.error('Failed to fetch data:', err);
-        setError('Failed to load data. Please try again.');
+        console.error('Error in fetchInitialData:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.message || 'Failed to load data. Please try again.',
+        });
       }
     };
+
     fetchInitialData();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     let parsedValue: any = value;
+
     if (name === 'personalEmail' || name === 'companyEmail') {
       parsedValue = value.toLowerCase();
-    } else if (name === 'rateCard') {
+    } else if (
+      name === 'employeeSalaryDTO.basicPay' ||
+      name === 'employeeSalaryDTO.standardHours'
+    ) {
       parsedValue = parseFloat(value) || 0;
-    } else if (name === 'numberOfChildren') {
-      parsedValue = parseInt(value) || 0;
+    } else if (
+      name.includes('employeeEmploymentDetailsDTO.probationApplicable') ||
+      name.includes('employeeEmploymentDetailsDTO.bondApplicable') ||
+      name.includes('employeeInsuranceDetailsDTO.groupInsurance')
+    ) {
+      parsedValue = (e.target as HTMLInputElement).checked;
     }
-    setFormData(prev => ({ ...prev, [name]: parsedValue }));
+
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      const objectFields: (keyof EmployeeModel)[] = [
+        'employeeSalaryDTO',
+        'employeeAdditionalDetailsDTO',
+        'employeeEmploymentDetailsDTO',
+        'employeeInsuranceDetailsDTO',
+        'employeeStatutoryDetailsDTO',
+      ];
+
+      if (objectFields.includes(parent as keyof EmployeeModel)) {
+        setFormData(prev => ({
+          ...prev,
+          [parent]: {
+            ...(prev[parent as keyof EmployeeModel] as Record<string, any> | undefined) ?? {},
+            [child]: parsedValue,
+          },
+        }));
+      } else {
+        console.warn(`Attempted to update nested field on non-object: ${parent}.${child}`);
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: parsedValue }));
+    }
+  };
+
+  const handleDocumentChange = (index: number, field: 'docType' | 'file', value: DocumentType | File | null) => {
+    setFormData(prev => ({
+      ...prev,
+      documents: prev.documents.map((doc, i) =>
+        i === index
+          ? {
+              ...doc,
+              [field]: value,
+              documentId: doc.documentId || crypto.randomUUID(),
+              fileUrl: field === 'file' && value ? '' : doc.fileUrl || '',
+              uploadedAt: doc.uploadedAt || new Date().toISOString(),
+              verified: doc.verified || false,
+            }
+          : doc
+      ),
+    }));
+  };
+
+  const addDocument = () => {
+    setFormData(prev => ({
+      ...prev,
+      documents: [
+        ...prev.documents,
+        {
+          documentId: crypto.randomUUID(),
+          docType: 'OTHER' as DocumentType,
+          fileUrl: '',
+          uploadedAt: new Date().toISOString(),
+          verified: false,
+        },
+      ],
+    }));
+  };
+
+  const removeDocument = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      documents: prev.documents.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleEquipmentChange = (index: number, field: keyof EmployeeEquipmentDTO, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      employeeEquipmentDTO: prev.employeeEquipmentDTO?.map((eq, i) =>
+        i === index ? { ...eq, [field]: value } : eq
+      ) ?? [{ equipmentId: crypto.randomUUID(), equipmentType: '', serialNumber: '', [field]: value }],
+    }));
+  };
+
+  const addEquipment = () => {
+    setFormData(prev => ({
+      ...prev,
+      employeeEquipmentDTO: [
+        ...(prev.employeeEquipmentDTO ?? []),
+        { equipmentId: crypto.randomUUID(), equipmentType: '', serialNumber: '' },
+      ],
+    }));
+  };
+
+  const removeEquipment = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      employeeEquipmentDTO: prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
+    }));
   };
 
   const handleFileChange = (field: keyof typeof documentFiles, file: File | null) => {
@@ -127,143 +316,165 @@ const AddEmployeePage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     setIsSubmitting(true);
 
-    // Validate mandatory fields
-    const requiredFields: (keyof FormEmployeeModel)[] = [
+    const requiredFields: (keyof EmployeeModel)[] = [
       'firstName', 'lastName', 'personalEmail', 'companyEmail', 'contactNumber',
-      'alternateContactNumber', 'designation', 'dateOfBirth', 'dateOfJoining', 
-      'gender', 'currency', 'rateCard', 'panNumber', 'aadharNumber',
-      'confirmPanNumber', 'confirmAadharNumber'
+      'designation', 'dateOfBirth', 'dateOfJoining', 'gender', 'nationality',
+      'clientId', 'reportingManagerId', 'skillsAndCertification',
     ];
 
-    const missingFields = requiredFields.filter((field) => !formData[field] || formData[field] === '');
+    const missingFields = requiredFields.filter(field => !formData[field] || formData[field] === '');
     if (missingFields.length > 0) {
-      setError(`Please fill in all mandatory fields: ${missingFields.map(field => field.replace(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}`);
+      Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: `Please fill in all mandatory fields: ${missingFields.join(', ')}`,
+      });
       setIsSubmitting(false);
       return;
     }
 
-    // Name validations (firstName, lastName)
-    const nameRegex = /^[A-Za-z ]+$/;
-    const names = ['firstName', 'lastName'];
-    for (const name of names) {
-      const value = formData[name as keyof FormEmployeeModel] as string;
-      if (value.trim().length < 3 || value.length > 30 || !nameRegex.test(value.trim())) {
-        setError(`${name.replace(/([A-Z])/g, ' $1').toLowerCase()} must be 3-30 characters with alphabets and spaces only`);
+    if (!/^[A-Za-z\s]+$/.test(formData.firstName) || !/^[A-Za-z\s]+$/.test(formData.lastName)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: 'First and last names must contain only letters and spaces.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personalEmail) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.companyEmail)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: 'Please enter valid email addresses.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate probationDuration and bondDuration
+    if (formData.employeeEmploymentDetailsDTO?.probationApplicable && formData.employeeEmploymentDetailsDTO?.probationDuration) {
+      if (!/^\d+\s*(months|years)?$/.test(formData.employeeEmploymentDetailsDTO.probationDuration)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Validation Error',
+          text: 'Probation duration must be a number optionally followed by "months" or "years" (e.g., "6 months")',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+    if (formData.employeeEmploymentDetailsDTO?.bondApplicable && formData.employeeEmploymentDetailsDTO?.bondDuration) {
+      if (!/^\d+\s*(months|years)?$/.test(formData.employeeEmploymentDetailsDTO.bondDuration)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Validation Error',
+          text: 'Bond duration must be a number optionally followed by "months" or "years" (e.g., "6 months")',
+        });
         setIsSubmitting(false);
         return;
       }
     }
 
-    // Email validations
-    const emailRegex = /^[^\s@]+@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com)$/i;
-
-    if (!emailRegex.test(formData.personalEmail) || !emailRegex.test(formData.companyEmail)) {
-      setError('Personal and company emails must be valid email addresses');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // PAN validation
-    const panRegex = /^[A-Z]{5}\d{4}[A-Z]{1}$/;
-    if (!panRegex.test(formData.panNumber)) {
-      setError('PAN must be 10 alphanumeric characters (5 letters + 4 digits + 1 letter)');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Confirm PAN match
-    if (formData.panNumber !== formData.confirmPanNumber) {
-      setError('PAN number confirmation does not match');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Aadhar validation
-    const aadharRegex = /^\d{12}$/;
-    if (!aadharRegex.test(formData.aadharNumber)) {
-      setError('Aadhar number must be exactly 12 digits');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Confirm Aadhar match
-    if (formData.aadharNumber !== formData.confirmAadharNumber) {
-      setError('Aadhar number confirmation does not match');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Contact numbers validation
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(formData.contactNumber) || !phoneRegex.test(formData.alternateContactNumber)) {
-      setError('Contact and alternative numbers must be 10 digits starting with 6-9');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Validate designation is one of the allowed values
-    if (!designations.includes(formData.designation as Designation)) {
-      setError('Please select a valid designation');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Check uniqueness for PAN and Aadhar
-    try {
-      const employeeList = await adminService.getAllEmployees();
-      const existingPan = employeeList.some((emp: EmployeeDTO) => emp.panNumber === formData.panNumber);
-      const existingAadhar = employeeList.some((emp: EmployeeDTO) => emp.aadharNumber === formData.aadharNumber);
-
-      if (existingPan) {
-        setError('PAN number already exists');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (existingAadhar) {
-        setError('Aadhar number already exists');
-        setIsSubmitting(false);
-        return;
-      }
-    } catch (err: any) {
-      setError('Failed to verify uniqueness. Please try again.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    let photoUrl = '';
-    if (documentFiles.photo) {
-      try {
-        photoUrl = await adminService.uploadFile(documentFiles.photo);
-      } catch (uploadErr: any) {
-        setError('Failed to upload photo. Please try again.');
-        setIsSubmitting(false);
-        return;
+    const uploadedDocuments: EmployeeDocumentDTO[] = [];
+    for (const doc of formData.documents) {
+      if (doc.fileUrl) {
+        try {
+          const uploadResponse = await adminService.uploadFile(doc.fileUrl as any);
+          if (uploadResponse.flag && uploadResponse.response) {
+            uploadedDocuments.push({
+              documentId: doc.documentId,
+              docType: doc.docType,
+              fileUrl: uploadResponse.response,
+              uploadedAt: new Date().toISOString(),
+              verified: false,
+            });
+          } else {
+            throw new Error(uploadResponse.message || `Failed to upload document: ${doc.docType}`);
+          }
+        } catch (err: any) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Upload Error',
+            text: err.message || `Failed to upload document: ${doc.docType}`,
+          });
+          setIsSubmitting(false);
+          return;
+        }
       }
     }
 
-    const { confirmPanNumber, confirmAadharNumber, ...baseData } = formData;
+    const additionalFiles: { [key: string]: string } = {};
+    for (const [key, file] of Object.entries(documentFiles)) {
+      if (file) {
+        try {
+          const uploadResponse = await adminService.uploadFile(file);
+          if (uploadResponse.flag && uploadResponse.response) {
+            additionalFiles[key] = uploadResponse.response;
+          } else {
+            throw new Error(uploadResponse.message || `Failed to upload ${key}`);
+          }
+        } catch (err: any) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Upload Error',
+            text: err.message || `Failed to upload ${key}. Please try again.`,
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
+
     const employeeData: EmployeeModel = {
-      ...baseData,
-      designation: formData.designation as Designation,
-      clientId: formData.clientId || undefined,
-      maritalStatus: formData.maritalStatus || undefined,
-      numberOfChildren: formData.numberOfChildren,
-      employeePhotoUrl: photoUrl,
+      ...formData,
+      documents: uploadedDocuments.length > 0 ? uploadedDocuments : formData.documents,
+      employeeSalaryDTO: formData.employeeSalaryDTO?.basicPay
+        ? { ...formData.employeeSalaryDTO }
+        : undefined,
+      employeeAdditionalDetailsDTO: {
+        ...formData.employeeAdditionalDetailsDTO,
+        offerLetterUrl: additionalFiles.offerLetter || formData.employeeAdditionalDetailsDTO?.offerLetterUrl || '',
+        contractUrl: additionalFiles.contract || formData.employeeAdditionalDetailsDTO?.contractUrl || '',
+        taxDeclarationFormUrl: additionalFiles.taxDeclarationForm || formData.employeeAdditionalDetailsDTO?.taxDeclarationFormUrl || '',
+        workPermitUrl: additionalFiles.workPermit || formData.employeeAdditionalDetailsDTO?.workPermitUrl || '',
+        remarks: formData.employeeAdditionalDetailsDTO?.remarks || formData.skillsAndCertification,
+      },
+      employeeEmploymentDetailsDTO: formData.employeeEmploymentDetailsDTO?.workingModel
+        ? formData.employeeEmploymentDetailsDTO
+        : undefined,
+      employeeInsuranceDetailsDTO: formData.employeeInsuranceDetailsDTO?.policyNumber
+        ? formData.employeeInsuranceDetailsDTO
+        : undefined,
+      employeeStatutoryDetailsDTO: formData.employeeStatutoryDetailsDTO?.passportNumber || formData.employeeStatutoryDetailsDTO?.pfUanNumber
+        ? formData.employeeStatutoryDetailsDTO
+        : undefined,
+      employeeEquipmentDTO: formData.employeeEquipmentDTO && formData.employeeEquipmentDTO.filter(eq => eq.equipmentType).length > 0
+        ? formData.employeeEquipmentDTO
+        : undefined,
     };
 
     try {
-      await adminService.addEmployee(employeeData);
-      setSuccess('Employee added successfully!');
-      setTimeout(() => {
+      const response = await adminService.addEmployee(employeeData);
+      if (response.flag && response.response) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Employee added successfully!',
+          confirmButtonColor: '#3085d6',
+        });
         router.push('/admin-dashboard/employees/list');
-      }, 1500);
+      } else {
+        throw new Error(response.message || 'Failed to add employee');
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to add employee');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message || 'Failed to add employee. Please try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -292,7 +503,7 @@ const AddEmployeePage = () => {
                     onChange={handleChange}
                     maxLength={30}
                     pattern="[A-Za-z ]+"
-                    title="Alphabets and spaces only, up to 30 characters"
+                    title="Alphabets and spaces only, 3-30 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -309,7 +520,7 @@ const AddEmployeePage = () => {
                     onChange={handleChange}
                     maxLength={30}
                     pattern="[A-Za-z ]+"
-                    title="Alphabets and spaces only, up to 30 characters"
+                    title="Alphabets and spaces only, 3-30 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -324,6 +535,40 @@ const AddEmployeePage = () => {
                     required
                     value={formData.personalEmail}
                     onChange={handleChange}
+                    pattern="[^\s@]+@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com)"
+                    title="Must be a valid email (e.g., gmail.com, yahoo.com, outlook.com, hotmail.com)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="companyEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                    Company Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="companyEmail"
+                    name="companyEmail"
+                    required
+                    value={formData.companyEmail}
+                    onChange={handleChange}
+                    pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+                    title="Must be a valid email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Contact Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="contactNumber"
+                    name="contactNumber"
+                    required
+                    value={formData.contactNumber}
+                    onChange={handleChange}
+                    pattern="[6-9]\d{9}"
+                    title="10 digits starting with 6-9"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -343,66 +588,19 @@ const AddEmployeePage = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    PAN Number *
+                  <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nationality *
                   </label>
                   <input
                     type="text"
-                    id="panNumber"
-                    name="panNumber"
+                    id="nationality"
+                    name="nationality"
                     required
-                    value={formData.panNumber}
+                    value={formData.nationality}
                     onChange={handleChange}
-                    pattern="[A-Z]{5}\d{4}[A-Z]{1}"
-                    title="5 uppercase letters + 4 digits + 1 uppercase letter"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="confirmPanNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm PAN Number *
-                  </label>
-                  <input
-                    type="text"
-                    id="confirmPanNumber"
-                    name="confirmPanNumber"
-                    required
-                    value={formData.confirmPanNumber}
-                    onChange={handleChange}
-                    pattern="[A-Z]{5}\d{4}[A-Z]{1}"
-                    title="Must match PAN number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="aadharNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Aadhar Number *
-                  </label>
-                  <input
-                    type="text"
-                    id="aadharNumber"
-                    name="aadharNumber"
-                    required
-                    value={formData.aadharNumber}
-                    onChange={handleChange}
-                    pattern="\d{12}"
-                    title="Exactly 12 digits"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="confirmAadharNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Aadhar Number *
-                  </label>
-                  <input
-                    type="text"
-                    id="confirmAadharNumber"
-                    name="confirmAadharNumber"
-                    required
-                    value={formData.confirmAadharNumber}
-                    onChange={handleChange}
-                    pattern="\d{12}"
-                    title="Must match Aadhar number"
+                    maxLength={50}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only, 2-50 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -419,116 +617,57 @@ const AddEmployeePage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
                   </select>
                 </div>
+              </div>
+            </div>
+
+            {/* Employment Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="maritalStatus" className="block text-sm font-medium text-gray-700 mb-2">
-                    Marital Status
+                  <label htmlFor="clientId" className="block text-sm font-medium text-gray-700 mb-2">
+                    Client *
                   </label>
                   <select
-                    id="maritalStatus"
-                    name="maritalStatus"
-                    value={formData.maritalStatus}
+                    id="clientId"
+                    name="clientId"
+                    required
+                    value={formData.clientId}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="">Select Marital Status</option>
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                    <option value="Divorced">Divorced</option>
-                    <option value="Widowed">Widowed</option>
+                    <option value="">Select Client</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="numberOfChildren" className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Children
+                  <label htmlFor="reportingManagerId" className="block text-sm font-medium text-gray-700 mb-2">
+                    Reporting Manager *
                   </label>
-                  <input
-                    type="number"
-                    id="numberOfChildren"
-                    name="numberOfChildren"
-                    value={formData.numberOfChildren}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Photo
-                  </label>
-                  <input
-                    type="file"
-                    id="photo"
-                    name="photo"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange('photo', e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  {documentFiles.photo && <p className="text-sm text-gray-500 mt-1">Selected: {documentFiles.photo.name}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Details */}
-            <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Contact Number *
-                  </label>
-                  <input
-                    type="tel"
-                    id="contactNumber"
-                    name="contactNumber"
+                  <select
+                    id="reportingManagerId"
+                    name="reportingManagerId"
                     required
-                    value={formData.contactNumber}
-                    onChange={handleChange}
-                    pattern="[6-9]\d{9}"
-                    title="10 digits starting with 6-9"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="alternateContactNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Alternate Contact Number *
-                  </label>
-                  <input
-                    type="tel"
-                    id="alternateContactNumber"
-                    name="alternateContactNumber"
-                    required
-                    value={formData.alternateContactNumber}
-                    onChange={handleChange}
-                    pattern="[6-9]\d{9}"
-                    title="10 digits starting with 6-9"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Professional Details */}
-            <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="companyEmail" className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Email *
-                  </label>
-                  <input
-                    type="email"
-                    id="companyEmail"
-                    name="companyEmail"
-                    required
-                    value={formData.companyEmail}
+                    value={formData.reportingManagerId}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                  >
+                    <option value="">Select Manager</option>
+                    {managers.map(manager => (
+                      <option key={manager.employeeId} value={manager.employeeId}>
+                        {manager.firstName} {manager.lastName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-2">
@@ -543,28 +682,9 @@ const AddEmployeePage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Select Designation</option>
-                    {designations.map((des) => (
+                    {designations.map(des => (
                       <option key={des} value={des}>
-                        {des}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="clientId" className="block text-sm font-medium text-gray-700 mb-2">
-                    Client
-                  </label>
-                  <select
-                    id="clientId"
-                    name="clientId"
-                    value={formData.clientId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Select Client (Optional)</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
+                        {des.replace('_', ' ')}
                       </option>
                     ))}
                   </select>
@@ -580,83 +700,560 @@ const AddEmployeePage = () => {
                     required
                     value={formData.dateOfJoining}
                     onChange={handleChange}
-                    min={today}
                     max={maxJoiningDateStr}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="reportingManagerId" className="block text-sm font-medium text-gray-700 mb-2">
-                    Reporting Manager
+                  <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700 mb-2">
+                    Employment Type *
                   </label>
                   <select
-                    id="reportingManagerId"
-                    name="reportingManagerId"
-                    value={formData.reportingManagerId}
+                    id="employmentType"
+                    name="employmentType"
+                    required
+                    value={formData.employmentType}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="">Select Reporting Manager (Optional)</option>
-                    {managers.map((manager) => (
-                      <option key={manager.employeeId} value={manager.employeeId}>
-                        {manager.firstName} {manager.lastName} ({manager.designation})
+                    <option value="">Select Employment Type</option>
+                    {employmentTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type}
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>
-            </div>
-
-            {/* Billing Details */}
-            <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Billing</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">
-                    Currency *
+                  <label htmlFor="employeeEmploymentDetailsDTO.workingModel" className="block text-sm font-medium text-gray-700 mb-2">
+                    Working Model
                   </label>
                   <select
-                    id="currency"
-                    name="currency"
-                    required
-                    value={formData.currency}
+                    id="employeeEmploymentDetailsDTO.workingModel"
+                    name="employeeEmploymentDetailsDTO.workingModel"
+                    value={formData.employeeEmploymentDetailsDTO?.workingModel || ''}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="">Select Currency</option>
-                    <option value="USD">USD</option>
-                    <option value="INR">INR</option>
-                    <option value="EUR">EUR</option>
+                    <option value="">Select Working Model</option>
+                    <option value="REMOTE">Remote</option>
+                    <option value="HYBRID">Hybrid</option>
+                    <option value="ONSITE">Onsite</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="rateCard" className="block text-sm font-medium text-gray-700 mb-2">
-                    Rate Card *
+                  <label htmlFor="employeeEmploymentDetailsDTO.department" className="block text-sm font-medium text-gray-700 mb-2">
+                    Department
                   </label>
                   <input
-                    type="number"
-                    id="rateCard"
-                    name="rateCard"
-                    required
-                    value={formData.rateCard}
+                    type="text"
+                    id="employeeEmploymentDetailsDTO.department"
+                    name="employeeEmploymentDetailsDTO.department"
+                    value={formData.employeeEmploymentDetailsDTO?.department || ''}
                     onChange={handleChange}
-                    min="0"
-                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeEmploymentDetailsDTO.location" className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeEmploymentDetailsDTO.location"
+                    name="employeeEmploymentDetailsDTO.location"
+                    value={formData.employeeEmploymentDetailsDTO?.location || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeEmploymentDetailsDTO.probationApplicable" className="block text-sm font-medium text-gray-700 mb-2">
+                    Probation Applicable
+                  </label>
+                  <input
+                    type="checkbox"
+                    id="employeeEmploymentDetailsDTO.probationApplicable"
+                    name="employeeEmploymentDetailsDTO.probationApplicable"
+                    checked={formData.employeeEmploymentDetailsDTO?.probationApplicable || false}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                </div>
+                {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
+                  <div>
+                    <label htmlFor="employeeEmploymentDetailsDTO.probationDuration" className="block text-sm font-medium text-gray-700 mb-2">
+                      Probation Duration
+                    </label>
+                    <input
+                      type="text"
+                      id="employeeEmploymentDetailsDTO.probationDuration"
+                      name="employeeEmploymentDetailsDTO.probationDuration"
+                      value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="employeeEmploymentDetailsDTO.bondApplicable" className="block text-sm font-medium text-gray-700 mb-2">
+                    Bond Applicable
+                  </label>
+                  <input
+                    type="checkbox"
+                    id="employeeEmploymentDetailsDTO.bondApplicable"
+                    name="employeeEmploymentDetailsDTO.bondApplicable"
+                    checked={formData.employeeEmploymentDetailsDTO?.bondApplicable || false}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                </div>
+                {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
+                  <div>
+                    <label htmlFor="employeeEmploymentDetailsDTO.bondDuration" className="block text-sm font-medium text-gray-700 mb-2">
+                      Bond Duration
+                    </label>
+                    <input
+                      type="text"
+                      id="employeeEmploymentDetailsDTO.bondDuration"
+                      name="employeeEmploymentDetailsDTO.bondDuration"
+                      value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Documents */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Documents</h3>
+              {formData.documents.map((doc, index) => (
+                <div key={index} className="mb-4 p-4 border border-gray-200 rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor={`docType-${index}`} className="block text-sm font-medium text-gray-700 mb-2">
+                        Document Type
+                      </label>
+                      <select
+                        id={`docType-${index}`}
+                        value={doc.docType}
+                        onChange={(e) => handleDocumentChange(index, 'docType', e.target.value as DocumentType)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="">Select Document Type</option>
+                        {documentTypes.map(type => (
+                          <option key={type} value={type}>
+                            {type.replace('_', ' ')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor={`file-${index}`} className="block text-sm font-medium text-gray-700 mb-2">
+                        Upload File
+                      </label>
+                      <input
+                        type="file"
+                        id={`file-${index}`}
+                        onChange={(e) => handleDocumentChange(index, 'file', e.target.files?.[0] || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                  {formData.documents.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeDocument(index)}
+                      className="mt-2 text-red-600 hover:text-red-800"
+                    >
+                      Remove Document
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addDocument}
+                className="mt-2 text-indigo-600 hover:text-indigo-800"
+              >
+                Add Document
+              </button>
+            </div>
+
+            {/* Equipment Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Equipment Details</h3>
+              {formData.employeeEquipmentDTO?.map((eq, index) => (
+                <div key={index} className="mb-4 p-4 border border-gray-200 rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor={`equipmentType-${index}`} className="block text-sm font-medium text-gray-700 mb-2">
+                        Equipment Type
+                      </label>
+                      <input
+                        type="text"
+                        id={`equipmentType-${index}`}
+                        value={eq.equipmentType || ''}
+                        onChange={(e) => handleEquipmentChange(index, 'equipmentType', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={`serialNumber-${index}`} className="block text-sm font-medium text-gray-700 mb-2">
+                        Serial Number
+                      </label>
+                      <input
+                        type="text"
+                        id={`serialNumber-${index}`}
+                        value={eq.serialNumber || ''}
+                        onChange={(e) => handleEquipmentChange(index, 'serialNumber', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={`issuedDate-${index}`} className="block text-sm font-medium text-gray-700 mb-2">
+                        Issued Date
+                      </label>
+                      <input
+                        type="date"
+                        id={`issuedDate-${index}`}
+                        value={eq.issuedDate || ''}
+                        onChange={(e) => handleEquipmentChange(index, 'issuedDate', e.target.value)}
+                        max={today}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                  {formData.employeeEquipmentDTO && formData.employeeEquipmentDTO.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeEquipment(index)}
+                      className="mt-2 text-red-600 hover:text-red-800"
+                    >
+                      Remove Equipment
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addEquipment}
+                className="mt-2 text-indigo-600 hover:text-indigo-800"
+              >
+                Add Equipment
+              </button>
+            </div>
+
+            {/* Additional Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="employeeAdditionalDetailsDTO.offerLetterUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                    Offer Letter
+                  </label>
+                  <input
+                    type="file"
+                    id="employeeAdditionalDetailsDTO.offerLetterUrl"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => handleFileChange('offerLetter', e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeAdditionalDetailsDTO.contractUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                    Contract
+                  </label>
+                  <input
+                    type="file"
+                    id="employeeAdditionalDetailsDTO.contractUrl"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => handleFileChange('contract', e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeAdditionalDetailsDTO.taxDeclarationFormUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                    Tax Declaration Form
+                  </label>
+                  <input
+                    type="file"
+                    id="employeeAdditionalDetailsDTO.taxDeclarationFormUrl"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => handleFileChange('taxDeclarationForm', e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeAdditionalDetailsDTO.workPermitUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                    Work Permit
+                  </label>
+                  <input
+                    type="file"
+                    id="employeeAdditionalDetailsDTO.workPermitUrl"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => handleFileChange('workPermit', e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeAdditionalDetailsDTO.backgroundCheckStatus" className="block text-sm font-medium text-gray-700 mb-2">
+                    Background Check Status
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                    name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                    value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeAdditionalDetailsDTO.remarks" className="block text-sm font-medium text-gray-700 mb-2">
+                    Remarks
+                  </label>
+                  <textarea
+                    id="employeeAdditionalDetailsDTO.remarks"
+                    name="employeeAdditionalDetailsDTO.remarks"
+                    value={formData.employeeAdditionalDetailsDTO?.remarks || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="skillsAndCertification" className="block text-sm font-medium text-gray-700 mb-2">
+                    Skills and Certifications *
+                  </label>
+                  <textarea
+                    id="skillsAndCertification"
+                    name="skillsAndCertification"
+                    required
+                    value={formData.skillsAndCertification}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
               </div>
             </div>
 
-            {error && <div className="text-red-600 text-sm p-2 bg-red-50 rounded">{error}</div>}
-            {success && <div className="text-green-600 text-sm p-2 bg-green-50 rounded">{success}</div>}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Adding...' : 'Add Employee'}
-            </button>
+            {/* Insurance Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Insurance Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.policyNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Policy Number
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeInsuranceDetailsDTO.policyNumber"
+                    name="employeeInsuranceDetailsDTO.policyNumber"
+                    value={formData.employeeInsuranceDetailsDTO?.policyNumber || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.providerName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Provider Name
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeInsuranceDetailsDTO.providerName"
+                    name="employeeInsuranceDetailsDTO.providerName"
+                    value={formData.employeeInsuranceDetailsDTO?.providerName || ''}
+                    onChange={handleChange}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.coverageStart" className="block text-sm font-medium text-gray-700 mb-2">
+                    Coverage Start Date
+                  </label>
+                  <input
+                    type="date"
+                    id="employeeInsuranceDetailsDTO.coverageStart"
+                    name="employeeInsuranceDetailsDTO.coverageStart"
+                    value={formData.employeeInsuranceDetailsDTO?.coverageStart || ''}
+                    onChange={handleChange}
+                    max={today}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.coverageEnd" className="block text-sm font-medium text-gray-700 mb-2">
+                    Coverage End Date
+                  </label>
+                  <input
+                    type="date"
+                    id="employeeInsuranceDetailsDTO.coverageEnd"
+                    name="employeeInsuranceDetailsDTO.coverageEnd"
+                    value={formData.employeeInsuranceDetailsDTO?.coverageEnd || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.nomineeName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nominee Name
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeInsuranceDetailsDTO.nomineeName"
+                    name="employeeInsuranceDetailsDTO.nomineeName"
+                    value={formData.employeeInsuranceDetailsDTO?.nomineeName || ''}
+                    onChange={handleChange}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.nomineeRelation" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nominee Relation
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeInsuranceDetailsDTO.nomineeRelation"
+                    name="employeeInsuranceDetailsDTO.nomineeRelation"
+                    value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ''}
+                    onChange={handleChange}
+                    pattern="[A-Za-z ]+"
+                    title="Alphabets and spaces only"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.nomineeContact" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nominee Contact
+                  </label>
+                  <input
+                    type="tel"
+                    id="employeeInsuranceDetailsDTO.nomineeContact"
+                    name="employeeInsuranceDetailsDTO.nomineeContact"
+                    value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ''}
+                    onChange={handleChange}
+                    pattern="[6-9]\d{9}"
+                    title="10 digits starting with 6-9"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeInsuranceDetailsDTO.groupInsurance" className="block text-sm font-medium text-gray-700 mb-2">
+                    Group Insurance
+                  </label>
+                  <input
+                    type="checkbox"
+                    id="employeeInsuranceDetailsDTO.groupInsurance"
+                    name="employeeInsuranceDetailsDTO.groupInsurance"
+                    checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Statutory Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Statutory Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="employeeStatutoryDetailsDTO.passportNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Passport Number
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeStatutoryDetailsDTO.passportNumber"
+                    name="employeeStatutoryDetailsDTO.passportNumber"
+                    value={formData.employeeStatutoryDetailsDTO?.passportNumber || ''}
+                    onChange={handleChange}
+                    pattern="[A-Z0-9]{8,12}"
+                    title="8-12 alphanumeric characters"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeStatutoryDetailsDTO.pfUanNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    PF UAN Number
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeStatutoryDetailsDTO.pfUanNumber"
+                    name="employeeStatutoryDetailsDTO.pfUanNumber"
+                    value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ''}
+                    onChange={handleChange}
+                    pattern="\d{12}"
+                    title="Exactly 12 digits"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeStatutoryDetailsDTO.taxRegime" className="block text-sm font-medium text-gray-700 mb-2">
+                    Tax Regime
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeStatutoryDetailsDTO.taxRegime"
+                    name="employeeStatutoryDetailsDTO.taxRegime"
+                    value={formData.employeeStatutoryDetailsDTO?.taxRegime || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeStatutoryDetailsDTO.esiNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    ESI Number
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeStatutoryDetailsDTO.esiNumber"
+                    name="employeeStatutoryDetailsDTO.esiNumber"
+                    value={formData.employeeStatutoryDetailsDTO?.esiNumber || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="employeeStatutoryDetailsDTO.ssnNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    SSN Number
+                  </label>
+                  <input
+                    type="text"
+                    id="employeeStatutoryDetailsDTO.ssnNumber"
+                    name="employeeStatutoryDetailsDTO.ssnNumber"
+                    value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Submission Controls */}
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={() => router.push('/admin-dashboard/employees/list')}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isSubmitting ? 'Submitting...' : 'Add Employee'}
+              </button>
+            </div>
           </form>
         </div>
       </div>

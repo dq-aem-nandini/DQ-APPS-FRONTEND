@@ -258,41 +258,46 @@ export interface PayrollDTO {
   updatedAt: string; // date-time
 }
 
-export interface EmployeeModel {
-  firstName: string;
-  lastName: string;
-  personalEmail: string;
-  companyEmail: string;
-  contactNumber: string;
-  alternateContactNumber: string;
-  gender: string;
-  maritalStatus: string;
-  numberOfChildren: number;
-  employeePhotoUrl: string;
-  clientId: string; // UUID
-  reportingManagerId: string; // UUID
-  designation: Designation;
-  dateOfBirth: string; // ISO Date (YYYY-MM-DD)
-  dateOfJoining: string; // ISO Date (YYYY-MM-DD)
-  currency: string;
-  rateCard: number;
-  employmentType: EmploymentType;
-  panNumber: string;
-  aadharNumber: string;
-  accountNumber: string;
-  accountHolderName: string;
-  bankName: string;
-  ifscCode: string;
-  branchName: string;
-  addresses: AddressModel[];
-  documents: EmployeeDocumentDTO[];
-  employeeSalaryDTO?: EmployeeSalaryDTO;
-  employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
-  employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
-  employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
-  employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
-  employeeEquipmentDTO?: EmployeeEquipmentDTO;
-}
+  export interface EmployeeModel {
+    firstName: string;
+    lastName: string;
+    personalEmail: string;
+    companyEmail: string;
+    contactNumber: string;
+    alternateContactNumber: string;
+    gender: string;
+    maritalStatus: string;
+    numberOfChildren: number;
+    employeePhotoUrl: string;
+    nationality: string;
+    emergencyContactName: string;
+    emergencyContactNumber: string;
+    remarks: string;
+    skillsAndCertification: string;
+    clientId: string; // UUID
+    reportingManagerId: string; // UUID
+    designation: Designation;
+    dateOfBirth: string; // ISO Date (YYYY-MM-DD)
+    dateOfJoining: string; // ISO Date (YYYY-MM-DD)
+    rateCard: number;
+    employmentType: EmploymentType;
+    panNumber: string;
+    aadharNumber: string;
+    accountNumber: string;
+    accountHolderName: string;
+    bankName: string;
+    ifscCode: string;
+    branchName: string;
+    addresses: AddressModel[];
+    documents: EmployeeDocumentDTO[];
+    employeeSalaryDTO?: EmployeeSalaryDTO;
+    employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
+    employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
+    employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
+    employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
+    employeeEquipmentDTO?: EmployeeEquipmentDTO[];
+  }
+
 
 export interface ClientModel {
   companyName: string;
@@ -439,6 +444,11 @@ export interface EmployeeDTO {
   numberOfChildren: number;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   employeePhotoUrl: string;
+  nationality: string;
+  emergencyContactName: string;
+  emergencyContactNumber: string;
+  remarks: string;
+  skillsAndCertification: string;
   designation: Designation;
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
   rateCard: number;
@@ -451,24 +461,24 @@ export interface EmployeeDTO {
   ifscCode: string;
   branchName: string;
   panNumber: string;
-  currency: string;
   aadharNumber: string;
   clientId: string; // UUID
   clientName: string;
   reportingManagerId: string; // UUID
   reportingManagerName: string;
-  addresses: AddressModel[];
   documents: EmployeeDocumentDTO[];
+  addresses: AddressModel[];
   employeeSalaryDTO?: EmployeeSalaryDTO;
   employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
   employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
   employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
+  employeeEquipmentDTO?: EmployeeEquipmentDTO[];
   employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
-  employeeEquipmentDTO?: EmployeeEquipmentDTO;
   status: string;
   createdAt: string; // ISO date-time
   updatedAt: string; // ISO date-time
 }
+
 
 export interface ClientDTO {
   clientId: string; // uuid
