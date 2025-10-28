@@ -5,8 +5,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 import { leaveService } from '@/lib/api/leaveService';
-
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+dayjs.extend(isBetween);
 import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { HolidayCalendarDTO, EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeSheetModel } from '@/lib/api/types';
 import { holidaysService } from '@/lib/api/holidayService';
@@ -24,6 +25,7 @@ const TimeSheetRegister: React.FC = () => {
   const { state } = useAuth();
   const userId = state.user?.userId ?? null;
 
+  // Week selection state
   const [weekStart, setWeekStart] = useState(() =>
     dayjs().startOf('week').add(1, 'day')
   ); // Monday
@@ -34,9 +36,9 @@ const TimeSheetRegister: React.FC = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   // Inline message panel (replaces alert())
-  const [messages, setMessages] = useState<{ id: string; type: 'success'|'error'|'info'; text: string }[]>([]);
-  const pushMessage = (type: 'success'|'error'|'info', text: string) => {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const [messages, setMessages] = useState<{ id: string; type: 'success' | 'error' | 'info'; text: string }[]>([]);
+  const pushMessage = (type: 'success' | 'error' | 'info', text: string) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     setMessages(prev => [...prev, { id, type, text }]);
     setTimeout(() => setMessages(prev => prev.filter(m => m.id !== id)), 6000);
   };
@@ -104,27 +106,85 @@ const TimeSheetRegister: React.FC = () => {
     if (!userId) return;
     try {
       setLoading(true);
+      // Format dates with explicit year, month, day for accurate filtering
       const params = {
         startDate: weekStart.format('YYYY-MM-DD'),
         endDate: weekStart.clone().add(6, 'day').format('YYYY-MM-DD'),
       };
-      const response = await timesheetService.getAllTimesheets({ startDate: params.startDate, endDate: params.endDate });
+      console.debug('[TimeSheetRegister] Fetching timesheets for week:', {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        weekStartYear: weekStart.year(),
+        weekStartMonth: weekStart.month() + 1,
+      });
+
+      const response = await timesheetService.getAllTimesheets({
+        startDate: params.startDate,
+        endDate: params.endDate,
+      });
+
       if (!response.flag || !response.response) {
         throw new Error(response.message || 'Failed to fetch timesheets');
       }
-      const list: TimeSheetResponseDto[] = response.response;
+
+      // Filter entries to ensure they match the exact year and month we're looking for
+      const list: TimeSheetResponseDto[] = response.response.filter(entry => {
+        const entryDate = dayjs(entry.workDate);
+        const isInRange = entryDate.isBetween(weekStart, weekStart.clone().add(6, 'day'), 'day', '[]');
+        const matchesYearMonth = (
+          entryDate.year() === weekStart.year() &&
+          entryDate.month() === weekStart.month()
+        );
+
+        console.debug('[TimeSheetRegister] Entry date check:', {
+          entryId: entry.timesheetId,
+          date: entry.workDate,
+          isInRange,
+          matchesYearMonth,
+          entryYear: entryDate.year(),
+          entryMonth: entryDate.month() + 1,
+          weekStartYear: weekStart.year(),
+          weekStartMonth: weekStart.month() + 1,
+        });
+
+        return isInRange && matchesYearMonth;
+      });
+
+      console.debug('[TimeSheetRegister] Filtered timesheets:', {
+        total: response.response.length,
+        filtered: list.length,
+        dates: list.map(x => ({ id: x.timesheetId, date: x.workDate })),
+      });
 
       // Set locked state based on statuses
-      setIsLocked(list.length > 0 && list.every(item => item.status === 'Submitted'));
+      const hasSubmittedEntries = list.some(item => item.status === 'Submitted');
+      console.debug('[TimeSheetRegister] Any submitted entries:', hasSubmittedEntries);
 
-      // Map backend TimeSheetResponseDto => frontend TimeSheetModel (without status)
-      const mappedList: TimeSheetModel[] = list.map((item: TimeSheetResponseDto) => ({
-        timesheetId: item.timesheetId ?? '',
-        workDate: item.workDate ?? '',
-        hoursWorked: item.workedHours ?? 0,
-        taskName: item.taskName ?? '',
-        taskDescription: item.taskDescription ?? '',
-      }));
+      setIsLocked(hasSubmittedEntries); // Lock if any entries are submitted
+
+      // Map backend TimeSheetResponseDto => frontend TimeSheetModel with date validation
+      const mappedList: TimeSheetModel[] = list.map((item: TimeSheetResponseDto) => {
+        const entryDate = dayjs(item.workDate);
+        console.debug('[TimeSheetRegister] Mapping timesheet entry:', {
+          id: item.timesheetId,
+          date: item.workDate,
+          year: entryDate.year(),
+          month: entryDate.month() + 1,
+          day: entryDate.date(),
+          hours: item.workedHours,
+          task: item.taskName,
+        });
+
+        return {
+          timesheetId: item.timesheetId ?? '',
+          workDate: item.workDate ?? '',
+          hoursWorked: item.workedHours ?? 0,
+          taskName: item.taskName ?? '',
+          taskDescription: '',
+          clientId: item.clientId ?? '',
+        };
+      });
+      console.debug('[TimeSheetRegister] fetchData - mappedList:', JSON.stringify(mappedList, null, 2));
 
       const grouped: Record<string, TaskRow> = {};
       mappedList.forEach(item => {
@@ -152,6 +212,7 @@ const TimeSheetRegister: React.FC = () => {
         });
       }
       setRows(finalRows);
+      return finalRows;
     } catch (err) {
       console.error('Failed to fetch timesheet', err);
       pushMessage('error', 'Failed to fetch timesheets');
@@ -168,7 +229,7 @@ const TimeSheetRegister: React.FC = () => {
         await Promise.all([
           fetchData(),
           fetchHolidays(),
-          fetchLeaves(currentYear)
+          fetchLeaves(currentYear),
         ]);
       } catch (err) {
         console.error('Error loading data', err);
@@ -179,6 +240,153 @@ const TimeSheetRegister: React.FC = () => {
     loadAllData();
   }, [fetchData, fetchHolidays, fetchLeaves, currentYear]);
 
+  // 🔹 Validation for save operation: only checks modified or existing entries
+  const validateForSave = (): { ok: boolean; messages: string[] } => {
+    const msgs: string[] = [];
+    const dateHours: Record<string, number> = {}; // Track total hours per date for modified entries
+
+    // First pass: validate only modified rows or rows with existing timesheet IDs
+    rows.forEach((r, ri) => {
+      const anyHours = Object.values(r.hours).some(h => Number(h) > 0);
+      const isDirty = r._dirty;
+      const hasTimesheetIds = r.timesheetIds && Object.keys(r.timesheetIds).length > 0;
+
+      // Only validate rows that are modified or have existing timesheet entries
+      if (isDirty || hasTimesheetIds) {
+        // Validate task name if hours present
+        if (anyHours && (!r.taskName || r.taskName.trim() === '')) {
+          msgs.push(`Row ${ri + 1}: Task name is required when hours are entered`);
+        }
+
+        // Check each date's entries in the row
+        Object.entries(r.hours).forEach(([date, hours]) => {
+          const h = Number(hours);
+          const isDateModified = isDirty && r.hours[date] !== undefined;
+          const hasTimesheetId = r.timesheetIds?.[date];
+
+          // Only validate dates that are modified or have existing timesheet IDs
+          if (isDateModified || hasTimesheetId) {
+            dateHours[date] = (dateHours[date] || 0) + h;
+
+            // Validate hour bounds
+            if (h < 0) {
+              msgs.push(`Row ${ri + 1}: Hours cannot be negative for ${date}`);
+            }
+            if (h > 24) {
+              msgs.push(`Row ${ri + 1}: Hours cannot exceed 24 for ${date}`);
+            }
+
+            // Check holiday conflicts
+            if (holidayMap[date] && h > 0) {
+              msgs.push(`Row ${ri + 1}: Time entered on holiday (${holidayMap[date].holidayName}) for ${date}`);
+            }
+
+            // Check leave conflicts
+            if (leaveMap[date] && h > 0) {
+              msgs.push(`Row ${ri + 1}: Time entered on approved leave day (${leaveMap[date]}) for ${date}`);
+            }
+          }
+        });
+      }
+    });
+
+    // Second pass: check total hours for modified dates
+    Object.entries(dateHours).forEach(([date, totalHours]) => {
+      const dayDate = dayjs(date);
+      const isWeekend = dayDate.day() === 0 || dayDate.day() === 6;
+
+      // Validate total hours for modified dates
+      if (totalHours > 24) {
+        msgs.push(`Total hours for ${date} (${dayDate.format('dddd')}) exceed 24 (${totalHours} hours)`);
+      }
+    });
+
+    console.debug('[TimeSheetRegister] validateForSave results:', {
+      messages: msgs,
+      dateHours,
+      hasErrors: msgs.length > 0,
+    });
+
+    return { ok: msgs.length === 0, messages: msgs };
+  };
+
+  // 🔹 Validation for submission: checks all workdays
+  const runValidation = (): { ok: boolean; messages: string[] } => {
+    const msgs: string[] = [];
+    const dateHours: Record<string, number> = {}; // Track total hours per date
+
+    // First pass: validate individual rows and collect total hours per date
+    rows.forEach((r, ri) => {
+      const anyHours = Object.values(r.hours).some(h => Number(h) > 0);
+
+      // Validate task name if hours present
+      if (anyHours && (!r.taskName || r.taskName.trim() === '')) {
+        msgs.push(`Row ${ri + 1}: Task name is required when hours are entered`);
+      }
+
+      // Check each date's entries
+      Object.entries(r.hours).forEach(([date, hours]) => {
+        const h = Number(hours);
+        dateHours[date] = (dateHours[date] || 0) + h;
+
+        // Validate hour bounds
+        if (h < 0) {
+          msgs.push(`Row ${ri + 1}: Hours cannot be negative for ${date}`);
+        }
+        if (h > 24) {
+          msgs.push(`Row ${ri + 1}: Hours cannot exceed 24 for ${date}`);
+        }
+
+        // Check holiday conflicts
+        if (holidayMap[date] && h > 0) {
+          msgs.push(`Row ${ri + 1}: Time entered on holiday (${holidayMap[date].holidayName}) for ${date}`);
+        }
+
+        // Check leave conflicts
+        if (leaveMap[date] && h > 0) {
+          msgs.push(`Row ${ri + 1}: Time entered on approved leave day (${leaveMap[date]}) for ${date}`);
+        }
+      });
+    });
+
+    // Second pass: check total hours for all days in the week
+    weekDates.forEach((d, i) => {
+      const date = d.format('YYYY-MM-DD');
+      const totalHours = dateHours[date] || 0;
+      const dayDate = dayjs(date);
+      const weekday = dayDate.day();
+      const isWeekend = weekday === 0 || weekday === 6;
+      const isHoliday = holidayMap[date];
+      const isLeave = leaveMap[date];
+
+      // Validate workdays (Monday to Friday, not holidays or leave days)
+      if (!isWeekend && !isHoliday && !isLeave) {
+        if (totalHours === 0) {
+          msgs.push(`No hours entered for workday ${date} (${dayDate.format('dddd')})`);
+        }
+      }
+
+      // Validate holidays and leave days must have 0 hours
+      if ((isHoliday || isLeave) && totalHours > 0) {
+        const type = isHoliday ? `holiday (${holidayMap[date].holidayName})` : `leave (${leaveMap[date]})`;
+        msgs.push(`Hours entered for ${type} on ${date} (${dayDate.format('dddd')})`);
+      }
+
+      // Weekends are optional, but if hours are entered, ensure they're valid
+      if (isWeekend && totalHours > 24) {
+        msgs.push(`Total hours for ${date} (${dayDate.format('dddd')}) exceed 24 (${totalHours} hours)`);
+      }
+    });
+
+    console.debug('[TimeSheetRegister] Validation results:', {
+      messages: msgs,
+      dateHours,
+      hasErrors: msgs.length > 0,
+    });
+
+    return { ok: msgs.length === 0, messages: msgs };
+  };
+
   // 🔹 Row operations
   const addRow = () => {
     if (isLocked) return;
@@ -188,7 +396,10 @@ const TimeSheetRegister: React.FC = () => {
   };
 
   const deleteRow = (index: number) => {
-    if (isLocked) { pushMessage('info','Timesheet is locked'); return; }
+    if (isLocked) {
+      pushMessage('info', 'Timesheet is locked');
+      return;
+    }
     setConfirmDelete({ open: true, rowIndex: index });
   };
 
@@ -222,36 +433,67 @@ const TimeSheetRegister: React.FC = () => {
 
   // 🔹 Save logic (update existing or create new)
   const saveAll = async () => {
+    if (isLocked) {
+      pushMessage('error', 'Cannot modify timesheet - it has already been submitted for approval');
+      return;
+    }
+
     try {
       setLoading(true);
+      // Run validation for modified entries only
+      const validation = validateForSave();
+      if (!validation.ok) {
+        validation.messages.forEach(m => pushMessage('error', m));
+        setLoading(false);
+        return;
+      }
 
+      console.debug('[TimeSheetRegister] saveAll - rows before save:', JSON.stringify(rows, null, 2));
       const toCreate: TimeSheetModel[] = [];
       const toUpdate: Record<string, TimeSheetModel> = {}; // Key by timesheetId to avoid duplicates
 
+      // Process only modified rows or rows with existing timesheet IDs
       rows.forEach(r => {
-        Object.entries(r.hours).forEach(([date, hours]) => {
-          const tsId = r.timesheetIds?.[date];
-          if (hours > 0 && r.taskName) {
-            const base: TimeSheetModel = {
-              workDate: date,
-              hoursWorked: hours,
-              taskName: r.taskName,
-              taskDescription: '',
-              ...(tsId && { timesheetId: tsId }),
-            };
+        const isDirty = r._dirty;
+        const hasTimesheetIds = r.timesheetIds && Object.keys(r.timesheetIds).length > 0;
+        if (isDirty || hasTimesheetIds) {
+          Object.entries(r.hours).forEach(([date, hours]) => {
+            const tsId = r.timesheetIds?.[date];
+            const isDateModified = isDirty && r.hours[date] !== undefined;
 
-            if (!tsId) {
-              toCreate.push(base);
-            } else if (r._dirty) {
-              toUpdate[tsId] = base;
+            // Only process modified dates or existing timesheet entries
+            if ((isDateModified || tsId) && hours >= 0 && r.taskName) {
+              const base: TimeSheetModel = {
+                workDate: date,
+                hoursWorked: hours,
+                taskName: r.taskName,
+                taskDescription: '',
+                clientId: '',
+                ...(tsId && { timesheetId: tsId }),
+              };
+
+              if (!tsId) {
+                toCreate.push(base);
+              } else if (isDirty) {
+                toUpdate[tsId] = base;
+              }
             }
-          }
-        });
+          });
+        }
       });
+
+      // Check if there's anything to save
+      if (toCreate.length === 0 && Object.keys(toUpdate).length === 0) {
+        pushMessage('info', 'No changes to save');
+        setLoading(false);
+        return;
+      }
 
       // 🟢 Create new
       if (toCreate.length > 0) {
+        console.debug('[TimeSheetRegister] Creating timesheets payload:', JSON.stringify(toCreate, null, 2));
         const response = await timesheetService.createTimesheets(toCreate);
+        console.debug('[TimeSheetRegister] createTimesheets response:', response);
         if (!response.flag) {
           throw new Error(response.message || 'Failed to create timesheets');
         }
@@ -259,16 +501,17 @@ const TimeSheetRegister: React.FC = () => {
         const created = response.response as { timesheetId: string; workDate: string; taskName: string }[];
         if (created && Array.isArray(created)) {
           created.forEach((item) => {
-            // only map back created items that have a timesheetId and workDate
             if (!item.timesheetId || !item.workDate) return;
             const dateKey = item.workDate;
             const tsId = item.timesheetId;
-            setRows(prev => prev.map((r: TaskRow) => {
-              if (r.taskName === item.taskName) {
-                return { ...r, timesheetIds: { ...(r.timesheetIds || {}), [dateKey]: tsId } };
-              }
-              return r;
-            }));
+            setRows(prev =>
+              prev.map((r: TaskRow) => {
+                if (r.taskName === item.taskName) {
+                  return { ...r, timesheetIds: { ...(r.timesheetIds || {}), [dateKey]: tsId } };
+                }
+                return r;
+              })
+            );
           });
         }
       }
@@ -285,45 +528,36 @@ const TimeSheetRegister: React.FC = () => {
         }
       }
 
+      // Clear dirty flags after successful save
+      setRows(prev => prev.map(r => ({ ...r, _dirty: false })));
+
+      // Refresh data
       await fetchData();
-      pushMessage('success','Save successful');
+      console.debug('[TimeSheetRegister] rows after fetch (fresh):', JSON.stringify(rows, null, 2));
+      pushMessage('success', 'Save successful');
     } catch (err) {
       console.error(err);
-      pushMessage('error','Save failed');
+      pushMessage('error', 'Save failed');
     } finally {
       setLoading(false);
     }
   };
 
-  // Validation logic (weekend exempt, skip leave/holiday)
-  const runValidation = (): { ok: boolean; messages: string[] } => {
-    const msgs: string[] = [];
-    rows.forEach((r, ri) => {
-      const anyHours = Object.values(r.hours).some(h => Number(h) > 0);
-      if (anyHours && (!r.taskName || r.taskName.trim() === '')) msgs.push(`Row ${ri+1}: task name required when hours present`);
-      Object.entries(r.hours).forEach(([d, h]) => {
-        if (h < 0 || h > 24) msgs.push(`${d}: invalid hours in row ${ri+1}`);
-        if (holidayMap[d] && h > 0) msgs.push(`${d}: entries present on holiday ${holidayMap[d].holidayName}`);
-        const weekday = dayjs(d).day();
-        const isWeekend = weekday === 0 || weekday === 6;
-        if (isWeekend && h > 0) msgs.push(`${d}: entries present on weekend`);
-      });
-    });
-
-    const keys = weekDates.map(d => d.format('YYYY-MM-DD'));
-    keys.forEach(k => {
-      const total = rows.reduce((s, r) => s + (Number(r.hours[k] || 0)), 0);
-      const weekday = dayjs(k).day(); // 0 Sun, 6 Sat
-      const isWeekend = weekday === 0 || weekday === 6;
-      if (!holidayMap[k] && !leaveMap[k] && !isWeekend && total === 0) msgs.push(`${k}: total hours are 0`);
-    });
-
-    return { ok: msgs.length === 0, messages: msgs };
-  };
-
-  // 🔹 Submit for approval (opens confirmation)
+  // 🔹 Submit for approval (opens confirmation after validation)
   const submitForApproval = async () => {
-    if (isLocked) { pushMessage('info','Already submitted'); return; }
+    if (isLocked) {
+      pushMessage('info', 'Timesheet already submitted for this week');
+      return;
+    }
+
+    // Run validation before showing confirmation
+    const validation = runValidation();
+    if (!validation.ok) {
+      validation.messages.forEach(m => pushMessage('error', m));
+      return;
+    }
+
+    // All validation passed, show confirmation dialog
     setConfirmSubmitOpen(true);
   };
 
@@ -337,20 +571,28 @@ const TimeSheetRegister: React.FC = () => {
 
     try {
       setLoading(true);
-      await saveAll(); // ensures entries persisted and fetchData refreshed
+      // First save all pending changes
+      await saveAll();
 
-      // Collect relevant timesheet IDs from local state (post-save)
+      // Wait a moment for backend to process saves
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Re-fetch fresh data and collect IDs
+      await fetchData(); // Update the UI state first
+
       const ids: string[] = [];
       rows.forEach(r => {
         Object.entries(r.timesheetIds || {}).forEach(([date, id]) => {
           if (id && r.hours[date] > 0) {
+            console.debug(`[TimeSheetRegister] Processing row for submit - date: ${date}, hours: ${r.hours[date]}, id: ${id}`);
             ids.push(id);
           }
         });
       });
+      console.debug('[TimeSheetRegister] IDs collected for submit:', ids);
 
       if (ids.length === 0) {
-        pushMessage('info', 'No timesheet entries to submit');
+        pushMessage('error', 'No valid timesheet entries to submit. Ensure all workdays have hours.');
         return;
       }
 
@@ -360,9 +602,22 @@ const TimeSheetRegister: React.FC = () => {
         throw new Error(submitResponse.message || 'Failed to submit for approval');
       }
 
+      // Lock the timesheet and update UI
       setIsLocked(true);
-      pushMessage('success', 'Submitted for approval');
+      pushMessage('success', `Timesheet submitted for approval. Week of ${weekStart.format('MMM D, YYYY')} is now locked.`);
+
+      // Refresh data to get updated status
       await fetchData();
+
+      // Re-validate lock state from fresh data
+      const refreshedData = await timesheetService.getAllTimesheets({
+        startDate: weekStart.format('YYYY-MM-DD'),
+        endDate: weekStart.clone().add(6, 'day').format('YYYY-MM-DD'),
+      });
+
+      if (refreshedData.response?.some(item => item.status === 'Submitted')) {
+        setIsLocked(true);
+      }
     } catch (err) {
       console.error('submit failed', err);
       pushMessage('error', 'Submit failed');
@@ -386,14 +641,14 @@ const TimeSheetRegister: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Select Week</h2>
           <div className="flex items-center space-x-2">
-            <ChevronLeft 
-              className="cursor-pointer text-gray-600 hover:text-gray-800" 
-              size={24} 
+            <ChevronLeft
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+              size={24}
               onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
             />
-            <ChevronRight 
-              className="cursor-pointer text-gray-600 hover:text-gray-800" 
-              size={24} 
+            <ChevronRight
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+              size={24}
               onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
             />
           </div>
@@ -409,7 +664,7 @@ const TimeSheetRegister: React.FC = () => {
             />
           </div>
           <div className="text-sm text-gray-600">
-            Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')} 
+            Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')}
           </div>
         </div>
       </div>
@@ -475,8 +730,8 @@ const TimeSheetRegister: React.FC = () => {
                 <tr key={row.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                     <div className="flex items-center space-x-3">
-                      <button 
-                        onClick={() => deleteRow(rowIndex)} 
+                      <button
+                        onClick={() => deleteRow(rowIndex)}
                         disabled={isLocked || deletingRowIndex !== null}
                         className="p-1 rounded-full text-red-500 hover:bg-red-100 disabled:opacity-50"
                       >
@@ -487,7 +742,13 @@ const TimeSheetRegister: React.FC = () => {
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         value={row.taskName}
                         placeholder="Task name"
-                        onChange={e => handleTaskNameChange(rowIndex, e.target.value)}
+                        onChange={e => {
+                          if (isLocked) {
+                            pushMessage('info', 'Cannot modify timesheet - it has been submitted for approval');
+                            return;
+                          }
+                          handleTaskNameChange(rowIndex, e.target.value);
+                        }}
                         disabled={isLocked}
                       />
                     </div>
@@ -498,7 +759,8 @@ const TimeSheetRegister: React.FC = () => {
                     const isLeave = leaveMap[key];
                     const weekday = d.day();
                     const isWeekend = weekday === 0 || weekday === 6;
-                    const disabled = isLocked || !!isHoliday || !!isLeave || isWeekend;
+                    // Allow weekend entries, only disable for holidays, leaves, or when locked
+                    const disabled = isLocked || !!isHoliday || !!isLeave;
                     return (
                       <td key={key} className="px-3 py-4 whitespace-nowrap text-center border-r border-gray-200">
                         <input
@@ -509,9 +771,13 @@ const TimeSheetRegister: React.FC = () => {
                           className="w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                           value={row.hours[key] ?? 0}
                           disabled={disabled}
-                          onChange={e =>
-                            handleChange(rowIndex, key, Number(e.target.value))
-                          }
+                          onChange={e => {
+                            if (isLocked) {
+                              pushMessage('info', 'Cannot modify timesheet - it has been submitted for approval');
+                              return;
+                            }
+                            handleChange(rowIndex, key, Number(e.target.value));
+                          }}
                         />
                       </td>
                     );
@@ -563,24 +829,27 @@ const TimeSheetRegister: React.FC = () => {
             </div>
             <div className="text-gray-600 mb-6">Are you sure you want to delete this row? This will remove all associated timesheet entries from the server.</div>
             <div className="flex justify-end space-x-3">
-              <button 
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors" 
+              <button
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                 onClick={() => setConfirmDelete({ open: false, rowIndex: null })}
               >
                 Cancel
               </button>
-              <button 
-                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50" 
+              <button
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
                 disabled={deletingRowIndex !== null}
                 onClick={async () => {
                   const idx = confirmDelete.rowIndex!;
                   const row = rows[idx];
-                  if (!row) { setConfirmDelete({ open: false, rowIndex: null }); return; }
+                  if (!row) {
+                    setConfirmDelete({ open: false, rowIndex: null });
+                    return;
+                  }
                   setDeletingRowIndex(idx); // Show loading
                   try {
                     // Optimistic local delete first
                     setRows(prev => prev.filter((_, i) => i !== idx));
-                    
+
                     const ids = Object.values(row.timesheetIds || {}).filter(Boolean) as string[];
                     let hadBackendData = false;
                     for (const id of ids) {
@@ -591,19 +860,19 @@ const TimeSheetRegister: React.FC = () => {
                         hadBackendData = true;
                       }
                     }
-                    
+
                     if (hadBackendData) {
                       // Only refetch if we deleted backend data (preserves unsaved rows)
                       await fetchData();
                     }
-                    
+
                     const message = ids.length > 0 ? 'Row and entries deleted successfully' : 'Unsaved row deleted';
                     pushMessage('success', message);
                   } catch (err) {
                     console.error('delete failed', err);
                     // Rollback optimistic delete on error
                     setRows(prev => [...prev, row]);
-                    pushMessage('error','Delete failed - changes rolled back');
+                    pushMessage('error', 'Delete failed - changes rolled back');
                   } finally {
                     setDeletingRowIndex(null);
                     setConfirmDelete({ open: false, rowIndex: null });
@@ -624,14 +893,14 @@ const TimeSheetRegister: React.FC = () => {
             <div className="text-xl font-semibold text-gray-900 mb-4">Submit for Approval</div>
             <div className="text-gray-600 mb-6">Are you sure you want to submit this timesheet for manager approval? This action cannot be undone until approved or rejected.</div>
             <div className="flex justify-end space-x-3">
-              <button 
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors" 
+              <button
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                 onClick={confirmSubmitNo}
               >
                 Cancel
               </button>
-              <button 
-                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors" 
+              <button
+                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
                 onClick={confirmSubmitYes}
               >
                 Yes, Submit

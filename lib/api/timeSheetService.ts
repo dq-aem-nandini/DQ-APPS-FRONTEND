@@ -179,12 +179,21 @@ class TimesheetService {
 
   /**
    * 📤 Submit timesheets for manager approval (GET)
+   * @param timesheetIds Array of timesheet IDs to submit
+   * @returns WebResponseDTO with success/failure info
    */
   async submitForApproval(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
-    if (!timesheetIds || timesheetIds.length === 0) {
+    console.debug('[TimesheetService] submitForApproval - input:', {
+      timesheetIds,
+      count: timesheetIds?.length ?? 0
+    });
+
+    // Validate input
+    if (!timesheetIds?.length) {
+      console.warn('[TimesheetService] submitForApproval - no timesheet IDs provided');
       return {
         flag: false,
-        message: "At least one timesheet ID is required",
+        message: "At least one timesheet ID is required for submission",
         status: 400,
         response: '',
         totalRecords: 0,
@@ -192,15 +201,34 @@ class TimesheetService {
       };
     }
 
-    return this._mutation(
-      "/employee/timesheet/approvaltomanager",
-      "get",
-      undefined,
-      { params: { timesheetIds } },
-      false,
-      "Timesheets submitted for approval successfully",
-      "Failed to submit timesheets for approval"
-    );
+    // Remove any duplicate IDs
+    const uniqueIds = Array.from(new Set(timesheetIds));
+    if (uniqueIds.length !== timesheetIds.length) {
+      console.warn('[TimesheetService] submitForApproval - Found duplicate IDs, filtered to unique set');
+    }
+
+    try {
+      const result = await this._mutation(
+        "/employee/timesheet/approvaltomanager",
+        "get",
+        undefined,
+        { params: { timesheetIds: uniqueIds } },
+        false,
+        "Timesheets submitted for approval successfully",
+        "Failed to submit timesheets for approval"
+      );
+
+      console.debug('[TimesheetService] submitForApproval - result:', {
+        success: result.flag,
+        message: result.message,
+        status: result.status
+      });
+
+      return result;
+    } catch (error) {
+      console.error('[TimesheetService] submitForApproval - error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -258,20 +286,31 @@ class TimesheetService {
   /**
    * 📄 Fetch timesheets list (GET)
    */
-  async getAllTimesheets(params?: {
-    page?: number;
-    size?: number;
-    direction?: string;
-    orderBy?: string;
-    startDate?: string;
-    endDate?: string;
-  }): Promise<WebResponseDTOList<TimeSheetResponseDto>> {
-    // Clean params before passing
-    const cleanParams = params ? Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null)
-    ) : {};
-    return this._query<TimeSheetResponseDto[]>("/employee/view/timesheet", { params: cleanParams });
-  }
+async getAllTimesheets(params?: {
+  page?: number;
+  size?: number;
+  direction?: string;
+  orderBy?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<WebResponseDTOList<TimeSheetResponseDto>> {
+  // Default values for every call
+  const defaultParams = {
+    page: 0,
+    size: 25,
+    direction: "DESC",
+    orderBy: "createdAt",
+  };
+
+  // Merge defaults with user-provided params and remove null/undefined
+  const cleanParams = Object.fromEntries(
+    Object.entries({ ...defaultParams, ...params }).filter(
+      ([_, v]) => v !== undefined && v !== null
+    )
+  );
+
+  return this._query<TimeSheetResponseDto[]>("/employee/view/timesheet", { params: cleanParams });
+}
 
   /**
    * 🔍 Get single timesheet by ID (GET)
