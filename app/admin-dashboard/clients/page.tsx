@@ -1,12 +1,20 @@
 // app/admin-dashboard/clients/page.tsx (main client page with cards)
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import BackButton from '@/components/ui/BackButton';
 
 export default function ClientsPage() {
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Clients</h2>
+      <div className="relative flex items-center justify-center mb-8">
+          <div className="absolute left-0">
+            <BackButton fallback="/admin-dashboard" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Clients
+          </h1>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link href="/admin-dashboard/clients/add">
             <div className="bg-white p-6 rounded-lg shadow hover:shadow-md cursor-pointer transition-shadow border border-gray-200">

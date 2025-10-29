@@ -56,16 +56,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = localStorage.getItem('accessToken');
         const refreshToken = localStorage.getItem('refreshToken');
         const userStr = localStorage.getItem('user');
-        if (userStr) { // Restore if user data exists (tokens optional)
+        const currentPath = window.location.pathname;
+  
+        if (userStr) {
           try {
             if (userStr === 'null' || userStr === 'undefined' || userStr.trim() === '') {
               localStorage.removeItem('user');
               return;
             }
             const user: User = JSON.parse(userStr);
-            if (user && user.userId && user.role) { // Basic validation
-              dispatch({ type: 'LOGIN_SUCCESS', payload: { user, accessToken: token || null, refreshToken: refreshToken || null } });
-              return; // Exit early if restored
+            if (user && user.userId && user.role) {
+              dispatch({
+                type: 'LOGIN_SUCCESS',
+                payload: {
+                  user,
+                  accessToken: token || null,
+                  refreshToken: refreshToken || null,
+                },
+              });
+  
+              // ✅ Redirect only if not already on login page
+              if (currentPath === '/auth/login') {
+                const targetPath = user.role === 'ADMIN' ? '/admin-dashboard' : '/dashboard';
+                router.push(targetPath);
+              }
+  
+              return;
             } else {
               localStorage.removeItem('user');
               localStorage.removeItem('accessToken');
@@ -83,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     initAuth();
   }, [router]);
+  
  
   const login = async (credentials: { inputKey: string; password: string }) => {
     try {
@@ -111,16 +128,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
+  // const logout = () => {
+  //   if (typeof window !== 'undefined') {
+  //     localStorage.removeItem('accessToken');
+  //     localStorage.removeItem('refreshToken');
+  //     localStorage.removeItem('user');
+  //   }
+  //   dispatch({ type: 'LOGOUT' });
+  //   window.location.href = '/auth/login';
+  // };
   const logout = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      localStorage.clear();
     }
     dispatch({ type: 'LOGOUT' });
-    window.location.href = '/auth/login';
+    router.push('/auth/login');
   };
- 
+  
   return (
     <AuthContext.Provider value={{ state, login, logout }}>
       {children}

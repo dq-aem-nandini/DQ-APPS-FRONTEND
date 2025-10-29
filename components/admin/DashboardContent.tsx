@@ -22,7 +22,7 @@ const DashboardContent = () => {
   const { state } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [workingHours, setWorkingHours] = useState(0);
-  const [overtime, setOvertime] = useState(9); // Fixed 9 hrs overtime as per user
+  const [overtime, setOvertime] = useState(8); // Fixed 9 hrs overtime as per user
   const [leavesRemaining, setLeavesRemaining] = useState(2); // Per month: 1 general + 1 paid + 1 sick = 3 total, 1 used
   const [chartData, setChartData] = useState<ChartData<'line'>>({
     labels: [],

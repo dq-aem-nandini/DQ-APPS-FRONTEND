@@ -191,11 +191,24 @@ const LeaveHistoryPage = () => {
     return isCategory ? `${capitalized} Leave` : capitalized;
   };
 
+  // if (!user || !accessToken) {
+  //   router.push('/auth/login');
+  //   return null;
+  // }
+  useEffect(() => {
+    if (!user || !accessToken) {
+      router.push('/auth/login');
+    }
+  }, [user, accessToken, router]);
+  
   if (!user || !accessToken) {
-    router.push('/auth/login');
-    return null;
+    return (
+      <div className="flex justify-center items-center min-h-screen text-gray-600">
+        Redirecting to login...
+      </div>
+    );
   }
-
+  
   if (error) {
     return (
       <div className="container mx-auto p-6">

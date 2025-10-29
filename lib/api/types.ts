@@ -32,6 +32,7 @@ export type EmploymentType = "CONTRACTOR" | "FREELANCER" | "FULLTIME";
 export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" | "WORK_PERMIT" | "PAN_CARD" | "AADHAR_CARD" | "BANK_PASSBOOK" | "TENTH_CERTIFICATE" | "INTERMEDIATE_CERTIFICATE" | "DEGREE_CERTIFICATE" | "POST_GRADUATION_CERTIFICATE" | "OTHER";
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY";
 export type ProjectStatus = "ACTIVE" | "INACTIVE" | "COMPLETED" | "ON_HOLD";
+export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
 
 // Core Models
 export interface AddressModel {
@@ -42,7 +43,7 @@ export interface AddressModel {
   state?: string;
   country?: string;
   pincode?: string;
-  addressType?: string;
+  addressType?: AddressType;
 }
 
 export interface DateRangeRequestDTO {
@@ -258,41 +259,46 @@ export interface PayrollDTO {
   updatedAt: string; // date-time
 }
 
-export interface EmployeeModel {
-  firstName: string;
-  lastName: string;
-  personalEmail: string;
-  companyEmail: string;
-  contactNumber: string;
-  alternateContactNumber: string;
-  gender: string;
-  maritalStatus: string;
-  numberOfChildren: number;
-  employeePhotoUrl: string;
-  clientId: string; // UUID
-  reportingManagerId: string; // UUID
-  designation: Designation;
-  dateOfBirth: string; // ISO Date (YYYY-MM-DD)
-  dateOfJoining: string; // ISO Date (YYYY-MM-DD)
-  currency: string;
-  rateCard: number;
-  employmentType: EmploymentType;
-  panNumber: string;
-  aadharNumber: string;
-  accountNumber: string;
-  accountHolderName: string;
-  bankName: string;
-  ifscCode: string;
-  branchName: string;
-  addresses: AddressModel[];
-  documents: EmployeeDocumentDTO[];
-  employeeSalaryDTO?: EmployeeSalaryDTO;
-  employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
-  employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
-  employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
-  employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
-  employeeEquipmentDTO?: EmployeeEquipmentDTO;
-}
+  export interface EmployeeModel {
+    firstName: string;
+    lastName: string;
+    personalEmail: string;
+    companyEmail: string;
+    contactNumber: string;
+    alternateContactNumber: string;
+    gender: string;
+    maritalStatus: string;
+    numberOfChildren: number;
+    employeePhotoUrl: string;
+    nationality: string;
+    emergencyContactName: string;
+    emergencyContactNumber: string;
+    remarks: string;
+    skillsAndCertification: string;
+    clientId: string; // UUID
+    reportingManagerId: string; // UUID
+    designation: Designation;
+    dateOfBirth: string; // ISO Date (YYYY-MM-DD)
+    dateOfJoining: string; // ISO Date (YYYY-MM-DD)
+    rateCard: number;
+    employmentType: EmploymentType;
+    panNumber: string;
+    aadharNumber: string;
+    accountNumber: string;
+    accountHolderName: string;
+    bankName: string;
+    ifscCode: string;
+    branchName: string;
+    addresses: AddressModel[];
+    documents: EmployeeDocumentDTO[];
+    employeeSalaryDTO?: EmployeeSalaryDTO;
+    employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
+    employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
+    employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
+    employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
+    employeeEquipmentDTO?: EmployeeEquipmentDTO[];
+  }
+
 
 export interface ClientModel {
   companyName: string;
@@ -304,8 +310,15 @@ export interface ClientModel {
   tanNumber?: string;
   addresses?: AddressModel[];
   clientPocs?: ClientPocModel[];
+  clientTaxDetails: ClientTaxDetail[]; // Array of tax detail objects
 }
-
+export interface ClientTaxDetail {
+  taxId: string;         // UUID
+  taxName: string;
+  taxPercentage: number;
+  createdAt: string;     // ISO Date-Time format
+  updatedAt: string;     // ISO Date-Time format
+}
 export interface ClientPocModel {
   name: string;
   email: string;
@@ -369,7 +382,6 @@ export interface NotificationDTO {
 
 export interface ClientPoc {
   pocId: string; // uuid
-  client?: Client;
   name: string;
   email: string;
   contactNumber: string;
@@ -439,6 +451,11 @@ export interface EmployeeDTO {
   numberOfChildren: number;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   employeePhotoUrl: string;
+  nationality: string;
+  emergencyContactName: string;
+  emergencyContactNumber: string;
+  remarks: string;
+  skillsAndCertification: string;
   designation: Designation;
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
   rateCard: number;
@@ -451,48 +468,44 @@ export interface EmployeeDTO {
   ifscCode: string;
   branchName: string;
   panNumber: string;
-  currency: string;
   aadharNumber: string;
   clientId: string; // UUID
   clientName: string;
   reportingManagerId: string; // UUID
   reportingManagerName: string;
-  addresses: AddressModel[];
   documents: EmployeeDocumentDTO[];
+  addresses: AddressModel[];
   employeeSalaryDTO?: EmployeeSalaryDTO;
   employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
   employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
   employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
+  employeeEquipmentDTO?: EmployeeEquipmentDTO[];
   employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
-  employeeEquipmentDTO?: EmployeeEquipmentDTO;
   status: string;
   createdAt: string; // ISO date-time
   updatedAt: string; // ISO date-time
 }
 
+
 export interface ClientDTO {
-  clientId: string; // uuid
-  userId: string; // uuid
-  addressId?: string; // uuid
+  clientId: string;          // UUID
+  userId: string;            // UUID
   companyName: string;
   contactNumber: string;
   email: string;
   gst: string;
   currency: string;
   panNumber: string;
-  tanNumber?: string;
+  tanNumber: string;
   status: string;
-  createdAt: string; // date-time
-  updatedAt: string; // date-time
-  houseNo?: string;
-  streetName?: string;
-  city?: string;
-  state?: string;
-  pinCode?: string;
-  country?: string;
-  addresses?: AddressModel[];
-  pocs?: ClientPoc[];
+  clientTaxDetails: ClientTaxDetail[];
+  createdAt: string;         // ISO Date-Time string
+  updatedAt: string;         // ISO Date-Time string
+  addresses: AddressModel[];
+  pocs: ClientPoc;
+
 }
+
 
 export interface RefreshTokenRequestDTO {
   refreshToken: string;

@@ -1,17 +1,29 @@
-// components/admin/Header.tsx (updated with better dropdown positioning and UI)
+// components/employee/Header.tsx
 'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { User } from '@/lib/api/types';
 
 const Header = () => {
   const { state, logout } = useAuth();
+  const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
   const user: User | null = state.user;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/auth/login');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+    setShowDropdown(false);
+  };
+
+  const handleProfile = () => {
+    router.push('/admin-dashboard/profile');  // Adjust path as needed for employee profile
     setShowDropdown(false);
   };
 
@@ -19,7 +31,7 @@ const Header = () => {
     <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
       <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
       <div className="flex items-center space-x-4">
-        <span className="text-sm text-gray-500 hidden md:block">Welcome {user?.userName}</span>
+        <span className="text-sm text-gray-500 hidden md:block">Welcome, {user?.userName || 'Admin'}</span>
         <div className="relative">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
@@ -30,7 +42,6 @@ const Header = () => {
               src="https://via.placeholder.com/32?text=U" // Use user avatar if available
               alt="Profile"
             />
-            {/* <span className="hidden md:block text-sm font-medium text-gray-700">{user?.userName}</span> */}
             <svg className={`h-4 w-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -46,20 +57,17 @@ const Header = () => {
                     alt="Profile"
                   />
                   <div>
-                    <div className="font-medium text-gray-900">{user?.userName}</div>
-                    {/* <div className="text-sm text-gray-500">{user?.companyEmail}</div> */}
+                    <div className="font-medium text-gray-900">{user?.userName || 'Employee'}</div>
+                    {/* <div className="text-sm text-gray-500">{user?.companyEmail || 'No email'}</div> */}
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">Role: {user?.role}</div>
+                <div className="mt-2 text-xs text-gray-500">Role: {user?.role || 'EMPLOYEE'}</div>
               </div>
               {/* Menu Items */}
               <div className="py-1">
                 <button
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3"
-                  onClick={() => {
-                    // Navigate to profile page
-                    window.location.href = '/admin-dashboard/profile';
-                  }}
+                  onClick={handleProfile}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

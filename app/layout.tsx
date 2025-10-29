@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'EmpTimeHub',
   description: 'Employee Time Tracking Hub',
+
 };
  
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -117,26 +117,6 @@ class EmployeeService {
       throw new Error(`Failed to get employees by designation: ${error}`);
     }
   }
- 
-  /**
-   * Delete timesheet by ID (DELETE with query param).
-   */
-  async deleteTimeSheet(timesheetId: string): Promise<string> {
-    try {
-      const response: AxiosResponse<WebResponseDTOString> = await api.delete(
-        '/employee/timesheet/delete',
-        { params: { timesheetId } }
-      );
-      console.log('🧩 Full delete timesheet API response:', response.data.response);
-      if (response.data.flag && response.data.response) {
-        return response.data.response;
-      }
-      throw new Error(response.data.message || 'Failed to delete timesheet');
-    } catch (error) {
-      console.error('❌ Error deleting timesheet:', error);
-      throw new Error(`Failed to delete timesheet: ${error}`);
-    }
-  }
 
   /**
    * Get designation list (GET no params).

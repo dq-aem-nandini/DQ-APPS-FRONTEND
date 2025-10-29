@@ -1,129 +1,92 @@
-// components/admin/Sidebar.tsx
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
+  HomeIcon,
   UserIcon,
   BuildingOfficeIcon,
-  PlusIcon,
   CalendarIcon,
   DocumentTextIcon,
   ClockIcon,
+  PlusIcon,
   CogIcon,
-  HomeIcon,
-} from "@heroicons/react/24/outline";
-import { Search } from "lucide-react";
+} from '@heroicons/react/24/outline';
+import { LogOut } from 'lucide-react';
 
-const Sidebar = () => {
+export default function AdminSidebar() {
   const pathname = usePathname();
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const menuItems = [
+  const navSections = [
     {
-      href: "/admin-dashboard",
-      label: "Dashboard",
-      icon: HomeIcon,
-      match: /^\/admin-dashboard$/,
+      title: 'Main',
+      items: [
+        { href: '/admin-dashboard', label: 'Dashboard', icon: <HomeIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/employees', label: 'Employees', icon: <UserIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/clients', label: 'Clients', icon: <BuildingOfficeIcon className="h-5 w-5" /> },
+      ],
     },
     {
-      href: "/admin-dashboard/employees",
-      label: "Employees",
-      icon: UserIcon,
-      match: /^\/admin-dashboard\/employees/,
-    },
-
-    {
-      href: "/admin-dashboard/clients",
-      label: "Clients",
-      icon: BuildingOfficeIcon,
-      match: /^\/admin-dashboard\/clients/,
-    },
-
-    {
-      href: "/admin-dashboard/profile",
-      label: "Profile",
-      icon: UserIcon,
-      match: /^\/admin-dashboard\/profile/,
+      title: 'Operations',
+      items: [
+        { href: '/admin-dashboard/leaves', label: 'Leaves', icon: <CalendarIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/holiday', label: 'Holiday', icon: <PlusIcon className="h-5 w-5" /> },
+      ],
     },
     {
-      href: "/admin-dashboard/leaves",
-      label: "Leaves",
-      icon: CalendarIcon,
-      match: /^\/admin-dashboard\/leaves/,
-    },
-    {
-      href: "/admin-dashboard/apply-special-requests",
-      label: "Special Requests",
-      icon: DocumentTextIcon,
-      match: /^\/admin-dashboard\/apply-special/,
-    },
-    {
-      href: "/admin-dashboard/apply-overtime",
-      label: "Overtime",
-      icon: ClockIcon,
-      match: /^\/admin-dashboard\/apply-overtime/,
-    },
-    {
-      href: "/admin-dashboard/holiday",
-      label: "Holiday",
-      icon: PlusIcon,
-      match: /^\/admin-dashboard\/holiday/,
-    },
-    {
-      href: "/admin-dashboard/settings",
-      label: "Settings",
-      icon: CogIcon,
-      match: /^\/admin-dashboard\/settings/,
+      title: 'Account',
+      items: [
+        { href: '/admin-dashboard/profile', label: 'Profile', icon: <UserIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/settings', label: 'Settings', icon: <CogIcon className="h-5 w-5" /> },
+      ],
     },
   ];
 
-  const filteredItems = menuItems.filter((item) =>
-    item.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const isActive = (item: any) => {
-    if (typeof item.match === "string") {
-      return pathname === item.match;
-    }
-    return item.match.test(pathname);
-  };
-
   return (
-    // <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
-    <div className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm">
-      <div className="text-2xl font-bold text-indigo-600 mb-1 mt-3 text-center">DigiQuad</div>
-      <div className="p-4 border-b border-gray-200">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search menu..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          />
-        </div>
-      </div>
-      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {filteredItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-              isActive(item)
-                ? "bg-indigo-100 text-indigo-700 border border-indigo-200"
-                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            }`}
-          >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-    </div>
-  );
-};
+    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm flex flex-col justify-between">
+      {/* Logo */}
+      <div>
+        <div className="text-2xl font-bold text-indigo-600 mb-8 text-center">DigiQuad</div>
 
-export default Sidebar;
+        {/* Navigation Sections */}
+        {navSections.map((section) => (
+          <div key={section.title} className="mb-6">
+            <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 px-3">
+              {section.title}
+            </h4>
+            <nav className="space-y-1">
+              {section.items.map(({ href, label, icon }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${
+                      isActive
+                        ? 'bg-indigo-100 text-indigo-700 font-medium'
+                        : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                    }`}
+                  >
+                    {icon}
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
+
+      {/* Logout Button */}
+      <div className="border-t border-gray-100 pt-4">
+        <Link
+          href="/logout"
+          className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-all duration-150"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Logout</span>
+        </Link>
+      </div>
+    </aside>
+  );
+}

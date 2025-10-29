@@ -20,8 +20,7 @@ export default function AdminProfilePage() {
     if (user) {
       setFormData({
         userName: user.userName,
-        email: user.email,
-      });
+        email: user.email,});
     }
   }, [user]);
 
