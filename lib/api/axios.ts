@@ -3,10 +3,7 @@ import axios from 'axios';
 import { getDeviceHeaders } from './deviceUtils';
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.26:8081/web/api/v1',
-    // baseURL: 'https://emptimehub-production-dd24.up.railway.app/web/api/v1',
-    
- 
+  baseURL: 'http://192.168.1.30:8081/web/api/v1',
   headers: {
     'Content-Type': 'application/json',
     ...getDeviceHeaders(),
