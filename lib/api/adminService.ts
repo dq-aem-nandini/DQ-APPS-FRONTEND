@@ -292,6 +292,7 @@ async updateEmployee(empId: string, employee: EmployeeModel): Promise<WebRespons
       throw new Error(`Failed to delete client POC details: ${error}`);
     }
   }
+  
 }
 
 export const adminService = new AdminService();

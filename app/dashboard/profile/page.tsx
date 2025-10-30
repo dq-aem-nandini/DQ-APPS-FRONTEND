@@ -127,7 +127,6 @@ const ProfilePage = () => {
         employeePhotoUrl: formData.employeePhotoUrl,
         addresses: merged.map(addr => {
           const { addressId, ...rest } = addr;
-          // Only include addressId if it's real (not temp)
           return addressId && !addressId.startsWith('temp-') ? addr : rest;
         }),
       };
@@ -174,24 +173,21 @@ const ProfilePage = () => {
   const removeAddress = async (index: number) => {
     const address = addresses[index];
     const addressId = address.addressId;
-
-    // If it's a NEW address (no ID), just remove locally
+  
     if (!addressId || addressId.startsWith('temp-')) {
       setAddresses(prev => prev.filter((_, i) => i !== index));
       return;
     }
-
-    // Existing address → call API
+  
     setDeletingAddresses(prev => new Set(prev).add(addressId));
-
+  
     try {
-      const res = await adminService.deleteEmployeeAddress(profile!.employeeId, addressId);
-      if (!res.flag) throw new Error(res.message || 'Failed to delete');
-
+      await employeeService.deleteEmployeeAddressGlobal(profile!.employeeId, addressId);
+  
       setAddresses(prev => prev.filter((_, i) => i !== index));
       setSuccess('Address removed successfully');
     } catch (err: any) {
-      setError(err.message || 'Failed to delete address');
+      setError(err.message);
     } finally {
       setDeletingAddresses(prev => {
         const next = new Set(prev);
@@ -390,6 +386,7 @@ const ProfilePage = () => {
                     <div key={addr.addressId} className="border rounded-xl p-5 mb-5 bg-gradient-to-r from-gray-50 to-gray-100">
                       <div className="flex justify-between items-center mb-4">
                         <h4 className="font-semibold text-gray-700">Address {i + 1}</h4>
+
                         <button
                           type="button"
                           onClick={() => removeAddress(i)}
@@ -414,43 +411,57 @@ const ProfilePage = () => {
                         <Input
                           label="House Number"
                           value={addr.houseNo}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'houseNo', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateAddress(i, 'houseNo', e.target.value)
+                          }
                           required
                         />
                         <Input
                           label="Street Name"
                           value={addr.streetName}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'streetName', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateAddress(i, 'streetName', e.target.value)
+                          }
                           required
                         />
                         <Input
                           label="City"
                           value={addr.city}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'city', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateAddress(i, 'city', e.target.value)
+                          }
                           required
                         />
                         <Input
                           label="State / Province"
                           value={addr.state}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'state', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateAddress(i, 'state', e.target.value)
+                          }
                           required
                         />
                         <Input
                           label="Country"
                           value={addr.country}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'country', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateAddress(i, 'country', e.target.value)
+                          }
                           required
                         />
                         <Input
                           label="PIN Code"
                           value={addr.pincode}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'pincode', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateAddress(i, 'pincode', e.target.value)
+                          }
                           required
                         />
                         <Select
                           label="Address Type"
                           value={addr.addressType ?? ''}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateAddress(i, 'addressType', e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                            updateAddress(i, 'addressType', e.target.value)
+                          }
                           options={['PERMANENT', 'CURRENT']}
                           required
                         />
@@ -458,7 +469,11 @@ const ProfilePage = () => {
                     </div>
                   ))}
 
-                  <button type="button" onClick={addAddress} className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={addAddress}
+                    className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                  >
                     <MapPin className="w-4 h-4" /> Add Address
                   </button>
                 </Card>
@@ -466,7 +481,12 @@ const ProfilePage = () => {
                 <div className="flex justify-end gap-4 pt-6 border-t">
                   <button
                     type="button"
-                    onClick={() => { setEditing(false); setAddresses(profile.addresses); setFormData(profile); }}
+                    onClick={() => {
+                      setEditing(false);
+                      setAddresses(profile.addresses.map(a => ({ ...a }))); // Deep clone
+                      setFormData({ ...profile });
+                      setDeletingAddresses(new Set());
+                    }}
                     className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
                   >
                     Cancel
