@@ -32,7 +32,7 @@ class TimesheetService {
         headers: { ...config?.headers, ...headers },
       });
 
-      console.log(`🧩 Full ${method.toUpperCase()} API response:`, response.data);
+      console.log(` Full ${method.toUpperCase()} API response:`, response.data);
 
       const { flag, message, status, response: resp, totalRecords, otherInfo } = response.data;
       return {
@@ -44,7 +44,7 @@ class TimesheetService {
         otherInfo: otherInfo ?? null,
       };
     } catch (error: unknown) {
-      console.error(`❌ Error in ${method.toUpperCase()} operation:`, error);
+      console.error(` Error in ${method.toUpperCase()} operation:`, error);
       let errorMessage = failureMessage || "Operation failed";
       let errorStatus = 500;
       if (error instanceof AxiosError) {

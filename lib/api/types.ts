@@ -219,6 +219,33 @@ export interface EmployeeSalaryDTO {
   allowances?: AllowanceDTO[];
   deductions?: DeductionDTO[];
 }
+// Salary response models returned by salary endpoints
+export interface SalaryAllowanceDTO {
+  name: string; // e.g. "HOUSING_ALLOWANCE"
+  amount: number;
+}
+
+export interface SalaryDeductionDTO {
+  name: string; // e.g. "PF", "TAX"
+  amount: number;
+}
+
+export interface SalarySummaryDTO {
+  employeeId: string; // uuid
+  employeeName: string;
+  clientName?: string;
+  salaryMonth: string; // date like "2025-10-01"
+  basicPay: number;
+  totalAllowances: number;
+  allowances: SalaryAllowanceDTO[];
+  totalDeductions: number;
+  deductions: SalaryDeductionDTO[];
+  totalHours?: number;
+  grossSalary: number;
+  netSalary: number;
+  paymentStatus?: string; // e.g., "UNPAID", "PAID"
+  payrollStatus?: string; // e.g., "DRAFT", "FINALIZED"
+}
 
 export interface ProjectDTO {
   projectId: string; // uuid

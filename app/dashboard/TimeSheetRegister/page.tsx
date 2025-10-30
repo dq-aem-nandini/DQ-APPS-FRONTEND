@@ -12,6 +12,8 @@ import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { HolidayCalendarDTO, EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeSheetModel } from '@/lib/api/types';
 import { holidaysService } from '@/lib/api/holidayService';
 import { timesheetService } from '@/lib/api/timeSheetService';
+import Spinner from '@/components/ui/Spinner';
+
 
 interface TaskRow {
   id: string;
@@ -32,7 +34,7 @@ const TimeSheetRegister: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(weekStart.format('YYYY-MM-DD'));
   const [rows, setRows] = useState<TaskRow[]>([]);
   const [holidayMap, setHolidayMap] = useState<Record<string, HolidayCalendarDTO>>({});
-  const [leaveMap, setLeaveMap] = useState<Record<string, string>>({}); // date -> leaveCategory
+  const [leaveMap, setLeaveMap] = useState<Record<string, { leaveCategory: string; duration: number }>>({});
   const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   // Inline message panel (replaces alert())
@@ -88,10 +90,13 @@ const TimeSheetRegister: React.FC = () => {
   const fetchLeaves = useCallback(async (year: string) => {
     try {
       const leaves: EmployeeLeaveDayDTO[] = await leaveService.getApprovedLeaves(year);
-      const map: Record<string, string> = {};
+      const map: Record<string, { leaveCategory: string; duration: number }> = {};
 
       leaves.forEach((l: EmployeeLeaveDayDTO) => {
-        map[dayjs(l.date).format('YYYY-MM-DD')] = l.leaveCategory;
+        map[dayjs(l.date).format('YYYY-MM-DD')] = {
+          leaveCategory: l.leaveCategory,
+          duration: l.duration ?? 1,
+        };
       });
 
       setLeaveMap(map);
@@ -281,23 +286,23 @@ const TimeSheetRegister: React.FC = () => {
               msgs.push(`Row ${ri + 1}: Time entered on holiday (${holidayMap[date].holidayName}) for ${date}`);
             }
 
-            // Check leave conflicts
-            if (leaveMap[date] && h > 0) {
-              msgs.push(`Row ${ri + 1}: Time entered on approved leave day (${leaveMap[date]}) for ${date}`);
+            // Check leave conflicts: only block entries for full-day leaves
+            const leaveInfo = leaveMap[date];
+            if (leaveInfo && leaveInfo.duration === 1 && h > 0) {
+              msgs.push(`Row ${ri + 1}: Time entered on approved full-day leave (${leaveInfo.leaveCategory}) for ${date}`);
             }
           }
         });
       }
     });
 
-    // Second pass: check total hours for modified dates
+    // Second pass: check total hours for modified dates (per-day cap 8)
     Object.entries(dateHours).forEach(([date, totalHours]) => {
       const dayDate = dayjs(date);
-      const isWeekend = dayDate.day() === 0 || dayDate.day() === 6;
 
       // Validate total hours for modified dates
-      if (totalHours > 24) {
-        msgs.push(`Total hours for ${date} (${dayDate.format('dddd')}) exceed 24 (${totalHours} hours)`);
+      if (totalHours > 8) {
+        msgs.push(`Total hours for ${date} (${dayDate.format('dddd')}) exceed 8 (${totalHours} hours)`);
       }
     });
 
@@ -342,39 +347,49 @@ const TimeSheetRegister: React.FC = () => {
           msgs.push(`Row ${ri + 1}: Time entered on holiday (${holidayMap[date].holidayName}) for ${date}`);
         }
 
-        // Check leave conflicts
-        if (leaveMap[date] && h > 0) {
-          msgs.push(`Row ${ri + 1}: Time entered on approved leave day (${leaveMap[date]}) for ${date}`);
+        // Check leave conflicts: only block entries for full-day leaves
+        const leaveInfo = leaveMap[date];
+        if (leaveInfo && leaveInfo.duration === 1 && h > 0) {
+          msgs.push(`Row ${ri + 1}: Time entered on approved full-day leave (${leaveInfo.leaveCategory}) for ${date}`);
         }
       });
     });
 
     // Second pass: check total hours for all days in the week
-    weekDates.forEach((d, i) => {
+  weekDates.forEach((d) => {
       const date = d.format('YYYY-MM-DD');
       const totalHours = dateHours[date] || 0;
       const dayDate = dayjs(date);
       const weekday = dayDate.day();
       const isWeekend = weekday === 0 || weekday === 6;
       const isHoliday = holidayMap[date];
-      const isLeave = leaveMap[date];
+      const leaveInfo = leaveMap[date];
 
-      // Validate workdays (Monday to Friday, not holidays or leave days)
-      if (!isWeekend && !isHoliday && !isLeave) {
+      // Validate workdays (Monday to Friday, not holidays or full-day leave days)
+      if (!isWeekend && !isHoliday && !leaveInfo) {
         if (totalHours === 0) {
           msgs.push(`No hours entered for workday ${date} (${dayDate.format('dddd')})`);
         }
       }
 
-      // Validate holidays and leave days must have 0 hours
-      if ((isHoliday || isLeave) && totalHours > 0) {
-        const type = isHoliday ? `holiday (${holidayMap[date].holidayName})` : `leave (${leaveMap[date]})`;
-        msgs.push(`Hours entered for ${type} on ${date} (${dayDate.format('dddd')})`);
+      // Validate holidays must have 0 hours
+      if (isHoliday && totalHours > 0) {
+        msgs.push(`Hours entered for holiday (${holidayMap[date].holidayName}) on ${date} (${dayDate.format('dddd')})`);
       }
 
-      // Weekends are optional, but if hours are entered, ensure they're valid
-      if (isWeekend && totalHours > 24) {
-        msgs.push(`Total hours for ${date} (${dayDate.format('dddd')}) exceed 24 (${totalHours} hours)`);
+      // Validate leave days: full-day leaves must have 0 hours; half-day leaves limited to 4 hours
+      if (leaveInfo) {
+        if (leaveInfo.duration === 1 && totalHours > 0) {
+          msgs.push(`Hours entered for full-day leave (${leaveInfo.leaveCategory}) on ${date} (${dayDate.format('dddd')})`);
+        }
+        if (leaveInfo.duration === 0.5 && totalHours > 4) {
+          msgs.push(`Hours entered for half-day leave (${leaveInfo.leaveCategory}) on ${date} exceed 4 hours`);
+        }
+      }
+
+      // Enforce per-day maximum hours (8)
+      if (totalHours > 8) {
+        msgs.push(`Total hours for ${date} (${dayDate.format('dddd')}) exceed 8 (${totalHours} hours)`);
       }
     });
 
@@ -389,14 +404,14 @@ const TimeSheetRegister: React.FC = () => {
 
   // 🔹 Row operations
   const addRow = () => {
-    if (isLocked) return;
+    if (isLocked || loading) return;
     const id = 'r' + Date.now();
     const hours = Object.fromEntries(weekDates.map(d => [d.format('YYYY-MM-DD'), 0]));
     setRows(prev => [...prev, { id, taskName: '', hours }]);
   };
 
   const deleteRow = (index: number) => {
-    if (isLocked) {
+    if (isLocked || loading) {
       pushMessage('info', 'Timesheet is locked');
       return;
     }
@@ -404,7 +419,44 @@ const TimeSheetRegister: React.FC = () => {
   };
 
   const handleChange = (rowIndex: number, date: string, value: number) => {
-    if (isLocked) return;
+    if (isLocked || loading) return;
+
+    // Determine leave info for the date
+    const leaveInfo = leaveMap[date];
+
+    // If full-day leave, disallow any hours
+    if (leaveInfo?.duration === 1) {
+      pushMessage('error', `Cannot enter hours on a full-day leave (${leaveInfo.leaveCategory})`);
+      value = 0;
+    }
+
+    // Compute current total for the date excluding this row to enforce per-day max of 8
+    const currentTotalOtherRows = rows.reduce((sum, r, idx) => {
+      if (idx === rowIndex) return sum;
+      return sum + (r.hours[date] ? Number(r.hours[date]) : 0);
+    }, 0);
+
+    // Allowed remaining hours for the day (per-day cap 8)
+    let allowedForDay = 8 - currentTotalOtherRows;
+    // If half-day leave, also cap allowed to 4
+    if (leaveInfo?.duration === 0.5) {
+      allowedForDay = Math.min(allowedForDay, 4);
+    }
+    if (allowedForDay < 0) allowedForDay = 0;
+
+    if (value > allowedForDay) {
+      if (allowedForDay === 0) {
+        pushMessage('error', `No available hours can be entered for ${date}`);
+      } else {
+        pushMessage('error', `Total hours for ${date} cannot exceed 8. Only ${allowedForDay} hour(s) available`);
+      }
+      value = allowedForDay;
+    }
+
+    // Final clamp for safety: non-negative and max 8 per single cell
+    if (value < 0) value = 0;
+    if (value > 8) value = 8;
+
     setRows(prev => {
       const copy = [...prev];
       copy[rowIndex].hours[date] = Number(value);
@@ -414,7 +466,7 @@ const TimeSheetRegister: React.FC = () => {
   };
 
   const handleTaskNameChange = (rowIndex: number, name: string) => {
-    if (isLocked) return;
+    if (isLocked || loading) return;
     setRows(prev => {
       const copy = [...prev];
       copy[rowIndex].taskName = name;
@@ -435,6 +487,10 @@ const TimeSheetRegister: React.FC = () => {
   const saveAll = async () => {
     if (isLocked) {
       pushMessage('error', 'Cannot modify timesheet - it has already been submitted for approval');
+      return;
+    }
+    if (loading) {
+      pushMessage('info', 'Please wait while current operation completes');
       return;
     }
 
@@ -549,6 +605,10 @@ const TimeSheetRegister: React.FC = () => {
       pushMessage('info', 'Timesheet already submitted for this week');
       return;
     }
+    if (loading) {
+      pushMessage('info', 'Please wait while current operation completes');
+      return;
+    }
 
     // Run validation before showing confirmation
     const validation = runValidation();
@@ -629,10 +689,17 @@ const TimeSheetRegister: React.FC = () => {
   const confirmSubmitNo = () => setConfirmSubmitOpen(false);
 
   if (loading) {
-    return <div className="p-6 flex items-center justify-center"><div className="text-lg">Loading...</div></div>;
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-2">
+          <Spinner className="h-8 w-8 text-blue-600" />
+          <div className="text-sm text-gray-600">Loading timesheet data...</div>
+        </div>
+      </div>
+    );
   }
 
-  const isHolidayOrLeave = (date: string) => !!holidayMap[date] || !!leaveMap[date];
+  // (removed) helper merged into other checks
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
@@ -690,7 +757,7 @@ const TimeSheetRegister: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                   Task
-                  <button onClick={addRow} disabled={isLocked} className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50">
+                  <button onClick={addRow} disabled={isLocked || loading} className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50">
                     <Plus size={14} />
                   </button>
                 </th>
@@ -706,7 +773,7 @@ const TimeSheetRegister: React.FC = () => {
                     statusText = isHoliday.holidayName;
                     statusClass = 'text-amber-600 bg-amber-50';
                   } else if (isLeave) {
-                    statusText = isLeave;
+                    statusText = isLeave.leaveCategory;
                     statusClass = 'text-blue-600 bg-blue-50';
                   } else if (isWeekend) {
                     statusText = 'Weekend';
@@ -732,7 +799,7 @@ const TimeSheetRegister: React.FC = () => {
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => deleteRow(rowIndex)}
-                        disabled={isLocked || deletingRowIndex !== null}
+                        disabled={isLocked || deletingRowIndex !== null || loading}
                         className="p-1 rounded-full text-red-500 hover:bg-red-100 disabled:opacity-50"
                       >
                         <Trash2 size={16} />
@@ -743,13 +810,13 @@ const TimeSheetRegister: React.FC = () => {
                         value={row.taskName}
                         placeholder="Task name"
                         onChange={e => {
-                          if (isLocked) {
+                          if (isLocked || loading) {
                             pushMessage('info', 'Cannot modify timesheet - it has been submitted for approval');
                             return;
                           }
                           handleTaskNameChange(rowIndex, e.target.value);
                         }}
-                        disabled={isLocked}
+                        disabled={isLocked || loading}
                       />
                     </div>
                   </td>
@@ -757,26 +824,29 @@ const TimeSheetRegister: React.FC = () => {
                     const key = d.format('YYYY-MM-DD');
                     const isHoliday = holidayMap[key];
                     const isLeave = leaveMap[key];
-                    const weekday = d.day();
-                    const isWeekend = weekday === 0 || weekday === 6;
-                    // Allow weekend entries, only disable for holidays, leaves, or when locked
-                    const disabled = isLocked || !!isHoliday || !!isLeave;
+                    
+                    // Allow weekend entries, only disable for holidays, full-day leaves, or when locked
+                    const disabled = isLocked || loading || !!isHoliday || (isLeave?.duration === 1);
+                    // Per-day cap is 8 hours; half-day leaves cap to 4
+                    const maxHours = Math.min(isLeave?.duration === 0.5 ? 4 : 24, 8);
                     return (
                       <td key={key} className="px-3 py-4 whitespace-nowrap text-center border-r border-gray-200">
                         <input
                           type="number"
                           min="0"
-                          max="24"
+                          max={String(maxHours)}
                           step="0.5"
                           className="w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                           value={row.hours[key] ?? 0}
                           disabled={disabled}
                           onChange={e => {
-                            if (isLocked) {
+                            if (isLocked || loading) {
                               pushMessage('info', 'Cannot modify timesheet - it has been submitted for approval');
                               return;
                             }
-                            handleChange(rowIndex, key, Number(e.target.value));
+                            const newValue = Number(e.target.value);
+                            // Delegate full validation/clamping to handleChange
+                            handleChange(rowIndex, key, newValue);
                           }}
                         />
                       </td>

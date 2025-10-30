@@ -24,6 +24,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard', label: 'Dashboard', icon: <HomeIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/employees', label: 'Employees', icon: <UserIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/clients', label: 'Clients', icon: <BuildingOfficeIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/salaries', label: 'Salaries', icon: <UserIcon className="h-5 w-5" /> },
       ],
     },
     {

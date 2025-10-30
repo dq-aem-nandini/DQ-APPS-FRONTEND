@@ -35,6 +35,7 @@ const navSections = [
       { href: '/dashboard/holiday', label: 'Holidays', icon: <Gift size={18} /> },
       { href: '/dashboard/calendar', label: 'Calendar', icon: <Calendar size={18} /> },
       { href: '/dashboard/payroll', label: 'Payroll', icon: <FileText size={18} /> },
+      { href: '/dashboard/salary', label: 'Salary', icon: <FileText size={18} /> },
       { href: '/dashboard/team', label: 'Team', icon: <Users size={18} /> },
     ],
   },
