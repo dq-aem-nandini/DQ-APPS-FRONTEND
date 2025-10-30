@@ -2,315 +2,223 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { employeeService } from '@/lib/api/employeeService';
-import { EmployeeDTO, User, AddressModel, EmployeeModel } from '@/lib/api/types';
+import {
+  EmployeeDTO,
+  AddressModel,
+  EmployeeModel,
+  EmployeeDocumentDTO,
+  EmployeeSalaryDTO,
+  EmployeeInsuranceDetailsDTO,
+  EmployeeEquipmentDTO,
+  EmployeeStatutoryDetailsDTO,
+  EmployeeEmploymentDetailsDTO,
+  EmployeeAdditionalDetailsDTO,
+  Designation,
+  EmploymentType,
+} from '@/lib/api/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import { Mail, Phone, Calendar, MapPin, Building, Briefcase, Shield, DollarSign, FileText, User, Edit3, Save, X } from 'lucide-react';
+import { adminService } from '@/lib/api/adminService';
 
-// Utility function to transform null fields to empty strings, preserving non-null values
-const transformNullToEmpty = <T extends object>(obj: T): T => {
-  const transformed = Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => {
-      if (key === 'addresses' && Array.isArray(value)) {
-        // Deduplicate addresses by unique fields
-        const uniqueAddresses = Array.from(
-          new Map(
-            value.map((addr: AddressModel) => {
-              const addressKey = `${addr.houseNo}-${addr.streetName}-${addr.city}-${addr.state}-${addr.country}-${addr.pincode}-${addr.addressType}`;
-              return [addressKey, { ...addr, addressId: addr.addressId || uuidv4() }];
-            })
-          ).values()
-        );
-        return [key, uniqueAddresses];
-      }
-      return [key, typeof value === 'string' && value === null ? '' : value];
-    })
-  ) as T;
-  return transformed;
-};
+// Safe value
+const safe = (val: any) => (val === null || val === undefined ? '—' : String(val));
 
-// Validate address to prevent incomplete submissions
-const isValidAddress = (address: AddressModel): boolean => {
-  return (
-    !!address.houseNo &&
-    !!address.streetName &&
-    !!address.city &&
-    !!address.state &&
-    !!address.country &&
-    !!address.pincode &&
-    !!address.addressType
-  );
-};
+// Format date
+const formatDate = (date: string) =>
+  date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
 
-// Deduplicate addresses before submission
+// Validate address
+const isValidAddress = (addr: AddressModel): boolean =>
+  !!addr.houseNo && !!addr.streetName && !!addr.city && !!addr.state && !!addr.country && !!addr.pincode && !!addr.addressType;
+
+// Deduplicate addresses
 const deduplicateAddresses = (addresses: AddressModel[]): AddressModel[] => {
-  console.log('🧩 Deduplicating addresses, input:', JSON.stringify(addresses, null, 2));
-  const uniqueAddresses = Array.from(
-    new Map(
-      addresses.map((addr) => {
-        const addressWithId = {
-          ...addr,
-          addressId: addr.addressId || uuidv4(),
-        };
-        const addressKey = `${addr.houseNo}-${addr.streetName}-${addr.city}-${addr.state}-${addr.country}-${addr.pincode}-${addr.addressType}`;
-        return [addressKey, addressWithId];
-      })
-    ).values()
-  ).filter(isValidAddress);
-  console.log('🧩 Deduplicated addresses:', JSON.stringify(uniqueAddresses, null, 2));
-  return uniqueAddresses;
+  const map = new Map<string, AddressModel>();
+  addresses.forEach(addr => {
+    const key = `${addr.houseNo}-${addr.streetName}-${addr.city}-${addr.state}-${addr.country}-${addr.pincode}-${addr.addressType}`;
+    const withId = { ...addr, addressId: addr.addressId || uuidv4() };
+    if (!map.has(key)) map.set(key, withId);
+  });
+  return Array.from(map.values()).filter(isValidAddress);
 };
 
 const ProfilePage = () => {
   const { state: { user } } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<EmployeeDTO | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState<EmployeeDTO>({
-    employeeId: '',
-    firstName: '',
-    lastName: '',
-    personalEmail: '',
-    companyEmail: '',
-    contactNumber: '',
-    alternateContactNumber: '',
-    gender: '',
-    maritalStatus: '',
-    numberOfChildren: 0,
-    dateOfBirth: '',
-    employeePhotoUrl: '',
-    designation: 'INTERN',
-    dateOfJoining: '',
-    rateCard: 0,
-    availableLeaves: 0,
-    employmentType: 'FULLTIME',
-    currency: 'INR',
-    companyId: '',
-    accountNumber: '',
-    accountHolderName: '',
-    bankName: '',
-    ifscCode: '',
-    branchName: '',
-    panNumber: '',
-    aadharNumber: '',
-    clientId: '',
-    clientName: '',
-    reportingManagerId: '',
-    reportingManagerName: '',
-    panCardUrl: '',
-    aadharCardUrl: '',
-    bankPassbookUrl: '',
-    tenthCftUrl: '',
-    interCftUrl: '',
-    degreeCftUrl: '',
-    postGraduationCftUrl: '',
-    addresses: [],
-    status: '',
-    createdAt: '',
-    updatedAt: '',
-  });
-  const [updating, setUpdating] = useState(false);
+  const [formData, setFormData] = useState<EmployeeDTO | null>(null);
   const [addresses, setAddresses] = useState<AddressModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [deletingAddresses, setDeletingAddresses] = useState<Set<string>>(new Set());
 
-  // Fetch employee profile
   const fetchProfile = useCallback(async () => {
     if (!user || user.role !== 'EMPLOYEE') {
-      setError('User not authenticated or not an employee.');
-      setLoading(false);
+      router.push('/auth/login');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setSuccessMessage(null);
     try {
-      const response = await employeeService.getEmployeeById();
-      console.log('🧩 Profile fetched:', JSON.stringify(response, null, 2));
-      if (!response || !response.employeeId) {
-        throw new Error('Invalid or empty response from getEmployeeById');
-      }
-      const transformedProfile = transformNullToEmpty(response);
-      setProfile(transformedProfile);
-      setFormData(transformedProfile);
-      setAddresses(transformedProfile.addresses || []);
-      console.log('🧩 Profile state updated:', JSON.stringify(transformedProfile, null, 2));
+      const res = await employeeService.getEmployeeById();
+      if (!res?.employeeId) throw new Error('Invalid profile');
+
+      const clean: EmployeeDTO = {
+        ...res,
+        addresses: (res.addresses || []).map(a => ({ ...a, addressId: a.addressId || uuidv4() })),
+        documents: res.documents || [],
+        employeeSalaryDTO: res.employeeSalaryDTO || undefined,
+        employeeInsuranceDetailsDTO: res.employeeInsuranceDetailsDTO || undefined,
+        employeeEquipmentDTO: res.employeeEquipmentDTO || [],
+        employeeStatutoryDetailsDTO: res.employeeStatutoryDetailsDTO || undefined,
+        employeeEmploymentDetailsDTO: res.employeeEmploymentDetailsDTO || undefined,
+        employeeAdditionalDetailsDTO: res.employeeAdditionalDetailsDTO || undefined,
+      };
+
+      setProfile(clean);
+      setFormData(clean);
+      setAddresses(clean.addresses || []);
     } catch (err: any) {
-      console.error('❌ Error fetching profile:', err);
-      setError(err.message || 'Failed to load profile. Please try again.');
+      setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, router]);
 
-  // Update employee profile
-  const handleUpdateProfile = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData || !user) {
-      setError('User or form data missing.');
-      setUpdating(false);
-      return;
-    }
+    if (!formData || !profile) return;
 
     setUpdating(true);
     setError(null);
-    setSuccessMessage(null);
+    setSuccess(null);
 
     try {
-      // Fetch current profile to get existing addresses
-      const currentProfile = await employeeService.getEmployeeById();
-      console.log('🧩 Current profile before update:', JSON.stringify(currentProfile, null, 2));
-      const currentAddresses = currentProfile?.addresses || [];
+      const merged = deduplicateAddresses([...profile.addresses, ...addresses]);
+      if (addresses.length > 0 && merged.length === 0) throw new Error('Complete all address fields');
 
-      // Merge and deduplicate addresses
-      const mergedAddresses = deduplicateAddresses([...currentAddresses, ...addresses]);
-      if (mergedAddresses.length === 0 && addresses.length > 0) {
-        setError('All addresses must have complete details.');
-        setUpdating(false);
-        return;
-      }
-
-      const employeeData: EmployeeModel = {
+      const payload: Partial<EmployeeModel> = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         personalEmail: formData.personalEmail,
-        companyEmail: formData.companyEmail,
         contactNumber: formData.contactNumber,
         alternateContactNumber: formData.alternateContactNumber,
         gender: formData.gender,
+        companyEmail: formData.companyEmail,
         maritalStatus: formData.maritalStatus,
         numberOfChildren: formData.numberOfChildren,
         dateOfBirth: formData.dateOfBirth,
-        dateOfJoining: formData.dateOfJoining,
-        designation: formData.designation,
-        employmentType: formData.employmentType,
-        currency: formData.currency || 'INR',
-        rateCard: formData.rateCard,
+        nationality: formData.nationality,
+        emergencyContactName: formData.emergencyContactName,
+        emergencyContactNumber: formData.emergencyContactNumber,
         panNumber: formData.panNumber,
         aadharNumber: formData.aadharNumber,
-        clientId: formData.clientId,
-        reportingManagerId: formData.reportingManagerId,
         accountNumber: formData.accountNumber,
         accountHolderName: formData.accountHolderName,
         bankName: formData.bankName,
         ifscCode: formData.ifscCode,
         branchName: formData.branchName,
         employeePhotoUrl: formData.employeePhotoUrl,
-        panCardUrl: formData.panCardUrl,
-        aadharCardUrl: formData.aadharCardUrl,
-        bankPassbookUrl: formData.bankPassbookUrl,
-        tenthCftUrl: formData.tenthCftUrl,
-        interCftUrl: formData.interCftUrl,
-        degreeCftUrl: formData.degreeCftUrl,
-        postGraduationCftUrl: formData.postGraduationCftUrl,
-        addresses: mergedAddresses,
+        addresses: merged.map(addr => {
+          const { addressId, ...rest } = addr;
+          // Only include addressId if it's real (not temp)
+          return addressId && !addressId.startsWith('temp-') ? addr : rest;
+        }),
       };
 
-      console.log('🧩 Sending update payload:', JSON.stringify(employeeData, null, 2));
-      const updateResponse = await employeeService.updateEmployee(employeeData);
-      console.log('🧩 Update response:', JSON.stringify(updateResponse, null, 2));
+      const res = await employeeService.updateEmployee(payload as EmployeeModel);
+      if (!res.flag) throw new Error(res.message || 'Update failed');
 
-      if (updateResponse?.flag && updateResponse?.response && updateResponse.response.employeeId) {
-        const transformedProfile = transformNullToEmpty(updateResponse.response);
-        setProfile(transformedProfile);
-        setFormData(transformedProfile);
-        setAddresses(transformedProfile.addresses || []);
-        setSuccessMessage('Profile updated successfully!');
-        console.log('🧩 Profile state updated after update:', JSON.stringify(transformedProfile, null, 2));
-      } else {
-        console.warn('⚠️ Update response incomplete, fetching latest profile');
-        await fetchProfile();
-        setSuccessMessage('Profile updated, refreshed data.');
-      }
+      await fetchProfile();
+      setSuccess('Profile updated successfully!');
       setEditing(false);
     } catch (err: any) {
-      console.error('❌ Error updating profile:', JSON.stringify(err, null, 2));
-      setError(err.message || 'Failed to update profile. Please try again.');
+      setError(err.message || 'Update failed');
     } finally {
       setUpdating(false);
     }
   };
 
-  // Handle input changes
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => prev ? { ...prev, [name]: value } : null);
   };
 
-  // Handle address changes
   const addAddress = () => {
-    const newAddress: AddressModel = {
-      addressId: uuidv4(),
+    const newAddr: AddressModel = {
+      addressId: `temp-${uuidv4()}`, // ← Temp ID for new addresses
       houseNo: '',
       streetName: '',
       city: '',
       state: '',
       country: '',
       pincode: '',
-      addressType: '',
+      addressType: undefined,
     };
-    setAddresses(prev => [...prev, newAddress]);
-    setFormData(prev => ({
-      ...prev,
-      addresses: [...prev.addresses, newAddress],
-    }));
+    setAddresses(prev => [...prev, newAddr]);
   };
 
-  const updateAddress = (index: number, field: keyof AddressModel, value: string) => {
-    const updatedAddresses = [...addresses];
-    updatedAddresses[index] = { ...updatedAddresses[index], [field]: value };
-    setAddresses(updatedAddresses);
-    setFormData(prev => ({
-      ...prev,
-      addresses: updatedAddresses,
-    }));
+  const updateAddress = (i: number, field: keyof AddressModel, value: string) => {
+    setAddresses(prev => {
+      const updated = [...prev];
+      updated[i] = { ...updated[i], [field]: value };
+      return updated;
+    });
   };
+  const removeAddress = async (index: number) => {
+    const address = addresses[index];
+    const addressId = address.addressId;
 
-  const removeAddress = (index: number) => {
-    const updatedAddresses = addresses.filter((_, i) => i !== index);
-    setAddresses(updatedAddresses);
-    setFormData(prev => ({
-      ...prev,
-      addresses: updatedAddresses,
-    }));
-  };
+    // If it's a NEW address (no ID), just remove locally
+    if (!addressId || addressId.startsWith('temp-')) {
+      setAddresses(prev => prev.filter((_, i) => i !== index));
+      return;
+    }
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    return dateString
-      ? new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      : 'Not specified';
+    // Existing address → call API
+    setDeletingAddresses(prev => new Set(prev).add(addressId));
+
+    try {
+      const res = await adminService.deleteEmployeeAddress(profile!.employeeId, addressId);
+      if (!res.flag) throw new Error(res.message || 'Failed to delete');
+
+      setAddresses(prev => prev.filter((_, i) => i !== index));
+      setSuccess('Address removed successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete address');
+    } finally {
+      setDeletingAddresses(prev => {
+        const next = new Set(prev);
+        next.delete(addressId);
+        return next;
+      });
+    }
   };
 
   useEffect(() => {
-    if (user && user.role === 'EMPLOYEE') {
-      fetchProfile();
-    } else {
-      router.push('/auth/login');
-    }
-  }, [user, fetchProfile, router]);
+    fetchProfile();
+  }, [fetchProfile]);
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6 flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !profile) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg">
-          <p>{error}</p>
-          <button onClick={fetchProfile} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl shadow-sm">
+          <p className="font-medium">{error}</p>
+          <button onClick={fetchProfile} className="mt-3 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
             Retry
           </button>
         </div>
@@ -318,771 +226,451 @@ const ProfilePage = () => {
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="container mx-auto p-6">
-        <p className="text-gray-600">No profile data available.</p>
-      </div>
-    );
+  if (!profile || !formData) {
+    return <div className="container mx-auto p-6 text-gray-500">No profile data</div>;
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h1 className="text-2xl font-bold text-gray-800">Profile</h1>
-          <p className="text-gray-600">Manage your personal information</p>
-        </div>
-
-        <div className="p-6">
-          {successMessage && (
-            <div className="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg">
-              <p>{successMessage}</p>
-            </div>
-          )}
-          {editing ? (
-            <form onSubmit={handleUpdateProfile} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Personal Email</label>
-                  <input
-                    type="email"
-                    name="personalEmail"
-                    value={formData.personalEmail || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Company Email</label>
-                  <input
-                    type="email"
-                    name="companyEmail"
-                    value={formData.companyEmail || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
-                  <input
-                    type="tel"
-                    name="contactNumber"
-                    value={formData.contactNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                    pattern="[0-9]{10}"
-                    title="Contact number must be 10 digits"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Alternate Contact</label>
-                  <input
-                    type="tel"
-                    name="alternateContactNumber"
-                    value={formData.alternateContactNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    pattern="[0-9]{10}"
-                    title="Alternate contact number must be 10 digits"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                  <select
-                    name="gender"
-                    value={formData.gender || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
-                  <select
-                    name="maritalStatus"
-                    value={formData.maritalStatus || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Select Status</option>
-                    <option value="SINGLE">Single</option>
-                    <option value="MARRIED">Married</option>
-                    <option value="DIVORCED">Divorced</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Number of Children</label>
-                  <input
-                    type="number"
-                    name="numberOfChildren"
-                    value={formData.numberOfChildren || 0}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Designation</label>
-                  <select
-                    name="designation"
-                    value={formData.designation || 'INTERN'}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled
-                  >
-                    <option value="">Select Designation</option>
-                    {[
-                      'INTERN',
-                      'TRAINEE',
-                      'ASSOCIATE_ENGINEER',
-                      'SOFTWARE_ENGINEER',
-                      'SENIOR_SOFTWARE_ENGINEER',
-                      'LEAD_ENGINEER',
-                      'TEAM_LEAD',
-                      'TECHNICAL_ARCHITECT',
-                      'REPORTING_MANAGER',
-                      'DELIVERY_MANAGER',
-                      'DIRECTOR',
-                      'VP_ENGINEERING',
-                      'CTO',
-                      'HR',
-                      'FINANCE',
-                      'OPERATIONS',
-                    ].map(d => (
-                      <option key={d} value={d}>{d.replace('_', ' ')}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Employment Type</label>
-                  <select
-                    name="employmentType"
-                    value={formData.employmentType || 'FULLTIME'}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled
-                  >
-                    <option value="">Select Type</option>
-                    <option value="FULLTIME">Full-time</option>
-                    <option value="CONTRACTOR">Contractor</option>
-                    <option value="FREELANCER">Freelancer</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-                  <input
-                    type="text"
-                    name="currency"
-                    value={formData.currency || 'INR'}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rate Card</label>
-                  <input
-                    type="number"
-                    name="rateCard"
-                    value={formData.rateCard || 0}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">PAN Number</label>
-                  <input
-                    type="text"
-                    name="panNumber"
-                    value={formData.panNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                    pattern="[A-Z0-9]{10}"
-                    title="PAN number must be 10 alphanumeric characters"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Number</label>
-                  <input
-                    type="text"
-                    name="aadharNumber"
-                    value={formData.aadharNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                    pattern="[0-9]{12}"
-                    title="Aadhaar number must be 12 digits"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name</label>
-                  <input
-                    type="text"
-                    name="bankName"
-                    value={formData.bankName || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">IFSC Code</label>
-                  <input
-                    type="text"
-                    name="ifscCode"
-                    value={formData.ifscCode || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                    pattern="[A-Z0-9]{11}"
-                    title="IFSC code must be 11 alphanumeric characters"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
-                  <input
-                    type="text"
-                    name="accountNumber"
-                    value={formData.accountNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Account Holder Name</label>
-                  <input
-                    type="text"
-                    name="accountHolderName"
-                    value={formData.accountHolderName || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Branch Name</label>
-                  <input
-                    type="text"
-                    name="branchName"
-                    value={formData.branchName || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Employee Photo URL</label>
-                  <input
-                    type="text"
-                    name="employeePhotoUrl"
-                    value={formData.employeePhotoUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">PAN Card URL</label>
-                  <input
-                    type="text"
-                    name="panCardUrl"
-                    value={formData.panCardUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Card URL</label>
-                  <input
-                    type="text"
-                    name="aadharCardUrl"
-                    value={formData.aadharCardUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bank Passbook URL</label>
-                  <input
-                    type="text"
-                    name="bankPassbookUrl"
-                    value={formData.bankPassbookUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">10th Certificate URL</label>
-                  <input
-                    type="text"
-                    name="tenthCftUrl"
-                    value={formData.tenthCftUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">12th Certificate URL</label>
-                  <input
-                    type="text"
-                    name="interCftUrl"
-                    value={formData.interCftUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Degree Certificate URL</label>
-                  <input
-                    type="text"
-                    name="degreeCftUrl"
-                    value={formData.degreeCftUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Post-Graduation Certificate URL</label>
-                  <input
-                    type="text"
-                    name="postGraduationCftUrl"
-                    value={formData.postGraduationCftUrl || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="col-span-full">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Addresses</label>
-                {addresses.length > 0 ? (
-                  addresses.map((address, index) => (
-                    <div
-                      key={address.addressId || `address-${index}`}
-                      className="border border-gray-200 rounded-md p-4 mb-4"
-                    >
-                      <div className="flex justify-between items-center">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Address {index + 1}</h4>
-                        <button
-                          type="button"
-                          onClick={() => removeAddress(index)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">House No</label>
-                          <input
-                            type="text"
-                            value={address.houseNo || ''}
-                            onChange={(e) => updateAddress(index, 'houseNo', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Street Name</label>
-                          <input
-                            type="text"
-                            value={address.streetName || ''}
-                            onChange={(e) => updateAddress(index, 'streetName', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">City</label>
-                          <input
-                            type="text"
-                            value={address.city || ''}
-                            onChange={(e) => updateAddress(index, 'city', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">State</label>
-                          <input
-                            type="text"
-                            value={address.state || ''}
-                            onChange={(e) => updateAddress(index, 'state', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Country</label>
-                          <input
-                            type="text"
-                            value={address.country || ''}
-                            onChange={(e) => updateAddress(index, 'country', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">PIN Code</label>
-                          <input
-                            type="text"
-                            value={address.pincode || ''}
-                            onChange={(e) => updateAddress(index, 'pincode', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Address Type</label>
-                          <select
-                            value={address.addressType || ''}
-                            onChange={(e) => updateAddress(index, 'addressType', e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            required
-                          >
-                            <option value="">Select Type</option>
-                            <option value="PERMANENT">Permanent</option>
-                            <option value="TEMPORARY">Temporary</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600">No addresses available.</p>
-                )}
-                <button
-                  type="button"
-                  onClick={addAddress}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition duration-300"
-                >
-                  Add Address
-                </button>
-              </div>
-
-              <div className="flex justify-end gap-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    setAddresses(profile.addresses || []);
-                    setFormData(profile);
-                  }}
-                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition duration-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition duration-300"
-                >
-                  {updating ? 'Updating...' : 'Update Profile'}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+      <div className="container mx-auto max-w-7xl">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
+            <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Full Name</label>
-                    <p className="text-gray-900">{`${profile.firstName || 'Not specified'} ${profile.lastName || 'Not specified'}`}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Date of Birth</label>
-                    <p className="text-gray-900">{formatDate(profile.dateOfBirth || '')}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Gender</label>
-                    <p className="text-gray-900">{profile.gender || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Marital Status</label>
-                    <p className="text-gray-900">{profile.maritalStatus || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Number of Children</label>
-                    <p className="text-gray-900">{profile.numberOfChildren ?? 'Not specified'}</p>
-                  </div>
-                </div>
+                <h1 className="text-3xl font-bold flex items-center gap-3">
+                  <User className="w-8 h-8" />
+                  {profile.firstName} {profile.lastName}
+                </h1>
+                <p className="opacity-90 mt-1">{profile.designation?.replace('_', ' ')}</p>
               </div>
-
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Contact Information</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Personal Email</label>
-                    <p className="text-gray-900">{profile.personalEmail || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Company Email</label>
-                    <p className="text-gray-900">{profile.companyEmail || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Contact Number</label>
-                    <p className="text-gray-900">{profile.contactNumber || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Alternate Contact</label>
-                    <p className="text-gray-900">{profile.alternateContactNumber || 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Employment Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Designation</label>
-                    <p className="text-gray-900">{profile.designation?.replace('_', ' ') || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Date of Joining</label>
-                    <p className="text-gray-900">{formatDate(profile.dateOfJoining || '')}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Employment Type</label>
-                    <p className="text-gray-900">{profile.employmentType || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Client</label>
-                    <p className="text-gray-900">{profile.clientName || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Reporting Manager</label>
-                    <p className="text-gray-900">{profile.reportingManagerName || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Available Leaves</label>
-                    <p className="text-gray-900">{profile.availableLeaves ?? 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Bank Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Bank Name</label>
-                    <p className="text-gray-900">{profile.bankName || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Account Number</label>
-                    <p className="text-gray-900">{profile.accountNumber || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">IFSC Code</label>
-                    <p className="text-gray-900">{profile.ifscCode || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Account Holder</label>
-                    <p className="text-gray-900">{profile.accountHolderName || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Branch Name</label>
-                    <p className="text-gray-900">{profile.branchName || 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Documents</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">PAN Card</label>
-                    <a href={profile.panCardUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.panCardUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Aadhaar Card</label>
-                    <a href={profile.aadharCardUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.aadharCardUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Bank Passbook</label>
-                    <a href={profile.bankPassbookUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.bankPassbookUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">10th Certificate</label>
-                    <a href={profile.tenthCftUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.tenthCftUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">12th Certificate</label>
-                    <a href={profile.interCftUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.interCftUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Degree Certificate</label>
-                    <a href={profile.degreeCftUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.degreeCftUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Post-Graduation Certificate</label>
-                    <a href={profile.postGraduationCftUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                      {profile.postGraduationCftUrl ? 'View Document' : 'Not Available'}
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Addresses</h2>
-                {profile.addresses && profile.addresses.length > 0 ? (
-                  profile.addresses.map((address, index) => (
-                    <div
-                      key={address.addressId || `address-${index}`}
-                      className="border border-gray-200 rounded-md p-4 mb-4"
-                    >
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Address {index + 1}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">House No:</span>
-                          <p className="text-gray-900">{address.houseNo || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Street:</span>
-                          <p className="text-gray-900">{address.streetName || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">City:</span>
-                          <p className="text-gray-900">{address.city || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">State:</span>
-                          <p className="text-gray-900">{address.state || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Country:</span>
-                          <p className="text-gray-900">{address.country || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">PIN Code:</span>
-                          <p className="text-gray-900">{address.pincode || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Address Type:</span>
-                          <p className="text-gray-900">{address.addressType || 'Not specified'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600">No addresses available.</p>
-                )}
-              </div>
-
-              <div className="flex justify-end">
+              {!editing && (
                 <button
                   onClick={() => setEditing(true)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300"
+                  className="flex items-center gap-2 px-5 py-3 bg-white text-blue-600 rounded-xl hover:bg-blue-50 transition shadow-lg"
                 >
+                  <Edit3 className="w-5 h-5" />
                   Edit Profile
                 </button>
-              </div>
+              )}
             </div>
-          )}
+          </div>
+
+          <div className="p-8 space-y-8">
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl flex justify-between items-center">
+                <span className="font-medium">{success}</span>
+                <button onClick={() => setSuccess(null)} className="text-green-600 hover:text-green-800">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+
+            {editing ? (
+              <form onSubmit={handleUpdate} className="space-y-8">
+                {/* Personal */}
+                <Card title="Personal Information" icon={<User className="w-5 h-5" />}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <Input label="First Name" name="firstName" value={formData.firstName} onChange={onChange} required />
+                    <Input label="Last Name" name="lastName" value={formData.lastName} onChange={onChange} required />
+                    <Input label="Personal Email Address" name="personalEmail" type="email" value={formData.personalEmail} onChange={onChange} required />
+                    {/* <Input label="Company Email Address" name="companyEmail" type="email" value={formData.companyEmail} disabled className="bg-gray-100" /> */}
+                    <Input label="Primary Contact Number" name="contactNumber" value={formData.contactNumber} onChange={onChange} pattern="[0-9]{10}" required />
+                    <Input label="Alternate Contact Number" name="alternateContactNumber" value={formData.alternateContactNumber} onChange={onChange} pattern="[0-9]{10}" />
+                    <Select label="Gender" name="gender" value={formData.gender} onChange={onChange} options={['Male', 'Female', 'Other']} required />
+                    <Select label="Marital Status" name="maritalStatus" value={formData.maritalStatus} onChange={onChange} options={['Single', 'Married', 'Divorced']} required />
+                    <Input label="Number of Children" name="numberOfChildren" type="number" value={formData.numberOfChildren} onChange={onChange} min="0" required />
+                    <Input label="Date of Birth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={onChange} required />
+                    <Input label="Nationality" name="nationality" value={formData.nationality} onChange={onChange} required />
+
+                  </div>
+                </Card>
+
+                {/* Emergency */}
+                <Card title="Emergency Contact" icon={<Phone className="w-5 h-5" />}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <Input
+                      label="Emergency Contact Name"
+                      name="emergencyContactName"
+                      value={formData.emergencyContactName}
+                      onChange={onChange}
+                      required
+                    />
+
+                    <Input
+                      label="Emergency Contact Number"
+                      name="emergencyContactNumber"
+                      value={formData.emergencyContactNumber}
+                      onChange={onChange}
+                      pattern="[0-9]{10}"
+                      required
+                    />
+
+                  </div>
+                </Card>
+
+                {/* Bank */}
+                <Card title="Bank Details" icon={<DollarSign className="w-5 h-5" />}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <Input
+                      label="PAN Number"
+                      name="panNumber"
+                      value={formData.panNumber}
+                      onChange={onChange}
+                      pattern="[A-Z0-9]{10}"
+                      required
+                    />
+
+                    <Input
+                      label="Aadhaar Number"
+                      name="aadharNumber"
+                      value={formData.aadharNumber}
+                      onChange={onChange}
+                      pattern="[0-9]{12}"
+                      required
+                    />
+
+                    <Input
+                      label="Bank Name"
+                      name="bankName"
+                      value={formData.bankName}
+                      onChange={onChange}
+                      required
+                    />
+
+                    <Input
+                      label="Account Number"
+                      name="accountNumber"
+                      value={formData.accountNumber}
+                      onChange={onChange}
+                      required
+                    />
+
+                    <Input
+                      label="Account Holder Name"
+                      name="accountHolderName"
+                      value={formData.accountHolderName}
+                      onChange={onChange}
+                      required
+                    />
+
+                    <Input
+                      label="IFSC Code"
+                      name="ifscCode"
+                      value={formData.ifscCode}
+                      onChange={onChange}
+                      pattern="[A-Z0-9]{11}"
+                      required
+                    />
+
+                    <Input
+                      label="Branch Name"
+                      name="branchName"
+                      value={formData.branchName}
+                      onChange={onChange}
+                      required
+                    />
+
+                  </div>
+                </Card>
+
+                {/* Photo */}
+                <Card title="Photo" icon={<FileText className="w-5 h-5" />}>
+                  <Input
+                    label="Employee Photo URL"
+                    name="employeePhotoUrl"
+                    value={formData.employeePhotoUrl}
+                    onChange={onChange}
+                  />
+                </Card>
+
+                {/* Addresses */}
+                <Card title="Addresses" icon={<MapPin className="w-5 h-5" />}>
+                  {addresses.map((addr, i) => (
+                    <div key={addr.addressId} className="border rounded-xl p-5 mb-5 bg-gradient-to-r from-gray-50 to-gray-100">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="font-semibold text-gray-700">Address {i + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeAddress(i)}
+                          disabled={!!addr.addressId && deletingAddresses.has(addr.addressId)}
+                          className="flex items-center gap-1.5 text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed transition"
+                        >
+                          {addr.addressId && deletingAddresses.has(addr.addressId) ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-sm">Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4" />
+                              <span className="text-sm">Remove</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                          label="House Number"
+                          value={addr.houseNo}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'houseNo', e.target.value)}
+                          required
+                        />
+                        <Input
+                          label="Street Name"
+                          value={addr.streetName}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'streetName', e.target.value)}
+                          required
+                        />
+                        <Input
+                          label="City"
+                          value={addr.city}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'city', e.target.value)}
+                          required
+                        />
+                        <Input
+                          label="State / Province"
+                          value={addr.state}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'state', e.target.value)}
+                          required
+                        />
+                        <Input
+                          label="Country"
+                          value={addr.country}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'country', e.target.value)}
+                          required
+                        />
+                        <Input
+                          label="PIN Code"
+                          value={addr.pincode}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, 'pincode', e.target.value)}
+                          required
+                        />
+                        <Select
+                          label="Address Type"
+                          value={addr.addressType ?? ''}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateAddress(i, 'addressType', e.target.value)}
+                          options={['PERMANENT', 'CURRENT']}
+                          required
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <button type="button" onClick={addAddress} className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Add Address
+                  </button>
+                </Card>
+
+                <div className="flex justify-end gap-4 pt-6 border-t">
+                  <button
+                    type="button"
+                    onClick={() => { setEditing(false); setAddresses(profile.addresses); setFormData(profile); }}
+                    className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Save className="w-5 h-5" />
+                    {updating ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                {/* View Mode */}
+                <InfoCard title="Personal" icon={<User className="w-6 h-6 text-blue-600" />}>
+                  <Info label="Full Name" value={`${profile.firstName} ${profile.lastName}`} />
+                  <Info label="Date of Birth" value={formatDate(profile.dateOfBirth)} />
+                  <Info label="Gender" value={profile.gender} />
+                  <Info label="Marital Status" value={profile.maritalStatus} />
+                  <Info label="Number of Children" value={profile.numberOfChildren} />
+                  <Info label="Nationality" value={profile.nationality} />
+                  <Info label="Personal Email Address" value={profile.personalEmail} />
+                  <Info label="Company Email Address" value={profile.companyEmail} />
+                  <Info label="Primary Contact Number" value={profile.contactNumber} />
+                  <Info label="Alternate Contact Number" value={profile.alternateContactNumber} />
+
+                </InfoCard>
+
+                <InfoCard title="Emergency Contact" icon={<Phone className="w-6 h-6 text-red-600" />}>
+                  <Info label="Emergency Contact Name" value={profile.emergencyContactName} />
+                  <Info label="Emergency Contact Number" value={profile.emergencyContactNumber} />
+
+                </InfoCard>
+
+                <InfoCard title="Professional" icon={<Briefcase className="w-6 h-6 text-indigo-600" />}>
+                  <Info label="Designation" value={profile.designation?.replace('_', ' ')} />
+                  <Info label="Date of Joining" value={formatDate(profile.dateOfJoining)} />
+                  <Info label="Employment Type" value={profile.employmentType} />
+                  <Info label="Client Name" value={profile.clientName} />
+                  <Info label="Reporting Manager" value={profile.reportingManagerName} />
+
+                </InfoCard>
+
+                <InfoCard title="Bank Details" icon={<DollarSign className="w-6 h-6 text-green-600" />}>
+                  <Info label="PAN Number" value={profile.panNumber} />
+                  <Info label="Aadhaar Number" value={profile.aadharNumber} />
+                  <Info label="Bank Name" value={profile.bankName} />
+                  <Info label="Account Number" value={profile.accountNumber} />
+                  <Info label="Account Holder Name" value={profile.accountHolderName} />
+                  <Info label="IFSC Code" value={profile.ifscCode} />
+                  <Info label="Branch Name" value={profile.branchName} />
+                </InfoCard>
+
+                <InfoCard title="Addresses" icon={<MapPin className="w-6 h-6 text-purple-600" />}>
+                  {profile.addresses.length > 0 ? (
+                    profile.addresses.map((a, i) => (
+                      <div key={a.addressId} className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl mb-4">
+                        <p className="font-semibold text-blue-900">{a.addressType} Address</p>
+                        <p className="text-sm text-gray-700 mt-1">
+                          {a.houseNo}, {a.streetName}, {a.city}, {a.state} - {a.pincode}, {a.country}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No addresses added</p>
+                  )}
+                </InfoCard>
+
+                {profile.employeeSalaryDTO && (
+                  <InfoCard title="Salary" icon={<DollarSign className="w-6 h-6 text-green-600" />}>
+                    <Info label="Basic Pay" value={`₹${profile.employeeSalaryDTO.basicPay}`} />
+                    <Info label="Pay Type" value={profile.employeeSalaryDTO.payType} />
+                    <Info label="Standard Working Hours" value={profile.employeeSalaryDTO.standardHours} />
+                    <Info label="Pay Class" value={profile.employeeSalaryDTO.payClass} />
+
+                    {profile.employeeSalaryDTO.allowances && profile.employeeSalaryDTO.allowances.length > 0 && (
+                      <div className="md:col-span-2">
+                        <p className="font-medium text-green-700 mb-2">Allowances</p>
+                        {profile.employeeSalaryDTO.allowances.map((a, i) => (
+                          <p key={i} className="text-sm">• {a.allowanceType}: ₹{a.amount}</p>
+                        ))}
+                      </div>
+                    )}
+                    {profile.employeeSalaryDTO.deductions && profile.employeeSalaryDTO.deductions.length > 0 && (
+                      <div className="md:col-span-2">
+                        <p className="font-medium text-red-700 mb-2">Deductions</p>
+                        {profile.employeeSalaryDTO.deductions.map((d, i) => (
+                          <p key={i} className="text-sm">• {d.deductionType}: ₹{d.amount}</p>
+                        ))}
+                      </div>
+                    )}
+                  </InfoCard>
+                )}
+
+                {profile.employeeInsuranceDetailsDTO && (
+                  <InfoCard title="Insurance" icon={<Shield className="w-6 h-6 text-teal-600" />}>
+                    <Info label="Policy Number" value={profile.employeeInsuranceDetailsDTO.policyNumber} />
+                    <Info label="Insurance Provider" value={profile.employeeInsuranceDetailsDTO.providerName} />
+                    <Info label="Coverage Period" value={`${formatDate(profile.employeeInsuranceDetailsDTO.coverageStart)} to ${formatDate(profile.employeeInsuranceDetailsDTO.coverageEnd)}`} />
+                    <Info label="Nominee Details" value={`${profile.employeeInsuranceDetailsDTO.nomineeName} (${profile.employeeInsuranceDetailsDTO.nomineeRelation})`} />
+                    <Info label="Nominee Contact Number" value={profile.employeeInsuranceDetailsDTO.nomineeContact} />
+                    <Info label="Group Insurance" value={profile.employeeInsuranceDetailsDTO.groupInsurance ? 'Yes' : 'No'} />
+
+                  </InfoCard>
+                )}
+
+                {profile.employeeEquipmentDTO && profile.employeeEquipmentDTO.length > 0 && (
+                  <InfoCard title="Equipment" icon={<Building className="w-6 h-6 text-orange-600" />}>
+                    {profile.employeeEquipmentDTO.map((eq, i) => (
+                      <div key={i} className="bg-orange-50 p-4 rounded-xl text-sm">
+                        <strong>{eq.equipmentType}</strong>: {eq.serialNumber} <br />
+                        <span className="text-gray-600">Issued: {formatDate(eq.issuedDate || '')}</span>
+                      </div>
+                    ))}
+                  </InfoCard>
+                )}
+
+                {profile.employeeStatutoryDetailsDTO && (
+                  <InfoCard title="Statutory" icon={<FileText className="w-6 h-6 text-gray-600" />}>
+                    <Info label="Passport Number" value={profile.employeeStatutoryDetailsDTO.passportNumber} />
+                    <Info label="Tax Regime" value={profile.employeeStatutoryDetailsDTO.taxRegime} />
+                    <Info label="PF UAN Number" value={profile.employeeStatutoryDetailsDTO.pfUanNumber} />
+                    <Info label="ESI Number" value={profile.employeeStatutoryDetailsDTO.esiNumber} />
+                    <Info label="SSN Number" value={profile.employeeStatutoryDetailsDTO.ssnNumber} />
+
+                  </InfoCard>
+                )}
+
+                {profile.employeeEmploymentDetailsDTO && (
+                  <InfoCard title="Employment Details" icon={<Briefcase className="w-6 h-6 text-purple-600" />}>
+                    <Info label="Department" value={profile.employeeEmploymentDetailsDTO.department} />
+                    <Info label="Work Location" value={profile.employeeEmploymentDetailsDTO.location} />
+                    <Info label="Working Model" value={profile.employeeEmploymentDetailsDTO.workingModel} />
+                    <Info label="Shift Timing" value={profile.employeeEmploymentDetailsDTO.shiftTiming} />
+                    <Info label="Notice Period Duration" value={profile.employeeEmploymentDetailsDTO.noticePeriodDuration} />
+
+                  </InfoCard>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+// Reusable Components
+const Card = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 shadow-sm border border-blue-100">
+    <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
+      {icon}
+      {title}
+    </h3>
+    {children}
+  </div>
+);
+
+const InfoCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+    <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
+      {icon}
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">{children}</div>
+  </div>
+);
+
+const Input = ({ label, className = '', ...props }: any) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+    <input
+      {...props}  // Spread first
+      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${className}`}
+      value={props.value ?? ''}
+    />
+  </div>
+
+
+);
+
+const Select = ({ label, options, ...props }: any) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+    <select
+      className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+      {...props}
+    >
+      <option value="">Select</option>
+      {options.map((opt: string) => (
+        <option key={opt} value={opt}>{opt}</option>
+      ))}
+    </select>
+  </div>
+);
+
+const Info = ({ label, value }: { label: string; value?: any }) => (
+  <div>
+    <p className="text-gray-600 font-medium">{label}</p>
+    <p className="font-bold text-gray-900 mt-1">{safe(value)}</p>
+  </div>
+);
 
 export default ProfilePage;

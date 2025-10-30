@@ -1,9 +1,9 @@
-// ```typescript
+// /lib/api/employeeService.ts
 import api from './axios';
 import {
   EmployeeModel,
   WebResponseDTOListEmployeeDTO,
-  WebResponseDTOString,
+
   Designation,
   WebResponseDTOListString,
   EmployeeDTO,

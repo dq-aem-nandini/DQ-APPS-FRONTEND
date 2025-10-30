@@ -34,10 +34,11 @@ const AddClientPage = () => {
     ],
     clientPocs: [
       {
-        name: '',
-        email: '',
-        contactNumber: '',
-        designation: '',
+        pocId: "",
+        name: "",
+        email: "",
+        contactNumber: "",
+        designation: "",
       },
     ],
     clientTaxDetails: [
@@ -115,11 +116,17 @@ const AddClientPage = () => {
         addresses: [...(prev.addresses ?? []), emptyAddress()],
       }));
     } else if (section === 'clientPocs') {
-      setFormData(prev => ({
-        ...prev,
+      setFormData((prev) => ({
+        ...prev!,
         clientPocs: [
-          ...(prev.clientPocs ?? []),
-          { name: '', email: '', contactNumber: '', designation: '' },
+          ...(prev!.clientPocs || []),
+          {
+            pocId: "", // ← Ensure empty for new
+            name: "",
+            email: "",
+            contactNumber: "",
+            designation: "",
+          },
         ],
       }));
     } else if (section === 'clientTaxDetails') {
@@ -154,19 +161,19 @@ const AddClientPage = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
-  
+
     await withLoading(async () => {
       // ────────────────────── Required Fields ──────────────────────
       const required = ['companyName', 'contactNumber', 'email', 'currency'] as const;
       const missing = required.filter(f => !formData[f]);
       if (missing.length) throw new Error(`Please fill: ${missing.join(', ')}`);
-  
+
       // ────────────────────── Primary Address ──────────────────────
       const primary = formData.addresses?.[0];
       if (!primary?.city || !primary.state || !primary.country || !primary.pincode) {
         throw new Error('Primary address: city, state, country, and pincode required');
       }
-  
+
       // ────────────────────── Regex ──────────────────────
       const nameRegex = /^[A-Za-z ]+$/;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -175,7 +182,7 @@ const AddClientPage = () => {
       const panRegex = /^[A-Z]{5}\d{4}[A-Z]{1}$/;
       const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
       const tanRegex = /^[A-Z]{4}\d{5}[A-Z]{1}$/;
-  
+
       if (!nameRegex.test(formData.companyName) || formData.companyName.length < 3 || formData.companyName.length > 30) {
         throw new Error('Company name must be 3–30 letters only');
       }
@@ -186,19 +193,19 @@ const AddClientPage = () => {
       if (formData.gst && !gstRegex.test(formData.gst)) throw new Error('Invalid GST');
       if (formData.tanNumber && !tanRegex.test(formData.tanNumber)) throw new Error('Invalid TAN');
       if (!pinRegex.test(primary.pincode)) throw new Error('Pincode: 6 digits');
-  
+
       // ────────────────────── POC Validation ──────────────────────
       for (const poc of formData.clientPocs || []) {
         if (poc.name && !nameRegex.test(poc.name)) throw new Error('POC name: letters only');
         if (poc.email && !emailRegex.test(poc.email)) throw new Error('Invalid POC email');
         if (poc.contactNumber && !phoneRegex.test(poc.contactNumber)) throw new Error('POC contact: 10 digits');
       }
-  
+
       // ────────────────────── Tax Validation ──────────────────────
       for (const tax of formData.clientTaxDetails || []) {
         if (tax.taxName && tax.taxPercentage <= 0) throw new Error('Tax percentage must be > 0');
       }
-  
+
       // ────────────────────── Uniqueness Check ──────────────────────
       const clients = await adminService.getAllClients(); // ClientDTO[]
       const exists = clients.response?.some(
@@ -206,9 +213,9 @@ const AddClientPage = () => {
           c.email?.toLowerCase() === formData.email?.toLowerCase() ||
           c.companyName?.toLowerCase() === formData.companyName?.toLowerCase()
       );
-      
+
       if (exists) throw new Error('Client with this email or company name already exists');
-  
+
       // ────────────────────── Submit ──────────────────────
       await adminService.addClient(formData);
       setSuccess('Client added successfully!');
@@ -220,15 +227,15 @@ const AddClientPage = () => {
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="min-h-screen bg-gray-50 p-8">
-        {/* <BackButton fallback="/admin-dashboard/clients" /> */}
+
         <div className="relative flex items-center justify-center mb-8">
-            <div className="absolute left-0">
-              <BackButton fallback="/admin-dashboard/clients/list" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Add Client
-            </h1>
+          <div className="absolute left-0">
+            <BackButton fallback="/admin-dashboard/clients/list" />
           </div>
+          <h1 className="text-3xl font-bold  text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Add Client
+          </h1>
+        </div>
 
         <div className="max-w-6xl mx-auto">
           {loading && (
