@@ -161,7 +161,7 @@ const Login: React.FC = () => {
               <span>Remember me</span>
             </label>
 
-            <Link href="/forgot-password" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            <Link href="/auth/forgotPassword" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
               Forgot password?
             </Link>
           </div>

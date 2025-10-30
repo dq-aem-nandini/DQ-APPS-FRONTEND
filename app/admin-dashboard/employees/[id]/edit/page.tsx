@@ -30,6 +30,45 @@ interface FormDocument extends EmployeeDocumentDTO {
   file?: File | null;
 }
 
+// ────── Custom File Input (Choose file / No file chosen) ──────
+type FileInputProps = {
+  id: string;
+  onChange: (file: File | null) => void;
+  currentFile?: File | null;
+  existingUrl?: string;
+  onClear?: () => void;
+};
+
+const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existingUrl, onClear }) => {
+  const [fileName, setFileName] = useState<string>('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setFileName(file?.name ?? '');
+    onChange(file);
+  };
+
+  const displayName = fileName || (existingUrl ? existingUrl.split('/').pop() : 'No file chosen');
+
+  return (
+    <div className="flex items-center gap-2">
+      <label
+        htmlFor={id}
+        className="cursor-pointer inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition"
+      >
+        Choose file
+        <input id={id} type="file" className="hidden" onChange={handleChange} />
+      </label>
+      <span className="text-sm text-gray-600 truncate max-w-[180px]">{displayName}</span>
+      {(currentFile || existingUrl) && onClear && (
+        <button type="button" onClick={onClear} className="text-red-600 hover:underline text-sm">
+          Remove
+        </button>
+      )}
+    </div>
+  );
+};
+
 const EditEmployeePage = () => {
   const params = useParams();
   const router = useRouter();
@@ -136,9 +175,6 @@ const EditEmployeePage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
-  const maxJoiningDate = new Date();
-  maxJoiningDate.setMonth(maxJoiningDate.getMonth() + 3);
-  const maxJoiningDateStr = maxJoiningDate.toISOString().split('T')[0];
 
   const designations: Designation[] = [
     'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
@@ -241,7 +277,8 @@ const EditEmployeePage = () => {
   // Generic change handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    let parsedValue: any = value;
+    const isCheckbox = type === 'checkbox';
+    const checked = (e.target as HTMLInputElement).checked;
 
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
@@ -249,12 +286,30 @@ const EditEmployeePage = () => {
         ...prev,
         [parent]: {
           ...(prev[parent as keyof EmployeeModel] as any),
-          [child]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : parsedValue,
+          [child]: isCheckbox ? checked : value,
         },
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: parsedValue }));
+      setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
     }
+  };
+
+  // ────── DOCUMENTS ──────
+  const addDocument = () => {
+    setFormData(prev => ({
+      ...prev,
+      documents: [
+        ...prev.documents,
+        {
+          documentId: "",
+          docType: 'OTHER' as DocumentType,
+          fileUrl: '',
+          uploadedAt: new Date().toISOString(),
+          verified: false,
+          file: null,
+        },
+      ],
+    }));
   };
 
   const handleDocumentChange = (index: number, field: 'docType' | 'file', value: DocumentType | File | null) => {
@@ -268,20 +323,46 @@ const EditEmployeePage = () => {
     }));
   };
 
-  const addDocument = () => {
-    setFormData(prev => ({
-      ...prev,
-      documents: [
-        ...prev.documents,
-        { documentId: crypto.randomUUID(), docType: 'OTHER' as DocumentType, fileUrl: '', uploadedAt: new Date().toISOString(), verified: false, file: null },
-      ],
-    }));
+  const confirmAndRemoveDocument = async (index: number) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to remove this document?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      await removeDocument(index);
+      Swal.fire('Deleted!', 'Document has been removed.', 'success');
+    }
   };
 
-  const removeDocument = (index: number) => {
+  const removeDocument = async (index: number) => {
+    const doc = formData.documents[index];
+    if (doc.documentId) {
+      const res = await adminService.deleteEmployeeDocument(params.id as string, doc.documentId);
+      if (!res.flag) {
+        Swal.fire({ icon: 'error', title: 'Delete failed', text: res.message });
+        return;
+      }
+    }
     setFormData(prev => ({
       ...prev,
       documents: prev.documents.filter((_, i) => i !== index),
+    }));
+  };
+
+  // ────── EQUIPMENT ──────
+  const addEquipment = () => {
+    setFormData(prev => ({
+      ...prev,
+      employeeEquipmentDTO: [
+        ...(prev.employeeEquipmentDTO ?? []),
+        { equipmentId: "", equipmentType: '', serialNumber: '', issuedDate: '' },
+      ],
     }));
   };
 
@@ -294,17 +375,34 @@ const EditEmployeePage = () => {
     }));
   };
 
-  const addEquipment = () => {
-    setFormData(prev => ({
-      ...prev,
-      employeeEquipmentDTO: [
-        ...(prev.employeeEquipmentDTO ?? []),
-        { equipmentId: crypto.randomUUID(), equipmentType: '', serialNumber: '' },
-      ],
-    }));
+  const confirmAndRemoveEquipment = async (index: number) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to remove this equipment?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      await removeEquipment(index);
+      Swal.fire('Deleted!', 'Equipment has been removed.', 'success');
+    }
   };
 
-  const removeEquipment = (index: number) => {
+  const removeEquipment = async (index: number) => {
+    const eq = formData.employeeEquipmentDTO?.[index];
+    if (eq?.equipmentId) {
+      const res = await adminService.deleteEmployeeEquipmentInfo(eq.equipmentId); // Only 1 arg
+  
+      if (!res.flag) {
+        Swal.fire({ icon: 'error', title: 'Delete failed', text: res.message });
+        return;
+      }
+    }
+  
     setFormData(prev => ({
       ...prev,
       employeeEquipmentDTO: prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
@@ -313,6 +411,10 @@ const EditEmployeePage = () => {
 
   const handleFileChange = (field: keyof typeof documentFiles, file: File | null) => {
     setDocumentFiles(prev => ({ ...prev, [field]: file }));
+  };
+
+  const clearAdditionalFile = (field: keyof typeof documentFiles) => {
+    setDocumentFiles(prev => ({ ...prev, [field]: null }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -336,61 +438,59 @@ const EditEmployeePage = () => {
     // Upload dynamic documents
     const uploadedDocuments: EmployeeDocumentDTO[] = [];
     for (const doc of formData.documents) {
-      if (doc.fileUrl) {
-        try {
-          const uploadResponse = await adminService.uploadFile(doc.fileUrl as any);
-          if (uploadResponse.flag && uploadResponse.response) {
-            uploadedDocuments.push({
-              documentId: doc.documentId,
-              docType: doc.docType,
-              fileUrl: uploadResponse.response,
-              uploadedAt: new Date().toISOString(),
-              verified: false,
-            });
-          } else {
-            throw new Error(uploadResponse.message || `Failed to upload document: ${doc.docType}`);
-          }
-        } catch (err: any) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Upload Error',
-            text: err.message || `Failed to upload document: ${doc.docType}`,
-          });
-          setSubmitting(false);
-          return;
+      let fileUrl = doc.fileUrl;
+      if ((doc as FormDocument).file) {
+        const fileToUpload = (doc as FormDocument).file!;
+        const uploadResponse = await adminService.uploadFile(fileToUpload);
+        if (!uploadResponse.flag || !uploadResponse.response) {
+          throw new Error(uploadResponse.message || `Failed to upload ${doc.docType}`);
+        }
+        fileUrl = uploadResponse.response;
+      }
+
+      if (fileUrl) {
+        const { file, ...rest } = doc as any;
+        if (!rest.documentId) {
+          const { documentId, ...noId } = rest;
+          uploadedDocuments.push(noId);
+        } else {
+          uploadedDocuments.push(rest);
         }
       }
     }
-
 
     // Upload additional files
     const additionalFiles: { [key: string]: string } = {};
     for (const [key, file] of Object.entries(documentFiles)) {
       if (file) {
-        try {
-          const uploadResponse = await adminService.uploadFile(file);
-          if (uploadResponse.flag && uploadResponse.response) {
-            additionalFiles[key] = uploadResponse.response;
-          } else {
-            throw new Error(uploadResponse.message || `Failed to upload ${key}`);
-          }
-        } catch (err: any) {
-          Swal.fire({ icon: 'error', title: 'Upload Failed', text: err.message || `Failed to upload ${key}` });
-          setSubmitting(false);
-          return;
+        const uploadResponse = await adminService.uploadFile(file);
+        if (uploadResponse.flag && uploadResponse.response) {
+          additionalFiles[key] = uploadResponse.response;
+        } else {
+          throw new Error(uploadResponse.message || `Failed to upload ${key}`);
         }
       }
     }
 
+    // Clean equipment
+    const finalEquip: EmployeeEquipmentDTO[] = (formData.employeeEquipmentDTO ?? []).map(eq => {
+      if (!eq.equipmentId) {
+        return { ...eq, equipmentId: '' };
+      }
+      return eq;
+    });
+
+    // Final payload
     const payload: EmployeeModel = {
       ...formData,
       documents: uploadedDocuments,
+      employeeEquipmentDTO: finalEquip,
       employeeAdditionalDetailsDTO: {
         ...formData.employeeAdditionalDetailsDTO,
-        offerLetterUrl: additionalFiles.offerLetter || formData.employeeAdditionalDetailsDTO?.offerLetterUrl || '',
-        contractUrl: additionalFiles.contract || formData.employeeAdditionalDetailsDTO?.contractUrl || '',
-        taxDeclarationFormUrl: additionalFiles.taxDeclarationForm || formData.employeeAdditionalDetailsDTO?.taxDeclarationFormUrl || '',
-        workPermitUrl: additionalFiles.workPermit || formData.employeeAdditionalDetailsDTO?.workPermitUrl || '',
+        offerLetterUrl: additionalFiles.offerLetter || (documentFiles.offerLetter === null ? '' : formData.employeeAdditionalDetailsDTO?.offerLetterUrl || ''),
+        contractUrl: additionalFiles.contract || (documentFiles.contract === null ? '' : formData.employeeAdditionalDetailsDTO?.contractUrl || ''),
+        taxDeclarationFormUrl: additionalFiles.taxDeclarationForm || (documentFiles.taxDeclarationForm === null ? '' : formData.employeeAdditionalDetailsDTO?.taxDeclarationFormUrl || ''),
+        workPermitUrl: additionalFiles.workPermit || (documentFiles.workPermit === null ? '' : formData.employeeAdditionalDetailsDTO?.workPermitUrl || ''),
       },
     };
 
@@ -409,7 +509,6 @@ const EditEmployeePage = () => {
     }
   };
 
-  // Loading Spinner
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -422,6 +521,10 @@ const EditEmployeePage = () => {
       </ProtectedRoute>
     );
   }
+
+  const hasFile = (doc: EmployeeDocumentDTO): doc is FormDocument => {
+    return 'file' in doc;
+  };
 
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -443,801 +546,360 @@ const EditEmployeePage = () => {
             <section className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-                {/* First Name */}
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-                  <input
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    placeholder="Enter first name"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Last Name */}
                 <div>
                   <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                  <input
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    placeholder="Enter last name"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Personal Email */}
                 <div>
                   <label htmlFor="personalEmail" className="block text-sm font-medium text-gray-700 mb-1">Personal Email *</label>
-                  <input
-                    id="personalEmail"
-                    name="personalEmail"
-                    value={formData.personalEmail}
-                    onChange={handleChange}
-                    placeholder="Enter personal email"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="personalEmail" name="personalEmail" value={formData.personalEmail} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Company Email */}
                 <div>
                   <label htmlFor="companyEmail" className="block text-sm font-medium text-gray-700 mb-1">Company Email *</label>
-                  <input
-                    id="companyEmail"
-                    name="companyEmail"
-                    value={formData.companyEmail}
-                    onChange={handleChange}
-                    placeholder="Enter company email"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="companyEmail" name="companyEmail" value={formData.companyEmail} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Contact Number */}
                 <div>
                   <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
-                  <input
-                    id="contactNumber"
-                    name="contactNumber"
-                    value={formData.contactNumber ?? ''}
-                    onChange={handleChange}
-                    placeholder="Enter contact number"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="contactNumber" name="contactNumber" value={formData.contactNumber ?? ''} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Date of Birth */}
                 <div>
                   <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
-                  <input
-                    type="date"
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    max={today}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input type="date" id="dateOfBirth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} max={today} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Nationality */}
                 <div>
                   <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 mb-1">Nationality *</label>
-                  <input
-                    id="nationality"
-                    name="nationality"
-                    value={formData.nationality ?? ''}                    onChange={handleChange}
-                    placeholder="Enter nationality"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="nationality" name="nationality" value={formData.nationality ?? ''} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Gender */}
                 <div>
                   <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
-                  <select
-                    id="gender"
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
+                  <select id="gender" name="gender" value={formData.gender} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select gender</option>
                     <option value="MALE">Male</option>
                     <option value="FEMALE">Female</option>
                     <option value="OTHER">Other</option>
                   </select>
                 </div>
-
+                <div className="md:col-span-2 lg:col-span-3">
+                  <label htmlFor="skillsAndCertification" className="block text-sm font-medium text-gray-700 mb-1">Skills & Certification *</label>
+                  <textarea id="skillsAndCertification" name="skillsAndCertification" value={formData.skillsAndCertification} onChange={handleChange} required rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
               </div>
             </section>
-
 
             {/* Employment Details */}
             <section className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-                {/* Client */}
                 <div>
                   <label htmlFor="clientId" className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
-                  <select
-                    id="clientId"
-                    name="clientId"
-                    value={formData.clientId}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
+                  <select id="clientId" name="clientId" value={formData.clientId} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select Client</option>
-                    {clients.map(c => (
-                      <option key={c.clientId} value={c.clientId}>{c.companyName}</option>
-                    ))}
+                    {clients.map(c => <option key={c.clientId} value={c.clientId}>{c.companyName}</option>)}
                   </select>
                 </div>
-
-                {/* Reporting Manager */}
                 <div>
                   <label htmlFor="reportingManagerId" className="block text-sm font-medium text-gray-700 mb-1">Reporting Manager *</label>
-                  <select
-                    id="reportingManagerId"
-                    name="reportingManagerId"
-                    value={formData.reportingManagerId ?? ''}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
+                  <select id="reportingManagerId" name="reportingManagerId" value={formData.reportingManagerId ?? ''} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select Reporting Manager</option>
-                    {managers.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
+                    {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
-
-                {/* Designation */}
                 <div>
                   <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-1">Designation *</label>
-                  <select
-                    id="designation"
-                    name="designation"
-                    value={formData.designation}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
+                  <select id="designation" name="designation" value={formData.designation} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select Designation</option>
-                    {designations.map(d => (
-                      <option key={d} value={d}>{d.replace('_', ' ')}</option>
-                    ))}
+                    {designations.map(d => <option key={d} value={d}>{d.replace('_', ' ')}</option>)}
                   </select>
                 </div>
-
-                {/* Date of Joining */}
                 <div>
                   <label htmlFor="dateOfJoining" className="block text-sm font-medium text-gray-700 mb-1">Date of Joining *</label>
-                  <input
-                    type="date"
-                    id="dateOfJoining"
-                    name="dateOfJoining"
-                    value={formData.dateOfJoining}
-                    onChange={handleChange}
-                    max={maxJoiningDateStr}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input type="date" id="dateOfJoining" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Employment Type */}
                 <div>
                   <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700 mb-1">Employment Type *</label>
-                  <select
-                    id="employmentType"
-                    name="employmentType"
-                    value={formData.employmentType}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Select Employment Type</option>
-                    {employmentTypes.map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
+                  <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Select Type</option>
+                    {employmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
-
-                {/* Working Model */}
                 <div>
                   <label htmlFor="workingModel" className="block text-sm font-medium text-gray-700 mb-1">Working Model</label>
-                  <select
-                    id="workingModel"
-                    name="employeeEmploymentDetailsDTO.workingModel"
-                    value={formData.employeeEmploymentDetailsDTO?.workingModel || ''}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Select Working Model</option>
+                  <select id="workingModel" name="employeeEmploymentDetailsDTO.workingModel" value={formData.employeeEmploymentDetailsDTO?.workingModel || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Select</option>
                     <option value="REMOTE">Remote</option>
                     <option value="HYBRID">Hybrid</option>
                     <option value="ONSITE">Onsite</option>
                   </select>
                 </div>
-
-                {/* Department */}
                 <div>
                   <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <input
-                    id="department"
-                    name="employeeEmploymentDetailsDTO.department"
-                    value={formData.employeeEmploymentDetailsDTO?.department || ''}
-                    onChange={handleChange}
-                    placeholder="Enter Department"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="department" name="employeeEmploymentDetailsDTO.department" value={formData.employeeEmploymentDetailsDTO?.department || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Location */}
                 <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input
-                    id="location"
-                    name="employeeEmploymentDetailsDTO.location"
-                    value={formData.employeeEmploymentDetailsDTO?.location || ''}
-                    onChange={handleChange}
-                    placeholder="Enter Location"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="location" name="employeeEmploymentDetailsDTO.location" value={formData.employeeEmploymentDetailsDTO?.location || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Notice Period */}
                 <div>
                   <label htmlFor="noticePeriodDuration" className="block text-sm font-medium text-gray-700 mb-1">Notice Period</label>
-                  <input
-                    id="noticePeriodDuration"
-                    name="employeeEmploymentDetailsDTO.noticePeriodDuration"
-                    value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''}
-                    onChange={handleChange}
-                    placeholder="e.g. 30 days"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="noticePeriodDuration" name="employeeEmploymentDetailsDTO.noticePeriodDuration" value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''} onChange={handleChange} placeholder="e.g. 30 days" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* Probation Applicable */}
                 <div className="flex items-center gap-2">
-                  <input
-                    id="probationApplicable"
-                    type="checkbox"
-                    name="employeeEmploymentDetailsDTO.probationApplicable"
-                    checked={formData.employeeEmploymentDetailsDTO?.probationApplicable || false}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
+                  <input id="probationApplicable" type="checkbox" name="employeeEmploymentDetailsDTO.probationApplicable" checked={formData.employeeEmploymentDetailsDTO?.probationApplicable || false} onChange={handleChange} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
                   <label htmlFor="probationApplicable" className="text-sm font-medium text-gray-700">Probation Applicable</label>
                 </div>
-
-                {/* Probation Fields */}
                 {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
                   <>
                     <div>
                       <label htmlFor="probationDuration" className="block text-sm font-medium text-gray-700 mb-1">Probation Duration</label>
-                      <input
-                        id="probationDuration"
-                        name="employeeEmploymentDetailsDTO.probationDuration"
-                        value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''}
-                        onChange={handleChange}
-                        placeholder="Enter Duration"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
+                      <input id="probationDuration" name="employeeEmploymentDetailsDTO.probationDuration" value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
-
                     <div>
                       <label htmlFor="probationNoticePeriod" className="block text-sm font-medium text-gray-700 mb-1">Probation Notice Period</label>
-                      <input
-                        id="probationNoticePeriod"
-                        name="employeeEmploymentDetailsDTO.probationNoticePeriod"
-                        value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ''}
-                        onChange={handleChange}
-                        placeholder="Enter Notice Period"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
+                      <input id="probationNoticePeriod" name="employeeEmploymentDetailsDTO.probationNoticePeriod" value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                   </>
                 )}
-
-                {/* Bond Applicable */}
                 <div className="flex items-center gap-2">
-                  <input
-                    id="bondApplicable"
-                    type="checkbox"
-                    name="employeeEmploymentDetailsDTO.bondApplicable"
-                    checked={formData.employeeEmploymentDetailsDTO?.bondApplicable || false}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
+                  <input id="bondApplicable" type="checkbox" name="employeeEmploymentDetailsDTO.bondApplicable" checked={formData.employeeEmploymentDetailsDTO?.bondApplicable || false} onChange={handleChange} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
                   <label htmlFor="bondApplicable" className="text-sm font-medium text-gray-700">Bond Applicable</label>
                 </div>
-
-                {/* Bond Duration */}
                 {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
                   <div>
                     <label htmlFor="bondDuration" className="block text-sm font-medium text-gray-700 mb-1">Bond Duration</label>
-                    <input
-                      id="bondDuration"
-                      name="employeeEmploymentDetailsDTO.bondDuration"
-                      value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''}
-                      onChange={handleChange}
-                      placeholder="Enter Bond Duration"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
+                    <input id="bondDuration" name="employeeEmploymentDetailsDTO.bondDuration" value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                 )}
-
-                {/* Date of Confirmation */}
                 <div>
                   <label htmlFor="dateOfConfirmation" className="block text-sm font-medium text-gray-700 mb-1">Date of Confirmation</label>
-                  <input
-                    type="date"
-                    id="dateOfConfirmation"
-                    name="employeeEmploymentDetailsDTO.dateOfConfirmation"
-                    value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ''}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input type="date" id="dateOfConfirmation" name="employeeEmploymentDetailsDTO.dateOfConfirmation" value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
               </div>
             </section>
 
-            {/* Documents */}
-            <section className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Documents</h3>
+            {/* ==================== DOCUMENTS ==================== */}
+            <section className="border-b border-gray-200 pb-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-2 h-8 bg-indigo-600 rounded-full"></span>
+                  Documents
+                </h3>
+                <button
+                  type="button"
+                  onClick={addDocument}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 text-sm font-semibold"
+                >
+                  + Add Document
+                </button>
+              </div>
 
-              {formData.documents.map((doc, i) => (
-                <div key={i} className="mb-4 p-4 border rounded-md bg-gray-50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                    {/* Document Type */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Document Type</label>
-                      <select
-                        value={doc.docType}
-                        onChange={e => handleDocumentChange(i, 'docType', e.target.value as DocumentType)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="">Select Type</option>
-                        {documentTypes.map(t => (
-                          <option key={t} value={t}>
-                            {t.replace(/_/g, ' ')}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Upload File */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Upload Document</label>
-                      <input
-                        type="file"
-                        onChange={e => handleDocumentChange(i, 'file', e.target.files?.[0] || null)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Existing file display */}
-                  {doc.fileUrl && (
-                    <p className="text-xs text-green-600 mt-1">
-                      Current: {doc.fileUrl.split('/').pop()}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => removeDocument(i)}
-                    className="mt-2 text-red-600 text-sm hover:underline"
+              <div className="space-y-6">
+                {formData.documents.map((doc, i) => (
+                  <div
+                    key={doc.documentId || i}
+                    className="p-6 border border-gray-200 rounded-xl bg-gradient-to-r from-gray-50 to-indigo-50 relative"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                        <label className="block text-sm font-semibold text-gray-700">Document Type</label>
+                        <select
+                          value={doc.docType}
+                          onChange={e => handleDocumentChange(i, 'docType', e.target.value as DocumentType)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">Select Type</option>
+                          {documentTypes.map(t => (
+                            <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                          ))}
+                        </select>
+                      </div>
 
-              <button
-                type="button"
-                onClick={addDocument}
-                className="text-indigo-600 text-sm hover:underline"
-              >
-                + Add Document
-              </button>
+                      <div className="space-y-1">
+                        <label className="block text-sm font-semibold text-gray-700">Upload Document</label>
+                        <FileInput
+                          id={`doc-upload-${i}`}
+                          onChange={file => handleDocumentChange(i, 'file', file)}
+                          currentFile={(doc as FormDocument).file ?? null}
+                          existingUrl={doc.fileUrl}
+                          onClear={() => handleDocumentChange(i, 'file', null)}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => confirmAndRemoveDocument(i)}
+                      className="absolute top-4 right-4 bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200 transition text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
             </section>
 
+            {/* ==================== EQUIPMENT ==================== */}
+            <section className="border-b border-gray-200 pb-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-2 h-8 bg-green-600 rounded-full"></span>
+                  Equipment Details
+                </h3>
+                <button
+                  type="button"
+                  onClick={addEquipment}
+                  className="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2 text-sm font-semibold"
+                >
+                  + Add Equipment
+                </button>
+              </div>
 
-            {/* Equipment */}
-            <section className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Equipment Details</h3>
-
-              {formData.employeeEquipmentDTO?.map((eq, i) => (
-                <div key={i} className="mb-4 p-4 border rounded-md bg-gray-50">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Equipment Type */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Equipment Type</label>
-                      <input
-                        value={eq.equipmentType || ''}
-                        onChange={e => handleEquipmentChange(i, 'equipmentType', e.target.value)}
-                        placeholder="Enter Equipment Type"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    {/* Serial Number */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Serial Number</label>
-                      <input
-                        value={eq.serialNumber || ''}
-                        onChange={e => handleEquipmentChange(i, 'serialNumber', e.target.value)}
-                        placeholder="Enter Serial Number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    {/* Issued Date */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Issued Date</label>
-                      <input
-                        type="date"
-                        value={eq.issuedDate || ''}
-                        onChange={e => handleEquipmentChange(i, 'issuedDate', e.target.value)}
-                        max={today}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeEquipment(i)}
-                    className="mt-2 text-red-600 text-sm hover:underline"
+              <div className="space-y-6">
+                {formData.employeeEquipmentDTO?.map((eq, i) => (
+                  <div
+                    key={eq.equipmentId || i}
+                    className="p-6 border border-gray-200 rounded-xl bg-gradient-to-r from-gray-50 to-green-50 relative"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-1">
+                        <label className="block text-sm font-semibold text-gray-700">Equipment Type</label>
+                        <input
+                          value={eq.equipmentType || ''}
+                          onChange={e => handleEquipmentChange(i, 'equipmentType', e.target.value)}
+                          placeholder="Enter Type"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-sm font-semibold text-gray-700">Serial Number</label>
+                        <input
+                          value={eq.serialNumber || ''}
+                          onChange={e => handleEquipmentChange(i, 'serialNumber', e.target.value)}
+                          placeholder="Enter Serial"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-sm font-semibold text-gray-700">Issued Date</label>
+                        <input
+                          type="date"
+                          value={eq.issuedDate || ''}
+                          onChange={e => handleEquipmentChange(i, 'issuedDate', e.target.value)}
+                          max={today}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
 
-              <button
-                type="button"
-                onClick={addEquipment}
-                className="text-indigo-600 text-sm hover:underline"
-              >
-                + Add Equipment
-              </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => confirmAndRemoveEquipment(i)}
+                      className="absolute top-4 right-4 bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200 transition text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
             </section>
-
 
             {/* Additional Details */}
             <section className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {/* Offer Letter */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="offerLetter" className="block text-sm font-medium text-gray-700 mb-1">Offer Letter</label>
-                  <input
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Offer Letter</label>
+                  <FileInput
                     id="offerLetter"
-                    type="file"
-                    onChange={e => handleFileChange('offerLetter', e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onChange={file => handleFileChange('offerLetter', file)}
+                    currentFile={documentFiles.offerLetter}
+                    existingUrl={formData.employeeAdditionalDetailsDTO?.offerLetterUrl}
+                    onClear={() => clearAdditionalFile('offerLetter')}
                   />
                 </div>
-
-                {/* Contract */}
                 <div>
-                  <label htmlFor="contract" className="block text-sm font-medium text-gray-700 mb-1">Contract</label>
-                  <input
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contract</label>
+                  <FileInput
                     id="contract"
-                    type="file"
-                    onChange={e => handleFileChange('contract', e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onChange={file => handleFileChange('contract', file)}
+                    currentFile={documentFiles.contract}
+                    existingUrl={formData.employeeAdditionalDetailsDTO?.contractUrl}
+                    onClear={() => clearAdditionalFile('contract')}
                   />
                 </div>
-
-                {/* Tax Form */}
                 <div>
-                  <label htmlFor="taxDeclarationForm" className="block text-sm font-medium text-gray-700 mb-1">Tax Form</label>
-                  <input
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax Declaration Form</label>
+                  <FileInput
                     id="taxDeclarationForm"
-                    type="file"
-                    onChange={e => handleFileChange('taxDeclarationForm', e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onChange={file => handleFileChange('taxDeclarationForm', file)}
+                    currentFile={documentFiles.taxDeclarationForm}
+                    existingUrl={formData.employeeAdditionalDetailsDTO?.taxDeclarationFormUrl}
+                    onClear={() => clearAdditionalFile('taxDeclarationForm')}
                   />
                 </div>
-
-                {/* Work Permit */}
                 <div>
-                  <label htmlFor="workPermit" className="block text-sm font-medium text-gray-700 mb-1">Work Permit</label>
-                  <input
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Work Permit</label>
+                  <FileInput
                     id="workPermit"
-                    type="file"
-                    onChange={e => handleFileChange('workPermit', e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onChange={file => handleFileChange('workPermit', file)}
+                    currentFile={documentFiles.workPermit}
+                    existingUrl={formData.employeeAdditionalDetailsDTO?.workPermitUrl}
+                    onClear={() => clearAdditionalFile('workPermit')}
                   />
                 </div>
-
-
-
-                {/* Remarks (Additional) */}
                 <div>
                   <label htmlFor="additionalRemarks" className="block text-sm font-medium text-gray-700 mb-1">Additional Remarks</label>
-                  <textarea
-                    id="additionalRemarks"
-                    name="employeeAdditionalDetailsDTO.remarks"
-                    value={formData.employeeAdditionalDetailsDTO?.remarks || ''}
-                    onChange={handleChange}
-                    placeholder="Enter any additional remarks"
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <textarea id="additionalRemarks" name="employeeAdditionalDetailsDTO.remarks" value={formData.employeeAdditionalDetailsDTO?.remarks || ''} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
-                {/* General Remarks */}
                 <div>
                   <label htmlFor="generalRemarks" className="block text-sm font-medium text-gray-700 mb-1">General Remarks</label>
-                  <textarea
-                    id="generalRemarks"
-                    name="remarks"
-                    value={formData.remarks ?? ''}
-                    onChange={handleChange}
-                    placeholder="Enter general remarks"
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <textarea id="generalRemarks" name="remarks" value={formData.remarks ?? ''} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-                {/* Background Check Status */}
                 <div>
                   <label htmlFor="backgroundCheckStatus" className="block text-sm font-medium text-gray-700 mb-1">Background Check Status</label>
-                  <input
-                    id="backgroundCheckStatus"
-                    name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                    value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''}
-                    onChange={handleChange}
-                    placeholder="Enter Background Check Status"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <input id="backgroundCheckStatus" name="employeeAdditionalDetailsDTO.backgroundCheckStatus" value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-
               </div>
             </section>
 
-
-            {/* Insurance & Statutory Details – Full Add Employee Style */}
+            {/* Insurance & Statutory */}
             <section className="pb-6 space-y-8">
-              {/* Insurance Details */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Insurance Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.policyNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                      Policy Number
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeInsuranceDetailsDTO.policyNumber"
-                      name="employeeInsuranceDetailsDTO.policyNumber"
-                      value={formData.employeeInsuranceDetailsDTO?.policyNumber || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.providerName" className="block text-sm font-medium text-gray-700 mb-2">
-                      Provider Name
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeInsuranceDetailsDTO.providerName"
-                      name="employeeInsuranceDetailsDTO.providerName"
-                      value={formData.employeeInsuranceDetailsDTO?.providerName || ''}
-                      onChange={handleChange}
-                      pattern="[A-Za-z ]+"
-                      title="Alphabets and spaces only"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.coverageStart" className="block text-sm font-medium text-gray-700 mb-2">
-                      Coverage Start Date
-                    </label>
-                    <input
-                      type="date"
-                      id="employeeInsuranceDetailsDTO.coverageStart"
-                      name="employeeInsuranceDetailsDTO.coverageStart"
-                      value={formData.employeeInsuranceDetailsDTO?.coverageStart || ''}
-                      onChange={handleChange}
-                      max={today}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.coverageEnd" className="block text-sm font-medium text-gray-700 mb-2">
-                      Coverage End Date
-                    </label>
-                    <input
-                      type="date"
-                      id="employeeInsuranceDetailsDTO.coverageEnd"
-                      name="employeeInsuranceDetailsDTO.coverageEnd"
-                      value={formData.employeeInsuranceDetailsDTO?.coverageEnd || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.nomineeName" className="block text-sm font-medium text-gray-700 mb-2">
-                      Nominee Name
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeInsuranceDetailsDTO.nomineeName"
-                      name="employeeInsuranceDetailsDTO.nomineeName"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeName || ''}
-                      onChange={handleChange}
-                      pattern="[A-Za-z ]+"
-                      title="Alphabets and spaces only"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.nomineeRelation" className="block text-sm font-medium text-gray-700 mb-2">
-                      Nominee Relation
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeInsuranceDetailsDTO.nomineeRelation"
-                      name="employeeInsuranceDetailsDTO.nomineeRelation"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ''}
-                      onChange={handleChange}
-                      pattern="[A-Za-z ]+"
-                      title="Alphabets and spaces only"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeInsuranceDetailsDTO.nomineeContact" className="block text-sm font-medium text-gray-700 mb-2">
-                      Nominee Contact
-                    </label>
-                    <input
-                      type="tel"
-                      id="employeeInsuranceDetailsDTO.nomineeContact"
-                      name="employeeInsuranceDetailsDTO.nomineeContact"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ''}
-                      onChange={handleChange}
-                      pattern="[6-9]\d{9}"
-                      title="10 digits starting with 6-9"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <label htmlFor="employeeInsuranceDetailsDTO.groupInsurance" className="block text-sm font-medium text-gray-700">
-                      Group Insurance
-                    </label>
-                    <input
-                      type="checkbox"
-                      id="employeeInsuranceDetailsDTO.groupInsurance"
-                      name="employeeInsuranceDetailsDTO.groupInsurance"
-                      checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
-                      onChange={handleChange}
-                      className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                    />
-                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Policy Number</label><input type="text" name="employeeInsuranceDetailsDTO.policyNumber" value={formData.employeeInsuranceDetailsDTO?.policyNumber || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Provider Name</label><input type="text" name="employeeInsuranceDetailsDTO.providerName" value={formData.employeeInsuranceDetailsDTO?.providerName || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Coverage Start</label><input type="date" name="employeeInsuranceDetailsDTO.coverageStart" value={formData.employeeInsuranceDetailsDTO?.coverageStart || ''} onChange={handleChange} max={today} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Coverage End</label><input type="date" name="employeeInsuranceDetailsDTO.coverageEnd" value={formData.employeeInsuranceDetailsDTO?.coverageEnd || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Nominee Name</label><input type="text" name="employeeInsuranceDetailsDTO.nomineeName" value={formData.employeeInsuranceDetailsDTO?.nomineeName || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Nominee Relation</label><input type="text" name="employeeInsuranceDetailsDTO.nomineeRelation" value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Nominee Contact</label><input type="tel" name="employeeInsuranceDetailsDTO.nomineeContact" value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div className="flex items-center gap-3"><label className="text-sm font-medium text-gray-700">Group Insurance</label><input type="checkbox" name="employeeInsuranceDetailsDTO.groupInsurance" checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false} onChange={handleChange} className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" /></div>
                 </div>
               </div>
 
-              {/* Statutory Details */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Statutory Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="employeeStatutoryDetailsDTO.passportNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                      Passport Number
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeStatutoryDetailsDTO.passportNumber"
-                      name="employeeStatutoryDetailsDTO.passportNumber"
-                      value={formData.employeeStatutoryDetailsDTO?.passportNumber || ''}
-                      onChange={handleChange}
-                      pattern="[A-Z0-9]{8,12}"
-                      title="8-12 alphanumeric characters"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeStatutoryDetailsDTO.pfUanNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                      PF UAN Number
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeStatutoryDetailsDTO.pfUanNumber"
-                      name="employeeStatutoryDetailsDTO.pfUanNumber"
-                      value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ''}
-                      onChange={handleChange}
-                      pattern="\d{12}"
-                      title="Exactly 12 digits"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeStatutoryDetailsDTO.taxRegime" className="block text-sm font-medium text-gray-700 mb-2">
-                      Tax Regime
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeStatutoryDetailsDTO.taxRegime"
-                      name="employeeStatutoryDetailsDTO.taxRegime"
-                      value={formData.employeeStatutoryDetailsDTO?.taxRegime || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeStatutoryDetailsDTO.esiNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                      ESI Number
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeStatutoryDetailsDTO.esiNumber"
-                      name="employeeStatutoryDetailsDTO.esiNumber"
-                      value={formData.employeeStatutoryDetailsDTO?.esiNumber || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="employeeStatutoryDetailsDTO.ssnNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                      SSN Number
-                    </label>
-                    <input
-                      type="text"
-                      id="employeeStatutoryDetailsDTO.ssnNumber"
-                      name="employeeStatutoryDetailsDTO.ssnNumber"
-                      value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Passport Number</label><input type="text" name="employeeStatutoryDetailsDTO.passportNumber" value={formData.employeeStatutoryDetailsDTO?.passportNumber || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">PF UAN Number</label><input type="text" name="employeeStatutoryDetailsDTO.pfUanNumber" value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Tax Regime</label><input type="text" name="employeeStatutoryDetailsDTO.taxRegime" value={formData.employeeStatutoryDetailsDTO?.taxRegime || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">ESI Number</label><input type="text" name="employeeStatutoryDetailsDTO.esiNumber" value={formData.employeeStatutoryDetailsDTO?.esiNumber || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">SSN Number</label><input type="text" name="employeeStatutoryDetailsDTO.ssnNumber" value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                 </div>
               </div>
             </section>
 
             {/* Submit */}
             <div className="flex justify-end space-x-4 pt-6">
-              <Link href="/admin-dashboard/employees/list" className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition"
-              >
+              <Link href="/admin-dashboard/employees/list" className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancel</Link>
+              <button type="submit" disabled={submitting} className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2">
+                {submitting && <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
                 {submitting ? 'Updating...' : 'Update Employee'}
               </button>
             </div>

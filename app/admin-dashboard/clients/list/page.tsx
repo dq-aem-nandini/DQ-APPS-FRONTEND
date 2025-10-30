@@ -7,6 +7,7 @@ import { adminService } from '@/lib/api/adminService';
 import { ClientDTO } from '@/lib/api/types';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import BackButton from '@/components/ui/BackButton';
 
 const ClientList = () => {
   const [clients, setClients] = useState<ClientDTO[]>([]);
@@ -92,9 +93,16 @@ const ClientList = () => {
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="p-8 bg-gray-50 min-h-screen">
+      <div className="relative flex items-center justify-center mb-8">
+          <div className="absolute left-0">
+            <BackButton fallback="/admin-dashboard/clients" />
+          </div>
+          <h1 className="text-3xl font-bold  text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Client List
+          </h1>
+        </div>
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Client List</h2>
+          <div className="flex justify-end items-center mb-6">
             <Link
               href="/admin-dashboard/clients/add"
               className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition"

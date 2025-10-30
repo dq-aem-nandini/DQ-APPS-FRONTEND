@@ -347,6 +347,7 @@ export interface ClientTaxDetail {
   updatedAt: string;     // ISO Date-Time format
 }
 export interface ClientPocModel {
+  pocId: string; // uuid
   name: string;
   email: string;
   contactNumber: string;
@@ -978,38 +979,35 @@ export interface LoginInnerResponse {
   data: LoginResponseInner;
   message?: string;
 }
+// Password Types
+export interface UpdatePasswordRequestDTO {
+  oldPassword: string;
+  newPassword: string;
+}
 
-// --- For GET /web/api/v1/employee/activeemployees/list ---
-export interface WebResponseDTOListActiveEmployees {
+export interface PasswordResponseDTO {
+  identifier: string;
+  status: 'OTP_SENT' | 'OTP_VERIFIED' | 'OTP_INVALID' | 'OTP_EXPIRED' | 'PASSWORD_RESET' | 'RESET_FAILED' | 'USER_NOT_FOUND' | 'MAX_ATTEMPTS_EXCEEDED';
+  timestamp: string;
+  expiry?: string;
+  verified: boolean;
+  message: string;
+}
+
+export interface WebResponseDTOPasswordResponseDTO {
   flag: boolean;
   message: string;
-  status: number; // int32
-  response: { employeeId: string; firstName: string; lastName: string }[];
+  status: number;
+  response: PasswordResponseDTO;
   totalRecords: number;
-  otherInfo: Record<string, any>;
+  otherInfo?: any;
 }
 
-// --- For GET /web/api/v1/salary/{employeeId} ---
-export interface WebResponseDTOSalarySummaryDTO {
+export interface WebResponseDTOObject {
   flag: boolean;
   message: string;
-  status: number; // int32
-  response: SalarySummaryDTO;
+  status: number;
+  response: any;
   totalRecords: number;
-  otherInfo: Record<string, any>;
-}
-
-export interface EmployeeDetailsDTO {
-  employeeId: string;
-  firstName: string;
-  lastName: string;
-  dateOfJoining: string; // ISO string, e.g. "2023-06-15"
-  department?: string;
-  designation?: string;
-}
-
-export interface WebResponseDTOEmployeeDetails {
-  status: string;
-  message: string;
-  response: EmployeeDetailsDTO;
+  otherInfo?: any;
 }

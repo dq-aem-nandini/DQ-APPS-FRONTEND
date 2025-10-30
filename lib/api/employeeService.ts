@@ -1,13 +1,14 @@
-// ```typescript
+// /lib/api/employeeService.ts
 import api from './axios';
 import {
   EmployeeModel,
   WebResponseDTOListEmployeeDTO,
-  WebResponseDTOString,
+
   Designation,
   WebResponseDTOListString,
   EmployeeDTO,
   WebResponseDTO,
+  WebResponseDTOString,
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -134,6 +135,33 @@ class EmployeeService {
       throw new Error(`Failed to get designation list: ${error}`);
     }
   }
+    // ✅ DELETE: Employee Address (New Global Endpoint)
+    async deleteEmployeeAddressGlobal(
+      employeeId: string,
+      addressId: string
+    ): Promise<WebResponseDTOString> {
+      console.log(`[delete] address ${addressId} for employee ${employeeId}`);
+    
+      try {
+        const response: AxiosResponse<WebResponseDTOString> = await api.delete(
+          `/employee/address/delete/${addressId}`
+        );
+    
+        if (!response.data.flag) {
+          throw new Error(response.data.message || 'Delete failed');
+        }
+    
+        console.log('Success:', response.data);
+        return response.data;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error?.message ||
+          'Failed to delete address';
+        console.error('Error:', msg);
+        throw new Error(msg);
+      }
+    }
   
 }
 

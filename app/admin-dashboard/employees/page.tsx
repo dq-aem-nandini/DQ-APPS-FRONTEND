@@ -11,7 +11,7 @@ export default function EmployeesPage() {
           <div className="absolute left-0">
             <BackButton fallback="/admin-dashboard" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             Employees
           </h1>
         </div>

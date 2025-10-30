@@ -4,10 +4,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { User, Mail, Calendar, Edit3, Save, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function AdminProfilePage() {
   const { state, logout } = useAuth();
   const user = state.user;
+
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     userName: '',
@@ -15,12 +17,14 @@ export default function AdminProfilePage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       setFormData({
-        userName: user.userName,
-        email: user.email,});
+        userName: user.userName || '',
+        email: user.companyEmail || '',
+      });
     }
   }, [user]);
 
@@ -36,8 +40,8 @@ export default function AdminProfilePage() {
     setSuccess('');
     if (user) {
       setFormData({
-        userName: user.userName,
-        email: user.email,
+        userName: user.userName || '',
+        email: user.companyEmail || '',
       });
     }
   };
@@ -46,21 +50,28 @@ export default function AdminProfilePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLoading(true);
+
     try {
-      // Mock update - replace with actual API call, e.g., adminService.updateUser(user.userId, formData)
+      // Replace with real API call
+      // await adminService.updateProfile(formData);
       console.log('Updating profile:', formData);
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API
+
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
-      // Update local state
+
+      // Update user in context or localStorage
       if (user) {
         user.userName = formData.userName;
-        user.email = formData.email;
+        user.companyEmail = formData.email;
         localStorage.setItem('user', JSON.stringify(user));
       }
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,81 +84,138 @@ export default function AdminProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg text-gray-600">Loading profile...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-indigo-600"></div>
       </div>
     );
   }
 
+  // Generate initials
+  const initials = user.userName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <div className="flex items-center space-x-4 mb-6">
-              <img
-                className="h-16 w-16 rounded-full ring-2 ring-gray-200"
-                src="https://via.placeholder.com/64?text=Admin" // Replace with actual avatar URL
-                alt="Profile"
-              />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{user.userName}</h1>
-                <p className="text-sm text-gray-500">Role: {user.role}</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+
+          {/* Success Alert */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl flex items-center gap-3 animate-fade-in">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">{success}</span>
+              <button onClick={() => setSuccess('')} className="ml-auto">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3 animate-fade-in">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-medium">{error}</span>
+              <button onClick={() => setError('')} className="ml-auto">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Profile Card */}
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-8 text-white">
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/30">
+                    {initials}
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full border-4 border-white"></div>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold flex items-center gap-3">
+                    <User className="w-8 h-8" />
+                    {user.userName}
+                  </h1>
+                  <p className="text-indigo-100 mt-1 text-lg">Administrator</p>
+                </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <p className="text-gray-900">{user.email}</p>
+
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              <div className="flex items-center gap-3 text-gray-700">
+                <Mail className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="font-medium">{user.companyEmail}</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Joined</label>
-                <p className="text-gray-900">{new Date(user.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Updated</label>
-                <p className="text-gray-900">{new Date(user.updatedAt).toLocaleDateString()}</p>
+              <div className="flex items-center gap-3 text-gray-700">
+                <Calendar className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <p className="text-gray-500">Member Since</p>
+                  <p className="font-medium">{new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
-              {isEditing ? (
-                <div className="space-x-2">
+          {/* Edit Profile Card */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <Edit3 className="w-6 h-6 text-indigo-600" />
+                Edit Profile
+              </h2>
+              {!isEditing ? (
+                <button
+                  onClick={handleEdit}
+                  className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition shadow-lg"
+                >
+                  <Edit3 className="w-5 h-5" />
+                  Edit Profile
+                </button>
+              ) : (
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-5 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     form="profileForm"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                    disabled={loading}
+                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition disabled:opacity-50 flex items-center gap-2 shadow-lg"
                   >
-                    Save
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Save Changes
+                      </>
+                    )}
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={handleEdit}
-                  className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-100 rounded-md hover:bg-indigo-200"
-                >
-                  Edit
-                </button>
               )}
             </div>
 
-            <form id="profileForm" onSubmit={handleSubmit} className="space-y-4">
-              {isEditing ? (
-                <>
-                  <div>
-                    <label htmlFor="userName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Username
-                    </label>
+            <form id="profileForm" onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="userName" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Username
+                  </label>
+                  {isEditing ? (
                     <input
                       type="text"
                       id="userName"
@@ -155,13 +223,19 @@ export default function AdminProfilePage() {
                       required
                       value={formData.userName}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                      placeholder="Enter username"
                     />
-                  </div>
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
+                  ) : (
+                    <p className="text-lg font-medium text-gray-900">{user.userName}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  {isEditing ? (
                     <input
                       type="email"
                       id="email"
@@ -169,24 +243,14 @@ export default function AdminProfilePage() {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                      placeholder="Enter email"
                     />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                    <p className="text-gray-900">{user.userName}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <p className="text-gray-900">{user.email}</p>
-                  </div>
-                </>
-              )}
-              {error && <div className="text-red-600 text-sm">{error}</div>}
-              {success && <div className="text-green-600 text-sm">{success}</div>}
+                  ) : (
+                    <p className="text-lg font-medium text-gray-900">{user.companyEmail}</p>
+                  )}
+                </div>
+              </div>
             </form>
           </div>
         </div>
