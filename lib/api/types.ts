@@ -1011,3 +1011,29 @@ export interface WebResponseDTOObject {
   totalRecords: number;
   otherInfo?: any;
 }
+// types.ts (add these)
+
+export interface InvoiceDTO {
+  invoiceId: string;
+  clientName: string;
+  invoiceNumber: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  totalHours: number;
+  status: string;
+  invoiceDate: string; // ISO date
+  dueDate: string;     // ISO date
+  fromDate: string;    // ISO date
+  toDate: string;      // ISO date
+}
+
+// For list responses
+export interface WebResponseDTOListInvoiceDTO {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: InvoiceDTO[];
+  totalRecords: number;
+  otherInfo: any;
+}

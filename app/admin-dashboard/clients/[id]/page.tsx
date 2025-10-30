@@ -3,15 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { adminService } from '@/lib/api/adminService';
+import { invoiceService } from '@/lib/api/invoiceService';
 import {
   ClientDTO,
-  ClientPoc,
-  AddressModel,
-  ClientTaxDetail,
+  InvoiceDTO,
   WebResponseDTOClientDTO,
 } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import BackButton from '@/components/ui/BackButton';
 import Spinner from '@/components/ui/Spinner';
 import useLoading from '@/hooks/useLoading';
 import {
@@ -27,14 +25,31 @@ import {
   DollarSign,
   CheckCircle,
   XCircle,
+  Calendar,
+  Download,
 } from 'lucide-react';
 
 const ViewClientPage = () => {
   const { id } = useParams();
   const [client, setClient] = useState<ClientDTO | null>(null);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const { loading, withLoading } = useLoading();
   const router = useRouter();
+
+  // Modal State
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [generating, setGenerating] = useState(false);
+
+  // Auto-hide toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // ────────────────────── FETCH CLIENT ──────────────────────
   useEffect(() => {
@@ -42,23 +57,60 @@ const ViewClientPage = () => {
       if (!id) return;
 
       await withLoading(async () => {
-        console.log('Fetching client with ID:', id);
         const wrapper: WebResponseDTOClientDTO = await adminService.getClientById(id as string);
-        console.log('Fetched client wrapper:', wrapper);
         if (!wrapper.flag || !wrapper.response) {
           throw new Error(wrapper.message || 'Client not found');
         }
-        console.log('Setting client:', wrapper.response);
         setClient(wrapper.response);
         setError('');
       }).catch(err => {
-        console.error('Error fetching client:', err);
         setError(err.message || 'Failed to load client');
       });
     };
 
     fetchClient();
   }, [id, withLoading]);
+
+  // ────────────────────── GENERATE INVOICE ──────────────────────
+  const handleGenerateInvoice = async () => {
+    // Optional: Validate only if dates are partially filled
+    if ((fromDate && !toDate) || (!fromDate && toDate)) {
+      setToast({ type: 'error', message: 'Both dates are required if one is selected' });
+      return;
+    }
+
+    if (fromDate && toDate && new Date(fromDate) > new Date(toDate)) {
+      setToast({ type: 'error', message: 'From date cannot be after to date' });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const invoice: InvoiceDTO = await invoiceService.generateInvoice(
+        id as string,
+        fromDate || undefined,  // undefined = backend uses current month
+        toDate || undefined
+      );
+
+      const dateMsg = fromDate && toDate
+        ? `${fromDate} to ${toDate}`
+        : 'current month';
+
+      setToast({ type: 'success', message: `Invoice ${invoice.invoiceNumber} generated for ${dateMsg}!` });
+      setShowGenerateModal(false);
+      setFromDate('');
+      setToDate('');
+
+      // Open PDF
+      setTimeout(() => {
+        window.open(`/[id]`, '_blank');
+      }, 1000);
+    } catch (err: any) {
+      setToast({ type: 'error', message: err.message || 'Failed to generate invoice' });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   // ────────────────────── INITIAL LOADING ──────────────────────
   if (loading && !client) {
@@ -71,17 +123,28 @@ const ViewClientPage = () => {
     );
   }
 
-  // ────────────────────── RENDER CLIENT ──────────────────────
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
-          {/* <BackButton fallback="/admin-dashboard/clients/list" /> */}
-
           {/* Overlay Spinner */}
           {loading && (
             <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
               <Spinner size="lg" />
+            </div>
+          )}
+
+          {/* Toast */}
+          {toast && (
+            <div
+              className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center gap-3 transition-all animate-slide-in-right ${
+                toast.type === 'success'
+                  ? 'bg-green-50 text-green-800 border border-green-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}
+            >
+              {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+              <span className="font-medium">{toast.message}</span>
             </div>
           )}
 
@@ -107,10 +170,19 @@ const ViewClientPage = () => {
                       <h1 className="text-3xl font-bold text-gray-900">{client.companyName}</h1>
                     </div>
                   </div>
+
+                  {/* Single Generate Button */}
+                  <button
+                    onClick={() => setShowGenerateModal(true)}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 px-5 rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 transition shadow-md"
+                  >
+                    <FileText className="w-5 h-5" />
+                    Generate Invoice
+                  </button>
                 </div>
               </div>
 
-              {/* Main Grid */}
+              {/* === REST OF YOUR CLIENT DETAILS (UNCHANGED) === */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column */}
                 <div className="lg:col-span-2 space-y-6">
@@ -151,10 +223,11 @@ const ViewClientPage = () => {
                             </div>
                             <div className="mt-3 flex justify-end">
                               <span
-                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${poc.status === 'ACTIVE'
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                  poc.status === 'ACTIVE'
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-red-100 text-red-700'
-                                  }`}
+                                }`}
                               >
                                 {poc.status}
                               </span>
@@ -245,12 +318,97 @@ const ViewClientPage = () => {
             </>
           )}
         </div>
+
+        {/* Generate Invoice Modal - Optional Dates */}
+        {showGenerateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Calendar className="w-6 h-6 text-indigo-600" />
+                  Generate Invoice
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowGenerateModal(false);
+                    setFromDate('');
+                    setToDate('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                <p>
+                  <strong>Leave dates empty</strong> to generate for <strong>current month</strong>
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    From Date <span className="text-gray-400">(Optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    To Date <span className="text-gray-400">(Optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleGenerateInvoice}
+                  disabled={generating}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 px-4 rounded-lg font-medium hover:from-green-700 hover:to-emerald-700 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {generating ? (
+                    <>
+                      <Spinner size="sm" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Generate
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGenerateModal(false);
+                    setFromDate('');
+                    setToDate('');
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2.5 px-4 rounded-lg font-medium hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   );
 };
 
-// Reusable Info Item Component
+// Reusable Info Item
 const InfoItem = ({ icon: Icon, label, value }: { icon?: any; label: string; value: string }) => (
   <div>
     <p className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1">
