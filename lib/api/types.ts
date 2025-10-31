@@ -33,7 +33,13 @@ export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY";
 export type ProjectStatus = "ACTIVE" | "INACTIVE" | "COMPLETED" | "ON_HOLD";
 export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
-
+export type InvoiceStatus =
+  | 'DRAFT'
+  | 'SENT'
+  | 'PENDING'
+  | 'PAID'
+  | 'OVERDUE'
+  | 'GENERATED';
 // Core Models
 export interface AddressModel {
   addressId?: string; // uuid
@@ -1011,21 +1017,20 @@ export interface WebResponseDTOObject {
   totalRecords: number;
   otherInfo?: any;
 }
-// types.ts (add these)
-
+// Invoice Types
 export interface InvoiceDTO {
-  invoiceId: string;
+  invoiceId: string;       // UUID
   clientName: string;
   invoiceNumber: string;
   subtotal: number;
   taxAmount: number;
   totalAmount: number;
   totalHours: number;
-  status: string;
-  invoiceDate: string; // ISO date
-  dueDate: string;     // ISO date
-  fromDate: string;    // ISO date
-  toDate: string;      // ISO date
+  status: InvoiceStatus;   // Enum type
+  invoiceDate: string;     // ISO Date (YYYY-MM-DD)
+  dueDate: string;         // ISO Date (YYYY-MM-DD)
+  fromDate: string;        // ISO Date (YYYY-MM-DD)
+  toDate: string;          // ISO Date (YYYY-MM-DD)
 }
 
 // For list responses
@@ -1034,6 +1039,14 @@ export interface WebResponseDTOListInvoiceDTO {
   message: string;
   status: number;
   response: InvoiceDTO[];
+  totalRecords: number;
+  otherInfo: any;
+}
+export interface WebResponseDTOInvoiceDTO {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: InvoiceDTO;
   totalRecords: number;
   otherInfo: any;
 }

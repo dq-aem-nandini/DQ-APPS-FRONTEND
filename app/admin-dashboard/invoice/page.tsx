@@ -133,20 +133,17 @@ export default function InvoicesPage() {
       case 'PENDING':
       case 'SENT':
         return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      case 'PARTIAL':
-        return 'bg-orange-100 text-orange-800 border border-orange-200';
+
       case 'OVERDUE':
         return 'bg-red-100 text-red-800 border border-red-200';
       case 'DRAFT':
         return 'bg-gray-100 text-gray-800 border border-gray-200';
-      case 'VOID':
-      case 'REFUNDED':
-        return 'bg-slate-100 text-slate-800 border border-slate-200';
+      case 'GENERATED':
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
         return 'bg-blue-100 text-blue-800 border border-blue-200';
     }
   };
-
   /* -------------------------- LOADING STATE -------------------------- */
   if (loadingClients) {
     return <InvoicesSkeleton />;
@@ -262,16 +259,14 @@ export default function InvoicesPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
               >
                 <option value="">All Status</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="PENDING">Pending</option>
-                <option value="PARTIAL">Partial</option>
-                <option value="PAID">Paid</option>
-                <option value="OVERDUE">Overdue</option>
-                <option value="VOID">Void</option>
+                <option value="DRAFT">DRAFT</option>
+                <option value="SENT">SENT</option>
+                <option value="PENDING">PENDING</option>
+                <option value="PAID">PAID</option>
+                <option value="OVERDUE">OVERDUE</option>
+                <option value="GENERATED">GENERATED</option>
               </select>
             </div>
-
             {/* From Date */}
             <div className="space-y-2">
               <Label htmlFor="from">From</Label>
@@ -366,7 +361,7 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <button
-                          onClick={() => window.open(`/api/invoice/pdf/${inv.invoiceId}`, '_blank')}
+                          onClick={() => window.open(`/api/admin-ashboard/invoice/pdf/${inv.invoiceId}`, '_blank')}
                           className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                         >
                           <Download className="h-4 w-4" />

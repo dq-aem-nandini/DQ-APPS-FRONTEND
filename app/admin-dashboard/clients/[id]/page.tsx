@@ -101,10 +101,10 @@ const ViewClientPage = () => {
       setFromDate('');
       setToDate('');
 
-      // Open PDF
-      setTimeout(() => {
-        window.open(`/[id]`, '_blank');
-      }, 1000);
+    // Open PDF
+setTimeout(() => {
+  window.open(`/admin-dashboard/invoice/${invoice.invoiceId}`, '_self');
+}, 1000);
     } catch (err: any) {
       setToast({ type: 'error', message: err.message || 'Failed to generate invoice' });
     } finally {
