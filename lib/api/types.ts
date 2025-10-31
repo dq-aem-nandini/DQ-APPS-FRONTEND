@@ -398,14 +398,6 @@ export interface HolidayCalendarDTO {
   holidayActive: boolean;
 }
 
-export interface NotificationDTO {
-  id: string; // UUID
-  message: string;
-  referenceId: string; // UUID
-  read: boolean;
-  createdAt: string; // Date-time
-  updatedAt: string; // Date-time
-}
 
 export interface ClientPoc {
   pocId: string; // uuid

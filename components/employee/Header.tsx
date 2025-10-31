@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { User } from '@/lib/api/types';
+import NotificationBell from '../NotificationBell';
 
 const Header = () => {
   const { state, logout } = useAuth();
@@ -30,6 +31,7 @@ const Header = () => {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
       <h1 className="text-2xl font-bold text-gray-900">Employee Dashboard</h1>
+      <NotificationBell/>
       <div className="flex items-center space-x-4">
         <span className="text-sm text-gray-500 hidden md:block">Welcome, {user?.userName || 'Employee'}</span>
         <div className="relative">

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { User } from '@/lib/api/types';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '../NotificationBell';
 
 const Header: React.FC = () => {
   const { state, logout } = useAuth();
@@ -19,6 +20,8 @@ const Header: React.FC = () => {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
       <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
+      <NotificationBell/>
+
       <div className="flex items-center space-x-4">
         <span className="text-sm text-gray-500 hidden md:block">Welcome, {user.userName}</span>
         <div className="relative">
