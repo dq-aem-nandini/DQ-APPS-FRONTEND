@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { User, Role } from '@/lib/api/types';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '../NotificationBell';
 import { PasswordService } from '@/lib/api/passwordService';
 import Link from 'next/link';
 
@@ -73,14 +74,27 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-500 hidden md:block">Welcome, {user.userName}</span>
-          <div className="relative">
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="relative focus:outline-none flex items-center space-x-2"
+    <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
+      <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
+      <NotificationBell/>
+
+      <div className="flex items-center space-x-4">
+        <span className="text-sm text-gray-500 hidden md:block">Welcome, {user.userName}</span>
+        <div className="relative">
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="relative focus:outline-none flex items-center space-x-2"
+          >
+            <img
+              className="h-8 w-8 rounded-full ring-2 ring-gray-200"
+              src={'https://via.placeholder.com/32?text=U'}
+              alt="Profile"
+            />
+            <svg
+              className={`h-4 w-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
               <img
                 className="h-8 w-8 rounded-full ring-2 ring-gray-200"
@@ -95,6 +109,7 @@ const Header: React.FC = () => {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
+            </svg>  
             </button>
             {showDropdown && (
               <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 py-2 z-50 border border-gray-200">

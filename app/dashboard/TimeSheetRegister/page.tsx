@@ -707,19 +707,9 @@ const TimeSheetRegister: React.FC = () => {
       <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Select Week</h2>
-          <div className="flex items-center space-x-2">
-            <ChevronLeft
-              className="cursor-pointer text-gray-600 hover:text-gray-800"
-              size={24}
-              onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
-            />
-            <ChevronRight
-              className="cursor-pointer text-gray-600 hover:text-gray-800"
-              size={24}
-              onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
-            />
-          </div>
         </div>
+
+        <div className="flex items-center  mb-4 gap-4">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Calendar size={20} className="text-gray-500" />
@@ -734,8 +724,21 @@ const TimeSheetRegister: React.FC = () => {
             Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')}
           </div>
         </div>
+        <div className="flex items-center space-x-2">
+            <ChevronLeft
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+              size={24}
+              onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
+            />
+            <ChevronRight
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+              size={24}
+              onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
+            />
+        </div>
+        </div>
       </div>
-
+      
       {/* Messages Panel */}
       <div className="mb-4 space-y-2">
         {messages.map(m => (

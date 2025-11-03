@@ -1,27 +1,28 @@
+// app/admin-dashboard/salaries/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { salaryService } from '@/lib/api/salaryService';
-import { employeeService } from '@/lib/api/ListofEmployeSalaries';
+import { ListofEmployeeSalaries} from '@/lib/api/ListofEmployeSalaries';
 import {
-  WebResponseDTOListActiveEmployees,
-  EmployeeDetailsDTO,
-  WebResponseDTOSalarySummaryDTO,
+  WebResponseDTO,
+  EmployeeDTO,
+  SalarySummaryDTO,
 } from '@/lib/api/types';
 import dayjs from 'dayjs';
 import { AlertTriangle } from 'lucide-react';
 
 export default function AdminPage() {
-  const [employees, setEmployees] = useState<WebResponseDTOListActiveEmployees['response']>([]);
+  const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
-  const [employeeDetails, setEmployeeDetails] = useState<EmployeeDetailsDTO | null>(null);
+  const [employeeDetails, setEmployeeDetails] = useState<EmployeeDTO | null>(null);
 
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableMonths, setAvailableMonths] = useState<{ name: string; value: number }[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [selectedMonth, setSelectedMonth] = useState<number | ''>('');
 
-  const [salaryData, setSalaryData] = useState<any | null>(null);
+  const [salaryData, setSalaryData] = useState<SalarySummaryDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [noData, setNoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const res = await employeeService.getActiveEmployees();
+        const res: WebResponseDTO<EmployeeDTO[]> = await ListofEmployeeSalaries.getAllEmployees();
         setEmployees(res.response || []);
       } catch {
         setError('Failed to load employees.');
@@ -52,8 +53,10 @@ export default function AdminPage() {
     if (!empId) return;
 
     try {
-      const res = await employeeService.getEmployeeDetails(empId);
+      const res: WebResponseDTO<EmployeeDTO> = await ListofEmployeeSalaries.getEmployeeById(empId);
       const details = res.response;
+      if (!details) return;
+
       setEmployeeDetails(details);
 
       const joinDate = dayjs(details.dateOfJoining);
@@ -103,7 +106,7 @@ export default function AdminPage() {
   };
 
   // Fetch salary
-const handleFetchSalary = async () => {
+  const handleFetchSalary = async () => {
   if (!selectedEmployee || !selectedMonth || !selectedYear) return;
 
   setLoading(true);
@@ -114,26 +117,29 @@ const handleFetchSalary = async () => {
 
   try {
     const res = await salaryService.getPayslip(selectedEmployee, monthString);
-    console.log("📦 Salary API raw response:", res);
+    console.log('📦 Salary API raw response:', res);
 
-    // Since your API directly returns the salary data object
-    const salaryPayload =
-      res?.response || res || null;
+    // ✅ Safely extract the actual salary data
+    const salaryPayload = res?.response;
 
-    if (salaryPayload && salaryPayload.employeeName) {
+    if (res.flag && salaryPayload && salaryPayload.employeeId) {
       setSalaryData(salaryPayload);
+      setNoData(false);
     } else {
+      console.warn("⚠️ No salary data found in response:", res);
       setSalaryData(null);
       setNoData(true);
     }
+
   } catch (err) {
-    console.error("❌ Salary fetch error:", err);
+    console.error('❌ Salary fetch error:', err);
     setNoData(true);
     setSalaryData(null);
   } finally {
     setLoading(false);
   }
 };
+
 
   const selectedMonthString =
     selectedYear && selectedMonth
@@ -221,7 +227,7 @@ const handleFetchSalary = async () => {
           <AlertTriangle className="text-yellow-500 w-10 h-10 mb-3" />
           <h3 className="text-lg font-semibold text-yellow-700">No Salary Slip Found</h3>
           <p className="text-gray-600 mt-1">
-            No payslip has been generated for <strong>{selectedMonthString}</strong>.  
+            No payslip has been generated for <strong>{selectedMonthString}</strong>.
             Please check with HR or try selecting a different month.
           </p>
         </div>
@@ -229,17 +235,12 @@ const handleFetchSalary = async () => {
 
       {salaryData && (
         <div className="p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto mt-6 space-y-6">
-          {/* Header */}
           <div className="flex items-center justify-between border-b pb-3 mb-6">
             <h2 className="text-2xl font-semibold text-gray-800">Salary Details</h2>
           </div>
 
-          {/* Summary Card */}
           <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg shadow-sm border">
             <div className="flex justify-between items-center mb-3">
-              {/* <h3 className="text-xl font-semibold text-gray-800">
-                Payslip for {selectedMonthString}
-              </h3> */}
               <span
                 className={`text-sm font-medium px-3 py-1 rounded-full ${
                   salaryData.paymentStatus === 'PAID'
@@ -259,13 +260,12 @@ const handleFetchSalary = async () => {
             </div>
           </div>
 
-          {/* Allowances */}
           <div className="border rounded-lg p-5 bg-gray-50">
             <h4 className="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">
               Allowances
             </h4>
             <div className="divide-y">
-              {salaryData.allowances.map((item: any, idx: number) => (
+              {salaryData.allowances.map((item, idx) => (
                 <div key={idx} className="flex justify-between py-2 text-gray-700">
                   <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
                   <span>₹{item.amount.toLocaleString()}</span>
@@ -278,13 +278,12 @@ const handleFetchSalary = async () => {
             </div>
           </div>
 
-          {/* Deductions */}
           <div className="border rounded-lg p-5 bg-gray-50">
             <h4 className="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">
               Deductions
             </h4>
             <div className="divide-y">
-              {salaryData.deductions.map((item: any, idx: number) => (
+              {salaryData.deductions.map((item, idx) => (
                 <div key={idx} className="flex justify-between py-2 text-gray-700">
                   <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
                   <span>₹{item.amount.toLocaleString()}</span>
@@ -297,7 +296,6 @@ const handleFetchSalary = async () => {
             </div>
           </div>
 
-          {/* Summary */}
           <div className="bg-white border rounded-lg p-6 shadow-sm">
             <h4 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">
               Summary

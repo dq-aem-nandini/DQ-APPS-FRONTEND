@@ -1,47 +1,38 @@
 // lib/api/ListofEmployeSalaries.ts
-import { AxiosError, AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 import api from "./axios";
-import {
-  WebResponseDTOListActiveEmployees,
-  WebResponseDTOEmployeeDetails,
-} from "./types";
+import { EmployeeDTO, WebResponseDTO } from "@/lib/api/types";
 
-export const employeeService = {
+/**
+ * Service for fetching active employees and individual employee details.
+ */
+export const ListofEmployeeSalaries = {
   /**
-   * Fetch all active employees
+   * ✅ Get all active employees
+   * Endpoint: GET /web/api/v1/employee/activeemployees/list
    */
-  async getActiveEmployees(): Promise<WebResponseDTOListActiveEmployees> {
+  async getAllEmployees(): Promise<WebResponseDTO<EmployeeDTO[]>> {
     try {
-      const response: AxiosResponse<WebResponseDTOListActiveEmployees> =
-        await api.get("/employee/activeemployees/list");
-      console.log(" Full get active employees API response:", response.data);
-      return response.data;
+      const res = await api.get("/employee/activeemployees/list");
+      return res.data;
     } catch (error) {
       const err = error as AxiosError;
-      console.error(
-        "Error fetching active employees:",
-        err.response?.data || err.message
-      );
+      console.error(" Error fetching employees:", err.message);
       throw err;
     }
   },
 
   /**
-   * Fetch employee details (includes dateOfJoining)
+   * ✅ Get specific employee details by ID
+   * Endpoint: GET /web/api/v1/admin/emp/{empId}
    */
-  async getEmployeeDetails(
-    empId: string
-  ): Promise<WebResponseDTOEmployeeDetails> {
+  async getEmployeeById(empId: string): Promise<WebResponseDTO<EmployeeDTO>> {
     try {
-      const response: AxiosResponse<WebResponseDTOEmployeeDetails> =
-        await api.get(`/admin/emp/${empId}`);
-      return response.data;
+      const res = await api.get(`/admin/emp/${empId}`);
+      return res.data;
     } catch (error) {
       const err = error as AxiosError;
-      console.error(
-        "Error fetching employee details:",
-        err.response?.data || err.message
-      );
+      console.error(` Error fetching employee (${empId}):`, err.message);
       throw err;
     }
   },
