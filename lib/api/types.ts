@@ -36,10 +36,10 @@ export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
 export type InvoiceStatus =
   | 'DRAFT'
   | 'SENT'
-  | 'PENDING'
   | 'PAID'
   | 'OVERDUE'
-  | 'GENERATED';
+  | 'APPROVED'
+  | 'REJECTED';
 // Core Models
 export interface AddressModel {
   addressId?: string; // uuid
@@ -1020,6 +1020,7 @@ export interface WebResponseDTOObject {
 // Invoice Types
 export interface InvoiceDTO {
   invoiceId: string;       // UUID
+  clientId: string;  
   clientName: string;
   invoiceNumber: string;
   subtotal: number;
@@ -1049,4 +1050,30 @@ export interface WebResponseDTOInvoiceDTO {
   response: InvoiceDTO;
   totalRecords: number;
   otherInfo: any;
+}
+// EmployeeWorkSummaryDTO
+export interface EmployeeWorkSummaryDTO {
+  employeeName: string;
+  companyId: string;
+  rateCard: number;
+  totalHours: number;
+  totalAmount: number;
+}
+
+// ClientInvoiceSummaryDTO
+export interface ClientInvoiceSummaryDTO {
+  invoiceNumber: string;
+  invoiceDate: string; // ISO date string
+  totalAmount: number;
+  employeeWorkSummaries: EmployeeWorkSummaryDTO[];
+}
+
+// WebResponseDTOListClientInvoiceSummaryDTO
+export interface WebResponseDTOListClientInvoiceSummaryDTO {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: ClientInvoiceSummaryDTO[];
+  totalRecords: number;
+  otherInfo?: any;
 }

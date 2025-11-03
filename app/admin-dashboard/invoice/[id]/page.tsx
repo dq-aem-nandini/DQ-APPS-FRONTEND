@@ -147,9 +147,9 @@ const ViewInvoicePage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600">Subtotal: ${invoice.subtotal.toFixed(2)}</p>
-                  <p className="text-sm text-gray-600">Tax: ${invoice.taxAmount.toFixed(2)}</p>
-                  <p className="text-lg font-bold text-gray-900">Total: ${invoice.totalAmount.toFixed(2)}</p>
+                  <p className="text-sm text-gray-600">Subtotal: {invoice.subtotal.toFixed(2)}</p>
+                  <p className="text-sm text-gray-600">Tax: {invoice.taxAmount.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-gray-900">Total: {invoice.totalAmount.toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>

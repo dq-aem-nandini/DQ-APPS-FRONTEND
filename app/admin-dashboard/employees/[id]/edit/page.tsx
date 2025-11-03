@@ -621,7 +621,7 @@ const EditEmployeePage = () => {
                 </div>
                 <div>
                   <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700 mb-1">Employment Type *</label>
-                  <select id="employmentType" name="employmentType" value={formData.employmentType} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <select id="employmentType" name="employmentType" value={formData.employmentType ?? ""} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select Type</option>
                     {employmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>

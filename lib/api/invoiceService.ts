@@ -1,8 +1,10 @@
 // /lib/api/invoiceService.ts - Fix getInvoiceById to return WebResponseDTOInvoiceDTO
 import api from './axios';
 import {
+  ClientInvoiceSummaryDTO,
   InvoiceDTO,
   WebResponseDTOInvoiceDTO,
+  WebResponseDTOListClientInvoiceSummaryDTO,
   WebResponseDTOListInvoiceDTO,
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -119,6 +121,39 @@ class InvoiceService {
       throw new Error(errorMessage);
     }
   }
+ /**
+   * ✅ Get client invoice summary
+   * Endpoint: GET /web/api/v1/invoice/view/summary/client/{clientId}
+   */
+ async getClientInvoiceSummary(
+  clientId: string
+): Promise<ClientInvoiceSummaryDTO[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListClientInvoiceSummaryDTO> =
+      await api.get(`/invoice/view/summary/client/${clientId}`);
+
+    console.log(
+      'Full get client invoice summary API response:',
+      response.data
+    );
+
+    if (response.data?.flag && Array.isArray(response.data.response)) {
+      return response.data.response;
+    }
+
+    throw new Error(
+      response.data?.message ||
+        'Invalid response: Expected client invoice summary data'
+    );
+  } catch (error: unknown) {
+    console.error('Error fetching client invoice summary:', error);
+    const errorMessage = this.getErrorMessage(
+      error,
+      'Failed to fetch client invoice summary'
+    );
+    throw new Error(errorMessage);
+  }
+}
 
   /**
    * Download invoice as PDF (returns Blob)

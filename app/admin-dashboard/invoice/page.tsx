@@ -1,14 +1,18 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
-import { adminService } from '@/lib/api/adminService';
-import { invoiceService } from '@/lib/api/invoiceService';
-import { ClientDTO, InvoiceDTO } from '@/lib/api/types';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { useRouter } from "next/navigation";
+import { adminService } from "@/lib/api/adminService";
+import { invoiceService } from "@/lib/api/invoiceService";
+import {
+  ClientDTO,
+  InvoiceDTO,
+  ClientInvoiceSummaryDTO,
+} from "@/lib/api/types";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,17 +20,25 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, Search, FileText, DollarSign, Clock, ArrowLeft, Loader2 } from 'lucide-react';
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Download,
+  Search,
+  FileText,
+  DollarSign,
+  Clock,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
 
 interface Filters {
   clientId: string;
@@ -48,11 +60,11 @@ export default function InvoicesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<Filters>({
-    clientId: '',
-    search: '',
-    status: '',
-    fromDate: '',
-    toDate: '',
+    clientId: "",
+    search: "",
+    status: "",
+    fromDate: "",
+    toDate: "",
   });
 
   /* -------------------------- FETCH CLIENTS -------------------------- */
@@ -65,8 +77,8 @@ export default function InvoicesPage() {
           setClients(resp.response);
         }
       } catch (e: any) {
-        console.error('Failed to load clients:', e);
-        setError('Failed to load clients');
+        console.error("Failed to load clients:", e);
+        setError("Failed to load clients");
       } finally {
         setLoadingClients(false);
       }
@@ -75,75 +87,92 @@ export default function InvoicesPage() {
   }, []);
 
   /* -------------------------- FETCH INVOICES -------------------------- */
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        setLoadingInvoices(true);
-        setError(null);
+useEffect(() => {
+  const fetchInvoices = async () => {
+    try {
+      setLoadingInvoices(true);
+      setError(null);
 
-        let data: InvoiceDTO[] = [];
+      let data: InvoiceDTO[] = [];
 
-        if (filters.clientId) {
-          // Specific client
-          data = await invoiceService.getInvoicesByClient(
-            filters.clientId,
-            filters.fromDate || undefined,
-            filters.toDate || undefined,
-            filters.status || undefined
-          );
-        } else {
-          // ALL invoices
-          data = await invoiceService.getAllInvoices(); // Uses /invoice/view/all
-        }
-
-        setInvoices(data);
-      } catch (e: any) {
-        setError(e.message || 'Failed to load invoices');
-        console.error(e);
-      } finally {
-        setLoadingInvoices(false);
+      if (filters.clientId) {
+        // Specific client - backend filtered
+        data = await invoiceService.getInvoicesByClient(
+          filters.clientId,
+          filters.fromDate || undefined,
+          filters.toDate || undefined,
+          filters.status || undefined
+        );
+      } else {
+        // ALL invoices - fetch all, filter locally
+        data = await invoiceService.getAllInvoices();
       }
-    };
 
-    fetchInvoices();
-  }, [filters.clientId, filters.fromDate, filters.toDate, filters.status]);
-
-  /* -------------------------- LOCAL SEARCH FILTER -------------------------- */
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
-      const matchesSearch =
-        !filters.search ||
-        inv.invoiceNumber.toLowerCase().includes(filters.search.toLowerCase()) ||
-        inv.clientName.toLowerCase().includes(filters.search.toLowerCase());
-      return matchesSearch;
-    });
-  }, [invoices, filters.search]);
-
-  /* -------------------------- STATS -------------------------- */
-  const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const pendingCount = filteredInvoices.filter((i) => i.status === 'PENDING').length;
-  const paidCount = filteredInvoices.filter((i) => i.status === 'PAID').length;
-
-  /* -------------------------- STATUS COLORS -------------------------- */
-  const getStatusColor = (status: string) => {
-    const s = status.toUpperCase();
-    switch (s) {
-      case 'PAID':
-        return 'bg-green-100 text-green-800 border border-green-200';
-      case 'PENDING':
-      case 'SENT':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-
-      case 'OVERDUE':
-        return 'bg-red-100 text-red-800 border border-red-200';
-      case 'DRAFT':
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
-      case 'GENERATED':
-        return 'bg-purple-100 text-purple-800 border border-purple-200';
-      default:
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
+      setInvoices(data);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load invoices');
+      console.error(e);
+    } finally {
+      setLoadingInvoices(false);
     }
   };
+
+  fetchInvoices();
+}, [filters.clientId]); // Only refetch when client changes; others are local
+
+/* -------------------------- LOCAL FILTERING -------------------------- */
+const filteredInvoices = useMemo(() => {
+  return invoices.filter((inv) => {
+    // Status filter
+    const matchesStatus = !filters.status || inv.status === filters.status;
+
+    // Search filter
+    const matchesSearch =
+      !filters.search ||
+      inv.invoiceNumber.toLowerCase().includes(filters.search.toLowerCase()) ||
+      inv.clientName.toLowerCase().includes(filters.search.toLowerCase());
+
+    // Date range filter
+    const matchesDateRange =
+      (!filters.fromDate || new Date(inv.invoiceDate) >= new Date(filters.fromDate)) &&
+      (!filters.toDate || new Date(inv.invoiceDate) <= new Date(filters.toDate));
+
+    return matchesStatus && matchesSearch && matchesDateRange;
+  });
+}, [invoices, filters.status, filters.search, filters.fromDate, filters.toDate]);
+
+  /* -------------------------- STATS -------------------------- */
+  const totalRevenue = filteredInvoices.reduce(
+    (sum, inv) => sum + inv.totalAmount,
+    0
+  );
+  const overdueCount = filteredInvoices.filter(
+    (i) => i.status === "OVERDUE"
+  ).length;
+  const paidCount = filteredInvoices.filter((i) => i.status === "PAID").length;
+
+/* -------------------------- STATUS COLORS -------------------------- */
+const getStatusColor = (status: string) => {
+  const s = status.toUpperCase();
+  switch (s) {
+    case 'PAID':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    case 'SENT':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    case 'APPROVED':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    case 'PENDING':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    case 'OVERDUE':
+      return 'bg-red-100 text-red-800 border border-red-200';
+    case 'DRAFT':
+      return 'bg-gray-100 text-gray-800 border border-gray-200';
+    case 'REJECTED':
+      return 'bg-red-100 text-red-800 border border-red-200';
+    default:
+      return 'bg-blue-100 text-blue-800 border border-blue-200';
+  }
+};
   /* -------------------------- LOADING STATE -------------------------- */
   if (loadingClients) {
     return <InvoicesSkeleton />;
@@ -161,7 +190,9 @@ export default function InvoicesPage() {
         </button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
-          <p className="text-muted-foreground">View and manage client invoices</p>
+          <p className="text-muted-foreground">
+            View and manage client invoices
+          </p>
         </div>
       </div>
 
@@ -169,7 +200,9 @@ export default function InvoicesPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Invoices
+            </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -183,7 +216,7 @@ export default function InvoicesPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{totalRevenue.toFixed(2)}</div>
           </CardContent>
         </Card>
 
@@ -193,7 +226,7 @@ export default function InvoicesPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingCount}</div>
+            <div className="text-2xl font-bold">{overdueCount}</div>
           </CardContent>
         </Card>
 
@@ -222,7 +255,9 @@ export default function InvoicesPage() {
                 id="client"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={filters.clientId}
-                onChange={(e) => setFilters((f) => ({ ...f, clientId: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, clientId: e.target.value }))
+                }
                 disabled={loadingClients}
               >
                 <option value="">All Invoices</option>
@@ -244,7 +279,9 @@ export default function InvoicesPage() {
                   placeholder="Invoice # or Client"
                   className="pl-8"
                   value={filters.search}
-                  onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, search: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -256,17 +293,21 @@ export default function InvoicesPage() {
                 id="status"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={filters.status}
-                onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, status: e.target.value }))
+                }
               >
                 <option value="">All Status</option>
-                <option value="DRAFT">DRAFT</option>
-                <option value="SENT">SENT</option>
-                <option value="PENDING">PENDING</option>
-                <option value="PAID">PAID</option>
-                <option value="OVERDUE">OVERDUE</option>
-                <option value="GENERATED">GENERATED</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SENT">Sent</option>
+                <option value="PENDING">Pending</option>
+                <option value="PAID">Paid</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="OVERDUE">Overdue</option>
               </select>
             </div>
+
             {/* From Date */}
             <div className="space-y-2">
               <Label htmlFor="from">From</Label>
@@ -274,7 +315,9 @@ export default function InvoicesPage() {
                 id="from"
                 type="date"
                 value={filters.fromDate}
-                onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, fromDate: e.target.value }))
+                }
               />
             </div>
 
@@ -286,7 +329,9 @@ export default function InvoicesPage() {
                   id="to"
                   type="date"
                   value={filters.toDate}
-                  onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, toDate: e.target.value }))
+                  }
                 />
                 {loadingInvoices && (
                   <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
@@ -318,41 +363,59 @@ export default function InvoicesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loadingInvoices ? (
+        {loadingInvoices ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : filteredInvoices.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">
-              {filters.clientId ? 'No invoices for this client' : 'No invoices available'}
-            </p>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-2">
+                No results found for your current filters.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {filters.clientId ? 'No invoices for this client.' : 'No invoices available.'}
+              </p>
+            </div>
           ) : (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Invoice</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Due</TableHead>
                     <TableHead className="text-right">Hours</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Tax</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
+                    <TableHead className="text-right">Total Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">PDF</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInvoices.map((inv) => (
-                    <TableRow key={inv.invoiceId}>
+                    <TableRow key={inv.invoiceId}className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() =>
+                      router.push(
+                        `/admin-dashboard/invoice/invoicesummary/${inv.clientId}`
+                      )
+                    }>
                       <TableCell className="font-medium">{inv.invoiceNumber}</TableCell>
                       <TableCell>{inv.clientName}</TableCell>
                       <TableCell>{format(new Date(inv.invoiceDate), 'MMM dd, yyyy')}</TableCell>
                       <TableCell>{format(new Date(inv.dueDate), 'MMM dd, yyyy')}</TableCell>
                       <TableCell className="text-right">{inv.totalHours}h</TableCell>
                       <TableCell className="text-right font-medium">
-                        ${inv.totalAmount.toFixed(2)}
+                        {inv.taxAmount.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {inv.subtotal.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {inv.totalAmount.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(inv.status)}>
@@ -361,7 +424,7 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <button
-                          onClick={() => window.open(`/api/admin-ashboard/invoice/pdf/${inv.invoiceId}`, '_blank')}
+                          onClick={() => window.open(`/api/admin-dashboard/invoice/pdf/${inv.invoiceId}`, '_blank')}
                           className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                         >
                           <Download className="h-4 w-4" />

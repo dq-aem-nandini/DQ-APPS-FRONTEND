@@ -111,6 +111,8 @@ const ViewEmployee = () => {
                 />
               </div>
             )}
+            <InfoItem label="First Name" value={`${getValue(employee.firstName)}`} />
+            <InfoItem label="Last Name" value={`${getValue(employee.lastName)}`} />
             <InfoItem label="Personal Email" value={getValue(employee.personalEmail)} />
             <InfoItem label="Company Email" value={getValue(employee.companyEmail)} />
             <InfoItem label="Contact Number" value={getValue(employee.contactNumber)} />
