@@ -1,3 +1,4 @@
+// app/manager/page.tsx
 'use client';
 
 import ProtectedRoute from '@/components/ProtectedRoute';

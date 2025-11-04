@@ -1,4 +1,4 @@
-// app/admin-dashboard/layout.tsx (layout for admin dashboard with sidebar and header)
+// /Users/nandinimadhireddy/Documents/code/dq-apps-ui/app/admin-dashboard/page.tsx
 import DashboardContent from '@/components/admin/DashboardContent';
 import Header from '@/components/admin/Header';
 import Sidebar from '@/components/admin/Sidebar';
