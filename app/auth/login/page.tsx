@@ -1,9 +1,8 @@
-import React from 'react'
+// app/auth/login/page.tsx
 
-function page() {
-  return (
-    <div>Login page</div>
-  )
+import Login from "@/components/login/login";
+
+
+export default function LoginPage() {
+  return <Login />;
 }
-
-export default page

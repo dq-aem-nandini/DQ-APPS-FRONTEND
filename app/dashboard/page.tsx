@@ -1,9 +1,23 @@
-import React from 'react'
+// app/dashboard/page.tsx
+import Header from '@/components/employee/Header';
+import Sidebar from '@/components/employee/Sidebar';
+import DashboardContent from '@/components/employee/DashboardContent';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-function page() {
+export default function EmployeeDashboardPage() {
   return (
-    <div>Employee Dashboard</div>
-  )
-}
+    <ProtectedRoute allowedRoles={['EMPLOYEE']}>
+      <div className="flex min-h-screen">
+        {/* Sidebar */}
+        <Sidebar />
 
-export default page
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <Header />
+          {/* Main Content */}
+          <DashboardContent />
+        </div>
+      </div>
+    </ProtectedRoute>
+  );
+}
