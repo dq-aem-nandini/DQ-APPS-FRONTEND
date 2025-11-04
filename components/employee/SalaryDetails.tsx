@@ -154,20 +154,18 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
           Allowances
         </h4>
         <div className="divide-y">
-          {salaryData.allowances.map((item, idx) => (
-            <div
-              key={idx}
-              className="flex justify-between py-2 text-gray-700"
-            >
-              <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
-              <span>₹{item.amount.toLocaleString()}</span>
-            </div>
-          ))}
-          <div className="flex justify-between font-medium pt-3 text-gray-900">
-            <span>Total Allowances</span>
-            <span>₹{salaryData.totalAllowances.toLocaleString()}</span>
-          </div>
-        </div>
+  {salaryData.allowances.map((item: any, idx: number) => (
+    <div key={idx} className="flex justify-between py-2 text-gray-700">
+      <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
+      <span>₹{item.amount.toLocaleString()}</span>
+    </div>
+  ))}
+  <div className="flex justify-between font-medium pt-3 text-gray-900">
+    <span>Total Allowances</span>
+    <span>₹{salaryData.totalAllowances.toLocaleString()}</span>
+  </div>
+</div>
+
       </div>
 
       {/* Deductions Section */}
@@ -176,20 +174,18 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
           Deductions
         </h4>
         <div className="divide-y">
-          {salaryData.deductions.map((item, idx) => (
-            <div
-              key={idx}
-              className="flex justify-between py-2 text-gray-700"
-            >
-              <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
-              <span>₹{item.amount.toLocaleString()}</span>
-            </div>
-          ))}
-          <div className="flex justify-between font-medium pt-3 text-gray-900">
-            <span>Total Deductions</span>
-            <span>₹{salaryData.totalDeductions.toLocaleString()}</span>
-          </div>
-        </div>
+  {salaryData.deductions.map((item: any, idx: number) => (
+    <div key={idx} className="flex justify-between py-2 text-gray-700">
+      <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
+      <span>₹{item.amount.toLocaleString()}</span>
+    </div>
+  ))}
+  <div className="flex justify-between font-medium pt-3 text-gray-900">
+    <span>Total Deductions</span>
+    <span>₹{salaryData.totalDeductions.toLocaleString()}</span>
+  </div>
+</div>
+
       </div>
 
       {/* Salary Summary */}
