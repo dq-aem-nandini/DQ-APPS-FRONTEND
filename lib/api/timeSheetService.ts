@@ -1,3 +1,4 @@
+//lib/api/timeSheetService.ts
 import { AxiosError, AxiosResponse, Method } from "axios";
 import api from "./axios";
 import { TimeSheetModel, TimeSheetResponseDto, WebResponseDTO } from "./types";
@@ -152,7 +153,7 @@ class TimesheetService {
   }
 
   /**
-   * ❌ Delete a timesheet (DELETE)
+   *  Delete a timesheet (DELETE)
    */
   async deleteTimesheet(timesheetId: string): Promise<WebResponseDTO<string>> {
     if (!timesheetId) {
@@ -229,58 +230,6 @@ class TimesheetService {
       console.error('[TimesheetService] submitForApproval - error:', error);
       throw error;
     }
-  }
-
-  /**
-   * ✅ Manager Approves timesheets (PATCH)
-   */
-  async approveTimesheetsByManager(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
-    if (!timesheetIds || timesheetIds.length === 0) {
-      return {
-        flag: false,
-        message: "At least one timesheet ID is required for approval",
-        status: 400,
-        response: '',
-        totalRecords: 0,
-        otherInfo: null,
-      };
-    }
-
-    return this._mutation(
-      "/employee/manager/approve",
-      "patch",
-      undefined,
-      { params: { timesheetsIds: timesheetIds } },
-      false,
-      "Timesheets approved successfully",
-      "Failed to approve timesheets"
-    );
-  }
-
-  /**
-   * 🚫 Manager Rejects timesheets (PATCH)
-   */
-  async rejectTimesheetsByManager(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
-    if (!timesheetIds || timesheetIds.length === 0) {
-      return {
-        flag: false,
-        message: "At least one timesheet ID is required for rejection",
-        status: 400,
-        response: '',
-        totalRecords: 0,
-        otherInfo: null,
-      };
-    }
-
-    return this._mutation(
-      "/employee/manager/reject",
-      "patch",
-      undefined,
-      { params: { timesheetsIds: timesheetIds } },
-      false,
-      "Timesheets rejected successfully",
-      "Failed to reject timesheets"
-    );
   }
 
   /**

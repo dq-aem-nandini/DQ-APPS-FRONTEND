@@ -642,6 +642,7 @@ export interface NotificationDTO {
   read: boolean;
   createdAt: string; // Date-time
   updatedAt: string; // Date-time
+  notificationType: 'TIMESHEET' | 'LEAVE' ;
 }
 
 export interface SortObject {

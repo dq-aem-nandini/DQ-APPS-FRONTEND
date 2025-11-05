@@ -1,4 +1,4 @@
-// components/employee/TimeSheetRegister.tsx
+//app/dashboard/TimeSheetRegister/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -518,7 +518,8 @@ const TimeSheetRegister: React.FC = () => {
             const isDateModified = isDirty && r.hours[date] !== undefined;
 
             // Only process modified dates or existing timesheet entries
-            if ((isDateModified || tsId) && hours >= 0 && r.taskName) {
+              // ✅ Skip any cell where hoursWorked = 0
+            if ((isDateModified || tsId) && hours > 0 && r.taskName) {
               const base: TimeSheetModel = {
                 workDate: date,
                 hoursWorked: hours,

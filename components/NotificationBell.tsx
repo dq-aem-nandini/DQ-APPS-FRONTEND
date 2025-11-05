@@ -1,3 +1,4 @@
+//components/NotificationBell.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -59,6 +60,32 @@ const NotificationBell: React.FC = () => {
       console.error("Error opening notification:", error);
     }
   };
+
+  
+//   const handleOpenNotification = async (notification: NotificationDTO) => {
+//   try {
+//     // Mark as read
+//     await notificationService.markAsRead([notification.id]);
+//     setNotifications((prev) =>
+//       prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
+//     );
+
+//     // 🧭 Navigate based on notificationType
+//     if (notification.notificationType === "TIMESHEET") {
+//       window.location.href = `/manager/timesheets?employeeId=${notification.employeeId}`;
+//     } else if (notification.notificationType === "LEAVE") {
+//       window.location.href = `/manager/leaves`;
+//     } else {
+//       // default: show modal for unknown types
+//       setSelectedNotification(notification);
+//       setShowModal(true);
+//     }
+//   } catch (error) {
+//     console.error("Error handling notification click:", error);
+//   }
+// };
+
+
 
   return (
     <div className="relative">
@@ -122,7 +149,7 @@ const NotificationBell: React.FC = () => {
                       <MoreVertical className="w-4 h-4 text-gray-500" />
                     </button>
                     {openMenuId === notification.id && (
-                      <div className="absolute right-0 mt-2 bg-white border rounded shadow-md z-10">
+                      <div className="absolute right-0 mt-2 bg-white border rounded shadow-md z-10  min-w-[140px]">
                         <button
                           className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                           onClick={(e) => {
