@@ -57,7 +57,7 @@ export default function ManagerTimesheetReview() {
       setLoading(true);
       const res = await managerTimeSheetService.getEmployeeTimesheets(employeeId, 0, 50);
       // Include ALL statuses, no filtering here
-      const data = res.response?.content || res.response || [];
+      const data = Array.isArray(res.response) ? res.response : [];
       setTimesheets(data);
     } catch (err) {
       console.error("Error fetching timesheets:", err);
