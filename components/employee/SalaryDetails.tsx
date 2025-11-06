@@ -1,14 +1,15 @@
 // components/employee/SalaryDetails.tsx
 'use client';
-
+import
+{SalaryAllowanceDTO,SalaryDeductionDTO,SalarySummaryDTO,WebResponseDTO,}from '@/lib/api/types';
 import React, { useEffect, useState } from 'react';
 import { salaryService } from '@/lib/api/salaryService';
 import { AlertTriangle } from 'lucide-react'; // nice warning icon
 
 export default function SalaryDetails({ employeeId }: { employeeId: string }) {
-  const [salaries, setSalaries] = useState<any[]>([]);
+  const [salaries, setSalaries] = useState<SalarySummaryDTO[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [salaryData, setSalaryData] = useState<any | null>(null);
+  const [salaryData, setSalaryData] = useState<SalarySummaryDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [noData, setNoData] = useState(false);
 
@@ -23,7 +24,8 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
 
         // Fetch all salaries
         const allData = await salaryService.getAllSalaries(employeeId);
-        setSalaries(Array.isArray(allData) ? allData : [allData]);
+        // setSalaries(Array.isArray(allData) ? allData : [allData]);
+        setSalaries(allData.response ? [allData.response] : []);
 
         // Fetch current month's payslip
         setLoading(true);
@@ -32,7 +34,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
           setSalaryData(null);
           setNoData(true);
         } else {
-          setSalaryData(data);
+          setSalaryData(data.response);
           setNoData(false);
         }
       } catch (error) {
@@ -58,7 +60,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
         setSalaryData(null);
         setNoData(true);
       } else {
-        setSalaryData(data);
+        setSalaryData(data.response);
         setNoData(false);
       }
     } catch (error) {
@@ -76,7 +78,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
     <h2 className="text-2xl font-semibold text-gray-800">
       Salary Details
     </h2>
-      <button
+      {/* <button
       onClick={() => salaryService.downloadPayslipPdf(employeeId, selectedMonth)}
       disabled={!selectedMonth || loading}
       className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-lg text-sm transition-all"
@@ -96,7 +98,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
         />
       </svg>
       Download Payslip
-    </button>
+    </button> */}
 
 
   </div>
@@ -154,7 +156,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
           Allowances
         </h4>
         <div className="divide-y">
-  {salaryData.allowances.map((item: any, idx: number) => (
+  {salaryData.allowances.map((item: SalaryAllowanceDTO, idx: number) => (
     <div key={idx} className="flex justify-between py-2 text-gray-700">
       <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
       <span>₹{item.amount.toLocaleString()}</span>
@@ -174,7 +176,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
           Deductions
         </h4>
         <div className="divide-y">
-  {salaryData.deductions.map((item: any, idx: number) => (
+  {salaryData.deductions.map((item: SalaryDeductionDTO, idx: number) => (
     <div key={idx} className="flex justify-between py-2 text-gray-700">
       <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
       <span>₹{item.amount.toLocaleString()}</span>
