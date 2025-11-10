@@ -1,4 +1,3 @@
-//components/NotificationBell.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -6,7 +5,12 @@ import { notificationService } from "@/lib/api/notificationService";
 import { NotificationDTO } from "@/lib/api/types";
 import { Bell, MoreVertical, X } from "lucide-react";
 
-const NotificationBell: React.FC = () => {
+// ✅ Accept className as a prop with a default size
+interface NotificationBellProps {
+  className?: string;
+}
+
+const NotificationBell: React.FC<NotificationBellProps> = ({ className = "h-6 w-6" }) => {
   const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
@@ -47,13 +51,14 @@ const NotificationBell: React.FC = () => {
     }
   };
 
-  // ✅ When clicking a notification -> open modal
   const handleOpenNotification = async (notification: NotificationDTO) => {
     try {
       if (!notification.read) await notificationService.markAsRead([notification.id]);
+
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
       );
+
       setSelectedNotification(notification);
       setShowModal(true);
     } catch (error) {
@@ -61,40 +66,11 @@ const NotificationBell: React.FC = () => {
     }
   };
 
-  
-//   const handleOpenNotification = async (notification: NotificationDTO) => {
-//   try {
-//     // Mark as read
-//     await notificationService.markAsRead([notification.id]);
-//     setNotifications((prev) =>
-//       prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
-//     );
-
-//     // 🧭 Navigate based on notificationType
-//     if (notification.notificationType === "TIMESHEET") {
-//       window.location.href = `/manager/timesheets?employeeId=${notification.employeeId}`;
-//     } else if (notification.notificationType === "LEAVE") {
-//       window.location.href = `/manager/leaves`;
-//     } else {
-//       // default: show modal for unknown types
-//       setSelectedNotification(notification);
-//       setShowModal(true);
-//     }
-//   } catch (error) {
-//     console.error("Error handling notification click:", error);
-//   }
-// };
-
-
-
   return (
     <div className="relative">
       {/* 🔔 Bell Icon */}
-      <button
-        onClick={() => setDropdownOpen(!isDropdownOpen)}
-        className="relative"
-      >
-        <Bell className="w-6 h-6 text-gray-700" />
+      <button onClick={() => setDropdownOpen(!isDropdownOpen)} className="relative">
+        <Bell className={`${className}`} />
         {notifications.some((n) => !n.read) && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
             {notifications.filter((n) => !n.read).length}
@@ -102,14 +78,12 @@ const NotificationBell: React.FC = () => {
         )}
       </button>
 
-      {/* 🔽 Dropdown */}
+      {/* Dropdown */}
       {isDropdownOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white shadow-xl rounded-lg z-50 border border-gray-200">
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">
-                No notifications
-              </p>
+              <p className="text-gray-500 text-center py-4">No notifications</p>
             ) : (
               notifications.map((notification) => (
                 <div
@@ -134,22 +108,20 @@ const NotificationBell: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* ⋮ Three Dots */}
                   <div className="relative ml-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenMenuId(
-                          openMenuId === notification.id
-                            ? null
-                            : notification.id
+                          openMenuId === notification.id ? null : notification.id
                         );
                       }}
                     >
                       <MoreVertical className="w-4 h-4 text-gray-500" />
                     </button>
+
                     {openMenuId === notification.id && (
-                      <div className="absolute right-0 mt-2 bg-white border rounded shadow-md z-10  min-w-[140px]">
+                      <div className="absolute right-0 mt-2 bg-white border rounded shadow-md z-10 min-w-[140px]">
                         <button
                           className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                           onClick={(e) => {
@@ -178,7 +150,7 @@ const NotificationBell: React.FC = () => {
             )}
           </div>
 
-          {/* 🧹 Clear All Button */}
+          {/* Clear All */}
           {notifications.length > 0 && (
             <div className="p-2 border-t text-center">
               <button
@@ -195,10 +167,10 @@ const NotificationBell: React.FC = () => {
         </div>
       )}
 
-      {/* 🪟 Notification Details Modal */}
+      {/* Modal */}
       {showModal && selectedNotification && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
           onClick={() => setShowModal(false)}
         >
           <div
@@ -238,4 +210,3 @@ const NotificationBell: React.FC = () => {
 };
 
 export default NotificationBell;
- 

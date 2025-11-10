@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -12,10 +11,26 @@ import {
   EmploymentType,
   EmployeeDocumentDTO,
   EmployeeEquipmentDTO,
-  EmployeeEmploymentDetailsDTO,
-  EmployeeInsuranceDetailsDTO,
-  EmployeeStatutoryDetailsDTO,
-  AllowanceDTO, DeductionDTO
+  AllowanceDTO, DeductionDTO,
+  EmployeeDTO,
+  Department,
+  NoticePeriodDuration,
+  ProbationDuration,
+  ProbationNoticePeriod,
+  BondDuration,
+  ShiftTiming,
+  PayType,
+  PayClass,
+  WorkingModel,
+  PAY_CLASS_OPTIONS,
+  WORKING_MODEL_OPTIONS,
+  DEPARTMENT_OPTIONS,
+  NOTICE_PERIOD_OPTIONS,
+  PROBATION_DURATION_OPTIONS,
+  PROBATION_NOTICE_OPTIONS,
+  BOND_DURATION_OPTIONS,
+  SHIFT_TIMING_OPTIONS,
+  PAY_TYPE_OPTIONS
 } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
@@ -37,12 +52,10 @@ interface Manager {
   id: string;
   name: string;
 }
-
 // Form-only document type (has `file`)
 interface FormDocument extends EmployeeDocumentDTO {
   file?: File | null;
 }
-
 // ────── Custom File Input (Choose file / No file chosen) ──────
 type FileInputProps = {
   id: string;
@@ -51,18 +64,14 @@ type FileInputProps = {
   existingUrl?: string;
   onClear?: () => void;
 };
-
 const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existingUrl, onClear }) => {
   const [fileName, setFileName] = useState<string>('');
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setFileName(file?.name ?? '');
     onChange(file);
   };
-
   const displayName = fileName || (existingUrl ? existingUrl.split('/').pop() : 'No file chosen');
-
   return (
     <div className="flex items-center gap-2">
       <label
@@ -81,12 +90,10 @@ const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existi
     </div>
   );
 };
-
 const EditEmployeePage = () => {
   const params = useParams();
   const router = useRouter();
   const { state } = useAuth();
-
   const [formData, setFormData] = useState<EmployeeModel>({
     firstName: '',
     lastName: '',
@@ -104,6 +111,7 @@ const EditEmployeePage = () => {
     remarks: '',
     skillsAndCertification: '',
     clientId: '',
+    clientSelection: '',
     reportingManagerId: '',
     designation: '' as Designation,
     dateOfBirth: '',
@@ -122,13 +130,13 @@ const EditEmployeePage = () => {
     employeeSalaryDTO: {
       employeeId: '',
       basicPay: 0,
-      payType: 'MONTHLY',
+      payType: 'MONTHLY' as PayType,
       standardHours: 40,
       bankAccountNumber: '',
       ifscCode: '',
-      payClass: 'STANDARD',
-      allowances: [],
-      deductions: [],
+      payClass: 'A1' as PayClass,
+      allowances: [] as AllowanceDTO[],
+      deductions: [] as DeductionDTO[],
     },
     employeeAdditionalDetailsDTO: {
       offerLetterUrl: '',
@@ -141,15 +149,20 @@ const EditEmployeePage = () => {
     employeeEmploymentDetailsDTO: {
       employmentId: '',
       employeeId: '',
-      noticePeriodDuration: '',
+      noticePeriodDuration: undefined as NoticePeriodDuration | undefined,
+      noticePeriodDurationLabel: '',
       probationApplicable: false,
-      probationDuration: '',
-      probationNoticePeriod: '',
+      probationDuration: undefined as ProbationDuration | undefined,
+      probationDurationLabel: '',
+      probationNoticePeriod: undefined as ProbationNoticePeriod | undefined,
+      probationNoticePeriodLabel: '',
       bondApplicable: false,
-      bondDuration: '',
-      workingModel: '',
-      shiftTiming: '',
-      department: '',
+      bondDuration: undefined as BondDuration | undefined,
+      bondDurationLabel: '',
+      workingModel: undefined as WorkingModel | undefined,
+      shiftTiming: undefined as ShiftTiming | undefined,
+      shiftTimingLabel: '',
+      department: undefined as Department | undefined,
       dateOfConfirmation: '',
       location: '',
     },
@@ -176,39 +189,34 @@ const EditEmployeePage = () => {
     },
     employeeEquipmentDTO: [],
   });
-
   const [documentFiles, setDocumentFiles] = useState({
     offerLetter: null as File | null,
     contract: null as File | null,
     taxDeclarationForm: null as File | null,
     workPermit: null as File | null,
   });
-
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
+  const [error, setError] = useState<string>('');
   const today = new Date().toISOString().split('T')[0];
-
   const designations: Designation[] = [
     'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
     'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
     'DIRECTOR', 'VP_ENGINEERING', 'CTO', 'HR', 'FINANCE', 'OPERATIONS'
   ];
-
+  // Update the constant
+  const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
   const managerDesignations: Designation[] = [
     'REPORTING_MANAGER', 'DELIVERY_MANAGER', 'DIRECTOR', 'VP_ENGINEERING', 'CTO'
   ];
-
   const documentTypes: DocumentType[] = [
     'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
     'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'INTERMEDIATE_CERTIFICATE',
     'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
   ];
-
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
-
   // Fetch employee + clients + managers
   useEffect(() => {
     const fetchData = async () => {
@@ -217,36 +225,65 @@ const EditEmployeePage = () => {
         setLoading(false);
         return;
       }
-
       try {
         const [empRes, clientRes, empListRes] = await Promise.all([
           adminService.getEmployeeById(params.id),
           adminService.getAllClients(),
           adminService.getAllEmployees(),
         ]);
-
         if (!empRes.flag || !empRes.response) throw new Error('Employee not found');
         if (!clientRes.flag || !clientRes.response) throw new Error('Failed to load clients');
-
-        const emp = empRes.response as EmployeeModel;
-
+        const emp = empRes.response as EmployeeDTO;
+        // Compute clientSelection based on clientId and clientStatus
+        let clientSelection = '';
+        if (emp.clientId) {
+          clientSelection = `CLIENT:${emp.clientId}`;
+        } else {
+          clientSelection = `STATUS:${emp.clientStatus}`;
+        }
         setFormData({
           ...emp,
+          clientSelection, // Add the computed clientSelection
+          employeeSalaryDTO: emp.employeeSalaryDTO ?? {
+            employeeId: '',
+            basicPay: 0,
+            payType: emp.rateCard && emp.rateCard > 0 ? 'HOURLY' : 'MONTHLY',
+            standardHours: 40,
+            bankAccountNumber: '',
+            ifscCode: '',
+            payClass: 'A1',
+            allowances: [],
+            deductions: [],
+          },
+          employeeAdditionalDetailsDTO: emp.employeeAdditionalDetailsDTO ?? {
+            offerLetterUrl: '',
+            contractUrl: '',
+            taxDeclarationFormUrl: '',
+            workPermitUrl: '',
+            backgroundCheckStatus: '',
+            remarks: '',
+          },
           employeeEmploymentDetailsDTO: emp.employeeEmploymentDetailsDTO ?? {
             employmentId: '',
             employeeId: '',
-            noticePeriodDuration: '',
+            noticePeriodDuration: undefined,
+            noticePeriodDurationLabel: '',
             probationApplicable: false,
-            probationDuration: '',
-            probationNoticePeriod: '',
+            probationDuration: undefined,
+            probationDurationLabel: '',
+            probationNoticePeriod: undefined,
+            probationNoticePeriodLabel: '',
             bondApplicable: false,
-            bondDuration: '',
-            workingModel: '',
-            shiftTiming: '',
-            department: '',
+            bondDuration: undefined,
+            bondDurationLabel: '',
+            workingModel: undefined,
+            shiftTiming: undefined,
+            shiftTimingLabel: '',
+            department: undefined,
             dateOfConfirmation: '',
             location: '',
           },
+
           employeeInsuranceDetailsDTO: emp.employeeInsuranceDetailsDTO ?? {
             insuranceId: '',
             employeeId: '',
@@ -270,31 +307,25 @@ const EditEmployeePage = () => {
           },
           employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
           documents: (emp.documents ?? []).map(doc => ({ ...doc, file: null })) as FormDocument[],
-        });
-
+        } as EmployeeModel);
         setClients(clientRes.response);
-
         const allManagers = empListRes.response
           .filter((e: any) => managerDesignations.includes(e.designation))
           .map((e: any) => ({ id: e.employeeId, name: `${e.firstName} ${e.lastName}` }));
         setManagers(allManagers);
-
       } catch (err: any) {
         Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Failed to load data' });
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [params.id]);
-
   // Generic change handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const isCheckbox = type === 'checkbox';
     const checked = (e.target as HTMLInputElement).checked;
-
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -308,7 +339,6 @@ const EditEmployeePage = () => {
       setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
     }
   };
-
   // ────── DOCUMENTS ──────
   const addDocument = () => {
     setFormData(prev => ({
@@ -326,7 +356,6 @@ const EditEmployeePage = () => {
       ],
     }));
   };
-
   const handleDocumentChange = (index: number, field: 'docType' | 'file', value: DocumentType | File | null) => {
     setFormData(prev => ({
       ...prev,
@@ -337,7 +366,6 @@ const EditEmployeePage = () => {
       ),
     }));
   };
-
   const confirmAndRemoveDocument = async (index: number) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -348,13 +376,11 @@ const EditEmployeePage = () => {
       cancelButtonColor: '#d33',
       confirmButtonText: 'Yes, delete it!'
     });
-
     if (result.isConfirmed) {
       await removeDocument(index);
       Swal.fire('Deleted!', 'Document has been removed.', 'success');
     }
   };
-
   const removeDocument = async (index: number) => {
     const doc = formData.documents[index];
     if (doc.documentId) {
@@ -369,7 +395,6 @@ const EditEmployeePage = () => {
       documents: prev.documents.filter((_, i) => i !== index),
     }));
   };
-
   // ────── EQUIPMENT ──────
   const addEquipment = () => {
     setFormData(prev => ({
@@ -380,7 +405,6 @@ const EditEmployeePage = () => {
       ],
     }));
   };
-
   const handleEquipmentChange = (index: number, field: keyof EmployeeEquipmentDTO, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -389,7 +413,6 @@ const EditEmployeePage = () => {
       ) ?? [],
     }));
   };
-
   const confirmAndRemoveEquipment = async (index: number) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -400,56 +423,61 @@ const EditEmployeePage = () => {
       cancelButtonColor: '#d33',
       confirmButtonText: 'Yes, delete it!'
     });
-
     if (result.isConfirmed) {
       await removeEquipment(index);
       Swal.fire('Deleted!', 'Equipment has been removed.', 'success');
     }
   };
-
   const removeEquipment = async (index: number) => {
     const eq = formData.employeeEquipmentDTO?.[index];
     if (eq?.equipmentId) {
       const res = await adminService.deleteEmployeeEquipmentInfo(eq.equipmentId); // Only 1 arg
-
       if (!res.flag) {
         Swal.fire({ icon: 'error', title: 'Delete failed', text: res.message });
         return;
       }
     }
-
     setFormData(prev => ({
       ...prev,
       employeeEquipmentDTO: prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
     }));
   };
-
   const handleFileChange = (field: keyof typeof documentFiles, file: File | null) => {
     setDocumentFiles(prev => ({ ...prev, [field]: file }));
   };
-
   const clearAdditionalFile = (field: keyof typeof documentFiles) => {
     setDocumentFiles(prev => ({ ...prev, [field]: null }));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!params.id) return;
     setSubmitting(true);
-
+    setError(''); // Clear previous errors
     const required = [
-      'firstName', 'lastName', 'personalEmail', 'companyEmail', 'contactNumber',
+      'firstName', 'lastName', 'personalEmail', 'contactNumber',
       'designation', 'dateOfBirth', 'dateOfJoining', 'gender', 'nationality',
-      'clientId', 'reportingManagerId', 'skillsAndCertification',
     ];
-
-    const missing = required.filter(f => !formData[f as keyof EmployeeModel]);
-    if (missing.length) {
-      Swal.fire({ icon: 'error', title: 'Missing Fields', text: missing.join(', ') });
+    // Special validation for client (use clientSelection instead of clientId)
+    if (!formData.clientSelection) {
+      required.push('clientSelection');
+    }
+    const missing = required.filter(f => {
+      if (f === 'clientSelection') {
+        return !formData.clientSelection;
+      }
+      return !formData[f as keyof EmployeeModel] || formData[f as keyof EmployeeModel] === '';
+    });
+    if (missing.length > 0) {
+      setError(`Please fill in all mandatory fields: ${missing.join(', ')}`);
       setSubmitting(false);
       return;
     }
-
+    // Validate emails are different
+    if (formData.personalEmail === formData.companyEmail && formData.personalEmail && formData.companyEmail) {
+      setError('Personal email and company email must be different.');
+      setSubmitting(false);
+      return;
+    }
     // Upload dynamic documents
     const uploadedDocuments: EmployeeDocumentDTO[] = [];
     for (const doc of formData.documents) {
@@ -462,7 +490,6 @@ const EditEmployeePage = () => {
         }
         fileUrl = uploadResponse.response;
       }
-
       if (fileUrl) {
         const { file, ...rest } = doc as any;
         if (!rest.documentId) {
@@ -473,7 +500,6 @@ const EditEmployeePage = () => {
         }
       }
     }
-
     // Upload additional files
     const additionalFiles: { [key: string]: string } = {};
     for (const [key, file] of Object.entries(documentFiles)) {
@@ -486,7 +512,6 @@ const EditEmployeePage = () => {
         }
       }
     }
-
     // Clean equipment
     const finalEquip: EmployeeEquipmentDTO[] = (formData.employeeEquipmentDTO ?? []).map(eq => {
       if (!eq.equipmentId) {
@@ -494,7 +519,6 @@ const EditEmployeePage = () => {
       }
       return eq;
     });
-
     // Final payload
     const payload: EmployeeModel = {
       ...formData,
@@ -508,7 +532,6 @@ const EditEmployeePage = () => {
         workPermitUrl: additionalFiles.workPermit || (documentFiles.workPermit === null ? '' : formData.employeeAdditionalDetailsDTO?.workPermitUrl || ''),
       },
     };
-
     try {
       const res = await adminService.updateEmployee(params.id as string, payload);
       if (res.flag) {
@@ -518,12 +541,11 @@ const EditEmployeePage = () => {
         throw new Error(res.message);
       }
     } catch (err: any) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Update failed' });
+      setError(err.message || 'Update failed');
     } finally {
       setSubmitting(false);
     }
   };
-
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -536,11 +558,12 @@ const EditEmployeePage = () => {
       </ProtectedRoute>
     );
   }
-
   const hasFile = (doc: EmployeeDocumentDTO): doc is FormDocument => {
     return 'file' in doc;
   };
-
+  const selectValue = formData.clientSelection?.startsWith('STATUS:')
+    ? formData.clientSelection.replace('STATUS:', '')
+    : (formData.clientId ?? undefined);
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="min-h-screen bg-gray-50 p-8">
@@ -553,7 +576,6 @@ const EditEmployeePage = () => {
             <div className="w-20" />
           </div>
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-6 space-y-8">
-
             {/* Personal Details */}
             <Card>
               <CardHeader>
@@ -600,22 +622,9 @@ const EditEmployeePage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="md:col-span-3">
-                    <Label className="mb-2 block text-sm font-medium">Skills & Certification *</Label>
-                    <textarea
-                      name="skillsAndCertification"
-                      value={formData.skillsAndCertification}
-                      onChange={handleChange}
-                      required
-                      rows={2}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Employment Details */}
             {/* EMPLOYMENT & SALARY DETAILS */}
             <Card>
               <CardHeader>
@@ -626,25 +635,42 @@ const EditEmployeePage = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
                   {/* Client */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Client *</Label>
-                    <Select value={formData.clientId} onValueChange={v => setFormData(p => ({ ...p, clientId: v }))}>
-                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Client" /></SelectTrigger>
-                      <SelectContent>{clients.map(c => <SelectItem key={c.clientId} value={c.clientId}>{c.companyName}</SelectItem>)}</SelectContent>
+                    <Select
+                      value={selectValue}
+                      onValueChange={v => setFormData(p => ({
+                        ...p,
+                        clientId: staticClients.has(v) ? null : v,
+                        clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`
+                      }))}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map(c => (
+                          <SelectItem key={c.clientId} value={c.clientId}>
+                            {c.companyName}
+                          </SelectItem>
+                        ))}
+                        {/* Static Options - use uppercase values matching the Set */}
+                        <SelectItem value="BENCH">BENCH</SelectItem>
+                        <SelectItem value="INHOUSE">INHOUSE</SelectItem>
+                        <SelectItem value="HR">HR</SelectItem>
+                        <SelectItem value="NA">NA</SelectItem>
+                      </SelectContent>
                     </Select>
                   </div>
-
                   {/* Reporting Manager */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Reporting Manager *</Label>
+                    <Label className="mb-2 block text-sm font-medium">Reporting Manager </Label>
                     <Select value={formData.reportingManagerId ?? ''} onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}>
                       <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Manager" /></SelectTrigger>
                       <SelectContent>{managers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-
                   {/* Designation */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Designation *</Label>
@@ -653,13 +679,11 @@ const EditEmployeePage = () => {
                       <SelectContent>{designations.map(d => <SelectItem key={d} value={d}>{d.replace(/_/g, ' ')}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-
                   {/* Date of Joining */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Date of Joining *</Label>
                     <Input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} required />
                   </div>
-
                   {/* Employment Type */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Employment Type *</Label>
@@ -668,107 +692,157 @@ const EditEmployeePage = () => {
                       <SelectContent>{employmentTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-
-                  {/* Rate Card */}
+                  {/* RATE CARD*/}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Rate Card (₹ per hour) *</Label>
+                    <Label className="mb-2 block text-sm font-medium">Rate Card</Label>
                     <Input
+                      className="h-11"
                       type="number"
                       min="0"
                       step="0.01"
+                      placeholder="45.00"
                       name="rateCard"
                       value={formData.rateCard ?? ''}
-                      onChange={(e) => {
-                        const rate = parseFloat(e.target.value) || 0;
-                        setFormData(prev => ({
-                          ...prev,
-                          rateCard: rate,
-                          employeeSalaryDTO: {
-                            ...prev.employeeSalaryDTO!,
-                            payType: rate > 0 ? 'HOURLY' : 'MONTHLY',
-                          },
-                        }));
-                      }}
-                      required
+                      onChange={handleChange}
                     />
                   </div>
+                  {/* Pay Type */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Pay Type</Label>
 
-                  {/* Pay Type (Auto) */}
-                  <div className="flex items-center space-x-2">
-                    <IndianRupee className="h-4 w-4 text-emerald-600" />
-                    <span className="text-sm font-medium">
-                      Pay Type: <span className="font-bold text-primary">{formData.employeeSalaryDTO?.payType || 'MONTHLY'}</span>
-                    </span>
+                    <Select
+                      value={formData.employeeSalaryDTO?.payType || ""}
+                      onValueChange={(v) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          employeeSalaryDTO: {
+                            ...prev.employeeSalaryDTO!,
+                            payType: v as PayType,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Pay Type" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {PAY_TYPE_OPTIONS.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
 
                   {/* Basic Pay */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Basic Pay (₹) *</Label>
-                    <Input type="number" name="employeeSalaryDTO.basicPay" value={formData.employeeSalaryDTO?.basicPay ?? ''} onChange={handleChange} required />
+                    <Label className="mb-2 block text-sm font-medium">Basic Pay</Label>
+                    <Input type="number" name="employeeSalaryDTO.basicPay" value={formData.employeeSalaryDTO?.basicPay ?? ''} onChange={handleChange} />
                   </div>
-
                   {/* Standard Hours */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Standard Hours *</Label>
-                    <Input type="number" name="employeeSalaryDTO.standardHours" value={formData.employeeSalaryDTO?.standardHours ?? 40} onChange={handleChange} required />
+                    <Label className="mb-2 block text-sm font-medium">Standard Hours </Label>
+                    <Input type="number" name="employeeSalaryDTO.standardHours" value={formData.employeeSalaryDTO?.standardHours ?? 40} onChange={handleChange} />
                   </div>
-
-                  {/* Bank Account */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">Bank Account Number *</Label>
-                    <Input name="employeeSalaryDTO.bankAccountNumber" value={formData.employeeSalaryDTO?.bankAccountNumber || ''} onChange={handleChange} required />
-                  </div>
-
-                  {/* IFSC Code */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">IFSC Code *</Label>
-                    <Input name="employeeSalaryDTO.ifscCode" value={formData.employeeSalaryDTO?.ifscCode || ''} onChange={handleChange} pattern="[A-Z]{4}0[A-Z0-9]{6}" required />
-                  </div>
-
                   {/* Pay Class */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Pay Class</Label>
-                    <Select value={formData.employeeSalaryDTO?.payClass || 'STANDARD'} onValueChange={v => setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, payClass: v } }))}>
-                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue /></SelectTrigger>
+                    <Select
+                      value={formData.employeeSalaryDTO?.payClass || ""}
+                      onValueChange={v =>
+                        handleChange({
+                          target: { name: "employeeSalaryDTO.payClass", value: v },
+                        } as any)
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Pay Class" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="STANDARD">Standard</SelectItem>
-                        <SelectItem value="EXECUTIVE">Executive</SelectItem>
-                        <SelectItem value="MANAGERIAL">Managerial</SelectItem>
+                        {PAY_CLASS_OPTIONS.map(cls => (
+                          <SelectItem key={cls} value={cls}>
+                            {cls}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   {/* Working Model */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Working Model</Label>
-                    <Select value={formData.employeeEmploymentDetailsDTO?.workingModel || ''} onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.workingModel', value: v } } as any)}>
-                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.workingModel || ""}
+                      onValueChange={v =>
+                        handleChange({
+                          target: { name: "employeeEmploymentDetailsDTO.workingModel", value: v },
+                        } as any)
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Working Model" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="REMOTE">Remote</SelectItem>
-                        <SelectItem value="HYBRID">Hybrid</SelectItem>
-                        <SelectItem value="ONSITE">Onsite</SelectItem>
+                        {WORKING_MODEL_OPTIONS.map(model => (
+                          <SelectItem key={model} value={model}>
+                            {model === "NA" ? "Not Applicable" : model.charAt(0) + model.slice(1).toLowerCase()}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   {/* Department */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Department</Label>
-                    <Input name="employeeEmploymentDetailsDTO.department" value={formData.employeeEmploymentDetailsDTO?.department || ''} onChange={handleChange} />
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.department || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.department', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Department" /></SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENT_OPTIONS.map(d => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  {/* Location */}
+                  {/* Shift Timing */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Location</Label>
-                    <Input name="employeeEmploymentDetailsDTO.location" value={formData.employeeEmploymentDetailsDTO?.location || ''} onChange={handleChange} />
+                    <Label className="mb-2 block text-sm font-medium">Shift Timing</Label>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.shiftTiming || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.shiftTiming', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Shift" /></SelectTrigger>
+                      <SelectContent>
+                        {SHIFT_TIMING_OPTIONS.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
+                  {/* Date of Confirmation */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Date of Confirmation</Label>
+                    <Input type="date" name="employeeEmploymentDetailsDTO.dateOfConfirmation" value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ''} onChange={handleChange} />
+                  </div>
                   {/* Notice Period */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Notice Period</Label>
-                    <Input name="employeeEmploymentDetailsDTO.noticePeriodDuration" value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''} onChange={handleChange} placeholder="e.g. 30 days" />
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.noticePeriodDuration', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Notice Period" /></SelectTrigger>
+                      <SelectContent>
+                        {NOTICE_PERIOD_OPTIONS.map(n => (
+                          <SelectItem key={n} value={n}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
                   {/* Probation */}
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -777,20 +851,36 @@ const EditEmployeePage = () => {
                     />
                     <Label className="mb-2 block text-sm font-medium">Probation Applicable</Label>
                   </div>
-
+                  {/* Probation Duration – only if probation is checked */}
                   {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
-                    <>
-                      <div>
-                        <Label className="mb-2 block text-sm font-medium">Probation Duration</Label>
-                        <Input name="employeeEmploymentDetailsDTO.probationDuration" value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''} onChange={handleChange} placeholder="e.g. 6 months" />
-                      </div>
-                      <div>
-                        <Label className="mb-2 block text-sm font-medium">Probation Notice Period</Label>
-                        <Input name="employeeEmploymentDetailsDTO.probationNoticePeriod" value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ''} onChange={handleChange} placeholder="e.g. 15 days" />
-                      </div>
-                    </>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.probationDuration', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Duration" /></SelectTrigger>
+                      <SelectContent>
+                        {PROBATION_DURATION_OPTIONS.map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
-
+                  {/* Probation Notice Period – only if probation is checked */}
+                  {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">Probation Notice</Label>
+                      <Select
+                        value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ''}
+                        onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.probationNoticePeriod', value: v } } as any)}>
+                        <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Notice" /></SelectTrigger>
+                        <SelectContent>
+                          {PROBATION_NOTICE_OPTIONS.map(p => (
+                            <SelectItem key={p} value={p}>{p}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   {/* Bond */}
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -799,19 +889,27 @@ const EditEmployeePage = () => {
                     />
                     <Label className="mb-2 block text-sm font-medium">Bond Applicable</Label>
                   </div>
-
+                  {/* Bond Duration – only if bond is checked */}
                   {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
                     <div>
                       <Label className="mb-2 block text-sm font-medium">Bond Duration</Label>
-                      <Input name="employeeEmploymentDetailsDTO.bondDuration" value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''} onChange={handleChange} placeholder="e.g. 12 months" />
+                      <Select
+                        value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''}
+                        onValueChange={v => handleChange({
+                          target: { name: 'employeeEmploymentDetailsDTO.bondDuration', value: v }
+                        } as any)}
+                      >
+                        <SelectTrigger className="w-full min-w-[200px] !h-11">
+                          <SelectValue placeholder="Select Duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BOND_DURATION_OPTIONS.map(p => (
+                            <SelectItem key={p} value={p}>{p}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
-
-                  {/* Date of Confirmation */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">Date of Confirmation</Label>
-                    <Input type="date" name="employeeEmploymentDetailsDTO.dateOfConfirmation" value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ''} onChange={handleChange} />
-                  </div>
 
                   {/* ALLOWANCES */}
                   <div className="md:col-span-3">
@@ -876,7 +974,6 @@ const EditEmployeePage = () => {
                         </Button>
                       </div>
                     ))}
-
                     <Button
                       size="sm"
                       variant="outline"
@@ -899,7 +996,6 @@ const EditEmployeePage = () => {
                       <Plus className="h-4 w-4 mr-1" /> Add Allowance
                     </Button>
                   </div>
-
                   {/* DEDUCTIONS */}
                   <div className="md:col-span-3">
                     <Label className="mb-2 block text-sm font-medium">Deductions</Label>
@@ -959,7 +1055,6 @@ const EditEmployeePage = () => {
                         </Button>
                       </div>
                     ))}
-
                     <Button
                       size="sm"
                       variant="outline"
@@ -982,11 +1077,9 @@ const EditEmployeePage = () => {
                       <Plus className="h-4 w-4 mr-1" /> Add Deduction
                     </Button>
                   </div>
-
                 </div>
               </CardContent>
             </Card>
-
             {/* ==================== DOCUMENTS ==================== */}
             <section className="border-b border-gray-200 pb-8">
               <div className="flex justify-between items-center mb-6">
@@ -1002,7 +1095,6 @@ const EditEmployeePage = () => {
                   + Add Document
                 </button>
               </div>
-
               <div className="space-y-6">
                 {formData.documents.map((doc, i) => (
                   <div
@@ -1023,7 +1115,6 @@ const EditEmployeePage = () => {
                           ))}
                         </select>
                       </div>
-
                       <div className="space-y-1">
                         <label className="block text-sm font-semibold text-gray-700">Upload Document</label>
                         <FileInput
@@ -1035,7 +1126,6 @@ const EditEmployeePage = () => {
                         />
                       </div>
                     </div>
-
                     <button
                       type="button"
                       disabled={submitting}
@@ -1048,7 +1138,6 @@ const EditEmployeePage = () => {
                 ))}
               </div>
             </section>
-
             {/* ==================== EQUIPMENT ==================== */}
             <section className="border-b border-gray-200 pb-8">
               <div className="flex justify-between items-center mb-6">
@@ -1064,7 +1153,6 @@ const EditEmployeePage = () => {
                   + Add Equipment
                 </button>
               </div>
-
               <div className="space-y-6">
                 {formData.employeeEquipmentDTO?.map((eq, i) => (
                   <div
@@ -1101,7 +1189,6 @@ const EditEmployeePage = () => {
                         />
                       </div>
                     </div>
-
                     <button
                       type="button"
                       disabled={submitting}
@@ -1114,7 +1201,6 @@ const EditEmployeePage = () => {
                 ))}
               </div>
             </section>
-
             {/* Additional Details */}
             <section className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
@@ -1167,13 +1253,22 @@ const EditEmployeePage = () => {
                   <label htmlFor="generalRemarks" className="block text-sm font-medium text-gray-700 mb-1">General Remarks</label>
                   <textarea id="generalRemarks" name="remarks" value={formData.remarks ?? ''} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
+                <div >
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Skills & Certification </Label>
+                  <textarea
+                    name="skillsAndCertification"
+                    value={formData.skillsAndCertification}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
                 <div>
                   <label htmlFor="backgroundCheckStatus" className="block text-sm font-medium text-gray-700 mb-1">Background Check Status</label>
                   <input id="backgroundCheckStatus" name="employeeAdditionalDetailsDTO.backgroundCheckStatus" value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
             </section>
-
             {/* Insurance & Statutory */}
             <section className="pb-6 space-y-8">
               <div className="border-b border-gray-200 pb-6">
@@ -1189,7 +1284,6 @@ const EditEmployeePage = () => {
                   <div className="flex items-center gap-3"><label className="text-sm font-medium text-gray-700">Group Insurance</label><input type="checkbox" name="employeeInsuranceDetailsDTO.groupInsurance" checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false} onChange={handleChange} className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" /></div>
                 </div>
               </div>
-
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Statutory Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1201,7 +1295,12 @@ const EditEmployeePage = () => {
                 </div>
               </div>
             </section>
-
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             {/* Submit */}
             <div className="flex justify-end space-x-4 pt-6">
               <Link href="/admin-dashboard/employees/list" className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancel</Link>
@@ -1216,5 +1315,4 @@ const EditEmployeePage = () => {
     </ProtectedRoute>
   );
 };
-
 export default EditEmployeePage;

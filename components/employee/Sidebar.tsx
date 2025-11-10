@@ -8,15 +8,10 @@ import {
   Clock,
   FileText,
   User,
-  MessageSquare,
   Settings,
-  LogOut,
-  Briefcase,
-  Calendar,
   Gift,
   FileCheck,
   Bell,
-  Users,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -41,6 +36,8 @@ const navSections = [
     title: 'Account',
     items: [
       { href: '/dashboard/profile', label: 'Profile', icon: <User size={18} /> },
+      { href: '/dashboard/updaterequest', label: 'Update Request', icon: <User size={18} /> },
+
       { href: '/dashboard/notifications', label: 'Notifications', icon: <Bell size={18} /> },
       { href: '/dashboard/settings', label: 'Settings', icon: <Settings size={18} /> },
     ],

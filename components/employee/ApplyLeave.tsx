@@ -8,12 +8,10 @@ import {
   LeaveCategoryType,
   FinancialType,
   LeaveRequestDTO,
-  LeaveAvailabilityDTO,
-  LeaveResponseDTO,
 } from '@/lib/api/types';
 import { useAuth } from '@/context/AuthContext';
 import BackButton from '../ui/BackButton';
-
+import Swal from 'sweetalert2';
 const ApplyLeavePage: React.FC = () => {
   const { state: { user } } = useAuth();
   const router = useRouter();
@@ -216,28 +214,38 @@ const ApplyLeavePage: React.FC = () => {
 
       if (formData.leaveId) {
         await leaveService.updateLeave(formData, attachment);
-        setSuccess('Leave updated successfully!');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Updated!',
+          text: 'Leave updated successfully!',
+          confirmButtonText: 'OK',
+          allowOutsideClick: false,
+        });
       } else {
         await leaveService.applyLeave(formData, attachment);
-        setSuccess('Leave applied successfully! ');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Applied!',
+          text: 'Leave applied successfully!',
+          confirmButtonText: 'OK',
+          allowOutsideClick: false,
+        });
       }
 
-      setTimeout(() => router.push('/dashboard/leaves'), 2000);
+      // Only redirect after user clicks OK
+      router.push('/dashboard/leaves');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process leave request');
+      const msg = err instanceof Error ? err.message : 'Failed to process leave request';
+      await Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: msg,
+        confirmButtonText: 'OK',
+      });
     } finally {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-green-600">{success}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="apply-leave-page p-6 max-w-2xl mx-auto">
       <div className="mb-10 flex items-center justify-between">

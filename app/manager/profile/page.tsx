@@ -6,12 +6,21 @@ import {
   EmployeeDTO,
   AddressModel,
   EmployeeModel,
+  EmployeeDocumentDTO,
+  EmployeeSalaryDTO,
+  EmployeeInsuranceDetailsDTO,
+  EmployeeEquipmentDTO,
+  EmployeeStatutoryDetailsDTO,
+  EmployeeEmploymentDetailsDTO,
+  EmployeeAdditionalDetailsDTO,
+  Designation,
+  EmploymentType,
 } from '@/lib/api/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
-import { Phone, MapPin, Building, Briefcase, Shield, DollarSign, FileText, User, Edit3, Save, X } from 'lucide-react';
-import Swal from 'sweetalert2';
+import { Mail, Phone, Calendar, MapPin, Building, Briefcase, Shield, DollarSign, FileText, User, Edit3, Save, X } from 'lucide-react';
+import { adminService } from '@/lib/api/adminService';
 
 // Safe value
 const safe = (val: any) => (val === null || val === undefined ? '—' : String(val));
@@ -49,7 +58,7 @@ const ProfilePage = () => {
   const [deletingAddresses, setDeletingAddresses] = useState<Set<string>>(new Set());
 
   const fetchProfile = useCallback(async () => {
-    if (!user || user.role !== 'EMPLOYEE') {
+    if (!user || user.role !== 'MANAGER') {
       router.push('/auth/login');
       return;
     }
@@ -94,7 +103,7 @@ const ProfilePage = () => {
       const merged = deduplicateAddresses([...profile.addresses, ...addresses]);
       if (addresses.length > 0 && merged.length === 0) throw new Error('Complete all address fields');
 
-      const payload: Partial<EmployeeDTO> = {
+      const payload: Partial<EmployeeModel> = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         personalEmail: formData.personalEmail,
@@ -121,24 +130,15 @@ const ProfilePage = () => {
           return addressId && !addressId.startsWith('temp-') ? addr : rest;
         }),
       };
-      const res = await employeeService.submitUpdateRequest(payload);
 
-      if (!res.flag) {
-        throw new Error(res.message || "Failed to submit update request");
-      }
+      const res = await employeeService.updateEmployee(payload as EmployeeModel);
+      if (!res.flag) throw new Error(res.message || 'Update failed');
 
-      await Swal.fire({
-        icon: "success",
-        title: "Request Submitted",
-        text: "Your update request has been sent to the admin for review.",
-        confirmButtonColor: "#4F46E5",
-        confirmButtonText: "OK"
-      });
-
+      await fetchProfile();
+      setSuccess('Profile updated successfully!');
       setEditing(false);
-
     } catch (err: any) {
-      setError(err.message || "Request failed");
+      setError(err.message || 'Update failed');
     } finally {
       setUpdating(false);
     }
@@ -173,17 +173,17 @@ const ProfilePage = () => {
   const removeAddress = async (index: number) => {
     const address = addresses[index];
     const addressId = address.addressId;
-
+  
     if (!addressId || addressId.startsWith('temp-')) {
       setAddresses(prev => prev.filter((_, i) => i !== index));
       return;
     }
-
+  
     setDeletingAddresses(prev => new Set(prev).add(addressId));
-
+  
     try {
       await employeeService.deleteEmployeeAddressGlobal(profile!.employeeId, addressId);
-
+  
       setAddresses(prev => prev.filter((_, i) => i !== index));
       setSuccess('Address removed successfully');
     } catch (err: any) {
@@ -278,7 +278,7 @@ const ProfilePage = () => {
                     <Input label="Number of Children" name="numberOfChildren" type="number" value={formData.numberOfChildren} onChange={onChange} min="0" required />
                     <Input label="Date of Birth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={onChange} required />
                     <Input label="Nationality" name="nationality" value={formData.nationality} onChange={onChange} required />
-                    <Input label="Skills and Certications" name="Skills and Certications" value={formData.skillsAndCertification} onChange={onChange} />
+
                   </div>
                 </Card>
 
@@ -497,9 +497,8 @@ const ProfilePage = () => {
                     className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition disabled:opacity-50 flex items-center gap-2"
                   >
                     <Save className="w-5 h-5" />
-                    {updating ? 'Submitting...' : 'Update Request'}
+                    {updating ? 'Saving...' : 'Save Changes'}
                   </button>
-
                 </div>
               </form>
             ) : (
@@ -516,7 +515,6 @@ const ProfilePage = () => {
                   <Info label="Company Email Address" value={profile.companyEmail} />
                   <Info label="Primary Contact Number" value={profile.contactNumber} />
                   <Info label="Alternate Contact Number" value={profile.alternateContactNumber} />
-                  <Info label="Skills and Certifications" value={profile.skillsAndCertification} />
 
                 </InfoCard>
 
@@ -529,7 +527,6 @@ const ProfilePage = () => {
                 <InfoCard title="Professional" icon={<Briefcase className="w-6 h-6 text-indigo-600" />}>
                   <Info label="Designation" value={profile.designation?.replace('_', ' ')} />
                   <Info label="Date of Joining" value={formatDate(profile.dateOfJoining)} />
-                  <Info label="Company Id" value={profile.companyId} />
                   <Info label="Employment Type" value={profile.employmentType} />
                   <Info label="Client Name" value={profile.clientName} />
                   <Info label="Reporting Manager" value={profile.reportingManagerName} />
@@ -626,11 +623,8 @@ const ProfilePage = () => {
                     <Info label="Department" value={profile.employeeEmploymentDetailsDTO.department} />
                     <Info label="Work Location" value={profile.employeeEmploymentDetailsDTO.location} />
                     <Info label="Working Model" value={profile.employeeEmploymentDetailsDTO.workingModel} />
-                    <Info label="Shift Timing" value={profile.employeeEmploymentDetailsDTO.shiftTimingLabel} />
-                    <Info label="Bond Duration" value={profile.employeeEmploymentDetailsDTO.bondDurationLabel} />
-                    <Info label="Probation Duration" value={profile.employeeEmploymentDetailsDTO.probationDurationLabel} />
-                    <Info label="Probation Notice Period" value={profile.employeeEmploymentDetailsDTO.probationNoticePeriodLabel} />
-                    <Info label="Notice Period Duration" value={profile.employeeEmploymentDetailsDTO.noticePeriodDurationLabel} />
+                    <Info label="Shift Timing" value={profile.employeeEmploymentDetailsDTO.shiftTiming} />
+                    <Info label="Notice Period Duration" value={profile.employeeEmploymentDetailsDTO.noticePeriodDuration} />
 
                   </InfoCard>
                 )}

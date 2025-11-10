@@ -9,6 +9,7 @@ import {
   EmployeeDTO,
   WebResponseDTO,
   WebResponseDTOString,
+  WebResponseDTOListEmployeeUpdateRequestDTO,
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -162,7 +163,60 @@ class EmployeeService {
         throw new Error(msg);
       }
     }
-  
+    // my update requests
+    async getMyUpdateRequests(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {
+      try {
+        const response: AxiosResponse<WebResponseDTOListEmployeeUpdateRequestDTO> =
+          await api.get("/employee/update-request/my");
+    
+        console.log("📌 My Update Requests:", response.data);
+    
+        return response.data;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error.message ||
+          "Failed to fetch update requests";
+        throw new Error(msg);
+      }
+    }
+    // submit update
+    async submitUpdateRequest(
+      payload: any
+    ): Promise<WebResponseDTOString> {
+      try {
+        const response: AxiosResponse<WebResponseDTOString> =
+          await api.post("/employee/update-request/submit", payload);
+    
+        console.log("📌 Submit Update Request:", response.data);
+    
+        return response.data;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error.message ||
+          "Failed to submit update request";
+        throw new Error(msg);
+      }
+    }
+    // admin requests
+    async getAllUpdateRequestsAdmin(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {
+      try {
+        const response: AxiosResponse<WebResponseDTOListEmployeeUpdateRequestDTO> =
+          await api.get("/admin/update-request/all");
+    
+        console.log("📌 All Update Requests (Admin):", response.data);
+    
+        return response.data;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error.message ||
+          "Failed to fetch admin update requests";
+        throw new Error(msg);
+      }
+    }
+        
 }
 
 export const employeeService = new EmployeeService();

@@ -1,75 +1,84 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Users, Clock, Calendar, BarChart2 } from 'lucide-react';
+import {
+  Home,
+  Clock,
+  User,
+  Settings,
+  Gift,
+  FileCheck,
+  Bell,
+  Users,
+} from 'lucide-react';
 import Image from 'next/image';
 
-const Sidebar: React.FC = () => {
-  const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const navSections = [
+  {
+    title: 'Main',
+    items: [
+      { href: '/manager', label: 'Dashboard', icon: <Home size={18} /> },
+      { href: '/manager/timesheets', label: 'Timesheet', icon: <Clock size={18} /> },
+      { href: '/manager/employees', label: 'Employees', icon: <Users size={18} /> },
+      { href: '/manager/leaves', label: 'Leaves', icon: <FileCheck size={18} /> },
+      { href: '/manager/holiday', label: 'Holidays', icon: <Gift size={18} /> },
+    ],
+  },
+  {
+    title: 'Account',
+    items: [
+      { href: '/manager/profile', label: 'Profile', icon: <User size={18} /> },
+      { href: '/dashboard/notifications', label: 'Notifications', icon: <Bell size={18} /> },
+      { href: '/dashboard/settings', label: 'Settings', icon: <Settings size={18} /> },
+    ],
+  },
+];
 
-  const navItems = [
-    { name: 'Dashboard', path: '/manager', icon: Home },
-    { name: 'Employees', path: '/manager/employees', icon: Users },
-    { name: 'Timesheets', path: '/manager/timesheets', icon: Clock },
-    { name: 'Leaves', path: '/manager/leaves', icon: Calendar },
-    { name: 'Reports', path: '/manager/reports', icon: BarChart2 },
-    { name: 'Holidays', path: '/manager/holiday', icon: Calendar },
-  ];
+export default function Sidebar() {
+  const pathname = usePathname();
 
   return (
-    <>
-      <button
-        className="lg:hidden fixed top-4 left-4 z-20 p-2 bg-indigo-600 text-white rounded-md"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-      <aside
-        className={`${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:translate-x-0 fixed lg:static w-64 bg-white shadow-sm border-r border-gray-200 h-full lg:h-auto transition-transform duration-300 z-10`}
-      >
-        <div className="p-6">
-          <div className="flex items-center justify-center space-x-4 mb-8">
-            <Image
-              src="/digiquad logo.jpeg"
-              alt="DigiQuad Logo"
-              width={50}
-              height={50}
-              className="rounded-full shadow-sm"
-            />
-            <div className="text-2xl font-bold text-indigo-600">DigiQuad</div>
-          </div>
-          <nav>
-            <ul className="space-y-2">
-              {navItems.map((item) => (
-                <li key={item.path}>
+    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm flex flex-col justify-between">
+      {/* Logo */}
+      <div>
+        <div className="flex items-center justify-center space-x-4 mb-8">
+          <Image
+            src="/digiquad logo.jpeg"
+            alt="DigiQuad Logo"
+            width={50}
+            height={50}
+            className="rounded-full shadow-sm"
+          />
+          <div className="text-2xl font-bold text-indigo-600">DigiQuad</div>
+        </div>
+        {/* Navigation Sections */}
+        {navSections.map((section) => (
+          <div key={section.title} className="mb-6">
+            <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 px-3">
+              {section.title}
+            </h4>
+            <nav className="space-y-1">
+              {section.items.map(({ href, label, icon }) => {
+                const isActive = pathname === href;
+                return (
                   <Link
-                    href={item.path}
-                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${pathname === item.path
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    key={href}
+                    href={href}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${isActive
+                        ? 'bg-indigo-100 text-indigo-700 font-medium'
+                        : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
                       }`}
                   >
-                    <item.icon className="h-5 w-5 mr-3" />
-                    {item.name}
+                    {icon}
+                    <span>{label}</span>
                   </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      </aside>
-      {isMobileMenuOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-0"
-          onClick={() => setIsMobileMenuOpen(false)}
-        ></div>
-      )}
-    </>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
+    </aside>
   );
-};
-
-export default Sidebar;
+}

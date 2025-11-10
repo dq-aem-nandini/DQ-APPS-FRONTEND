@@ -141,15 +141,6 @@ const DashboardContent = () => {
 
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen space-y-6 md:space-y-8">
-      {/* Header
-      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between">
-         
-          <div className="md:hidden">
-            <Menu className="w-6 h-6 text-gray-600" />
-          </div>
-        </div>
-      </div> */}
 
       {/* Key Metrics - Responsive Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">

@@ -9,17 +9,30 @@ import {
   ClientDTO,
   Designation,
   EmployeeDocumentDTO,
-  EmployeeSalaryDTO,
-  EmployeeAdditionalDetailsDTO,
-  EmployeeEmploymentDetailsDTO,
-  EmployeeInsuranceDetailsDTO,
-  EmployeeStatutoryDetailsDTO,
   EmployeeEquipmentDTO,
   DocumentType,
   EmploymentType,
   EmployeeModel,
   AllowanceDTO,
   DeductionDTO,
+  NoticePeriodDuration,
+  ProbationDuration,
+  ProbationNoticePeriod,
+  BondDuration,
+  ShiftTiming,
+  Department,
+  DEPARTMENT_OPTIONS,
+  SHIFT_TIMING_OPTIONS,
+  NOTICE_PERIOD_OPTIONS,
+  PROBATION_DURATION_OPTIONS,
+  PROBATION_NOTICE_OPTIONS,
+  BOND_DURATION_OPTIONS,
+  PayType,
+  PayClass,
+  PAY_TYPE_OPTIONS,
+  PAY_CLASS_OPTIONS,
+  WorkingModel,
+  WORKING_MODEL_OPTIONS,
 } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
@@ -62,6 +75,7 @@ const AddEmployeePage = () => {
     remarks: '',
     skillsAndCertification: '',
     clientId: '',
+    clientSelection: '',
     reportingManagerId: '',
     designation: '' as Designation,
     dateOfBirth: '',
@@ -80,13 +94,13 @@ const AddEmployeePage = () => {
     employeeSalaryDTO: {
       employeeId: '',
       basicPay: 0,
-      payType: 'MONTHLY',
+      payType: 'MONTHLY' as PayType,
       standardHours: 40,
       bankAccountNumber: '',
       ifscCode: '',
-      payClass: 'STANDARD',
-      allowances: [],
-      deductions: [],
+      payClass: 'A1' as PayClass,
+      allowances: [] as AllowanceDTO[],
+      deductions: [] as DeductionDTO[],
     },
     employeeAdditionalDetailsDTO: {
       offerLetterUrl: '',
@@ -99,9 +113,24 @@ const AddEmployeePage = () => {
     employeeEmploymentDetailsDTO: {
       employmentId: '',
       employeeId: '',
+      noticePeriodDuration: undefined as NoticePeriodDuration | undefined,
+      noticePeriodDurationLabel: '',
       probationApplicable: false,
+      probationDuration: undefined as ProbationDuration | undefined,
+      probationDurationLabel: '',
+      probationNoticePeriod: undefined as ProbationNoticePeriod | undefined,
+      probationNoticePeriodLabel: '',
       bondApplicable: false,
+      bondDuration: undefined as BondDuration | undefined,
+      bondDurationLabel: '',
+      workingModel: undefined as WorkingModel | undefined,
+      shiftTiming: undefined as ShiftTiming | undefined,
+      shiftTimingLabel: '',
+      department: undefined as Department | undefined,
+      dateOfConfirmation: '',
+      location: '',
     },
+
     employeeInsuranceDetailsDTO: {
       insuranceId: '',
       employeeId: '',
@@ -132,7 +161,7 @@ const AddEmployeePage = () => {
     taxDeclarationForm: null,
     workPermit: null,
   });
-
+  const [documentFilesList, setDocumentFilesList] = useState<(File | null)[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { state } = useAuth();
   const router = useRouter();
@@ -159,6 +188,7 @@ const AddEmployeePage = () => {
   ];
 
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
+  const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [managers, setManagers] = useState<EmployeeDTO[]>([]);
@@ -272,13 +302,21 @@ const AddEmployeePage = () => {
             ...doc,
             [field]: value,
             documentId: doc.documentId || crypto.randomUUID(),
-            fileUrl: field === 'file' && value ? '' : doc.fileUrl || '',
+            fileUrl: field === 'file' && value ? 'PENDING_UPLOAD' : doc.fileUrl || '',
             uploadedAt: doc.uploadedAt || new Date().toISOString(),
             verified: doc.verified || false,
           }
           : doc
       ),
     }));
+
+    if (field === 'file') {
+      setDocumentFilesList(prev => {
+        const updated = [...prev];
+        updated[index] = value as File | null;
+        return updated;
+      });
+    }
   };
 
   const addDocument = () => {
@@ -295,6 +333,7 @@ const AddEmployeePage = () => {
         },
       ],
     }));
+    setDocumentFilesList(prev => [...prev, null]);
   };
 
   const removeDocument = (index: number) => {
@@ -340,12 +379,18 @@ const AddEmployeePage = () => {
     setIsSubmitting(true);
 
     const requiredFields: (keyof EmployeeModel)[] = [
-      'firstName', 'lastName', 'personalEmail', 'companyEmail', 'contactNumber',
+      'firstName', 'lastName', 'personalEmail', 'contactNumber',
       'designation', 'dateOfBirth', 'dateOfJoining', 'gender', 'nationality',
-      'clientId', 'reportingManagerId', 'skillsAndCertification',
+      'clientId',
     ];
 
-    const missingFields = requiredFields.filter(field => !formData[field] || formData[field] === '');
+    const missingFields = requiredFields.filter(field => {
+      if (field === 'clientId') {
+        return !formData.clientId && !formData.clientSelection;
+      }
+      return !formData[field] || formData[field] === '';
+    });
+
     if (missingFields.length > 0) {
       Swal.fire({
         icon: 'error',
@@ -365,7 +410,10 @@ const AddEmployeePage = () => {
       setIsSubmitting(false);
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personalEmail) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.companyEmail)) {
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personalEmail) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.companyEmail)
+    ) {
       Swal.fire({
         icon: 'error',
         title: 'Validation Error',
@@ -374,35 +422,25 @@ const AddEmployeePage = () => {
       setIsSubmitting(false);
       return;
     }
-
-    if (formData.employeeEmploymentDetailsDTO?.probationApplicable && formData.employeeEmploymentDetailsDTO?.probationDuration) {
-      if (!/^\d+\s*(months|years)?$/.test(formData.employeeEmploymentDetailsDTO.probationDuration)) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Validation Error',
-          text: 'Probation duration must be a number optionally followed by "months" or "years" (e.g., "6 months")',
-        });
-        setIsSubmitting(false);
-        return;
-      }
-    }
-    if (formData.employeeEmploymentDetailsDTO?.bondApplicable && formData.employeeEmploymentDetailsDTO?.bondDuration) {
-      if (!/^\d+\s*(months|years)?$/.test(formData.employeeEmploymentDetailsDTO.bondDuration)) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Validation Error',
-          text: 'Bond duration must be a number optionally followed by "months" or "years" (e.g., "6 months")',
-        });
-        setIsSubmitting(false);
-        return;
-      }
+    if (formData.personalEmail.trim().toLowerCase() === formData.companyEmail.trim().toLowerCase()) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: 'Personal and company email addresses must be different.',
+      });
+      setIsSubmitting(false);
+      return;
     }
 
+    // Upload document files
     const uploadedDocuments: EmployeeDocumentDTO[] = [];
-    for (const doc of formData.documents) {
-      if (doc.fileUrl) {
+    for (let i = 0; i < formData.documents.length; i++) {
+      const doc = formData.documents[i];
+      const file = documentFilesList[i];
+
+      if (file) {
         try {
-          const uploadResponse = await adminService.uploadFile(doc.fileUrl as any);
+          const uploadResponse = await adminService.uploadFile(file);
           if (uploadResponse.flag && uploadResponse.response) {
             uploadedDocuments.push({
               documentId: doc.documentId,
@@ -412,14 +450,10 @@ const AddEmployeePage = () => {
               verified: false,
             });
           } else {
-            throw new Error(uploadResponse.message || `Failed to upload document: ${doc.docType}`);
+            throw new Error(uploadResponse.message || 'Upload failed');
           }
         } catch (err: any) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Upload Error',
-            text: err.message || `Failed to upload document: ${doc.docType}`,
-          });
+          Swal.fire({ icon: 'error', title: 'Upload Error', text: err.message });
           setIsSubmitting(false);
           return;
         }
@@ -499,7 +533,9 @@ const AddEmployeePage = () => {
       setIsSubmitting(false);
     }
   };
-
+  const selectValue = formData.clientSelection?.startsWith('STATUS:')
+    ? formData.clientSelection.replace('STATUS:', '')
+    : (formData.clientId ?? undefined);
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 md:p-8">
@@ -526,7 +562,7 @@ const AddEmployeePage = () => {
                   <div><Label className="mb-2 block text-sm font-medium">First Name *</Label><Input className="h-11" name="firstName" required value={formData.firstName} onChange={handleChange} maxLength={30} pattern="[A-Za-z ]+" /></div>
                   <div><Label className="mb-2 block text-sm font-medium">Last Name *</Label><Input className="h-11" name="lastName" required value={formData.lastName} onChange={handleChange} maxLength={30} pattern="[A-Za-z ]+" /></div>
                   <div><Label className="mb-2 block text-sm font-medium">Personal Email *</Label><Input className="h-11" type="email" name="personalEmail" required value={formData.personalEmail} onChange={handleChange} pattern="[^\s@]+@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com)" /></div>
-                  <div><Label className="mb-2 block text-sm font-medium">Company Email *</Label><Input className="h-11" type="email" name="companyEmail" required value={formData.companyEmail} onChange={handleChange} /></div>
+                  <div><Label className="mb-2 block text-sm font-medium">Company Email </Label><Input className="h-11" type="email" name="companyEmail" required value={formData.companyEmail} onChange={handleChange} /></div>
                   <div><Label className="mb-2 block text-sm font-medium">Contact Number *</Label><Input className="h-11" name="contactNumber" required value={formData.contactNumber} onChange={handleChange} pattern="[6-9]\d{9}" /></div>
                   <div><Label className="mb-2 block text-sm font-medium">Date of Birth *</Label><Input className="h-11" type="date" name="dateOfBirth" required value={formData.dateOfBirth} onChange={handleChange} max={today} /></div>
                   <div><Label className="mb-2 block text-sm font-medium">Nationality *</Label><Input className="h-11" name="nationality" required value={formData.nationality} onChange={handleChange} maxLength={50} pattern="[A-Za-z ]+" /></div>
@@ -557,17 +593,68 @@ const AddEmployeePage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
                   {/* Client */}
+                  {/* <div>
+                    <Label className="mb-2 block text-sm font-medium">Client *</Label>
+                    <Select
+                      value={selectValue}
+                      onValueChange={v => setFormData(p => ({
+                        ...p,
+                        clientId: staticClients.has(v) ? null : v,
+                        clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`
+                      }))}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="BENCH">BENCH</SelectItem>
+                        <SelectItem value="INHOUSE">INHOUSE</SelectItem>
+                        <SelectItem value="HR">HR</SelectItem>
+                        <SelectItem value="NA">NA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div> */}
+                  {/* ----------  CLIENT SELECT  ---------- */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Client *</Label>
-                    <Select value={formData.clientId} onValueChange={v => setFormData(p => ({ ...p, clientId: v }))}>
-                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                    <Select
+                      // `selectValue` is the string that appears in the trigger
+                      value={selectValue}
+                      onValueChange={(v) =>
+                        setFormData((p) => ({
+                          ...p,
+                          // real client → clientId, static status → clientId = null
+                          clientId: staticClients.has(v) ? null : v,
+                          // keep a human-readable tag so we can re-hydrate the UI later
+                          clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="BENCH">BENCH</SelectItem>
+                        <SelectItem value="INHOUSE">INHOUSE</SelectItem>
+                        <SelectItem value="HR">HR</SelectItem>
+                        <SelectItem value="NA">NA</SelectItem>
+                      </SelectContent>
                     </Select>
                   </div>
 
                   {/* Reporting Manager */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Reporting Manager *</Label>
+                    <Label className="mb-2 block text-sm font-medium">Reporting Manager </Label>
                     <Select value={formData.reportingManagerId} onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}>
                       <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>{managers.map(m => <SelectItem key={m.employeeId} value={m.employeeId}>{m.firstName} {m.lastName}</SelectItem>)}</SelectContent>
@@ -597,10 +684,9 @@ const AddEmployeePage = () => {
                       <SelectContent>{employmentTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-
-                  {/* Rate Card */}
+                  {/* rate card */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Rate Card (₹ per hour) *</Label>
+                    <Label className="mb-2 block text-sm font-medium">Rate Card</Label>
                     <Input
                       className="h-11"
                       type="number"
@@ -608,33 +694,42 @@ const AddEmployeePage = () => {
                       step="0.01"
                       placeholder="45.00"
                       name="rateCard"
-                      required
                       value={formData.rateCard ?? ''}
-                      onChange={(e) => {
-                        const rate = parseFloat(e.target.value) || 0;
-                        setFormData(prev => ({
-                          ...prev,
-                          rateCard: rate,
-                          employeeSalaryDTO: {
-                            ...prev.employeeSalaryDTO!,
-                            payType: rate > 0 ? 'HOURLY' : 'MONTHLY',
-                          },
-                        }));
-                      }}
+                      onChange={handleChange}
                     />
                   </div>
+                  {/* paytype */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Pay Type</Label>
 
-                  {/* Pay Type (Auto) */}
-                  <div className="flex items-center space-x-2">
-                    <IndianRupee className="h-4 w-4 text-emerald-600" />
-                    <span className="text-sm font-medium">
-                      Pay Type: <span className="font-bold text-primary">{formData.employeeSalaryDTO?.payType || 'MONTHLY'}</span>
-                    </span>
+                    <Select
+                      value={formData.employeeSalaryDTO?.payType || ""}
+                      onValueChange={(v) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          employeeSalaryDTO: {
+                            ...prev.employeeSalaryDTO!,
+                            payType: v as PayType,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Pay Type" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {PAY_TYPE_OPTIONS.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
                   {/* Basic Pay */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Basic Pay (₹) *</Label>
+                    <Label className="mb-2 block text-sm font-medium">Basic Pay *</Label>
                     <Input
                       className="h-11"
                       type="number"
@@ -662,30 +757,164 @@ const AddEmployeePage = () => {
                     />
                   </div>
 
-                  {/* Bank Account */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">Bank Account Number *</Label>
-                    <Input className="h-11" name="employeeSalaryDTO.bankAccountNumber" required value={formData.employeeSalaryDTO?.bankAccountNumber || ''} onChange={handleChange} />
-                  </div>
-
-                  {/* IFSC Code */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">IFSC Code *</Label>
-                    <Input className="h-11" name="employeeSalaryDTO.ifscCode" required value={formData.employeeSalaryDTO?.ifscCode || ''} onChange={handleChange} pattern="[A-Z]{4}0[A-Z0-9]{6}" />
-                  </div>
-
                   {/* Pay Class */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Pay Class</Label>
-                    <Select value={formData.employeeSalaryDTO?.payClass || 'STANDARD'} onValueChange={v => setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, payClass: v } }))}>
-                      <SelectTrigger className="w-full !h-11"><SelectValue /></SelectTrigger>
+                    <Select
+                      value={formData.employeeSalaryDTO?.payClass || ''}
+                      onValueChange={v =>
+                        handleChange({
+                          target: { name: 'employeeSalaryDTO.payClass', value: v },
+                        } as any)
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Pay Class" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="STANDARD">Standard</SelectItem>
-                        <SelectItem value="EXECUTIVE">Executive</SelectItem>
-                        <SelectItem value="MANAGERIAL">Managerial</SelectItem>
+                        {PAY_CLASS_OPTIONS.map(cls => (
+                          <SelectItem key={cls} value={cls}>
+                            {cls}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
+                  {/* Working Model */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Working Model</Label>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.workingModel || ''}
+                      onValueChange={v =>
+                        handleChange({
+                          target: {
+                            name: 'employeeEmploymentDetailsDTO.workingModel',
+                            value: v,
+                          },
+                        } as any)
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11">
+                        <SelectValue placeholder="Select Working Model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKING_MODEL_OPTIONS.map(model => (
+                          <SelectItem key={model} value={model}>
+                            {model.charAt(0) + model.slice(1).toLowerCase().replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Department */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Department</Label>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.department || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.department', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Department" /></SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENT_OPTIONS.map(d => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Shift Timing */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Shift Timing</Label>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.shiftTiming || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.shiftTiming', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Shift" /></SelectTrigger>
+                      <SelectContent>
+                        {SHIFT_TIMING_OPTIONS.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label className="mb-2 block text-sm font-medium">Date of Confirmation</Label><Input className="h-11" type="date" name="employeeEmploymentDetailsDTO.dateOfConfirmation" value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ''} onChange={handleChange} /></div>
+
+                  {/* Notice Period */}
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">Notice Period</Label>
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.noticePeriodDuration', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Notice Period" /></SelectTrigger>
+                      <SelectContent>
+                        {NOTICE_PERIOD_OPTIONS.map(n => (
+                          <SelectItem key={n} value={n}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="probation" checked={formData.employeeEmploymentDetailsDTO?.probationApplicable || false} onCheckedChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.probationApplicable', checked: v } } as any)} />
+                    <Label htmlFor="probation">Probation Applicable</Label>
+                  </div>
+                  {/* Probation Duration */}
+                  {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
+                    <Select
+                      value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''}
+                      onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.probationDuration', value: v } } as any)}
+                    >
+                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Duration" /></SelectTrigger>
+                      <SelectContent>
+                        {PROBATION_DURATION_OPTIONS.map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Probation Notice Period */}
+                  {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">Probation Notice</Label>
+                      <Select
+                        value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ''}
+                        onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.probationNoticePeriod', value: v } } as any)}>
+                        <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select Notice" /></SelectTrigger>
+                        <SelectContent>
+                          {PROBATION_NOTICE_OPTIONS.map(p => (
+                            <SelectItem key={p} value={p}>{p}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="bond" checked={formData.employeeEmploymentDetailsDTO?.bondApplicable || false} onCheckedChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.bondApplicable', checked: v } } as any)} />
+                    <Label htmlFor="bond">Bond Applicable</Label>
+                  </div>
+                  {/* Bond Duration */}
+                  {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">Bond Duration</Label>
+                      <Select
+                        value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''}
+                        onValueChange={v => handleChange({
+                          target: { name: 'employeeEmploymentDetailsDTO.bondDuration', value: v }
+                        } as any)}
+                      >
+                        <SelectTrigger className="w-full min-w-[200px] !h-11">
+                          <SelectValue placeholder="Select Duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BOND_DURATION_OPTIONS.map(p => (
+                            <SelectItem key={p} value={p}>{p}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* === ALLOWANCES === */}
                   <div className="md:col-span-3">
@@ -832,39 +1061,6 @@ const AddEmployeePage = () => {
                       <Plus className="h-4 w-4 mr-1" /> Add Deduction
                     </Button>
                   </div>
-
-                  <div><Label className="mb-2 block text-sm font-medium">Working Model</Label>
-                    <Select value={formData.employeeEmploymentDetailsDTO?.workingModel || ''} onValueChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.workingModel', value: v } } as any)}>
-                      <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="REMOTE">Remote</SelectItem>
-                        <SelectItem value="HYBRID">Hybrid</SelectItem>
-                        <SelectItem value="ONSITE">Onsite</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div><Label className="mb-2 block text-sm font-medium">Department</Label><Input className="h-11" name="employeeEmploymentDetailsDTO.department" value={formData.employeeEmploymentDetailsDTO?.department || ''} onChange={handleChange} /></div>
-                  <div><Label className="mb-2 block text-sm font-medium">Shift Timing</Label><Input className="h-11" name="employeeEmploymentDetailsDTO.shiftTiming" value={formData.employeeEmploymentDetailsDTO?.shiftTiming || ''} onChange={handleChange} placeholder="9:00 AM - 6:00 PM" /></div>
-                  <div><Label className="mb-2 block text-sm font-medium">Notice Period</Label><Input className="h-11" name="employeeEmploymentDetailsDTO.noticePeriodDuration" value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''} onChange={handleChange} placeholder="30 days" /></div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="probation" checked={formData.employeeEmploymentDetailsDTO?.probationApplicable || false} onCheckedChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.probationApplicable', checked: v } } as any)} />
-                    <Label htmlFor="probation">Probation Applicable</Label>
-                  </div>
-                  {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
-                    <>
-                      <div><Label className="mb-2 block text-sm font-medium">Probation Duration</Label><Input className="h-11" name="employeeEmploymentDetailsDTO.probationDuration" value={formData.employeeEmploymentDetailsDTO?.probationDuration || ''} onChange={handleChange} placeholder="3 months" /></div>
-                      <div><Label className="mb-2 block text-sm font-medium">Probation Notice</Label><Input className="h-11" name="employeeEmploymentDetailsDTO.probationNoticePeriod" value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ''} onChange={handleChange} placeholder="15 days" /></div>
-                    </>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="bond" checked={formData.employeeEmploymentDetailsDTO?.bondApplicable || false} onCheckedChange={v => handleChange({ target: { name: 'employeeEmploymentDetailsDTO.bondApplicable', checked: v } } as any)} />
-                    <Label htmlFor="bond">Bond Applicable</Label>
-                  </div>
-                  {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
-                    <div><Label className="mb-2 block text-sm font-medium">Bond Duration</Label><Input className="h-11" name="employeeEmploymentDetailsDTO.bondDuration" value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''} onChange={handleChange} placeholder="12 months" /></div>
-                  )}
-                  <div><Label className="mb-2 block text-sm font-medium">Date of Confirmation</Label><Input className="h-11" type="date" name="employeeEmploymentDetailsDTO.dateOfConfirmation" value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ''} onChange={handleChange} /></div>
-
                 </div>
               </CardContent>
             </Card>
@@ -946,7 +1142,7 @@ const AddEmployeePage = () => {
                 <FileUpload label="Contract" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('contract', f)} />
                 <FileUpload label="Tax Declaration" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('taxDeclarationForm', f)} />
                 <FileUpload label="Work Permit" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('workPermit', f)} />
-                <div><Label className="mb-2 block text-sm font-medium">Skills & Certifications *</Label><Textarea name="skillsAndCertification" required value={formData.skillsAndCertification} onChange={handleChange} /></div>
+                <div><Label className="mb-2 block text-sm font-medium">Skills & Certifications </Label><Textarea name="skillsAndCertification" value={formData.skillsAndCertification} onChange={handleChange} /></div>
                 <div><Label className="mb-2 block text-sm font-medium">Background Check</Label><Input className="h-11" name="employeeAdditionalDetailsDTO.backgroundCheckStatus" value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''} onChange={handleChange} /></div>
                 <div><Label className="mb-2 block text-sm font-medium">Remarks</Label><Textarea name="employeeAdditionalDetailsDTO.remarks" value={formData.employeeAdditionalDetailsDTO?.remarks || ''} onChange={handleChange} /></div>
               </CardContent>

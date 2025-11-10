@@ -25,6 +25,7 @@ const ViewEmployee = () => {
       try {
         const response = await adminService.getEmployeeById(params.id);
         if (response.flag && response.response) {
+
           setEmployee(response.response);
         } else {
           throw new Error(response.message || 'Failed to fetch employee');
@@ -68,7 +69,10 @@ const ViewEmployee = () => {
       <span className="text-gray-400">Not uploaded</span>
     );
   };
+  const formatEnum = (value: string | undefined) =>
+    value ? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
 
+  const formatDuration = (value: string | undefined) => value || '—';
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="max-w-7xl mx-auto p-6 space-y-8">
@@ -137,12 +141,14 @@ const ViewEmployee = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <InfoItem label="Designation" value={getValue(employee.designation)} />
             <InfoItem label="Date of Joining" value={getValue(employee.dateOfJoining)} />
+            <InfoItem label="Company" value={getValue(employee.clientName)} />
+            <InfoItem label="Client Status" value={getValue(employee.clientStatus || 'N/A')} />
+            <InfoItem label="Client Name" value={getValue(employee.clientName)} />
             <InfoItem label="Employment Type" value={getValue(employee.employmentType)} />
             <InfoItem label="Rate Card" value={getValue(employee.rateCard)} />
             <InfoItem label="Available Leaves" value={getValue(employee.availableLeaves)} />
-            <InfoItem label="Client Name" value={getValue(employee.clientName)} />
             <InfoItem label="Reporting Manager" value={getValue(employee.reportingManagerName)} />
-            <InfoItem label="Company" value={getValue(employee.clientName)} />
+
           </div>
         </div>
 
@@ -246,30 +252,30 @@ const ViewEmployee = () => {
             </div>
 
             {employee.employeeSalaryDTO?.allowances && employee.employeeSalaryDTO.allowances.length > 0 && (
-  <div className="mt-6">
-    <h4 className="font-medium text-gray-800 mb-3">Allowances</h4>
-    <div className="space-y-2">
-      {employee.employeeSalaryDTO.allowances.map((a, i) => (
-        <div key={i} className="bg-green-50 p-3 rounded-lg text-sm">
-          <strong>{a.allowanceType}:</strong> ₹{a.amount} (from {a.effectiveDate})
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+              <div className="mt-6">
+                <h4 className="font-medium text-gray-800 mb-3">Allowances</h4>
+                <div className="space-y-2">
+                  {employee.employeeSalaryDTO.allowances.map((a, i) => (
+                    <div key={i} className="bg-green-50 p-3 rounded-lg text-sm">
+                      <strong>{a.allowanceType}:</strong> ₹{a.amount} (from {a.effectiveDate})
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-{employee.employeeSalaryDTO?.deductions && employee.employeeSalaryDTO.deductions.length > 0 && (
-  <div className="mt-6">
-    <h4 className="font-medium text-gray-800 mb-3">Deductions</h4>
-    <div className="space-y-2">
-      {employee.employeeSalaryDTO.deductions.map((d, i) => (
-        <div key={i} className="bg-red-50 p-3 rounded-lg text-sm">
-          <strong>{d.deductionType}:</strong> ₹{d.amount} (from {d.effectiveDate})
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+            {employee.employeeSalaryDTO?.deductions && employee.employeeSalaryDTO.deductions.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-medium text-gray-800 mb-3">Deductions</h4>
+                <div className="space-y-2">
+                  {employee.employeeSalaryDTO.deductions.map((d, i) => (
+                    <div key={i} className="bg-red-50 p-3 rounded-lg text-sm">
+                      <strong>{d.deductionType}:</strong> ₹{d.amount} (from {d.effectiveDate})
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -281,16 +287,67 @@ const ViewEmployee = () => {
               Employment Terms
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <InfoItem label="Notice Period" value={getValue(employee.employeeEmploymentDetailsDTO.noticePeriodDuration)} />
-              <InfoItem label="Probation Duration" value={getValue(employee.employeeEmploymentDetailsDTO.probationDuration)} />
-              <InfoItem label="Probation Notice" value={getValue(employee.employeeEmploymentDetailsDTO.probationNoticePeriod)} />
-              <InfoItem label="Bond Applicable" value={getValue(employee.employeeEmploymentDetailsDTO.bondApplicable)} />
-              <InfoItem label="Bond Duration" value={getValue(employee.employeeEmploymentDetailsDTO.bondDuration)} />
-              <InfoItem label="Working Model" value={getValue(employee.employeeEmploymentDetailsDTO.workingModel)} />
-              <InfoItem label="Shift Timing" value={getValue(employee.employeeEmploymentDetailsDTO.shiftTiming)} />
-              <InfoItem label="Department" value={getValue(employee.employeeEmploymentDetailsDTO.department)} />
-              <InfoItem label="Location" value={getValue(employee.employeeEmploymentDetailsDTO.location)} />
-              <InfoItem label="Date of Confirmation" value={getValue(employee.employeeEmploymentDetailsDTO.dateOfConfirmation)} />
+              {/* Notice Period */}
+              <InfoItem
+                label="Notice Period"
+                value={formatDuration(employee.employeeEmploymentDetailsDTO.noticePeriodDurationLabel)}
+              />
+
+              {/* Probation Section */}
+              {employee.employeeEmploymentDetailsDTO.probationApplicable ? (
+                <>
+                  <InfoItem
+                    label="Probation Duration"
+                    value={formatDuration(employee.employeeEmploymentDetailsDTO.probationDurationLabel)}
+                  />
+                  <InfoItem
+                    label="Probation Notice"
+                    value={formatDuration(employee.employeeEmploymentDetailsDTO.probationNoticePeriodLabel)}
+                  />
+                </>
+              ) : (
+                <InfoItem label="Probation" value="Not Applicable" />
+              )}
+
+              {/* Bond Section */}
+              {employee.employeeEmploymentDetailsDTO.bondApplicable ? (
+                <InfoItem
+                  label="Bond Duration"
+                  value={formatDuration(employee.employeeEmploymentDetailsDTO.bondDurationLabel)}
+                />
+              ) : (
+                <InfoItem label="Bond" value="Not Applicable" />
+              )}
+
+              {/* Working Model */}
+              <InfoItem
+                label="Working Model"
+                value={formatEnum(employee.employeeEmploymentDetailsDTO.workingModel)}
+              />
+
+              {/* Shift Timing */}
+              <InfoItem
+                label="Shift Timing"
+                value={formatDuration(employee.employeeEmploymentDetailsDTO.shiftTimingLabel)}
+              />
+
+              {/* Department */}
+              <InfoItem
+                label="Department"
+                value={formatEnum(employee.employeeEmploymentDetailsDTO.department)}
+              />
+
+              {/* Location */}
+              <InfoItem
+                label="Location"
+                value={getValue(employee.employeeEmploymentDetailsDTO.location)}
+              />
+
+              {/* Date of Confirmation */}
+              <InfoItem
+                label="Date of Confirmation"
+                value={getValue(employee.employeeEmploymentDetailsDTO.dateOfConfirmation)}
+              />
             </div>
           </div>
         )}

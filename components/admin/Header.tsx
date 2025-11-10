@@ -126,14 +126,14 @@ const Header = () => {
     <>
       <header className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-gray-200/50 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-            </div>
+            <div className="flex items-center justify-between h-25">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 drop-shadow-md mt-10 mb-10">
+            Admin Dashboard
+            </h1>
 
             <div className="flex items-center space-x-4">
-              <NotificationBell />
-              <span className="text-sm text-gray-600 hidden md:block font-medium">
+              <NotificationBell className="h-8 w-8 text-yellow-600"/>
+              <span className="text-lg text-gray-700 hidden md:block font-semibold">
                 Welcome, {user?.userName || 'Admin'}
               </span>
               <div className="relative" ref={dropdownRef}>
