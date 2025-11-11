@@ -10,6 +10,8 @@ import {
   WebResponseDTO,
   WebResponseDTOString,
   WebResponseDTOListEmployeeUpdateRequestDTO,
+  WebResponseDTOListBankMaster,
+  WebResponseDTOIfsc,
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -324,6 +326,60 @@ class EmployeeService {
       };
     }
   }
+  // =====================================================
+// ✅ GET IFSC DETAILS
+// GET /banks/ifsc/{ifscCode}
+// =====================================================
+async getIFSCDetails(ifscCode: string): Promise<WebResponseDTOIfsc> {
+  if (!ifscCode) throw new Error("IFSC code is required");
+
+  try {
+    const response: AxiosResponse<WebResponseDTOIfsc> = await api.get(
+      `/banks/ifsc/${ifscCode}`
+    );
+    return response.data;
+  } catch (error: any) {
+    const msg =
+      error?.response?.data?.message ||
+      error.message ||
+      "Failed to fetch IFSC details";
+    throw new Error(msg);
+  }
+}
+
+// =====================================================
+// ✅ SEARCH BANK MASTER
+// GET /banks/search?query=
+// =====================================================
+async searchBankMaster(
+  query: string
+): Promise<WebResponseDTOListBankMaster> {
+  if (!query.trim()) {
+    return {
+      flag: false,
+      message: "Query is required",
+      status: 400,
+      response: [],
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  try {
+    const response: AxiosResponse<WebResponseDTOListBankMaster> =
+      await api.get(`/banks/search`, {
+        params: { query },
+      });
+
+    return response.data;
+  } catch (error: any) {
+    const msg =
+      error?.response?.data?.message ||
+      error.message ||
+      "Failed to fetch bank master";
+    throw new Error(msg);
+  }
+}
 }
 
 export const employeeService = new EmployeeService();

@@ -286,17 +286,102 @@ const UpdateRequestAdminPage = () => {
               <Label>Employee</Label>
               <p className="text-sm font-medium">{selectedRequest?.employeeName}</p>
             </div>
-            <div>
+            {/* <div>
               <Label>Field Changes</Label>
-              <p className="text-xs">
-                {selectedRequest && (() => {
-                  let data = selectedRequest.updatedData;
-                  if (typeof data === 'string') {
-                    try { data = JSON.parse(data); } catch {}
+              {selectedRequest && oldProfiles[selectedRequest.employeeId] ? (
+                (() => {
+                  const profile = oldProfiles[selectedRequest.employeeId];
+                  let updatedData = selectedRequest.updatedData;
+                  if (typeof updatedData === 'string') {
+                    try { updatedData = JSON.parse(updatedData); } catch { updatedData = {}; }
                   }
-                  return Object.keys(data || {}).map(formatKey).join(', ');
-                })()}
-              </p>
+
+                  const modifiedFields = Object.entries(updatedData || {}).filter(([key, newValue]) => {
+                    const oldValue = profile?.[key as keyof EmployeeDTO];
+                    if (newValue === null || newValue === '' || newValue === undefined) return false;
+                    return String(oldValue) !== String(newValue);
+                  });
+
+                  return modifiedFields.length > 0 ? (
+                    <div className="text-xs space-y-1 mt-2">
+                      {modifiedFields.slice(0, 5).map(([key, newValue]) => {
+                        const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
+                        return (
+                          <div key={key} className="flex justify-between">
+                            <span className="font-medium">{formatKey(key)}:</span>
+                            <span className="ml-2 text-green-700 font-medium">
+                              {String(newValue)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {modifiedFields.length > 5 && (
+                        <p className="text-gray-500 text-xs">+{modifiedFields.length - 5} more</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No changes</p>
+                  );
+                })()
+              ) : (
+                <p className="text-xs text-gray-500">Loading...</p>
+              )}
+            </div> */}
+                        <div>
+              <Label>Modified Fields</Label>
+              {selectedRequest && oldProfiles[selectedRequest.employeeId] ? (
+                (() => {
+                  const profile = oldProfiles[selectedRequest.employeeId];
+                  let updatedData = selectedRequest.updatedData;
+                  if (typeof updatedData === 'string') {
+                    try { updatedData = JSON.parse(updatedData); } catch { updatedData = {}; }
+                  }
+
+                  const modifiedFields = Object.entries(updatedData || {}).filter(([key, newValue]) => {
+                    const oldValue = profile?.[key as keyof EmployeeDTO];
+                    if (newValue === null || newValue === '' || newValue === undefined) return false;
+                    return String(oldValue) !== String(newValue);
+                  });
+
+                  return modifiedFields.length > 0 ? (
+                    <div className="mt-3 border rounded-lg bg-gray-50 p-3 max-h-48 overflow-y-auto">
+                      {/* Header */}
+                      <div className="grid grid-cols-3 text-xs font-bold text-gray-700 border-b pb-2 mb-2">
+                        <span>Field</span>
+                        <span className="text-center">Old Value</span>
+                        <span className="text-right">New Value</span>
+                      </div>
+
+                      {/* Rows */}
+                      {modifiedFields.slice(0, 8).map(([key, newValue]) => {
+                        const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
+                        return (
+                          <div key={key} className="grid grid-cols-3 text-xs py-1.5 border-b last:border-0">
+                            <span className="font-medium text-gray-800">{formatKey(key)}</span>
+                            <span className="text-center text-red-600">
+                              {String(oldValue) || '—'}
+                            </span>
+                            <span className="text-right text-green-700 font-semibold">
+                              {String(newValue)}
+                            </span>
+                          </div>
+                        );
+                      })}
+
+                      {/* More indicator */}
+                      {modifiedFields.length > 8 && (
+                        <p className="text-center text-xs text-gray-500 mt-2 font-medium">
+                          +{modifiedFields.length - 8} more field(s)
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-2">No meaningful changes detected</p>
+                  );
+                })()
+              ) : (
+                <p className="text-xs text-gray-500 mt-2">Loading profile data...</p>
+              )}
             </div>
             <div>
               <Label htmlFor="comment">Comment (required)</Label>

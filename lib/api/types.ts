@@ -855,7 +855,27 @@ export interface PageLeaveResponseDTO {
   sort?: SortObject;
   empty: boolean;
 }
+export interface IfscResponseDTO {
+  BANK: string;
+  IFSC: string;
+  BRANCH: string;
+  ADDRESS: string;
+  CITY: string;
+  STATE: string;
+  NEFT: boolean;
+  IMPS: boolean;
+  RTGS: boolean;
+  UPI: boolean;
+}
 
+export interface BankMaster {
+  bankCode: string;
+  bankName: string;
+}
+export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> {}
+
+export interface WebResponseDTOListBankMaster
+  extends WebResponseDTO<BankMaster[]> {}
 // WebResponse Wrappers
 export interface WebResponseDTOString {
   flag: boolean;
