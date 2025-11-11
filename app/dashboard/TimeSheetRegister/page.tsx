@@ -13,7 +13,7 @@ import { HolidayCalendarDTO, EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeShee
 import { holidaysService } from '@/lib/api/holidayService';
 import { timesheetService } from '@/lib/api/timeSheetService';
 import Spinner from '@/components/ui/Spinner';
-
+import { employeeService } from '@/lib/api/employeeService';
 
 interface TaskRow {
   id: string;
@@ -26,6 +26,8 @@ interface TaskRow {
 const TimeSheetRegister: React.FC = () => {
   const { state } = useAuth();
   const userId = state.user?.userId ?? null;
+  const [joiningDate, setJoiningDate] = useState<dayjs.Dayjs | null>(null);
+  const [dojLoading, setDojLoading] = useState(true);
 
   // Week selection state
   const [weekStart, setWeekStart] = useState(() =>
@@ -60,14 +62,50 @@ const TimeSheetRegister: React.FC = () => {
   );
 
   // Handle date selection and snap to week Monday
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const date = dayjs(e.target.value);
-    if (date.isValid()) {
-      const monday = date.startOf('week').add(1, 'day'); // Monday
-      setWeekStart(monday);
-      setSelectedDate(monday.format('YYYY-MM-DD'));
+ const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const date = dayjs(e.target.value);
+  if (!date.isValid()) return;
+
+  if (firstAllowedMonday && date.isBefore(firstAllowedMonday, 'day')) {
+    pushMessage('info', 'Cannot select date before your joining week');
+    return;
+  }
+
+  const monday = date.startOf('week').add(1, 'day');
+  setWeekStart(monday);
+  setSelectedDate(monday.format('YYYY-MM-DD'));
+};
+
+  useEffect(() => {
+  const fetchDOJ = async () => {
+    if (!userId || state.user?.role !== 'EMPLOYEE') {
+      setDojLoading(false);
+      return;
+    }
+
+    try {
+      setDojLoading(true);
+      const employee = await employeeService.getEmployeeById();
+      if (employee.dateOfJoining) {
+        const doj = dayjs(employee.dateOfJoining);
+        setJoiningDate(doj);
+        console.log('DOJ fetched:', doj.format('YYYY-MM-DD'));
+      }
+    } catch (err) {
+      console.error('Failed to fetch DOJ:', err);
+      pushMessage('error', 'Could not load joining date');
+    } finally {
+      setDojLoading(false);
     }
   };
+
+  fetchDOJ();
+}, [userId, state.user?.role]);
+
+const firstAllowedMonday = useMemo(() => {
+  if (!joiningDate) return null;
+  return joiningDate.startOf('week').add(1, 'day'); // Monday of DOJ week
+}, [joiningDate]);
 
   // 🔹 Fetch holidays
   const fetchHolidays = useCallback(async () => {
@@ -390,6 +428,10 @@ const TimeSheetRegister: React.FC = () => {
       const isHoliday = holidayMap[date];
       const leaveInfo = leaveMap[date];
 
+      if (joiningDate && dayDate.isBefore(joiningDate, 'day')) {
+        return; // Skip pre-DOJ days
+      }
+      
       // Validate workdays (Monday to Friday, not holidays or full-day leave days)
       if (!isWeekend && !isHoliday && !leaveInfo) {
         if (totalHours === 0) {
@@ -717,6 +759,7 @@ const TimeSheetRegister: React.FC = () => {
               <input
                 type="date"
                 value={selectedDate}
+                min={firstAllowedMonday?.format('YYYY-MM-DD') || undefined}
                 onChange={handleDateChange}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -727,10 +770,22 @@ const TimeSheetRegister: React.FC = () => {
           </div>
           <div className="flex items-center space-x-2">
               <ChevronLeft
-                className="cursor-pointer text-gray-600 hover:text-gray-800"
-                size={24}
-                onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
-              />
+                  className={`cursor-pointer text-gray-600 hover:text-gray-800 ${
+                    firstAllowedMonday && weekStart.isBefore(firstAllowedMonday, 'day') || 
+                      weekStart.isSame(firstAllowedMonday, 'day')
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  }`}
+                  size={24}
+                  onClick={() => {
+                    if (firstAllowedMonday && weekStart.isBefore(firstAllowedMonday, 'day') || 
+                        weekStart.isSame(firstAllowedMonday, 'day')) {
+                      pushMessage('info', 'Cannot go before your joining week');
+                      return;
+                    }
+                    setWeekStart(prev => prev.subtract(1, 'week'));
+                  }}
+                />
               <ChevronRight
                 className="cursor-pointer text-gray-600 hover:text-gray-800"
                 size={24}
@@ -754,11 +809,11 @@ const TimeSheetRegister: React.FC = () => {
             <span className="text-sm">Timesheet Status:</span>{' '}
             <strong className="text-base">{weekStatus}</strong>
             <span className="text-sm ml-2">
-              {weekStatus === 'DRAFT' && '– Editable (Draft)'}
-              {weekStatus === 'PENDING' && '– Locked (Awaiting Final Save)'}
-              {weekStatus === 'SUBMITTED' && '– Editable '}
-              {weekStatus === 'APPROVED' && '– Locked (Approved)'}
-              {weekStatus === 'REJECTED' && '– Editable (Please Revise)'}
+              {weekStatus === 'DRAFT'}
+              {weekStatus === 'PENDING'}
+              {weekStatus === 'SUBMITTED'}
+              {weekStatus === 'APPROVED'}
+              {weekStatus === 'REJECTED'}
             </span>
           </div>
           {managerComment && (
@@ -857,11 +912,12 @@ const TimeSheetRegister: React.FC = () => {
                   </td>
                   {weekDates.map(d => {
                     const key = d.format('YYYY-MM-DD');
+                    const isPreDOJ = joiningDate && d.isBefore(joiningDate, 'day');
                     const isHoliday = holidayMap[key];
                     const isLeave = leaveMap[key];
                     
                     // Allow weekend entries, only disable for holidays, full-day leaves, or when locked
-                    const disabled = isLocked || loading || !!isHoliday || (isLeave?.duration === 1);
+                    const disabled = isLocked || loading || !!isHoliday || (isLeave?.duration === 1 ) || isPreDOJ;
                     // Per-day cap is 8 hours; half-day leaves cap to 4
                     const maxHours = Math.min(isLeave?.duration === 0.5 ? 4 : 24, 8);
                     return (
@@ -871,7 +927,7 @@ const TimeSheetRegister: React.FC = () => {
                           min="0"
                           max={String(maxHours)}
                           step="0.5"
-                          className="w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                          className={isPreDOJ ? 'bg-gray-100 text-gray-400' : 'w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed'}
                           value={row.hours[key] ?? 0}
                           disabled={disabled}
                           onChange={e => {

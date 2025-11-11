@@ -1,6 +1,6 @@
 //app/manager/timesheets/page.tsx
 'use client';
-
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -14,7 +14,7 @@ import {
   HolidayCalendarDTO,EmployeeLeaveDayDTO
 } from '@/lib/api/types';
 // import { useSearchParams } from "next/navigation";
-
+import type { Dayjs } from 'dayjs';
 dayjs.extend(isoWeek);
 dayjs.extend(isBetween);
 
@@ -29,11 +29,26 @@ export default function ManagerTimesheetReview() {
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState<'APPROVE' | 'REJECT' | null>(null);
   const [managerComment, setManagerComment] = useState('');
-
+  const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
+  const [firstAllowedMonday, setFirstAllowedMonday] = useState<Dayjs | null>(null);
 // const searchParams = useSearchParams();
 // const employeeIdFromQuery = searchParams.get("employeeId");
 
-  // 🧩 fetch employee list
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      if (!val) return;
+      setSelectedDate(val);
+
+      const picked = dayjs(val);
+      const newWeekStart = picked.startOf('isoWeek');
+      setCurrentWeekStart(newWeekStart);
+    };
+
+    useEffect(() => {
+      setSelectedDate(currentWeekStart.format('YYYY-MM-DD'));
+    }, [currentWeekStart]);
+
+  // fetch employee list
   useEffect(() => {
     const fetchEmployees = async () => {
       const res = await managerTimeSheetService.getEmployeesUnderManager();
@@ -58,19 +73,44 @@ export default function ManagerTimesheetReview() {
   const currentWeekEnd = useMemo(() => currentWeekStart.endOf('isoWeek'), [currentWeekStart]);
 
   // 🧩 fetch ALL timesheets (Approved / Rejected / Pending)
-  const fetchTimesheets = useCallback(async (employeeId: string) => {
-    try {
-      setLoading(true);
-      const res = await managerTimeSheetService.getEmployeeTimesheets(employeeId, 0, 50);
-      // Include ALL statuses, no filtering here
-      const data = Array.isArray(res.response) ? res.response : [];
-      setTimesheets(data);
-    } catch (err) {
-      console.error("Error fetching timesheets:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // const fetchTimesheets = useCallback(async (employeeId: string) => {
+  //   try {
+  //     setLoading(true);
+  //     const res = await managerTimeSheetService.getEmployeeTimesheets(employeeId, 0, 25);
+  //     // Include ALL statuses, no filtering here
+  //     const data = Array.isArray(res.response) ? res.response : [];
+  //     setTimesheets(data);
+  //   } catch (err) {
+  //     console.error("Error fetching timesheets:", err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, []);
+  const fetchTimesheets = useCallback(async () => {
+  if (!selectedEmployee?.id) return;
+
+  try {
+    setLoading(true);
+    const start = currentWeekStart.format('YYYY-MM-DD');
+    const end = currentWeekEnd.format('YYYY-MM-DD');
+
+    console.log("Fetching timesheets for week:", start, "to", end);
+
+    const res = await managerTimeSheetService.getEmployeeTimesheets(
+      selectedEmployee.id,
+      start,
+      end
+    );
+
+    const data = Array.isArray(res.response) ? res.response : [];
+    setTimesheets(data);
+  } catch (err) {
+    console.error("Error fetching timesheets:", err);
+    setTimesheets([]);
+  } finally {
+    setLoading(false);
+  }
+}, [selectedEmployee, currentWeekStart, currentWeekEnd]);
 
   // Fetch leaves of the employee
 useEffect(() => {
@@ -117,30 +157,32 @@ useEffect(() => {
       }
     }
   }, [employees]);
-  
-  useEffect(() => {
-    if (selectedEmployee?.id) {
-      fetchTimesheets(selectedEmployee.id);
-    }
-  }, [selectedEmployee, fetchTimesheets]);
 
-  
+  // useEffect(() => {
+  //   if (selectedEmployee?.id) {
+  //     fetchTimesheets(selectedEmployee.id);
+  //   }
+  // }, [selectedEmployee, fetchTimesheets]);
+
+  useEffect(() => {
+  fetchTimesheets();
+}, [fetchTimesheets]);
 
   // 🧩 Filter only the current week (but keep all statuses)
-  const filteredTimesheets = useMemo(
-    () =>
-      timesheets.filter((ts) =>
-        dayjs(ts.workDate).isBetween(currentWeekStart, currentWeekEnd, 'day', '[]')
-      ),
-    [timesheets, currentWeekStart, currentWeekEnd]
-  );
+  // const filteredTimesheets = useMemo(
+  //   () =>
+  //     timesheets.filter((ts) =>
+  //       dayjs(ts.workDate).isBetween(currentWeekStart, currentWeekEnd, 'day', '[]')
+  //     ),
+  //   [timesheets, currentWeekStart, currentWeekEnd]
+  // );
 
   const weekDays = Array.from({ length: 7 }, (_, i) => currentWeekStart.add(i, 'day'));
 
   // Approve / Reject handler
  const handleApproveReject = (action: 'APPROVE' | 'REJECT') => {
   if (!selectedEmployee) return alert('Select an employee first');
-  const ids = filteredTimesheets.map((t) => t.timesheetId);
+  const ids = timesheets.map((t) => t.timesheetId);
   if (ids.length === 0) return alert('No timesheets found for this week');
 
   setModalAction(action);
@@ -148,7 +190,7 @@ useEffect(() => {
 };
 const confirmAction = async () => {
   if (!modalAction || !selectedEmployee) return;
-  const ids = filteredTimesheets.map((t) => t.timesheetId);
+  const ids = timesheets.map((t) => t.timesheetId);
 
   try {
     setLoading(true);
@@ -196,22 +238,73 @@ const confirmAction = async () => {
       </div>
 
      {/* Week Navigation */}
-      <div className="flex items-center gap-4 mb-4">
-        <button
-          onClick={() => setCurrentWeekStart((p) => p.subtract(1, 'week'))}
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-        >
-          ◀
-        </button>
-        <span className="font-medium">
-          {currentWeekStart.format('MMM DD')} - {currentWeekEnd.format('MMM DD, YYYY')}
-        </span>
-        <button
-          onClick={() => setCurrentWeekStart((p) => p.add(1, 'week'))}
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-        >
-          ▶
-        </button>
+      {/* Calendar / Date Picker Section */}
+      <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Select Week</h2>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          {/* Left side – picker + week label */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Calendar size={20} className="text-gray-500" />
+              <input
+                type="date"
+                value={selectedDate}
+                min={firstAllowedMonday?.format('YYYY-MM-DD') ?? undefined}
+                onChange={handleDateChange}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="text-sm text-gray-600">
+              Week: {currentWeekStart.format('MMM D')} -{' '}
+              {currentWeekStart.clone().add(6, 'day').format('MMM D, YYYY')}
+            </div>
+          </div>
+
+          {/* Right side – navigation arrows */}
+          <div className="flex items-center space-x-2">
+            <ChevronLeft
+              className={`cursor-pointer text-gray-600 hover:text-gray-800 ${
+                firstAllowedMonday && 
+                (currentWeekStart.isBefore(firstAllowedMonday, 'day') || 
+                currentWeekStart.isSame(firstAllowedMonday, 'day'))
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
+              size={24}
+              onClick={() => {
+                if (
+                  firstAllowedMonday && 
+                  (currentWeekStart.isBefore(firstAllowedMonday, 'day') || 
+                  currentWeekStart.isSame(firstAllowedMonday, 'day'))
+                ) {
+                  return;
+                }
+
+                setCurrentWeekStart((prev) => {
+                  const newWeek = prev.subtract(1, 'week');
+                  setSelectedDate(newWeek.format('YYYY-MM-DD'));
+                  return newWeek;
+                });
+              }}
+            />
+
+            <ChevronRight
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+              size={24}
+              onClick={() => {
+                setCurrentWeekStart((prev) => {
+                  const newWeek = prev.add(1, 'week');
+                  setSelectedDate(newWeek.format('YYYY-MM-DD'));
+                  return newWeek;
+                });
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Show this message when no employee is selected */}
@@ -222,31 +315,31 @@ const confirmAction = async () => {
       )}
 
       {/* Status + Manager Comment */}
-      {filteredTimesheets.length > 0 && (
+      {timesheets.length > 0 && (
         <div className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${
-          filteredTimesheets[0].status === 'DRAFT' ? 'bg-gray-50 text-gray-700 border-gray-300' :
-          filteredTimesheets[0].status === 'PENDING' ? 'bg-orange-50 text-orange-800 border-orange-300' :
-          filteredTimesheets[0].status === 'SUBMITTED' ? 'bg-blue-50 text-blue-800 border-blue-300' :
-          filteredTimesheets[0].status === 'APPROVED' ? 'bg-green-50 text-green-800 border-green-300' :
-          filteredTimesheets[0].status === 'REJECTED' ? 'bg-red-50 text-red-800 border-red-300' :
+          timesheets[0].status === 'DRAFT' ? 'bg-gray-50 text-gray-700 border-gray-300' :
+          timesheets[0].status === 'PENDING' ? 'bg-orange-50 text-orange-800 border-orange-300' :
+          timesheets[0].status === 'SUBMITTED' ? 'bg-blue-50 text-blue-800 border-blue-300' :
+          timesheets[0].status === 'APPROVED' ? 'bg-green-50 text-green-800 border-green-300' :
+          timesheets[0].status === 'REJECTED' ? 'bg-red-50 text-red-800 border-red-300' :
           'bg-gray-50 text-gray-700 border-gray-300'
         }`}>
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm">Timesheet Status:</span>{' '}
-              <strong className="text-base">{filteredTimesheets[0].status}</strong>
+              <strong className="text-base">{timesheets[0].status}</strong>
               <span className="text-sm ml-2">
-                {filteredTimesheets[0].status === 'DRAFT' && '– Editable (Draft)'}
-                {filteredTimesheets[0].status === 'PENDING' && '– Locked (Awaiting Final Save)'}
-                {filteredTimesheets[0].status === 'SUBMITTED' && '– Editable (Waiting for Submission by Employee)'}
-                {filteredTimesheets[0].status === 'APPROVED' && '– Locked (Approved)'}
-                {filteredTimesheets[0].status === 'REJECTED' && '– Editable (Please Revise)'}
+                {timesheets[0].status === 'DRAFT' && '– Editable (Draft)'}
+                {timesheets[0].status === 'PENDING' && '– Locked (Awaiting Final Save)'}
+                {timesheets[0].status === 'SUBMITTED' && '– Editable (Waiting for Submission by Employee)'}
+                {timesheets[0].status === 'APPROVED' && '– Locked (Approved)'}
+                {timesheets[0].status === 'REJECTED' && '– Editable (Please Revise)'}
               </span>
             </div>
-            {filteredTimesheets[0].managerComment && (
+            {timesheets[0].managerComment && (
               <div className="text-right">
                 <span className="text-xs block text-gray-600">Manager Comment:</span>
-                <span className="text-sm font-medium">{filteredTimesheets[0].managerComment}</span>
+                <span className="text-sm font-medium">{timesheets[0].managerComment}</span>
               </div>
             )}
           </div>
@@ -258,9 +351,9 @@ const confirmAction = async () => {
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
-      ) : filteredTimesheets.length === 0 || filteredTimesheets[0]?.status === 'SUBMITTED' ? (
+      ) : timesheets.length === 0 || timesheets[0]?.status === 'SUBMITTED' ? (
         <p className="text-center text-gray-500 mt-10">
-          {filteredTimesheets[0]?.status === 'SUBMITTED'
+          {timesheets[0]?.status === 'SUBMITTED'
             ? 'Timesheet is submitted and awaiting approval.'
             : 'No data found for this week.'}
         </p>
@@ -281,12 +374,12 @@ const confirmAction = async () => {
               </tr>
             </thead>
             <tbody>
-              {Array.from(new Set(filteredTimesheets.map((t) => t.taskName))).map((task) => (
+              {Array.from(new Set(timesheets.map((t) => t.taskName))).map((task) => (
                 <tr key={task} className="border-b">
                   <td className="py-2 px-4 text-left font-medium">{task}</td>
 
                   {weekDays.map((day) => {
-                    const record = filteredTimesheets.find(
+                    const record = timesheets.find(
                       (ts) => ts.taskName === task && dayjs(ts.workDate).isSame(day, 'day')
                     );
 
@@ -325,7 +418,7 @@ const confirmAction = async () => {
               <tr>
                 <td className="py-2 px-4 font-semibold text-left">Total Hours</td>
                 {weekDays.map((day) => {
-                  const total = filteredTimesheets
+                  const total = timesheets
                     .filter((ts) => dayjs(ts.workDate).isSame(day, 'day'))
                     .reduce((sum, ts) => sum + (ts.workedHours || 0), 0);
                   return (
@@ -341,7 +434,7 @@ const confirmAction = async () => {
           
           {/* Approve / Reject Buttons */}
           <div className="flex justify-end gap-4 p-4 border-t bg-gray-50">
-            {filteredTimesheets.length > 0 && filteredTimesheets[0].status !== 'APPROVED' && (
+            {timesheets.length > 0 && timesheets[0].status !== 'APPROVED' && (
               <button
                 onClick={() => handleApproveReject('APPROVE')}
                 className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700"
@@ -349,7 +442,7 @@ const confirmAction = async () => {
                 Approve
               </button>
             )}
-            {filteredTimesheets.length > 0 && ['PENDING', 'REJECTED'].includes(filteredTimesheets[0].status) && (
+            {timesheets.length > 0 && ['PENDING', 'REJECTED'].includes(timesheets[0].status) && (
               <button
                 onClick={() => handleApproveReject('REJECT')}
                 className="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700"

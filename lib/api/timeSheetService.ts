@@ -264,20 +264,20 @@ async getAllTimesheets(params?: {
   /**
    * 🔍 Get single timesheet by ID (GET)
    */
-  // async getTimesheetById(timesheetId: string): Promise<WebResponseDTO<TimeSheetResponseDto>> {
-  //   return this._query<TimeSheetResponseDto>(`/employee/view/timesheet/${timesheetId}`);
-  // }
+  async getTimesheetById(timesheetId: string): Promise<WebResponseDTO<TimeSheetResponseDto>> {
+    return this._query<TimeSheetResponseDto>(`/employee/view/timesheet/${timesheetId}`);
+  }
 
-  async getTimesheetById(
-  id: string,
-  type: 'timesheetId' | 'referenceId' = 'timesheetId'
-): Promise<WebResponseDTO<TimeSheetResponseDto>> {
-  const endpoint =
-    type === 'referenceId'
-      ? `/employee/view/timesheet/${id}`
-      : `/employee/view/timesheet/${id}`;
-  return this._query<TimeSheetResponseDto>(endpoint);
-}
+//   async getTimesheetById(
+//   id: string,
+//   type: 'timesheetId' | 'referenceId' = 'timesheetId'
+// ): Promise<WebResponseDTO<TimeSheetResponseDto>> {
+//   const endpoint =
+//     type === 'referenceId'
+//       ? `/employee/view/timesheet/${id}`
+//       : `/employee/view/timesheet/${id}`;
+//   return this._query<TimeSheetResponseDto>(endpoint);
+// }
 }
 
 export const timesheetService = new TimesheetService();

@@ -128,15 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  // const logout = () => {
-  //   if (typeof window !== 'undefined') {
-  //     localStorage.removeItem('accessToken');
-  //     localStorage.removeItem('refreshToken');
-  //     localStorage.removeItem('user');
-  //   }
-  //   dispatch({ type: 'LOGOUT' });
-  //   window.location.href = '/auth/login';
-  // };
+  
   const logout = () => {
     if (typeof window !== 'undefined') {
       localStorage.clear();
