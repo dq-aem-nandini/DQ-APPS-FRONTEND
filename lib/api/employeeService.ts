@@ -9,6 +9,9 @@ import {
   EmployeeDTO,
   WebResponseDTO,
   WebResponseDTOString,
+  WebResponseDTOListEmployeeUpdateRequestDTO,
+  WebResponseDTOListBankMaster,
+  WebResponseDTOIfsc,
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -162,7 +165,221 @@ class EmployeeService {
         throw new Error(msg);
       }
     }
-  
+    // my update requests
+    async getMyUpdateRequests(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {
+      try {
+        const response: AxiosResponse<WebResponseDTOListEmployeeUpdateRequestDTO> =
+          await api.get("/employee/update-request/my");
+    
+        console.log("📌 My Update Requests:", response.data);
+    
+        return response.data;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error.message ||
+          "Failed to fetch update requests";
+        throw new Error(msg);
+      }
+    }
+    // submit update
+    async submitUpdateRequest(
+      payload: any
+    ): Promise<WebResponseDTOString> {
+      try {
+        const response: AxiosResponse<WebResponseDTOString> =
+          await api.post("/employee/update-request/submit", payload);
+    
+        console.log("📌 Submit Update Request:", response.data);
+    
+        return response.data;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error.message ||
+          "Failed to submit update request";
+        throw new Error(msg);
+      }
+    }
+  // =====================================================
+  // ✅ GET ALL ADMIN UPDATE REQUESTS
+  // GET /admin/update-request/all
+  // =====================================================
+  async getAllUpdateRequestsAdmin(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {
+    try {
+      const response: AxiosResponse<WebResponseDTOListEmployeeUpdateRequestDTO> =
+        await api.get("/admin/update-request/all");
+
+      console.log("📌 All Update Requests (Admin):", response.data);
+
+      return response.data;
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to fetch admin update requests";
+
+      return {
+        flag: false,
+        message,
+        status: error?.response?.status || 500,
+        response: [],
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+  }
+
+  // =====================================================
+  // ✅ APPROVE UPDATE REQUEST
+  // PUT /admin/update-request/approve/{requestId}
+  // =====================================================
+  async approveUpdateRequest(
+    requestId: string
+  ): Promise<WebResponseDTO<string>> {
+    if (!requestId) {
+      return {
+        flag: false,
+        message: "Request ID is required",
+        status: 400,
+        response: "",
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+
+    try {
+      const response: AxiosResponse<WebResponseDTO<string>> = await api.put(
+        `/admin/update-request/approve/${requestId}`
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      console.error("❌ Error approving request:", error);
+
+      let message = "Failed to approve request";
+      let status = 500;
+
+      if (error instanceof AxiosError) {
+        message = error.response?.data?.message || error.message;
+        status = error.response?.status || 500;
+      }
+
+      return {
+        flag: false,
+        message,
+        status,
+        response: "",
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+  }
+
+  // =====================================================
+  // ✅ REJECT UPDATE REQUEST
+  // PUT /admin/update-request/reject/{requestId}?comment=xxx
+  // =====================================================
+  async rejectUpdateRequest(
+    requestId: string,
+    comment: string
+  ): Promise<WebResponseDTO<string>> {
+    if (!requestId) {
+      return {
+        flag: false,
+        message: "Request ID is required",
+        status: 400,
+        response: "",
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+
+    try {
+      const response: AxiosResponse<WebResponseDTO<string>> = await api.put(
+        `/admin/update-request/reject/${requestId}`,
+        {},
+        {
+          params: { comment: comment || "" },
+        }
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      console.error("❌ Error rejecting request:", error);
+
+      let message = "Failed to reject request";
+      let status = 500;
+
+      if (error instanceof AxiosError) {
+        message = error.response?.data?.message || error.message;
+        status = error.response?.status || 500;
+      }
+
+      return {
+        flag: false,
+        message,
+        status,
+        response: "",
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
+  }
+  // =====================================================
+// ✅ GET IFSC DETAILS
+// GET /banks/ifsc/{ifscCode}
+// =====================================================
+async getIFSCDetails(ifscCode: string): Promise<WebResponseDTOIfsc> {
+  if (!ifscCode) throw new Error("IFSC code is required");
+
+  try {
+    const response: AxiosResponse<WebResponseDTOIfsc> = await api.get(
+      `/banks/ifsc/${ifscCode}`
+    );
+    return response.data;
+  } catch (error: any) {
+    const msg =
+      error?.response?.data?.message ||
+      error.message ||
+      "Failed to fetch IFSC details";
+    throw new Error(msg);
+  }
+}
+
+// =====================================================
+// ✅ SEARCH BANK MASTER
+// GET /banks/search?query=
+// =====================================================
+async searchBankMaster(
+  query: string
+): Promise<WebResponseDTOListBankMaster> {
+  if (!query.trim()) {
+    return {
+      flag: false,
+      message: "Query is required",
+      status: 400,
+      response: [],
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  try {
+    const response: AxiosResponse<WebResponseDTOListBankMaster> =
+      await api.get(`/banks/search`, {
+        params: { query },
+      });
+
+    return response.data;
+  } catch (error: any) {
+    const msg =
+      error?.response?.data?.message ||
+      error.message ||
+      "Failed to fetch bank master";
+    throw new Error(msg);
+  }
+}
 }
 
 export const employeeService = new EmployeeService();

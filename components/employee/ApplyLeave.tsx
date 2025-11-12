@@ -8,11 +8,10 @@ import {
   LeaveCategoryType,
   FinancialType,
   LeaveRequestDTO,
-  LeaveAvailabilityDTO,
-  LeaveResponseDTO,
 } from '@/lib/api/types';
 import { useAuth } from '@/context/AuthContext';
-
+import BackButton from '../ui/BackButton';
+import Swal from 'sweetalert2';
 const ApplyLeavePage: React.FC = () => {
   const { state: { user } } = useAuth();
   const router = useRouter();
@@ -215,33 +214,47 @@ const ApplyLeavePage: React.FC = () => {
 
       if (formData.leaveId) {
         await leaveService.updateLeave(formData, attachment);
-        setSuccess('Leave updated successfully!');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Updated!',
+          text: 'Leave updated successfully!',
+          confirmButtonText: 'OK',
+          allowOutsideClick: false,
+        });
       } else {
         await leaveService.applyLeave(formData, attachment);
-        setSuccess('Leave applied successfully! ');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Applied!',
+          text: 'Leave applied successfully!',
+          confirmButtonText: 'OK',
+          allowOutsideClick: false,
+        });
       }
 
-      setTimeout(() => router.push('/dashboard/leaves'), 2000);
+      // Only redirect after user clicks OK
+      router.push('/dashboard/leaves');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process leave request');
+      const msg = err instanceof Error ? err.message : 'Failed to process leave request';
+      await Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: msg,
+        confirmButtonText: 'OK',
+      });
     } finally {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-green-600">{success}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="apply-leave-page p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">
-        {formData.leaveId ? 'Update Leave Request' : 'Apply for New Leave'}
-      </h1>
+      <div className="mb-10 flex items-center justify-between">
+        <BackButton to="/dashboard/leaves" />
+        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          {formData.leaveId ? 'Update Leave Request' : 'Apply for New Leave'}
+        </h1>
+        <div className="w-20" />
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-4">
         {/* Leave Type */}

@@ -128,11 +128,10 @@ const DashboardContent: React.FC = () => {
           <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
           <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
           <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
-          ${
-            leave.attachmentUrl
-              ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-              : '<p><strong>Attachment:</strong> None</p>'
-          }
+          ${leave.attachmentUrl
+          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
+          : '<p><strong>Attachment:</strong> None</p>'
+        }
           <div>
             <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
             <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
@@ -237,8 +236,8 @@ const DashboardContent: React.FC = () => {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4">
+      <div className="flex flex-wrap justify-center gap-6">
+        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4 max-w-sm">
           <Calendar className="h-10 w-10 text-indigo-600" />
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Pending Leaves</h3>
@@ -251,7 +250,7 @@ const DashboardContent: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4">
+        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4 max-w-sm">
           <CheckCircle className="h-10 w-10 text-green-600" />
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Approved Leaves</h3>
@@ -264,37 +263,43 @@ const DashboardContent: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4">
-          <Users className="h-10 w-10 text-blue-600" />
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Team Members</h3>
-            <p className="text-2xl font-bold text-gray-700">{teamCount}</p>
-            <p className="text-sm text-gray-600">Avg. Leaves: {averageLeaves.toFixed(1)}</p>
-            <button
-              onClick={() => router.push('/manager/employees')}
-              className="mt-2 text-sm text-indigo-600 hover:underline"
-            >
-              View Team
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Recent Pending Leaves */}
       {recentPendingLeaves.length > 0 && (
         <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Pending Leaves</h3>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Employee</th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">From Date</th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">To Date</th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Attachment</th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Employee
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Category Type
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Duration
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Financial Type
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    From Date
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    To Date
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Attachment
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -308,6 +313,9 @@ const DashboardContent: React.FC = () => {
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
                       {leave.leaveDuration ?? 0} days
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.financialType ?? 'N/A'}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
                       {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
@@ -328,6 +336,11 @@ const DashboardContent: React.FC = () => {
                       ) : (
                         'None'
                       )}
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {leave.status ?? 'PENDING'}
+                      </span>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base">
                       <button

@@ -79,7 +79,15 @@ const HolidayCalendarPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 min-h-screen bg-gray-100">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Holiday Calendar</h1>
+
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-10">
+        <div className="relative flex items-center justify-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Holiday Calendar
+          </h1>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 bg-white p-4 rounded-lg shadow-sm">

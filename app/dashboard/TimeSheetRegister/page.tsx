@@ -1,4 +1,4 @@
-// components/employee/TimeSheetRegister.tsx
+//app/dashboard/TimeSheetRegister/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -31,6 +31,7 @@ const TimeSheetRegister: React.FC = () => {
   const [weekStart, setWeekStart] = useState(() =>
     dayjs().startOf('week').add(1, 'day')
   ); // Monday
+  const [weekStatus, setWeekStatus] = useState<'DRAFT' | 'SUBMITTED' | 'APPROVED'| 'PENDING' | 'REJECTED'| ''>('');
   const [selectedDate, setSelectedDate] = useState(weekStart.format('YYYY-MM-DD'));
   const [rows, setRows] = useState<TaskRow[]>([]);
   const [holidayMap, setHolidayMap] = useState<Record<string, HolidayCalendarDTO>>({});
@@ -44,6 +45,8 @@ const TimeSheetRegister: React.FC = () => {
     setMessages(prev => [...prev, { id, type, text }]);
     setTimeout(() => setMessages(prev => prev.filter(m => m.id !== id)), 6000);
   };
+
+  const [managerComment, setManagerComment] = useState<string | null>(null);
 
   // Confirm modal state
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; rowIndex: number | null }>({ open: false, rowIndex: null });
@@ -162,10 +165,28 @@ const TimeSheetRegister: React.FC = () => {
       });
 
       // Set locked state based on statuses
-      const hasSubmittedEntries = list.some(item => item.status === 'Submitted');
-      console.debug('[TimeSheetRegister] Any submitted entries:', hasSubmittedEntries);
+      // const hasSubmittedEntries = list.some(item => item.status === 'Submitted');
+      // console.debug('[TimeSheetRegister] Any submitted entries:', hasSubmittedEntries);
 
-      setIsLocked(hasSubmittedEntries); // Lock if any entries are submitted
+      // setIsLocked(hasSubmittedEntries); // Lock if any entries are submitted
+
+      // ── determine week status ─────────────────────────────────────
+      // Determine week status from backend entries
+        const statuses = list.map(i => i.status).filter(Boolean);
+        const hasSubmitted = statuses.includes('SUBMITTED');
+        const hasApproved = statuses.includes('APPROVED');
+        const hasPending = statuses.includes('PENDING');
+        const hasRejected = statuses.includes('REJECTED');
+
+        let status: typeof weekStatus = 'DRAFT';
+
+        if (hasApproved) status = 'APPROVED';
+        else if (hasSubmitted) status = 'SUBMITTED';
+        else if (hasPending) status = 'PENDING';
+        else if (hasRejected) status = 'REJECTED';
+
+        setWeekStatus(status);
+        setIsLocked(status === 'PENDING' || status === 'APPROVED');
 
       // Map backend TimeSheetResponseDto => frontend TimeSheetModel with date validation
       const mappedList: TimeSheetModel[] = list.map((item: TimeSheetResponseDto) => {
@@ -190,6 +211,10 @@ const TimeSheetRegister: React.FC = () => {
         };
       });
       console.debug('[TimeSheetRegister] fetchData - mappedList:', JSON.stringify(mappedList, null, 2));
+
+      // 👇 pick first non-empty manager comment (if exists)
+        const foundComment = list.find(item => item.managerComment)?.managerComment || null;
+        setManagerComment(foundComment);
 
       const grouped: Record<string, TaskRow> = {};
       mappedList.forEach(item => {
@@ -277,7 +302,7 @@ const TimeSheetRegister: React.FC = () => {
             if (h < 0) {
               msgs.push(`Row ${ri + 1}: Hours cannot be negative for ${date}`);
             }
-            if (h > 24) {
+            if (h > 8) {
               msgs.push(`Row ${ri + 1}: Hours cannot exceed 24 for ${date}`);
             }
 
@@ -421,50 +446,50 @@ const TimeSheetRegister: React.FC = () => {
   const handleChange = (rowIndex: number, date: string, value: number) => {
     if (isLocked || loading) return;
 
-    // Determine leave info for the date
     const leaveInfo = leaveMap[date];
 
-    // If full-day leave, disallow any hours
+    // ---- Full-day leave → block any entry ----
     if (leaveInfo?.duration === 1) {
       pushMessage('error', `Cannot enter hours on a full-day leave (${leaveInfo.leaveCategory})`);
       value = 0;
     }
 
-    // Compute current total for the date excluding this row to enforce per-day max of 8
+    // ---- Compute total hours already entered on this date (excluding current cell) ----
     const currentTotalOtherRows = rows.reduce((sum, r, idx) => {
       if (idx === rowIndex) return sum;
-      return sum + (r.hours[date] ? Number(r.hours[date]) : 0);
+      return sum + (Number(r.hours[date]) || 0);
     }, 0);
 
-    // Allowed remaining hours for the day (per-day cap 8)
-    let allowedForDay = 8 - currentTotalOtherRows;
-    // If half-day leave, also cap allowed to 4
+    // ---- Base daily cap = 8 h ----
+    let maxAllowed = 8 - currentTotalOtherRows;
+
+    // ---- Half-day leave → cap at 4 h total for the day ----
     if (leaveInfo?.duration === 0.5) {
-      allowedForDay = Math.min(allowedForDay, 4);
+      maxAllowed = Math.min(maxAllowed, 4 - currentTotalOtherRows);
     }
-    if (allowedForDay < 0) allowedForDay = 0;
+    
+    if (maxAllowed < 0) maxAllowed = 0;
 
-    if (value > allowedForDay) {
-      if (allowedForDay === 0) {
-        pushMessage('error', `No available hours can be entered for ${date}`);
-      } else {
-        pushMessage('error', `Total hours for ${date} cannot exceed 8. Only ${allowedForDay} hour(s) available`);
-      }
-      value = allowedForDay;
+    if (value > maxAllowed) {
+      const msg = leaveInfo?.duration === 0.5
+        ? `Half-day leave: max 4 h total for ${date}. Only ${maxAllowed} h left.`
+        : `Day cap is 8 h. Only ${maxAllowed} h left for ${date}.`;
+      pushMessage('error', msg);
+      value = maxAllowed;
     }
 
-    // Final clamp for safety: non-negative and max 8 per single cell
-    if (value < 0) value = 0;
-    if (value > 8) value = 8;
+    // ---- Safety clamp per-cell (never > 8) ----
+    value = Math.max(0, Math.min(value, 8));
 
     setRows(prev => {
       const copy = [...prev];
-      copy[rowIndex].hours[date] = Number(value);
+      copy[rowIndex].hours[date] = value;
       copy[rowIndex]._dirty = true;
       return copy;
     });
   };
 
+  
   const handleTaskNameChange = (rowIndex: number, name: string) => {
     if (isLocked || loading) return;
     setRows(prev => {
@@ -483,121 +508,132 @@ const TimeSheetRegister: React.FC = () => {
     );
   }, [rows, weekDates]);
 
-  // 🔹 Save logic (update existing or create new)
-  const saveAll = async () => {
-    if (isLocked) {
-      pushMessage('error', 'Cannot modify timesheet - it has already been submitted for approval');
-      return;
-    }
-    if (loading) {
-      pushMessage('info', 'Please wait while current operation completes');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // Run validation for modified entries only
-      const validation = validateForSave();
-      if (!validation.ok) {
-        validation.messages.forEach(m => pushMessage('error', m));
-        setLoading(false);
+// 🔹 Save logic (update existing or create new)
+    const saveAll = async () => {
+      if (isLocked) {
+        pushMessage('error', 'Cannot modify timesheet - it has already been submitted for approval');
+        return;
+      }
+      if (loading) {
+        pushMessage('info', 'Please wait while current operation completes');
         return;
       }
 
-      console.debug('[TimeSheetRegister] saveAll - rows before save:', JSON.stringify(rows, null, 2));
-      const toCreate: TimeSheetModel[] = [];
-      const toUpdate: Record<string, TimeSheetModel> = {}; // Key by timesheetId to avoid duplicates
+      try {
+        setLoading(true);
+        // Run validation for modified entries only
+        const validation = validateForSave();
+        if (!validation.ok) {
+          validation.messages.forEach(m => pushMessage('error', m));
+          setLoading(false);
+          return;
+        }
 
-      // Process only modified rows or rows with existing timesheet IDs
-      rows.forEach(r => {
-        const isDirty = r._dirty;
-        const hasTimesheetIds = r.timesheetIds && Object.keys(r.timesheetIds).length > 0;
-        if (isDirty || hasTimesheetIds) {
-          Object.entries(r.hours).forEach(([date, hours]) => {
-            const tsId = r.timesheetIds?.[date];
-            const isDateModified = isDirty && r.hours[date] !== undefined;
+        console.debug('[TimeSheetRegister] saveAll - rows before save:', JSON.stringify(rows, null, 2));
+        const toCreate: TimeSheetModel[] = [];
+        const toUpdate: Record<string, TimeSheetModel> = {}; // Key by timesheetId to avoid duplicates
 
-            // Only process modified dates or existing timesheet entries
-            if ((isDateModified || tsId) && hours >= 0 && r.taskName) {
-              const base: TimeSheetModel = {
-                workDate: date,
-                hoursWorked: hours,
-                taskName: r.taskName,
-                taskDescription: '',
-                clientId: '',
-                ...(tsId && { timesheetId: tsId }),
-              };
+        // Process only modified rows or rows with existing timesheet IDs
+        rows.forEach(r => {
+          const isDirty = r._dirty;
+          const hasTimesheetIds = r.timesheetIds && Object.keys(r.timesheetIds).length > 0;
+          if (isDirty || hasTimesheetIds) {
+            Object.entries(r.hours).forEach(([date, hours]) => {
+              const tsId = r.timesheetIds?.[date];
+              const isDateModified = isDirty && r.hours[date] !== undefined;
+              const hrs = Number(hours);
 
-              if (!tsId) {
-                toCreate.push(base);
-              } else if (isDirty) {
-                toUpdate[tsId] = base;
+              // CREATE: only if hours > 0
+              if (!tsId && isDateModified && hrs > 0 && r.taskName) {
+                const newEntry: TimeSheetModel = {
+                  workDate: date,
+                  hoursWorked: hrs,
+                  taskName: r.taskName,
+                  taskDescription: '',
+                  clientId: '',
+                };
+                toCreate.push(newEntry);
               }
-            }
-          });
-        }
-      });
 
-      // Check if there's anything to save
-      if (toCreate.length === 0 && Object.keys(toUpdate).length === 0) {
-        pushMessage('info', 'No changes to save');
-        setLoading(false);
-        return;
-      }
-
-      // 🟢 Create new
-      if (toCreate.length > 0) {
-        console.debug('[TimeSheetRegister] Creating timesheets payload:', JSON.stringify(toCreate, null, 2));
-        const response = await timesheetService.createTimesheets(toCreate);
-        console.debug('[TimeSheetRegister] createTimesheets response:', response);
-        if (!response.flag) {
-          throw new Error(response.message || 'Failed to create timesheets');
-        }
-        // Assume response.response is array of { timesheetId, workDate, ... }
-        const created = response.response as { timesheetId: string; workDate: string; taskName: string }[];
-        if (created && Array.isArray(created)) {
-          created.forEach((item) => {
-            if (!item.timesheetId || !item.workDate) return;
-            const dateKey = item.workDate;
-            const tsId = item.timesheetId;
-            setRows(prev =>
-              prev.map((r: TaskRow) => {
-                if (r.taskName === item.taskName) {
-                  return { ...r, timesheetIds: { ...(r.timesheetIds || {}), [dateKey]: tsId } };
-                }
-                return r;
-              })
-            );
-          });
-        }
-      }
-
-      // 🟢 Update existing
-      for (const [tsId, upd] of Object.entries(toUpdate)) {
-        try {
-          const updateResponse = await timesheetService.updateTimesheet(tsId, upd);
-          if (!updateResponse.flag) {
-            console.error('Update failed for', upd, updateResponse.message);
+              // UPDATE: allow even if hours = 0 (to reset to zero)
+              if (tsId && (isDateModified || hrs === 0)) {
+                const updateEntry: TimeSheetModel = {
+                  workDate: date,
+                  hoursWorked: hrs,
+                  taskName: r.taskName,
+                  taskDescription: '',
+                  clientId: '',
+                  timesheetId: tsId,
+                };
+                toUpdate[tsId] = updateEntry;
+              }
+            });
           }
-        } catch (err) {
-          console.error('Update failed for', upd, err);
+        });
+
+        // Check if there's anything to save
+        if (toCreate.length === 0 && Object.keys(toUpdate).length === 0) {
+          pushMessage('info', 'No changes to save');
+          setLoading(false);
+          return;
         }
+
+        // Create new
+        if (toCreate.length > 0) {
+          console.debug('[TimeSheetRegister] Creating timesheets payload:', JSON.stringify(toCreate, null, 2));
+          const response = await timesheetService.createTimesheets(toCreate);
+          if (!response.flag) {
+            throw new Error(response.message || 'Failed to create timesheets');
+          }
+
+          const created = response.response as { timesheetId: string; workDate: string; taskName: string }[];
+          if (created && Array.isArray(created)) {
+            created.forEach((item) => {
+              if (!item.timesheetId || !item.workDate) return;
+              const dateKey = item.workDate;
+              const tsId = item.timesheetId;
+              setRows(prev =>
+                prev.map((r: TaskRow) => {
+                  if (r.taskName === item.taskName) {
+                    return { ...r, timesheetIds: { ...(r.timesheetIds || {}), [dateKey]: tsId } };
+                  }
+                  return r;
+                })
+              );
+            });
+          }
+        }
+
+        // Update existing
+        for (const [tsId, upd] of Object.entries(toUpdate)) {
+          try {
+            const updateResponse = await timesheetService.updateTimesheet(tsId, upd);
+            if (!updateResponse.flag) {
+              console.error('Update failed for', upd, updateResponse.message);
+            }
+          } catch (err) {
+            console.error('Update failed for', upd, err);
+          }
+        }
+
+        // Clear dirty flags after successful save
+        setRows(prev => prev.map(r => ({ ...r, _dirty: false })));
+
+               // Clear dirty flags
+        setRows(prev => prev.map(r => ({ ...r, _dirty: false })));
+
+        // Refetch to get updated status (SUBMITTED → unlock, PENDING → lock)
+        await fetchData();
+
+        // Optional: show message based on new status
+        pushMessage('success', 'Changes saved successfully');
+      } catch (err) {
+        console.error(err);
+        pushMessage('error', 'Save failed');
+      } finally {
+        setLoading(false);
       }
-
-      // Clear dirty flags after successful save
-      setRows(prev => prev.map(r => ({ ...r, _dirty: false })));
-
-      // Refresh data
-      await fetchData();
-      console.debug('[TimeSheetRegister] rows after fetch (fresh):', JSON.stringify(rows, null, 2));
-      pushMessage('success', 'Save successful');
-    } catch (err) {
-      console.error(err);
-      pushMessage('error', 'Save failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   // 🔹 Submit for approval (opens confirmation after validation)
   const submitForApproval = async () => {
@@ -609,84 +645,51 @@ const TimeSheetRegister: React.FC = () => {
       pushMessage('info', 'Please wait while current operation completes');
       return;
     }
-
     // Run validation before showing confirmation
     const validation = runValidation();
     if (!validation.ok) {
-      validation.messages.forEach(m => pushMessage('error', m));
+      validation.messages.forEach((m) => pushMessage('error', m));
       return;
     }
-
     // All validation passed, show confirmation dialog
     setConfirmSubmitOpen(true);
   };
 
-  const confirmSubmitYes = async () => {
-    setConfirmSubmitOpen(false);
-    const validation = runValidation();
-    if (!validation.ok) {
-      validation.messages.forEach(m => pushMessage('error', m));
+  // Inside your confirmed submit action (where API is actually called)
+  const handleConfirmSubmit = async () => {
+  try {
+    setLoading(true);
+
+    // ── collect the ids that have hours > 0 ───────────────────────
+    const ids: string[] = [];
+    rows.forEach(r => {
+      Object.entries(r.timesheetIds || {}).forEach(([date, id]) => {
+        if (id && r.hours[date] > 0) ids.push(id);
+      });
+    });
+
+    if (ids.length === 0) {
+      pushMessage('error', 'No valid timesheet entries to submit.');
       return;
     }
 
-    try {
-      setLoading(true);
-      // First save all pending changes
-      await saveAll();
-
-      // Wait a moment for backend to process saves
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Re-fetch fresh data and collect IDs
-      await fetchData(); // Update the UI state first
-
-      const ids: string[] = [];
-      rows.forEach(r => {
-        Object.entries(r.timesheetIds || {}).forEach(([date, id]) => {
-          if (id && r.hours[date] > 0) {
-            console.debug(`[TimeSheetRegister] Processing row for submit - date: ${date}, hours: ${r.hours[date]}, id: ${id}`);
-            ids.push(id);
-          }
-        });
-      });
-      console.debug('[TimeSheetRegister] IDs collected for submit:', ids);
-
-      if (ids.length === 0) {
-        pushMessage('error', 'No valid timesheet entries to submit. Ensure all workdays have hours.');
-        return;
-      }
-
-      // Submit all timesheets for approval
-      const submitResponse = await timesheetService.submitForApproval(ids);
-      if (!submitResponse.flag) {
-        throw new Error(submitResponse.message || 'Failed to submit for approval');
-      }
-
-      // Lock the timesheet and update UI
-      setIsLocked(true);
-      pushMessage('success', `Timesheet submitted for approval. Week of ${weekStart.format('MMM D, YYYY')} is now locked.`);
-
-      // Refresh data to get updated status
-      await fetchData();
-
-      // Re-validate lock state from fresh data
-      const refreshedData = await timesheetService.getAllTimesheets({
-        startDate: weekStart.format('YYYY-MM-DD'),
-        endDate: weekStart.clone().add(6, 'day').format('YYYY-MM-DD'),
-      });
-
-      if (refreshedData.response?.some(item => item.status === 'Submitted')) {
-        setIsLocked(true);
-      }
-    } catch (err) {
-      console.error('submit failed', err);
-      pushMessage('error', 'Submit failed');
-    } finally {
-      setLoading(false);
+    const submitResponse = await timesheetService.submitForApproval(ids);
+    if (!submitResponse.flag) {
+      throw new Error(submitResponse.message || 'Failed to submit for approval');
     }
-  };
 
-  const confirmSubmitNo = () => setConfirmSubmitOpen(false);
+    // lock UI
+    setIsLocked(true);
+    setWeekStatus('PENDING');               // keep weekStatus in sync
+    pushMessage('success', 'Timesheet submitted for approval successfully');
+  } catch (error: any) {
+    console.error('Error submitting timesheet for approval:', error);
+    pushMessage('error', error.message || 'Something went wrong while submitting for approval');
+  } finally {
+    setLoading(false);
+    setConfirmSubmitOpen(false);
+  }
+};
 
   if (loading) {
     return (
@@ -699,8 +702,6 @@ const TimeSheetRegister: React.FC = () => {
     );
   }
 
-  // (removed) helper merged into other checks
-
   return (
     <div className="p-6 min-h-screen bg-gray-50">
       {/* Calendar/Date Picker Section */}
@@ -710,35 +711,66 @@ const TimeSheetRegister: React.FC = () => {
         </div>
 
         <div className="flex items-center  mb-4 gap-4">
-        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Calendar size={20} className="text-gray-500" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={handleDateChange}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="text-sm text-gray-600">
+              Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')}
+            </div>
+          </div>
           <div className="flex items-center space-x-2">
-            <Calendar size={20} className="text-gray-500" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={handleDateChange}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              <ChevronLeft
+                className="cursor-pointer text-gray-600 hover:text-gray-800"
+                size={24}
+                onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
+              />
+              <ChevronRight
+                className="cursor-pointer text-gray-600 hover:text-gray-800"
+                size={24}
+                onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
+              />
           </div>
-          <div className="text-sm text-gray-600">
-            Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')}
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-            <ChevronLeft
-              className="cursor-pointer text-gray-600 hover:text-gray-800"
-              size={24}
-              onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
-            />
-            <ChevronRight
-              className="cursor-pointer text-gray-600 hover:text-gray-800"
-              size={24}
-              onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
-            />
-        </div>
         </div>
       </div>
       
+    {weekStatus && (
+      <div className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${
+        weekStatus === 'DRAFT' ? 'bg-gray-50 text-gray-700 border-gray-300' :
+        weekStatus === 'PENDING' ? 'bg-orange-50 text-orange-800 border-orange-300' :
+        weekStatus === 'SUBMITTED' ? 'bg-blue-50 text-blue-800 border-blue-300' :
+        weekStatus === 'APPROVED' ? 'bg-green-50 text-green-800 border-green-300' :
+        weekStatus === 'REJECTED' ? 'bg-red-50 text-red-800 border-red-300' :
+        'bg-gray-50 text-gray-700 border-gray-300'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm">Timesheet Status:</span>{' '}
+            <strong className="text-base">{weekStatus}</strong>
+            <span className="text-sm ml-2">
+              {weekStatus === 'DRAFT' && '– Editable (Draft)'}
+              {weekStatus === 'PENDING' && '– Locked (Awaiting Final Save)'}
+              {weekStatus === 'SUBMITTED' && '– Editable '}
+              {weekStatus === 'APPROVED' && '– Locked (Approved)'}
+              {weekStatus === 'REJECTED' && '– Editable (Please Revise)'}
+            </span>
+          </div>
+          {managerComment && (
+            <div className="text-right">
+              <span className="text-xs block text-gray-600">Manager Comment:</span>
+              <span className="text-sm font-medium">{managerComment}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
       {/* Messages Panel */}
       <div className="mb-4 space-y-2">
         {messages.map(m => (
@@ -760,7 +792,7 @@ const TimeSheetRegister: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                   Task
-                  <button onClick={addRow} disabled={isLocked || loading} className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50">
+                  <button onClick={addRow} disabled={isLocked || loading} className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     <Plus size={14} />
                   </button>
                 </th>
@@ -803,13 +835,13 @@ const TimeSheetRegister: React.FC = () => {
                       <button
                         onClick={() => deleteRow(rowIndex)}
                         disabled={isLocked || deletingRowIndex !== null || loading}
-                        className="p-1 rounded-full text-red-500 hover:bg-red-100 disabled:opacity-50"
+                        className="p-1 rounded-full text-red-500 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Trash2 size={16} />
                       </button>
                       <input
                         type="text"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                         value={row.taskName}
                         placeholder="Task name"
                         onChange={e => {
@@ -839,7 +871,7 @@ const TimeSheetRegister: React.FC = () => {
                           min="0"
                           max={String(maxHours)}
                           step="0.5"
-                          className="w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          className="w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                           value={row.hours[key] ?? 0}
                           disabled={disabled}
                           onChange={e => {
@@ -848,7 +880,6 @@ const TimeSheetRegister: React.FC = () => {
                               return;
                             }
                             const newValue = Number(e.target.value);
-                            // Delegate full validation/clamping to handleChange
                             handleChange(rowIndex, key, newValue);
                           }}
                         />
@@ -968,13 +999,13 @@ const TimeSheetRegister: React.FC = () => {
             <div className="flex justify-end space-x-3">
               <button
                 className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                onClick={confirmSubmitNo}
+                onClick={() => setConfirmSubmitOpen(false)}
               >
                 Cancel
               </button>
               <button
                 className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                onClick={confirmSubmitYes}
+                onClick={handleConfirmSubmit}
               >
                 Yes, Submit
               </button>

@@ -255,20 +255,14 @@ export default function InvoicesPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Back Button + Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 w-10"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
-          <p className="text-muted-foreground">View and manage client invoices</p>
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-10">
+        <div className="relative flex items-center justify-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Invoices
+          </h1>
         </div>
       </div>
-
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -483,11 +477,10 @@ export default function InvoicesPage() {
                                 handleLockToggle(inv.invoiceId, isLocked);
                               }}
                               disabled={isLocking}
-                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0 transition-all ${
-                                isLocked
-                                  ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                              } ${isLocking ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0 transition-all ${isLocked
+                                ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
+                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                } ${isLocking ? 'opacity-50 cursor-not-allowed' : ''}`}
                               title={isLocked ? 'Unlock Invoice' : 'Lock Invoice'}
                             >
                               {isLocking ? (

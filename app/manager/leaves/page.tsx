@@ -139,11 +139,10 @@ const Leavespage: React.FC = () => {
           <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
           <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
           <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
-          ${
-            leave.attachmentUrl
-              ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-              : '<p><strong>Attachment:</strong> None</p>'
-          }
+          ${leave.attachmentUrl
+          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
+          : '<p><strong>Attachment:</strong> None</p>'
+        }
           <div>
             <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
             <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
@@ -209,7 +208,7 @@ const Leavespage: React.FC = () => {
   // Dynamic label generation for leave types
   const getLabel = (value: string): string => {
     const words = value.toLowerCase().split('_');
-    return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + ' Leave';
+    return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
   if (loading) {
@@ -258,15 +257,13 @@ const Leavespage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Manage Leaves</h2>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md transition duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-0">
+        <div className="relative flex items-center justify-center mb-0">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Leaves
+          </h1>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -360,13 +357,17 @@ const Leavespage: React.FC = () => {
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button onClick={() => handleSortChange('leaveCategoryType,desc')} className="flex items-center gap-1">
-                      Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' : pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
+                      Category Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' : pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
                     </button>
                   </th>
+
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button onClick={() => handleSortChange('leaveDuration,desc')} className="flex items-center gap-1">
                       Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' : pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
                     </button>
+                  </th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Financial Type
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button onClick={() => handleSortChange('fromDate,desc')} className="flex items-center gap-1">
@@ -383,9 +384,11 @@ const Leavespage: React.FC = () => {
                       Status {pagination.sort.includes('status,desc') ? '↓' : pagination.sort.includes('status,asc') ? '↑' : ''}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Remaining Leaves
-                  </th>
+                  {activeTab === 'pending' && (
+                    <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      Remaining Leaves
+                    </th>
+                  )}
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Attachment
                   </th>
@@ -407,6 +410,9 @@ const Leavespage: React.FC = () => {
                       {leave.leaveDuration ?? 0} days
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.financialType ? getLabel(leave.financialType) : 'N/A'}
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
                       {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
@@ -414,22 +420,23 @@ const Leavespage: React.FC = () => {
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          leave.status === 'APPROVED'
-                            ? 'bg-green-100 text-green-800'
-                            : leave.status === 'PENDING'
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === 'APPROVED'
+                          ? 'bg-green-100 text-green-800'
+                          : leave.status === 'PENDING'
                             ? 'bg-yellow-100 text-yellow-800'
                             : leave.status === 'REJECTED'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
                       >
                         {leave.status ?? 'PENDING'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {activeTab === 'pending' ? (leave as PendingLeavesResponseDTO).remainingLeaves : 'N/A'}
-                    </td>
+                    {activeTab === 'pending' && (
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {(leave as PendingLeavesResponseDTO).remainingLeaves}
+                      </td>
+                    )}
                     <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
                       {leave.attachmentUrl ? (
                         <a

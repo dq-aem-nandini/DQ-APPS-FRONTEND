@@ -139,11 +139,10 @@ const Leavespage: React.FC = () => {
           <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
           <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
           <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
-          ${
-            leave.attachmentUrl
-              ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-              : '<p><strong>Attachment:</strong> None</p>'
-          }
+          ${leave.attachmentUrl
+          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
+          : '<p><strong>Attachment:</strong> None</p>'
+        }
           <div>
             <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
             <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
@@ -257,20 +256,18 @@ const Leavespage: React.FC = () => {
           </button>
         </div>
       )}
+      {/* Header */}
+        <div className="max-w-7xl mx-auto mb-0">
+          <div className="relative flex items-center justify-center mb-0">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Manage Leaves
+            </h1>
+          </div>
+        </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Manage Leaves</h2>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md transition duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
-      </div>
 
       {/* Tabs */}
-      <div className="flex space-x-4 border-b border-gray-200 mb-6">
+      <div className="flex space-x-0 border-b border-gray-200 mb-6">
         <button
           className={`px-4 py-2 font-medium ${activeTab === 'pending' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
           onClick={() => {
@@ -414,15 +411,14 @@ const Leavespage: React.FC = () => {
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          leave.status === 'APPROVED'
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === 'APPROVED'
                             ? 'bg-green-100 text-green-800'
                             : leave.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : leave.status === 'REJECTED'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : leave.status === 'REJECTED'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-800'
+                          }`}
                       >
                         {leave.status ?? 'PENDING'}
                       </span>

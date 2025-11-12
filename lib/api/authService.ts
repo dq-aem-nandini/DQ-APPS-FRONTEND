@@ -27,7 +27,7 @@ export const authService = {
       if (!loginResp) {
         throw new Error('Invalid login response structure');
       }
-      const role = loginResp.role as "ADMIN" | "EMPLOYEE" | "CLIENT" | "MANAGER";
+      const role = loginResp.role as "ADMIN" | "EMPLOYEE" | "CLIENT" | "MANAGER" | "HR" | "FINANCE";
 
       const accessToken = loginResp.accessToken ?? "";
       const refreshToken = loginResp.refreshToken ?? "";

@@ -141,15 +141,13 @@ const HolidayPage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Holiday Calendars</h2>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md transition duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
+     {/* Header */}
+     <div className="max-w-7xl mx-auto mb-10">
+        <div className="relative flex items-center justify-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Holiday Calendar
+          </h1>
+        </div>
       </div>
 
       {/* Content */}

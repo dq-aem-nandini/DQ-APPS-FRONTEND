@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { ArrowLeft } from 'lucide-react';
+import BackButton from '@/components/ui/BackButton';
 
 const LeaveHistoryPage = () => {
   const router = useRouter();
@@ -200,7 +201,7 @@ const LeaveHistoryPage = () => {
       router.push('/auth/login');
     }
   }, [user, accessToken, router]);
-  
+
   if (!user || !accessToken) {
     return (
       <div className="flex justify-center items-center min-h-screen text-gray-600">
@@ -208,7 +209,7 @@ const LeaveHistoryPage = () => {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="container mx-auto p-6">
@@ -229,17 +230,13 @@ const LeaveHistoryPage = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Leave History</h1>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md transition duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
+      <div className="mb-10 flex items-center justify-between">
+        <BackButton to="/dashboard/leaves" />
+        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Leave History
+        </h1>
+        <div className="w-20" />
       </div>
-
       {/* Filters */}
       <div className="mb-6 bg-white shadow-md rounded-lg p-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Filters</h2>

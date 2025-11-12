@@ -7,6 +7,7 @@ import { leaveService } from '@/lib/api/leaveService';
 import { LeaveResponseDTO, LeaveStatus, WebResponseDTOPageLeaveResponseDTO, LeaveCategoryType, FinancialType } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
+import BackButton from '@/components/ui/BackButton';
 
 const EmployeeLeavesPage: React.FC = () => {
   const params = useParams();
@@ -210,19 +211,15 @@ const EmployeeLeavesPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">
+      {/* Header */}
+      <div className="relative flex items-center justify-center mb-8">
+        <div className="absolute left-0">
+          <BackButton to="/manager/leaves" />
+        </div>
+        <h1 className="text-3xl font-bold  text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
           Leaves for {employeeName}
         </h1>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md transition duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
       </div>
-
       {/* Filters */}
       <div className="mb-8 bg-white p-6 rounded-lg shadow-md border">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -349,12 +346,11 @@ const EmployeeLeavesPage: React.FC = () => {
                     <td className="px-6 py-4 text-sm text-gray-600">{formatDate(leave.toDate)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{leave.leaveDuration?.toFixed(2) || '0.00'} days</td>
                     <td className="px-6 py-4 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                          leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                            leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                        }`}>
                         {formatType(leave.status)}
                       </span>
                     </td>
