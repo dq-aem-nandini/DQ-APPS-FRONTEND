@@ -164,48 +164,56 @@ export default function UpdateRequestPage() {
 
                         {/* OLD vs NEW */}
                         <div>
-                            <p className="text-gray-700 font-semibold mb-3 text-lg">
+                            <p className="text-green-700 font-semibold mb-3 text-lg">
                                 Modified Fields
                             </p>
 
                             {modifiedFields.length === 0 ? (
                                 <p className="text-gray-500 text-sm">No modified fields.</p>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-3">
 
+                                    {/* Header Row */}
+                                    <div className="grid grid-cols-3 font-semibold text-sm text-gray-800 border-b pb-2">
+                                        <span>Field Name</span>
+                                        <span className="text-center">Previous</span>
+                                        <span className="text-right">Updated</span>
+                                    </div>
+
+                                    {/* Data Rows */}
                                     {modifiedFields.map(([key, newValue]) => {
                                         const oldValue = profile[key as keyof EmployeeDTO] ?? "—";
 
                                         return (
                                             <div
                                                 key={key}
-                                                className="bg-gray-50 border rounded-xl p-4 shadow-sm"
+                                                className="grid grid-cols-3 items-start p-3 border rounded-xl bg-gray-50 shadow-sm"
                                             >
-                                                <p className="font-semibold text-gray-800 text-base">
+                                                {/* Label */}
+                                                <div className="font-medium text-gray-800">
                                                     {formatKey(key)}
-                                                </p>
+                                                </div>
 
-                                                {/* OLD */}
-                                                <p className="mt-1 text-sm">
-                                                    <span className="font-medium text-gray-600">Old:</span>{" "}
+                                                {/* Old Value */}
+                                                <div className="text-center">
                                                     <span className="text-red-600 font-semibold">
                                                         {String(oldValue)}
                                                     </span>
-                                                </p>
+                                                </div>
 
-                                                {/* NEW */}
-                                                <p className="text-sm">
-                                                    <span className="font-medium text-gray-600">New:</span>{" "}
-                                                    <span className="text-green-700 font-bold">
+                                                {/* New Value */}
+                                                <div className="text-right">
+                                                    <span className="text-green-700 font-semibold">
                                                         {String(newValue)}
                                                     </span>
-                                                </p>
+                                                </div>
                                             </div>
                                         );
                                     })}
 
                                 </div>
                             )}
+
                         </div>
 
                         {req.approvedAt && (

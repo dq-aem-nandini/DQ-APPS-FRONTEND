@@ -49,132 +49,120 @@ class HolidaysService {
     }
   }
 
-/**
- * Update a holiday scheme (PUT with PATH param id and body).
- */
-async updateScheme(id: string, scheme: HolidaySchemeModel): Promise<WebResponseDTO<string>> {
-  if (!id) throw new Error('Scheme ID is required');
+  /**
+   * Update a holiday scheme
+   */
+  async updateScheme(
+    holidaySchemeId: string,
+    scheme: HolidaySchemeModel
+  ): Promise<WebResponseDTO<string>> {
 
-  try {
-    console.log('Updating scheme ID (PATH):', id);
-    console.log('Payload:', JSON.stringify(scheme, null, 2));
-
-    const response: AxiosResponse<WebResponseDTO<string>> = await api.put(
-      `/holidays/scheme/update/${id}`,  // PATH PARAM
-      scheme
-      // NO { params: { id } } — it's in URL now
-    );
-
-    console.log('Full update response:', response.data);
-    const { flag, message, status, response: data, totalRecords, otherInfo } = response.data;
-
-    return {
-      flag,
-      message: message || (flag ? 'Scheme updated successfully' : 'Failed to update scheme'),
-      status: status ?? (flag ? 200 : 400),
-      response: data ?? '',
-      totalRecords: totalRecords ?? 0,
-      otherInfo: otherInfo ?? null,
-    };
-  } catch (error: unknown) {
-    console.error('Error updating scheme:', error);
-    let errorMessage = 'Failed to update scheme';
-    let errorStatus = 500;
-
-    if (error instanceof AxiosError) {
-      console.error('Axios error:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method,
-      });
-      errorMessage = error.response?.data?.message || error.message || 'Failed to update scheme';
-      errorStatus = error.response?.status || 500;
+    if (!holidaySchemeId) {
+      return {
+        flag: false,
+        message: "Holiday Scheme ID is required",
+        status: 400,
+        response: "",
+        totalRecords: 0,
+        otherInfo: null
+      };
     }
 
-    return {
-      flag: false,
-      message: errorMessage,
-      status: errorStatus,
-      response: '',
-      totalRecords: 0,
-      otherInfo: null,
-    };
-  }
-}
-
-  /**
-   * Delete a holiday scheme (DELETE with query param id).
-   */
-  async deleteScheme(id: string): Promise<WebResponseDTO<string>> {
     try {
-      const response: AxiosResponse<WebResponseDTO<string>> = await api.delete(
-        '/holidays/scheme/delete',
-        { params: { id } }
+      console.log("Updating Scheme:", holidaySchemeId);
+      console.log("Payload:", JSON.stringify(scheme, null, 2));
+
+      const response = await api.put(
+        `/holidays/scheme/update/${holidaySchemeId}`,
+        scheme
       );
-      console.log('🧩 Full delete scheme API response:', response.data);
-      const { flag, message, status, response: data, totalRecords, otherInfo } = response.data;
+
+      const {
+        flag,
+        message,
+        status,
+        response: data,
+        totalRecords,
+        otherInfo
+      } = response.data;
+
       return {
         flag,
-        message: message || (flag ? 'Scheme deleted successfully' : 'Failed to delete scheme'),
+        message: message || (flag ? "Scheme updated successfully" : "Failed to update scheme"),
         status: status ?? (flag ? 200 : 400),
-        response: data ?? '',
+        response: data ?? "",
         totalRecords: totalRecords ?? 0,
-        otherInfo: otherInfo ?? null,
+        otherInfo: otherInfo ?? null
       };
-    } catch (error: unknown) {
-      console.error('❌ Error deleting scheme:', error);
-      let errorMessage = 'Failed to delete scheme';
+
+    } catch (error: any) {
+      console.error("Error updating scheme:", error);
+
+      let errorMessage = "Failed to update scheme";
       let errorStatus = 500;
+
       if (error instanceof AxiosError) {
-        errorMessage = error.response?.data?.message || error.message || 'Failed to delete scheme';
+        errorMessage = error.response?.data?.message || error.message;
         errorStatus = error.response?.status || 500;
       }
+
       return {
         flag: false,
         message: errorMessage,
         status: errorStatus,
-        response: '',
+        response: "",
+        totalRecords: 0,
+        otherInfo: null
+      };
+    }
+  }
+
+  /**
+   * Delete a holiday scheme (DELETE with query param id).
+   */
+
+  async deleteScheme(holidaySchemeId: string): Promise<WebResponseDTO<string>> {
+    try {
+      const response = await api.delete("/holidays/scheme/delete", {
+        params: {holidaySchemeId},
+      });
+  
+      const { flag, message, status, response: data, totalRecords, otherInfo } =
+        response.data;
+  
+      return {
+        flag,
+        message: message || (flag ? "Scheme deleted successfully" : "Failed to delete scheme"),
+        status: status ?? 200,
+        response: data ?? "",
+        totalRecords: totalRecords ?? 0,
+        otherInfo: otherInfo ?? null,
+      };
+    } catch (error: any) {
+      return {
+        flag: false,
+        message: error.response?.data?.message || "Failed to delete scheme",
+        status: error.response?.status || 500,
+        response: "",
         totalRecords: 0,
         otherInfo: null,
       };
     }
   }
+  
 
   /**
    * Get all holiday schemes (GET no params).
    */
-  // async getAllSchemes(): Promise<WebResponseDTO<any>> {
-  //   try {
-  //     const response: AxiosResponse<WebResponseDTO<any>> = await api.get('/holidays/view/scheme');
-  //     console.log('🧩 Full get all schemes API response:', response.data);
-  //     if (response.data.flag) {
-  //       return response.data;
-  //     }
-  //     throw new Error(response.data.message || 'Failed to fetch schemes');
-  //   } catch (error: unknown) {
-  //     console.error('❌ Error fetching schemes:', error);
-  //     const errorMessage = error instanceof AxiosError
-  //       ? error.response?.data?.message || error.message || 'Failed to fetch schemes'
-  //       : 'Failed to fetch schemes';
-  //     throw new Error(errorMessage);
-  //   }
-  // }
-  async getAllSchemes(
-    params: GetSchemesParams = {}
-  ): Promise<WebResponseDTOListHolidaySchemeDTO> {
+  async getAllSchemes(params: GetSchemesParams = {}): Promise<WebResponseDTOListHolidaySchemeDTO> {
     try {
-      const response: AxiosResponse<WebResponseDTOListHolidaySchemeDTO> = await api.get(
-        "/holidays/view/scheme",
-        { params }
-      );
-  
-      console.log("Full get all schemes API response:", response.data);
-  
+      const response = await api.get("/holidays/view/scheme", { params });
+      console.log("Schemes API:", response.data);
+
       if (response.data.flag && Array.isArray(response.data.response)) {
         return {
           ...response.data,
-          response: response.data.response.map((dto) => ({
+          response: response.data.response.map((dto: any) => ({
             holidaySchemeId: dto.holidaySchemeId,
             schemeName: dto.schemeName ?? "",
             schemeDescription: dto.schemeDescription ?? "",
@@ -182,27 +170,19 @@ async updateScheme(id: string, scheme: HolidaySchemeModel): Promise<WebResponseD
             city: dto.city ?? "",
             state: dto.state ?? "",
             schemeCountryCode: dto.schemeCountryCode ?? "",
-            schemeCreateAt: dto.schemeCreateAt,
-            schemeUpdateAt: dto.schemeUpdateAt,
-            holidayCalendarId: Array.isArray(dto.holidayCalendarId)
-              ? dto.holidayCalendarId
-              : [],
+            schemeCreateAt: dto.schemeCreatedAt,
+            schemeUpdateAt: dto.schemeUpdatedAt,
+            holidayCalendarId: Array.isArray(dto.holidayCalendarId) ? dto.holidayCalendarId : [],
             schemeActive: dto.schemeActive ?? true,
           })),
         };
       }
-  
       throw new Error(response.data.message || "Failed to fetch schemes");
     } catch (error: any) {
       console.error("Error fetching schemes:", error);
-      throw new Error(
-        error?.response?.data?.message ||
-          error.message ||
-          "Failed to fetch schemes"
-      );
+      throw new Error(error?.response?.data?.message || error.message || "Failed to fetch schemes");
     }
   }
-  
 
   /**
    * Get holiday scheme by ID (GET with path param).
@@ -263,80 +243,106 @@ async updateScheme(id: string, scheme: HolidaySchemeModel): Promise<WebResponseD
   }
 
   /**
-   * Update a holiday calendar (PUT with path param id and body).
+   * Update a holiday calendar
    */
-  async updateHoliday(id: string, holiday: HolidayCalendarModel): Promise<WebResponseDTO<string>> {
+  async updateHoliday(
+    holidayCalendarId: string,
+    holiday: HolidayCalendarModel
+  ): Promise<WebResponseDTO<string>> {
+
+    if (!holidayCalendarId) {
+      return {
+        flag: false,
+        message: "Holiday Calendar ID is required",
+        status: 400,
+        response: "",
+        totalRecords: 0,
+        otherInfo: null
+      };
+    }
+
     try {
-      const response: AxiosResponse<WebResponseDTO<string>> = await api.put(
-        `/holidays/calendar/update/${id}`,
+      console.log("Updating Holiday Calendar:", holidayCalendarId);
+      console.log("Payload:", holiday);
+
+      const response = await api.put(
+        `/holidays/calendar/update/${holidayCalendarId}`,
         holiday
       );
-      console.log('🧩 Full update holiday API response:', response.data);
-      const { flag, message, status, response: data, totalRecords, otherInfo } = response.data;
+
+      const {
+        flag,
+        message,
+        status,
+        response: data,
+        totalRecords,
+        otherInfo
+      } = response.data;
+
       return {
         flag,
-        message: message || (flag ? 'Holiday updated successfully' : 'Failed to update holiday'),
+        message: message || (flag ? "Holiday updated successfully" : "Failed to update holiday"),
         status: status ?? (flag ? 200 : 400),
-        response: data ?? '',
+        response: data ?? "",
         totalRecords: totalRecords ?? 0,
-        otherInfo: otherInfo ?? null,
+        otherInfo: otherInfo ?? null
       };
-    } catch (error: unknown) {
-      console.error('❌ Error updating holiday:', error);
-      let errorMessage = 'Failed to update holiday';
+
+    } catch (error: any) {
+      console.error("Error updating holiday:", error);
+
+      let errorMessage = "Failed to update holiday";
       let errorStatus = 500;
+
       if (error instanceof AxiosError) {
-        errorMessage = error.response?.data?.message || error.message || 'Failed to update holiday';
+        errorMessage = error.response?.data?.message || error.message;
         errorStatus = error.response?.status || 500;
       }
+
       return {
         flag: false,
         message: errorMessage,
         status: errorStatus,
-        response: '',
+        response: "",
         totalRecords: 0,
-        otherInfo: null,
+        otherInfo: null
       };
     }
   }
 
+
   /**
    * Delete a holiday calendar (DELETE with query param id).
    */
-  async deleteHoliday(id: string): Promise<WebResponseDTO<string>> {
+  async deleteHoliday(holidayCalendarId: string): Promise<WebResponseDTO<string>> {
     try {
-      const response: AxiosResponse<WebResponseDTO<string>> = await api.delete(
-        '/holidays/calendar/delete',
-        { params: { id } }
-      );
-      console.log('🧩 Full delete holiday API response:', response.data);
-      const { flag, message, status, response: data, totalRecords, otherInfo } = response.data;
+      const response = await api.delete("/holidays/calendar/delete", {
+        params: { holidayCalendarId},
+      });
+  
+      const { flag, message, status, response: data, totalRecords, otherInfo } =
+        response.data;
+  
       return {
         flag,
-        message: message || (flag ? 'Holiday deleted successfully' : 'Failed to delete holiday'),
-        status: status ?? (flag ? 200 : 400),
-        response: data ?? '',
+        message: message || (flag ? "Holiday deleted successfully" : "Failed to delete holiday"),
+        status: status ?? 200,
+        response: data ?? "",
         totalRecords: totalRecords ?? 0,
         otherInfo: otherInfo ?? null,
       };
-    } catch (error: unknown) {
-      console.error('❌ Error deleting holiday:', error);
-      let errorMessage = 'Failed to delete holiday';
-      let errorStatus = 500;
-      if (error instanceof AxiosError) {
-        errorMessage = error.response?.data?.message || error.message || 'Failed to delete holiday';
-        errorStatus = error.response?.status || 500;
-      }
+    } catch (error: any) {
       return {
         flag: false,
-        message: errorMessage,
-        status: errorStatus,
-        response: '',
+        message: error.response?.data?.message || "Failed to delete holiday",
+        status: error.response?.status || 500,
+        response: "",
         totalRecords: 0,
         otherInfo: null,
       };
     }
   }
+  
 
   /**
    * Get all holiday calendars (GET no params).

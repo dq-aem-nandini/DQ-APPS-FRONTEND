@@ -35,7 +35,7 @@ export type ProjectStatus = "ACTIVE" | "INACTIVE" | "COMPLETED" | "ON_HOLD";
 export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
 export type PayType = "HOURLY" | "MONTHLY" | "WEEKLY" | "YEARLY" | "NA";
 export type WorkingModel = "ONSITE" | "HYBRID" | "REMOTE" | "FLEXIBLE" | "NA";
-
+export type UpdateRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 export const WORKING_MODEL_OPTIONS = [
   "ONSITE",
   "HYBRID",
@@ -198,6 +198,18 @@ export interface WorkdayResponseDTO {
   weekends: number; // int32
   totalHolidays: number; // int32
   leaveDuration: number; // double
+}
+
+
+export interface EmployeeUpdateRequestDTO {
+  requestId: string;              // UUID
+  employeeId: string;             // UUID
+  employeeName: string;
+  updatedData: any;               // Holds changed fields (key-value pairs)
+  status: UpdateRequestStatus;    // "PENDING" | "APPROVED" | "REJECTED"
+  adminComment: string | null;
+  createdAt: string;              // ISO date-time string
+  approvedAt: string | null;      // ISO date-time string
 }
 
 export interface LeaveAvailabilityDTO {
@@ -517,7 +529,7 @@ export interface BankDetails {
 }
 
 export interface HolidaySchemeModel {
-  holidayCalendarId?: string; // UUID
+  holidayCalendarId?: string | undefined // UUID
   schemeName?: string;
   schemeDescription?: string;
   city?: string;
@@ -533,8 +545,8 @@ export interface HolidaySchemeDTO {
   city: string;
   state: string;
   schemeCountryCode: string;
-  schemeCreateAt: string;
-  schemeUpdateAt: string;
+  schemeCreatedAt: string;
+  schemeUpdatedAt: string;
   holidayCalendarId: string[];      // <- Array of UUIDs
   schemeActive: boolean;  
 }
@@ -560,6 +572,7 @@ export interface HolidayCalendarDTO {
   recurrenceRule: RecurrenceRule;
   calendarCountryCode: string | null;
   createdByAdminId: string; // uuid
+  createAt:string;
   holidayActive: boolean;
 }
 
@@ -621,55 +634,6 @@ export interface Employee {
   createdAt: string; // ISO date-time
   updatedAt: string; // ISO date-time
 }
-
-// export interface EmployeeDTO {
-//   employeeId: string; // UUID
-//   firstName: string;
-//   lastName: string;
-//   personalEmail: string;
-//   companyEmail: string;
-//   contactNumber: string;
-//   alternateContactNumber: string;
-//   gender: string;
-//   maritalStatus: string;
-//   numberOfChildren: number;
-//   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
-//   employeePhotoUrl: string;
-//   nationality: string;
-//   emergencyContactName: string;
-//   emergencyContactNumber: string;
-//   remarks: string;
-//   skillsAndCertification: string;
-//   designation: Designation;
-//   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
-//   rateCard: number;
-//   availableLeaves: number;
-//   employmentType: EmploymentType;
-//   companyId: string;
-//   accountNumber: string;
-//   accountHolderName: string;
-//   bankName: string;
-//   ifscCode: string;
-//   branchName: string;
-//   panNumber: string;
-//   aadharNumber: string;
-//   clientId: string | null; // UUID
-//   clientName: string;
-//   clientStatus: string; // active/inactive/etc.
-//   reportingManagerId: string; // UUID
-//   reportingManagerName: string;
-//   documents: EmployeeDocumentDTO[];
-//   addresses: AddressModel[];
-//   employeeSalaryDTO?: EmployeeSalaryDTO;
-//   employeeAdditionalDetailsDTO?: EmployeeAdditionalDetailsDTO;
-//   employeeEmploymentDetailsDTO?: EmployeeEmploymentDetailsDTO;
-//   employeeInsuranceDetailsDTO?: EmployeeInsuranceDetailsDTO;
-//   employeeEquipmentDTO?: EmployeeEquipmentDTO[];
-//   employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
-//   status: string;
-//   createdAt: string; // ISO date-time
-//   updatedAt: string; // ISO date-time
-// }
 export interface EmployeeDTO {
   employeeId: string;               // UUID
   firstName: string;
@@ -851,17 +815,6 @@ export interface TimeSheetResponseDto {
   createdAt: string; // date-time
   updatedAt: string; // date-time
 }
-export interface EmployeeUpdateRequestDTO {
-  requestId: string;
-  employeeId: string;
-  employeeName: string;
-  updatedData: any;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  adminComment: string;
-  createdAt: string;
-  approvedAt: string | null;
-}
-
 export interface NotificationDTO {
   id: string; // UUID
   employeeId: string; // UUID
@@ -902,7 +855,27 @@ export interface PageLeaveResponseDTO {
   sort?: SortObject;
   empty: boolean;
 }
+export interface IfscResponseDTO {
+  BANK: string;
+  IFSC: string;
+  BRANCH: string;
+  ADDRESS: string;
+  CITY: string;
+  STATE: string;
+  NEFT: boolean;
+  IMPS: boolean;
+  RTGS: boolean;
+  UPI: boolean;
+}
 
+export interface BankMaster {
+  bankCode: string;
+  bankName: string;
+}
+export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> {}
+
+export interface WebResponseDTOListBankMaster
+  extends WebResponseDTO<BankMaster[]> {}
 // WebResponse Wrappers
 export interface WebResponseDTOString {
   flag: boolean;
@@ -1020,7 +993,6 @@ export interface WebResponseDTOApiResponseObject {
   totalRecords: number; // int64
   otherInfo: any;
 }
-
 export interface WebResponseDTOListNotificationDTO {
   flag: boolean;
   message: string;
@@ -1141,6 +1113,7 @@ export interface LoginResponseDTO {
   refreshExpiresAt: string; // date-time
   tokenType: string;
   role: Role;
+  firstLogin:boolean;
 }
 export interface LoginResponseInner {
   loginResponseDTO: LoginResponseDTO;

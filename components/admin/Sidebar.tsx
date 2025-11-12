@@ -12,7 +12,7 @@ import {
   PlusIcon,
   CogIcon,
 } from '@heroicons/react/24/outline';
-import { FileTextIcon, LogOut } from 'lucide-react';
+import { FileTextIcon, LogOut, User } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminSidebar() {
@@ -40,6 +40,7 @@ export default function AdminSidebar() {
       title: 'Account',
       items: [
         { href: '/admin-dashboard/profile', label: 'Profile', icon: <UserIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/updaterequest', label: 'Update Request', icon: <User size={18} /> },
         { href: '/admin-dashboard/settings', label: 'Settings', icon: <CogIcon className="h-5 w-5" /> },
       ],
     },

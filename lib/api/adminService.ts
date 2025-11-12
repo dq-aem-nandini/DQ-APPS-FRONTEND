@@ -270,6 +270,36 @@ async updateEmployee(empId: string, employee: EmployeeModel): Promise<WebRespons
       throw new Error(`Failed to delete client POC details: ${error}`);
     }
   }
+  // ✅ Get all employees for a specific client ID
+async getEmployeesByClientId(
+  clientId: string
+): Promise<WebResponseDTOListEmployeeDTO> {
+  if (!clientId) {
+    throw new Error("Client ID is required");
+  }
+
+  console.log("🔍 [getEmployeesByClientId] Fetching employees for client:", clientId);
+
+  try {
+    const response: AxiosResponse<WebResponseDTOListEmployeeDTO> =
+      await api.get(`/admin/emp/all/${clientId}`);
+
+    console.log("✅ [getEmployeesByClientId] Response:", response.data);
+
+    return response.data;
+
+  } catch (error: any) {
+    console.error("❌ [getEmployeesByClientId] Error:", error);
+
+    const msg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to fetch employees for this client";
+
+    throw new Error(msg);
+  }
+}
+
   
 }
 
