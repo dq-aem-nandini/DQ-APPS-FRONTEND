@@ -13,7 +13,7 @@ import { HolidayCalendarDTO, EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeShee
 import { holidaysService } from '@/lib/api/holidayService';
 import { timesheetService } from '@/lib/api/timeSheetService';
 import Spinner from '@/components/ui/Spinner';
-
+import { employeeService } from '@/lib/api/employeeService';
 
 interface TaskRow {
   id: string;
@@ -26,6 +26,8 @@ interface TaskRow {
 const TimeSheetRegister: React.FC = () => {
   const { state } = useAuth();
   const userId = state.user?.userId ?? null;
+  const [joiningDate, setJoiningDate] = useState<dayjs.Dayjs | null>(null);
+  const [dojLoading, setDojLoading] = useState(true);
 
   // Week selection state
   const [weekStart, setWeekStart] = useState(() =>
@@ -45,7 +47,12 @@ const TimeSheetRegister: React.FC = () => {
     setMessages(prev => [...prev, { id, type, text }]);
     setTimeout(() => setMessages(prev => prev.filter(m => m.id !== id)), 6000);
   };
-
+  // Employee details from /employee/view
+const [employeeDetails, setEmployeeDetails] = useState<{
+  clientName?: string;
+  reportingManagerName?: string;
+  designation?: string;
+} | null>(null);
   const [managerComment, setManagerComment] = useState<string | null>(null);
 
   // Confirm modal state
@@ -60,14 +67,56 @@ const TimeSheetRegister: React.FC = () => {
   );
 
   // Handle date selection and snap to week Monday
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const date = dayjs(e.target.value);
-    if (date.isValid()) {
-      const monday = date.startOf('week').add(1, 'day'); // Monday
-      setWeekStart(monday);
-      setSelectedDate(monday.format('YYYY-MM-DD'));
+ const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const date = dayjs(e.target.value);
+  if (!date.isValid()) return;
+
+  if (firstAllowedMonday && date.isBefore(firstAllowedMonday, 'day')) {
+    pushMessage('info', 'Cannot select date before your joining week');
+    return;
+  }
+
+  const monday = date.startOf('week').add(1, 'day');
+  setWeekStart(monday);
+  setSelectedDate(monday.format('YYYY-MM-DD'));
+};
+
+  useEffect(() => {
+  const fetchDOJ = async () => {
+    if (!userId || state.user?.role !== 'EMPLOYEE') {
+      setDojLoading(false);
+      return;
+    }
+
+    try {
+      setDojLoading(true);
+      const employee = await employeeService.getEmployeeById();
+      if (employee.dateOfJoining) {
+        const doj = dayjs(employee.dateOfJoining);
+        setJoiningDate(doj);
+        console.log('DOJ fetched:', doj.format('YYYY-MM-DD'));
+      }
+
+      setEmployeeDetails({
+        clientName: employee.clientName,
+        reportingManagerName: employee.reportingManagerName,
+        designation: employee.designation,
+      });
+    } catch (err) {
+      console.error('Failed to fetch DOJ:', err);
+      pushMessage('error', 'Could not load joining date');
+    } finally {
+      setDojLoading(false);
     }
   };
+
+  fetchDOJ();
+}, [userId, state.user?.role]);
+
+const firstAllowedMonday = useMemo(() => {
+  if (!joiningDate) return null;
+  return joiningDate.startOf('week').add(1, 'day'); // Monday of DOJ week
+}, [joiningDate]);
 
   // 🔹 Fetch holidays
   const fetchHolidays = useCallback(async () => {
@@ -390,6 +439,10 @@ const TimeSheetRegister: React.FC = () => {
       const isHoliday = holidayMap[date];
       const leaveInfo = leaveMap[date];
 
+      if (joiningDate && dayDate.isBefore(joiningDate, 'day')) {
+        return; // Skip pre-DOJ days
+      }
+      
       // Validate workdays (Monday to Friday, not holidays or full-day leave days)
       if (!isWeekend && !isHoliday && !leaveInfo) {
         if (totalHours === 0) {
@@ -507,6 +560,10 @@ const TimeSheetRegister: React.FC = () => {
       rows.reduce((sum, r) => sum + (r.hours[k] ? Number(r.hours[k]) : 0), 0)
     );
   }, [rows, weekDates]);
+
+  const totalWeekHours = useMemo(() => {
+    return dayTotals.reduce((sum, day) => sum + day, 0);
+  }, [dayTotals]);
 
 // 🔹 Save logic (update existing or create new)
     const saveAll = async () => {
@@ -705,40 +762,91 @@ const TimeSheetRegister: React.FC = () => {
   return (
     <div className="p-6 min-h-screen bg-gray-50">
       {/* Calendar/Date Picker Section */}
-      <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Select Week</h2>
-        </div>
+      {/* Calendar/Date Picker Section – With Title on Top */}
+<div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
+  {/* Title – Centered Above */}
+  <div className="mb-4 ">
+    <h2 className="text-xl font-semibold text-gray-800">Select Week</h2>
+  </div>
 
-        <div className="flex items-center  mb-4 gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Calendar size={20} className="text-gray-500" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={handleDateChange}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="text-sm text-gray-600">
-              Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')}
-            </div>
+  {/* Main Row – Left: Picker + Nav | Right: Employee Info */}
+  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+    
+    {/* LEFT – Date Picker + Week Label + Navigation */}
+    <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Calendar size={20} className="text-gray-500" />
+          <input
+            type="date"
+            value={selectedDate}
+            min={firstAllowedMonday?.format('YYYY-MM-DD') || undefined}
+            onChange={handleDateChange}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="text-sm text-gray-600">
+          Week: {weekStart.format('MMM D')} - {weekStart.clone().add(6, 'day').format('MMM D, YYYY')}
+        </div>
+      </div>
+
+      {/* Navigation Arrows */}
+      <div className="flex items-center space-x-2">
+        <ChevronLeft
+          className={`cursor-pointer text-gray-600 hover:text-gray-800 ${
+            firstAllowedMonday && (weekStart.isBefore(firstAllowedMonday, 'day') || weekStart.isSame(firstAllowedMonday, 'day'))
+              ? 'opacity-50 cursor-not-allowed'
+              : ''
+          }`}
+          size={24}
+          onClick={() => {
+            if (firstAllowedMonday && (weekStart.isBefore(firstAllowedMonday, 'day') || weekStart.isSame(firstAllowedMonday, 'day'))) {
+              pushMessage('info', 'Cannot go before your joining week');
+              return;
+            }
+            setWeekStart(prev => prev.subtract(1, 'week'));
+          }}
+        />
+        <ChevronRight
+          className="cursor-pointer text-gray-600 hover:text-gray-800"
+          size={24}
+          onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
+        />
+      </div>
+    </div>
+
+    {/* RIGHT – Employee Info (Client, Manager, Role) */}
+    {employeeDetails && (
+      <div className="w-full md:w-auto p-4 bg-gradient-to-b from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm text-sm">
+        <div className="space-y-2">
+          <div className="flex  items-center">
+            <span className="font-medium text-gray-600">Client:</span>
+            <span className="font-semibold text-gray-800 ml-3">
+              {employeeDetails.clientName || '—'}
+            </span>
           </div>
-          <div className="flex items-center space-x-2">
-              <ChevronLeft
-                className="cursor-pointer text-gray-600 hover:text-gray-800"
-                size={24}
-                onClick={() => setWeekStart(prev => prev.subtract(1, 'week'))}
-              />
-              <ChevronRight
-                className="cursor-pointer text-gray-600 hover:text-gray-800"
-                size={24}
-                onClick={() => setWeekStart(prev => prev.add(1, 'week'))}
-              />
+          <div className="flex  items-center border-t border-blue-100 pt-2">
+            <span className="font-medium text-gray-600">Manager:</span>
+            <span className="font-semibold text-gray-800 ml-3">
+              {employeeDetails.reportingManagerName || '—'}
+            </span>
+          </div>
+          <div className="flex  items-center border-t border-blue-100 pt-2">
+            <span className="font-medium text-gray-600">Role:</span>
+            <span className="font-semibold text-gray-800 ml-3">
+              {employeeDetails.designation
+                ? employeeDetails.designation
+                    .replace(/_/g, ' ')
+                    .toLowerCase()
+                    .replace(/\b\w/g, (l) => l.toUpperCase())
+                : '—'}
+            </span>
           </div>
         </div>
       </div>
+    )}
+  </div>
+</div>
       
     {weekStatus && (
       <div className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${
@@ -754,11 +862,11 @@ const TimeSheetRegister: React.FC = () => {
             <span className="text-sm">Timesheet Status:</span>{' '}
             <strong className="text-base">{weekStatus}</strong>
             <span className="text-sm ml-2">
-              {weekStatus === 'DRAFT' && '– Editable (Draft)'}
-              {weekStatus === 'PENDING' && '– Locked (Awaiting Final Save)'}
-              {weekStatus === 'SUBMITTED' && '– Editable '}
-              {weekStatus === 'APPROVED' && '– Locked (Approved)'}
-              {weekStatus === 'REJECTED' && '– Editable (Please Revise)'}
+              {weekStatus === 'DRAFT'}
+              {weekStatus === 'PENDING'}
+              {weekStatus === 'SUBMITTED'}
+              {weekStatus === 'APPROVED'}
+              {weekStatus === 'REJECTED'}
             </span>
           </div>
           {managerComment && (
@@ -857,11 +965,12 @@ const TimeSheetRegister: React.FC = () => {
                   </td>
                   {weekDates.map(d => {
                     const key = d.format('YYYY-MM-DD');
+                    const isPreDOJ = joiningDate && d.isBefore(joiningDate, 'day');
                     const isHoliday = holidayMap[key];
                     const isLeave = leaveMap[key];
                     
                     // Allow weekend entries, only disable for holidays, full-day leaves, or when locked
-                    const disabled = isLocked || loading || !!isHoliday || (isLeave?.duration === 1);
+                    const disabled = isLocked || loading || !!isHoliday || (isLeave?.duration === 1 ) || isPreDOJ;
                     // Per-day cap is 8 hours; half-day leaves cap to 4
                     const maxHours = Math.min(isLeave?.duration === 0.5 ? 4 : 24, 8);
                     return (
@@ -871,7 +980,7 @@ const TimeSheetRegister: React.FC = () => {
                           min="0"
                           max={String(maxHours)}
                           step="0.5"
-                          className="w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                          className={isPreDOJ ? 'bg-gray-100 text-gray-400' : 'w-16 px-2 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed'}
                           value={row.hours[key] ?? 0}
                           disabled={disabled}
                           onChange={e => {
@@ -904,6 +1013,15 @@ const TimeSheetRegister: React.FC = () => {
           </table>
         </div>
       </div>
+
+              <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-b-lg flex items-center justify-start space-x-4">
+                <span className="text-sm font-semibold text-gray-700">
+                  Total Hours for the Week:
+              </span>
+                <span className="text-lg font-bold text-indigo-700">
+                {totalWeekHours.toFixed(1)} h
+              </span>
+            </div>
 
       {/* Fixed Bottom Right Buttons */}
       <div className="fixed bottom-6 right-6 space-x-3 z-40">
