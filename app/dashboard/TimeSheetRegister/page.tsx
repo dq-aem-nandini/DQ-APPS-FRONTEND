@@ -160,7 +160,6 @@ const firstAllowedMonday = useMemo(() => {
 
   // 🔹 Fetch weekly timesheets
   const fetchData = useCallback(async () => {
-    if (!userId) return;
     try {
       setLoading(true);
       // Format dates with explicit year, month, day for accurate filtering
@@ -175,6 +174,7 @@ const firstAllowedMonday = useMemo(() => {
         weekStartMonth: weekStart.month() + 1,
       });
 
+      
       const response = await timesheetService.getAllTimesheets({
         startDate: params.startDate,
         endDate: params.endDate,
@@ -213,12 +213,6 @@ const firstAllowedMonday = useMemo(() => {
         filtered: list.length,
         dates: list.map(x => ({ id: x.timesheetId, date: x.workDate })),
       });
-
-      // Set locked state based on statuses
-      // const hasSubmittedEntries = list.some(item => item.status === 'Submitted');
-      // console.debug('[TimeSheetRegister] Any submitted entries:', hasSubmittedEntries);
-
-      // setIsLocked(hasSubmittedEntries); // Lock if any entries are submitted
 
       // ── determine week status ─────────────────────────────────────
       // Determine week status from backend entries
