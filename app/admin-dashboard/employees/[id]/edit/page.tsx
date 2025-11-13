@@ -246,7 +246,7 @@ const EditEmployeePage = () => {
           clientSelection, // Add the computed clientSelection
           employeeSalaryDTO: emp.employeeSalaryDTO ?? {
             employeeId: '',
-            basicPay: 0,
+            ctc: 0,
             payType: emp.rateCard && emp.rateCard > 0 ? 'HOURLY' : 'MONTHLY',
             standardHours: 40,
             bankAccountNumber: '',
@@ -737,10 +737,10 @@ const EditEmployeePage = () => {
                   </div>
 
 
-                  {/* Basic Pay */}
+                  {/* ctc Pay */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">CTC</Label>
-                    <Input type="number" name="employeeSalaryDTO.basicPay" value={formData.employeeSalaryDTO?.ctc?? ''} onChange={handleChange} />
+                    <Input type="number" name="employeeSalaryDTO.ctc" value={formData.employeeSalaryDTO?.ctc?? ''} onChange={handleChange} />
                   </div>
                   {/* Standard Hours */}
                   <div>

@@ -255,7 +255,7 @@ const AddEmployeePage = () => {
     if (name === 'personalEmail' || name === 'companyEmail') {
       parsedValue = value.toLowerCase();
     } else if (
-      name === 'employeeSalaryDTO.basicPay' ||
+      name === 'employeeSalaryDTO.ctc' ||
       name === 'employeeSalaryDTO.standardHours'
     ) {
       parsedValue = parseFloat(value) || 0;
@@ -699,7 +699,7 @@ const AddEmployeePage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* Basic Pay */}
+                  {/* ctc Pay */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">CTC *</Label>
                     <Input
@@ -707,7 +707,7 @@ const AddEmployeePage = () => {
                       type="number"
                       min="0"
                       step="0.01"
-                      name="employeeSalaryDTO.basicPay"
+                      name="employeeSalaryDTO.ctc"
                       required
                       value={formData.employeeSalaryDTO?.ctc ?? ''}
                       onChange={handleChange}
