@@ -430,7 +430,7 @@ const EditClientPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="relative flex items-center justify-center mb-8">
             <div className="absolute left-0">
-              <BackButton fallback="/admin-dashboard/clients/list" />
+              <BackButton to="/admin-dashboard/clients/list" />
             </div>
             <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Edit Client

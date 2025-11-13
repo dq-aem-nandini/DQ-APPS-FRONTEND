@@ -22,10 +22,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import BackButton from '@/components/ui/BackButton';
 
 const InvoiceSummaryPage = () => {
     const { id } = useParams(); // clientId
-    const router = useRouter();
     const [summaries, setSummaries] = useState<ClientInvoiceSummaryDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -169,7 +169,8 @@ const InvoiceSummaryPage = () => {
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">No Invoice Summaries</h2>
                         <p className="text-gray-600 mb-6">{error || 'No invoice summaries available for this client.'}</p>
-                        <Button onClick={() => router.back()}>Go Back</Button>
+                        <BackButton to="/admin-dashboard/invoice" />
+
                     </div>
                 </div>
             </ProtectedRoute>
@@ -185,17 +186,12 @@ const InvoiceSummaryPage = () => {
             <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
                 <div className="p-6 md:p-8 max-w-7xl mx-auto">
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="sm" onClick={() => router.back()}>
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back to Invoices
-                            </Button>
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900">Invoice Summaries</h1>
-                                <p className="text-gray-600">Detailed breakdowns for client invoices</p>
-                            </div>
-                        </div>
+                    <div className="mb-10 flex items-center justify-between">
+                        <BackButton to="/admin-dashboard/invoice" />
+                        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                            Invoice Summaries
+                        </h1>
+                        <div className="w-20" />
                     </div>
 
                     {/* Stats Cards */}
@@ -342,13 +338,6 @@ const InvoiceSummaryPage = () => {
                             </div>
                         </CardContent>
                     </Card>
-
-                    {/* Footer Actions */}
-                    <div className="flex gap-4 justify-end mt-8">
-                        <Button variant="outline" onClick={() => router.back()}>
-                            Back to Invoices
-                        </Button>
-                    </div>
                 </div>
             </div>
         </ProtectedRoute>

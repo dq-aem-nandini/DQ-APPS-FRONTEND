@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { LoggedInUser } from '@/lib/api/types';
 
 const Login: React.FC = () => {
   const [credentials, setCredentials] = useState({ inputKey: '', password: '' });
@@ -14,22 +15,35 @@ const Login: React.FC = () => {
   const { login, state } = useAuth();
   const router = useRouter();
 
-  // Handle authenticated user redirect
-  useEffect(() => {
-    if (state.isAuthenticated && state.user && !state.isLoading) {
-      console.log('🧩 Auto-redirecting based on updated state:', {
-        role: state.user.role,
-        userId: state.user.userId,
-      });
-      const path = state.user.role === 'EMPLOYEE' ? '/dashboard' :
-                   state.user.role === 'ADMIN' ? '/admin-dashboard' :
-                   state.user.role === 'MANAGER' ? '/manager' :
-                   state.user.role === 'CLIENT' ? '/client-dashboard' :
-                   '/auth/login'; // Fallback for undefined/invalid roles
-      console.log('🧩 Redirecting to:', path);
-      router.push(path);
+// Fixed useEffect with type assertion for state.user (treat as LoggedInUser)
+useEffect(() => {
+  if (state.isAuthenticated && state.user && !state.isLoading) {
+    const user = state.user as LoggedInUser;
+    console.log('🧩 Login useEffect triggered:', {
+      role: user.role,
+      userId: user.userId,
+      firstLogin: user.firstLogin, // Log for debugging
+    });
+
+    // NEW: Check for first login and redirect to setup
+    if (user.firstLogin === true) { // Explicit === true to avoid undefined
+      console.log('🧩 First login detected in useEffect, redirecting to setup');
+      router.push('/auth/setup');
+      return;
     }
-  }, [state.isAuthenticated, state.user, state.isLoading, router]);
+
+    // Existing role-based redirect
+    const path = user.role === 'EMPLOYEE' ? '/dashboard' :
+                 user.role === 'ADMIN' ? '/admin-dashboard' :
+                 user.role === 'MANAGER' ? '/manager' :
+                 user.role === 'CLIENT' ? '/client-dashboard' :
+                 user.role === 'HR' ? '/hr' :
+                 user.role === 'FINANCE' ? '/finance' :
+                 '/auth/login'; // Fallback for undefined/invalid roles
+    console.log('🧩 Redirecting to:', path);
+    router.push(path);
+  }
+}, [state.isAuthenticated, state.user, state.isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +107,7 @@ const Login: React.FC = () => {
             </label>
             <input
               id="inputKey"
+              
               type="text"
               required
               value={credentials.inputKey}

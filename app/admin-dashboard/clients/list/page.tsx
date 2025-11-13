@@ -95,7 +95,7 @@ const ClientList = () => {
       <div className="p-8 bg-gray-50 min-h-screen">
       <div className="relative flex items-center justify-center mb-8">
           <div className="absolute left-0">
-            <BackButton fallback="/admin-dashboard/clients" />
+            <BackButton to  ="/admin-dashboard/clients" />
           </div>
           <h1 className="text-3xl font-bold  text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
           Client List

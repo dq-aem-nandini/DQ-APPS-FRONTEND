@@ -1,18 +1,55 @@
-// app/admin-dashboard/salaries/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { salaryService } from '@/lib/api/salaryService';
-import { ListofEmployeeSalaries} from '@/lib/api/ListofEmployeSalaries';
+import { ListofEmployeeSalaries } from '@/lib/api/ListofEmployeSalaries';
 import {
   WebResponseDTO,
   EmployeeDTO,
   SalarySummaryDTO,
 } from '@/lib/api/types';
 import dayjs from 'dayjs';
-import { AlertTriangle } from 'lucide-react';
+import {
+  AlertTriangle,
+  Loader2,
+  User,
+  Calendar,
+  IndianRupee,
+} from 'lucide-react';
+
+// shadcn/ui components
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function AdminPage() {
+  /* ────── STATE ────── */
   const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [employeeDetails, setEmployeeDetails] = useState<EmployeeDTO | null>(null);
@@ -27,7 +64,7 @@ export default function AdminPage() {
   const [noData, setNoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch employees
+  /* ────── FETCH EMPLOYEES ────── */
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -40,7 +77,7 @@ export default function AdminPage() {
     fetchEmployees();
   }, []);
 
-  // Fetch employee details (for date of joining)
+  /* ────── EMPLOYEE SELECT ────── */
   const handleSelectEmployee = async (empId: string) => {
     setSelectedEmployee(empId);
     setSalaryData(null);
@@ -49,6 +86,7 @@ export default function AdminPage() {
     setAvailableMonths([]);
     setSelectedYear('');
     setSelectedMonth('');
+    setEmployeeDetails(null);
 
     if (!empId) return;
 
@@ -59,45 +97,32 @@ export default function AdminPage() {
 
       setEmployeeDetails(details);
 
-      const joinDate = dayjs(details.dateOfJoining);
-      const currentDate = dayjs();
-
+      const join = dayjs(details.dateOfJoining);
+      const now = dayjs();
       const years: number[] = [];
-      for (let y = joinDate.year(); y <= currentDate.year(); y++) years.push(y);
+      for (let y = join.year(); y <= now.year(); y++) years.push(y);
       setAvailableYears(years);
     } catch {
       setError('Failed to load employee details.');
     }
   };
 
-  // When year changes
+  /* ────── YEAR → MONTHS ────── */
   const handleYearChange = (year: number) => {
     if (!employeeDetails) return;
 
-    const joinDate = dayjs(employeeDetails.dateOfJoining);
-    const currentDate = dayjs();
+    const join = dayjs(employeeDetails.dateOfJoining);
+    const now = dayjs();
     let months: { name: string; value: number }[] = [];
 
-    if (year === joinDate.year() && year === currentDate.year()) {
-      months = Array.from({ length: currentDate.month() + 1 - joinDate.month() }, (_, i) => ({
-        name: dayjs().month(joinDate.month() + i).format('MMMM'),
-        value: joinDate.month() + i + 1,
-      }));
-    } else if (year === joinDate.year()) {
-      months = Array.from({ length: 12 - joinDate.month() }, (_, i) => ({
-        name: dayjs().month(joinDate.month() + i).format('MMMM'),
-        value: joinDate.month() + i + 1,
-      }));
-    } else if (year === currentDate.year()) {
-      months = Array.from({ length: currentDate.month() + 1 }, (_, i) => ({
-        name: dayjs().month(i).format('MMMM'),
-        value: i + 1,
-      }));
-    } else {
-      months = Array.from({ length: 12 }, (_, i) => ({
-        name: dayjs().month(i).format('MMMM'),
-        value: i + 1,
-      }));
+    const startMonth = year === join.year() ? join.month() : 0;
+    const endMonth = year === now.year() ? now.month() : 11;
+
+    for (let m = startMonth; m <= endMonth; m++) {
+      months.push({
+        name: dayjs().month(m).format('MMMM'),
+        value: m + 1,
+      });
     }
 
     setAvailableMonths(months);
@@ -105,207 +130,327 @@ export default function AdminPage() {
     setSelectedMonth('');
   };
 
-  // Fetch salary
+  /* ────── FETCH SALARY ────── */
   const handleFetchSalary = async () => {
-  if (!selectedEmployee || !selectedMonth || !selectedYear) return;
+    if (!selectedEmployee || !selectedMonth || !selectedYear) return;
 
-  setLoading(true);
-  setNoData(false);
-  setError(null);
+    setLoading(true);
+    setNoData(false);
+    setError(null);
 
-  const monthString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+    const monthString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
 
-  try {
-    const res = await salaryService.getPayslip(selectedEmployee, monthString);
-    console.log('📦 Salary API raw response:', res);
+    try {
+      const res = await salaryService.getPayslip(selectedEmployee, monthString);
+      const payload = res?.response;
 
-    // ✅ Safely extract the actual salary data
-    const salaryPayload = res?.response;
-
-    if (res.flag && salaryPayload && salaryPayload.employeeId) {
-      setSalaryData(salaryPayload);
-      setNoData(false);
-    } else {
-      console.warn("⚠️ No salary data found in response:", res);
-      setSalaryData(null);
+      if (res.flag && payload && payload.employeeId) {
+        setSalaryData(payload);
+        setNoData(false);
+      } else {
+        setSalaryData(null);
+        setNoData(true);
+      }
+    } catch (err) {
+      console.error(err);
       setNoData(true);
+      setSalaryData(null);
+    } finally {
+      setLoading(false);
     }
-
-  } catch (err) {
-    console.error('❌ Salary fetch error:', err);
-    setNoData(true);
-    setSalaryData(null);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const selectedMonthString =
     selectedYear && selectedMonth
       ? `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
       : '';
 
+  /* ────── RENDER ────── */
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard - Employee Salaries</h1>
+    <div className="container mx-auto p-4 md:p-6 space-y-8">
 
-      {/* Employee Dropdown */}
-      <div>
-        <label className="block font-medium mb-1">Select Employee:</label>
-        <select
-          value={selectedEmployee}
-          onChange={(e) => handleSelectEmployee(e.target.value)}
-          className="border border-gray-300 rounded-md p-2 w-72"
-        >
-          <option value="">-- Select Employee --</option>
-          {employees.map((emp) => (
-            <option key={emp.employeeId} value={emp.employeeId}>
-              {emp.firstName} {emp.lastName}
-            </option>
-          ))}
-        </select>
+      <div className="relative flex items-center justify-center mb-10">
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          Employee Salaries
+        </h1>
       </div>
 
-      {/* Filters + Button */}
-      {employeeDetails && (
-        <div className="flex items-end gap-4">
-          <div>
-            <label className="block font-medium mb-1">Year:</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => handleYearChange(Number(e.target.value))}
-              className="border border-gray-300 rounded-md p-2 w-32"
-            >
-              <option value="">-- Year --</option>
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+      {/* ── FILTERS CARD ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Select Employee & Period
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Employee Select */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Employee</label>
+            <Select value={selectedEmployee} onValueChange={handleSelectEmployee}>
+              <SelectTrigger className="w-full md:w-80">
+                <SelectValue placeholder="— Choose an employee —" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.length === 0 ? (
+                  <SelectItem value="loading" disabled>
+                    Loading employees…
+                  </SelectItem>
+                ) : (
+                  employees.map((e) => (
+                    <SelectItem key={e.employeeId} value={e.employeeId}>
+                      {e.firstName} {e.lastName}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block font-medium mb-1">Month:</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="border border-gray-300 rounded-md p-2 w-40"
-              disabled={!selectedYear}
-            >
-              <option value="">-- Month --</option>
-              {availableMonths.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Year & Month */}
+          {selectedEmployee && employeeDetails && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              {/* Year */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Year</label>
+                <Select
+                  value={selectedYear?.toString() ?? ''}
+                  onValueChange={(v: string) => handleYearChange(Number(v))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="— Select year —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((y) => (
+                      <SelectItem key={y} value={y.toString()}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <button
-            onClick={handleFetchSalary}
-            disabled={!selectedEmployee || !selectedYear || !selectedMonth || loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {loading ? 'Fetching...' : 'Fetch Salary'}
-          </button>
-        </div>
+              {/* Month */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Month</label>
+                <Select
+                  disabled={!selectedYear}
+                  value={selectedMonth?.toString() ?? ''}
+                  onValueChange={(v: string) => setSelectedMonth(Number(v))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="— Select month —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map((m) => (
+                      <SelectItem key={m.value} value={m.value.toString()}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Fetch Button */}
+              <Button
+                onClick={handleFetchSalary}
+                disabled={!selectedEmployee || !selectedYear || !selectedMonth || loading}
+                className="w-full md:w-auto"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Fetching…
+                  </>
+                ) : (
+                  'Fetch Salary'
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Loading employee details */}
+          {selectedEmployee && !employeeDetails && (
+            <p className="text-sm text-muted-foreground italic">
+              Loading employee details…
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Error ── */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      {error && <p className="text-red-500">{error}</p>}
-
-      {/* Salary Display Section */}
+      {/* ── Loading Skeleton ── */}
       {loading && (
-        <p className="text-gray-500 text-center mt-6 italic">
-          Loading salary details...
-        </p>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
       )}
 
+      {/* ── No Data ── */}
       {noData && (
-        <div className="flex flex-col items-center justify-center text-center border border-yellow-300 bg-yellow-50 rounded-lg p-6 mt-4">
-          <AlertTriangle className="text-yellow-500 w-10 h-10 mb-3" />
-          <h3 className="text-lg font-semibold text-yellow-700">No Salary Slip Found</h3>
-          <p className="text-gray-600 mt-1">
-            No payslip has been generated for <strong>{selectedMonthString}</strong>.
-            Please check with HR or try selecting a different month.
-          </p>
-        </div>
+        <Alert className="border-yellow-300 bg-yellow-50">
+          <AlertTriangle className="h-5 w-5 text-yellow-600" />
+          <AlertTitle className="text-yellow-800">No Salary Slip Found</AlertTitle>
+          <AlertDescription className="text-yellow-700">
+            No payslip generated for <strong>{selectedMonthString}</strong>. Try another month or contact HR.
+          </AlertDescription>
+        </Alert>
       )}
 
+      {/* ── Salary Payslip ── */}
       {salaryData && (
-        <div className="p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto mt-6 space-y-6">
-          <div className="flex items-center justify-between border-b pb-3 mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">Salary Details</h2>
-          </div>
-
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg shadow-sm border">
-            <div className="flex justify-between items-center mb-3">
-              <span
-                className={`text-sm font-medium px-3 py-1 rounded-full ${
-                  salaryData.paymentStatus === 'PAID'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Overview */}
+          <Card className="lg:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Salary Slip – {salaryData.salaryMonth}
+              </CardTitle>
+              <Badge
+                variant={salaryData.paymentStatus === 'PAID' ? 'default' : 'destructive'}
               >
                 {salaryData.paymentStatus}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-gray-700">
-              <p><strong>Employee:</strong> {salaryData.employeeName}</p>
-              <p><strong>Client:</strong> {salaryData.clientName}</p>
-              <p><strong>Payroll Status:</strong> {salaryData.payrollStatus}</p>
-              <p><strong>Month:</strong> {salaryData.salaryMonth}</p>
-              <p><strong>Total Hours:</strong> {salaryData.totalHours}</p>
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-5 bg-gray-50">
-            <h4 className="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">
-              Allowances
-            </h4>
-            <div className="divide-y">
-              {salaryData.allowances.map((item, idx) => (
-                <div key={idx} className="flex justify-between py-2 text-gray-700">
-                  <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
-                  <span>₹{item.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="flex justify-between font-medium pt-3 text-gray-900">
-                <span>Total Allowances</span>
-                <span>₹{salaryData.totalAllowances.toLocaleString()}</span>
+              </Badge>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Employee</span>
+                <p>{salaryData.employeeName}</p>
               </div>
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-5 bg-gray-50">
-            <h4 className="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">
-              Deductions
-            </h4>
-            <div className="divide-y">
-              {salaryData.deductions.map((item, idx) => (
-                <div key={idx} className="flex justify-between py-2 text-gray-700">
-                  <span className="capitalize">{item.name.replace(/_/g, ' ')}</span>
-                  <span>₹{item.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="flex justify-between font-medium pt-3 text-gray-900">
-                <span>Total Deductions</span>
-                <span>₹{salaryData.totalDeductions.toLocaleString()}</span>
+              <div>
+                <span className="font-medium">Client</span>
+                <p>{salaryData.clientName}</p>
               </div>
-            </div>
-          </div>
+              <div>
+                <span className="font-medium">Payroll</span>
+                <p>{salaryData.payrollStatus}</p>
+              </div>
+              <div>
+                <span className="font-medium">Hours</span>
+                <p>{salaryData.totalHours}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white border rounded-lg p-6 shadow-sm">
-            <h4 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">
-              Summary
-            </h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-gray-700">
-              <p><strong>Basic Pay:</strong> ₹{salaryData.basicPay.toLocaleString()}</p>
-              <p><strong>Gross Salary:</strong> ₹{salaryData.grossSalary.toLocaleString()}</p>
-              <p><strong>Net Salary:</strong> ₹{salaryData.netSalary.toLocaleString()}</p>
-            </div>
-          </div>
+          {/* Allowances */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IndianRupee className="w-5 h-5" />
+                Allowances
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {salaryData.allowances.map((a, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="capitalize">
+                        {a.name.replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₹{a.amount.toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-semibold">
+                    <TableCell>Total Allowances</TableCell>
+                    <TableCell className="text-right">
+                      ₹{salaryData.totalAllowances.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Deductions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IndianRupee className="w-5 h-5" />
+                Deductions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {salaryData.deductions.map((d, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="capitalize">
+                        {d.name.replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₹{d.amount.toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-semibold">
+                    <TableCell>Total Deductions</TableCell>
+                    <TableCell className="text-right">
+                      ₹{salaryData.totalDeductions.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Summary */}
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-4 text-center">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600">Basic Pay</p>
+                <p className="text-2xl font-bold text-blue-700">
+                  ₹{salaryData.basicPay.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <p className="text-sm text-gray-600">Gross Salary</p>
+                <p className="text-2xl font-bold text-green-700">
+                  ₹{salaryData.grossSalary.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-4 bg-purple-50 rounded-lg">
+                <p className="text-sm text-gray-600">Net Salary</p>
+                <p className="text-2xl font-bold text-purple-700">
+                  ₹{salaryData.netSalary.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

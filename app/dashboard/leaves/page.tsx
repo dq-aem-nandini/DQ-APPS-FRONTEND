@@ -52,10 +52,10 @@ const LeaveDashboard: React.FC = () => {
 
   const { balances, pendingRequests, approvedRequests, rejectedRequests, totalLeavesTaken, remainingLeaves, withdrawnRequests } = dashboardData;
 
-  const thisYearApproved = approvedRequests.filter((req: LeaveResponseDTO) => 
+  const thisYearApproved = approvedRequests.filter((req: LeaveResponseDTO) =>
     req.fromDate && new Date(req.fromDate).getFullYear() === currentYear
   ).length;
-  const thisYearRejected = rejectedRequests.filter((req: LeaveResponseDTO) => 
+  const thisYearRejected = rejectedRequests.filter((req: LeaveResponseDTO) =>
     req.fromDate && new Date(req.fromDate).getFullYear() === currentYear
   ).length;
 
@@ -65,39 +65,30 @@ const LeaveDashboard: React.FC = () => {
 
   return (
     <div className="leave-dashboard p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Leave Dashboard</h1>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-md transition duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
-      </div>
-
       {/* Action Cards Section */}
-      <section className="action-cards grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="card bg-white p-6 rounded-lg shadow-md border">
-          <h3 className="text-lg font-semibold mb-2">Apply Leaves</h3>
-          <button onClick={handleApplyLeave} className="btn-primary bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
-            Apply Now
-          </button>
-        </div>
-        <div className="card bg-white p-6 rounded-lg shadow-md border">
-          <h3 className="text-lg font-semibold mb-2">View All Leaves</h3>
-          <button onClick={() => router.push('/dashboard/leaves/history')} className="btn-secondary bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition">
-            View History
-          </button>
-        </div>
-        <div className="card bg-white p-6 rounded-lg shadow-md border">
-          <h3 className="text-lg font-semibold mb-2">Leave Calendar</h3>
-          <button onClick={() => router.push('/dashboard/leaves/calendar')} className="btn-secondary bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition">
-            View Calendar
-          </button>
+      <section className="action-cards flex justify-center mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
+          <div className="card bg-white p-8 rounded-xl shadow-lg border border-gray-200 text-center hover:shadow-2xl transition">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800">Apply Leaves</h3>
+            <button
+              onClick={handleApplyLeave}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition"
+            >
+              Apply Now
+            </button>
+          </div>
+
+          <div className="card bg-white p-8 rounded-xl shadow-lg border border-gray-200 text-center hover:shadow-2xl transition">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800">View All Leaves</h3>
+            <button
+              onClick={() => router.push('/dashboard/leaves/history')}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition"
+            >
+              View History
+            </button>
+          </div>
         </div>
       </section>
-
       {/* KPI Cards Section */}
       <section className="kpi-cards grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <div className="card kpi-card bg-blue-50 p-4 rounded-lg text-center border">

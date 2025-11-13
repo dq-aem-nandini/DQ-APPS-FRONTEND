@@ -173,18 +173,16 @@ const EmployeeList = () => {
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="p-8">
-      
-        <div className="relative flex items-center justify-center mb-8">
-          <div className="absolute left-0">
-            <BackButton fallback="/admin-dashboard/employees" />
-          </div>
-          <h1 className="text-3xl font-bold  text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          Employee List
+        <div className="mb-10 flex items-center justify-between">
+          <BackButton to="/admin-dashboard/employees" />
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Employee List
           </h1>
+          <div className="w-20" />
         </div>
 
         <div className="flex justify-end items-center mb-6">
-        
+
           <Link
             href="/admin-dashboard/employees/add"
             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
