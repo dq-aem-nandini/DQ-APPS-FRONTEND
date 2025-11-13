@@ -344,7 +344,7 @@ export default function ManagerTimesheetReview() {
                   <DayPicker
                     mode="single"
                     selected={selectedDate ? dayjs(selectedDate).toDate() : undefined}
-                    onSelect={(date) => {
+                    onSelect={(date: Date | undefined) => {
                       if (!date) return;
                       const picked = dayjs(date);
                       const newWeek = picked.startOf('isoWeek');
@@ -366,7 +366,7 @@ export default function ManagerTimesheetReview() {
                     captionLayout="dropdown"
                     startMonth={startMonth}
                   
-                    onMonthChange={(month) => {
+                    onMonthChange={(month: Date) => {
                       const newWeek = dayjs(month).startOf('isoWeek');
                       setCurrentWeekStart(newWeek);
                       setSelectedDate(newWeek.format('YYYY-MM-DD'));

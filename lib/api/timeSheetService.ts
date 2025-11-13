@@ -257,7 +257,7 @@ async getAllTimesheets(params?: {
       ([_, v]) => v !== undefined && v !== null
     )
   );
-
+console.log('[getAllTimesheets] →', cleanParams);
   return this._query<TimeSheetResponseDto[]>("/employee/view/timesheet", { params: cleanParams });
 }
 
