@@ -189,23 +189,16 @@ const firstAllowedMonday = useMemo(() => {
       const list: TimeSheetResponseDto[] = response.response.filter(entry => {
         const entryDate = dayjs(entry.workDate);
         const isInRange = entryDate.isBetween(weekStart, weekStart.clone().add(6, 'day'), 'day', '[]');
-        const matchesYearMonth = (
-          entryDate.year() === weekStart.year() &&
-          entryDate.month() === weekStart.month()
-        );
 
         console.debug('[TimeSheetRegister] Entry date check:', {
           entryId: entry.timesheetId,
           date: entry.workDate,
           isInRange,
-          matchesYearMonth,
           entryYear: entryDate.year(),
           entryMonth: entryDate.month() + 1,
-          weekStartYear: weekStart.year(),
-          weekStartMonth: weekStart.month() + 1,
         });
 
-        return isInRange && matchesYearMonth;
+        return isInRange ;
       });
 
       console.debug('[TimeSheetRegister] Filtered timesheets:', {
