@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import { invoiceService } from '@/lib/api/invoiceService';
-import { ClientInvoiceSummaryDTO, EmployeeWorkSummaryDTO, InvoiceStatus } from '@/lib/api/types';
+import { ClientInvoiceSummaryDTO,InvoiceStatus } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Spinner from '@/components/ui/Spinner';
-import { ArrowLeft, Download, FileText, DollarSign, Clock, CheckCircle, XCircle, Check, X } from 'lucide-react';
+import {Download, FileText, DollarSign, Clock, CheckCircle, XCircle, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +24,7 @@ import {
 import BackButton from '@/components/ui/BackButton';
 
 const InvoiceSummaryPage = () => {
-    const { id } = useParams(); // clientId
+    const { id } = useParams(); // InvoiceId
     const [summaries, setSummaries] = useState<ClientInvoiceSummaryDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -94,34 +93,45 @@ const InvoiceSummaryPage = () => {
     };
 
     const handleStatusUpdate = async (invoiceId: string, status: InvoiceStatus) => {
-        const statusText = status.toLowerCase();
+        const actionVerb = status === 'APPROVED' ? 'approve' : 'reject';
+        const pastVerb = status === 'APPROVED' ? 'approved' : 'rejected';
         const result = await Swal.fire({
             title: `Are you sure?`,
-            text: `You want to ${statusText} this invoice? This action cannot be undone.`,
+            text: `You want to ${actionVerb} this invoice? This action cannot be undone.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: status === 'APPROVED' ? '#10b981' : '#ef4444',
             cancelButtonColor: '#6b7280',
-            confirmButtonText: `Yes, ${statusText} it!`
+            confirmButtonText: `Yes, ${actionVerb} it!`
         });
 
         if (result.isConfirmed) {
+            Swal.fire({
+                title:'Processing......',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+                confirmButtonColor: '#2563eb',
+            });
             try {
                 await invoiceService.updateInvoiceStatus(invoiceId, status);
+                Swal.close();
                 Swal.fire({
                     icon: 'success',
                     title: 'Updated!',
-                    text: `Invoice has been ${statusText}.`,
+                    text: `Invoice has been ${pastVerb}.`,
                     timer: 1500,
                     showConfirmButton: false,
                 });
                 await refetchSummaries(); // Refetch after update to reflect changes
             } catch (err: any) {
                 console.error('Status update failed:', err);
+                Swal.close();
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
-                    text: err.message || `Failed to ${statusText} invoice. Please try again.`,
+                    text: err.message || `Failed to ${actionVerb} invoice. Please try again.`,
                 });
             }
         }
@@ -170,7 +180,6 @@ const InvoiceSummaryPage = () => {
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">No Invoice Summaries</h2>
                         <p className="text-gray-600 mb-6">{error || 'No invoice summaries available for this client.'}</p>
                         <BackButton to="/admin-dashboard/invoice" />
-
                     </div>
                 </div>
             </ProtectedRoute>
@@ -252,54 +261,56 @@ const InvoiceSummaryPage = () => {
                                         {summaries.map((summary) => (
                                             <React.Fragment key={summary.invoiceId}>
                                                 <TableRow>
-                                                    <TableCell className="font-medium">{summary.invoiceNumber}</TableCell>
-                                                    <TableCell>{format(new Date(summary.invoiceDate), 'MMM dd, yyyy')}</TableCell>
+                                                    <>
+                                                        <TableCell className="font-medium">{summary.invoiceNumber}</TableCell>
+                                                        <TableCell>{format(new Date(summary.invoiceDate), 'MMM dd, yyyy')}</TableCell>
 
-                                                    {/* ✅ From & To Dates */}
-                                                    <TableCell>{format(new Date(summary.fromDate), 'MMM dd, yyyy')}</TableCell>
-                                                    <TableCell>{format(new Date(summary.toDate), 'MMM dd, yyyy')}</TableCell>
+                                                        {/* ✅ From & To Dates */}
+                                                        <TableCell>{format(new Date(summary.fromDate), 'MMM dd, yyyy')}</TableCell>
+                                                        <TableCell>{format(new Date(summary.toDate), 'MMM dd, yyyy')}</TableCell>
 
-                                                    <TableCell>
-                                                        <Badge className={getStatusColor(summary.invoiceStatus)}>
-                                                            {summary.invoiceStatus || 'PENDING'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-bold">{summary.totalAmount.toFixed(2)}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex gap-2 justify-end">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => handleDownloadPDF(summary.invoiceId)}
-                                                                title="Download PDF"
-                                                            >
-                                                                <Download className="w-4 h-4" />
-                                                            </Button>
-                                                            {['PENDING', 'DRAFT', 'SENT'].includes(summary.invoiceStatus || 'PENDING') && (
-                                                                <>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleStatusUpdate(summary.invoiceId, 'APPROVED')}
-                                                                        className="bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
-                                                                        title="Approve"
-                                                                    >
-                                                                        <Check className="w-3 h-3 mr-1" />
-                                                                        Approve
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="destructive"
-                                                                        onClick={() => handleStatusUpdate(summary.invoiceId, 'REJECTED')}
-                                                                        title="Reject"
-                                                                        className="bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
-                                                                    >
-                                                                        <X className="w-3 h-3 mr-1" />
-                                                                        Reject
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
+                                                        <TableCell>
+                                                            <Badge className={getStatusColor(summary.invoiceStatus)}>
+                                                                {summary.invoiceStatus || 'PENDING'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-bold">{summary.totalAmount.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex gap-2 justify-end">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleDownloadPDF(summary.invoiceId)}
+                                                                    title="Download PDF"
+                                                                >
+                                                                    <Download className="w-4 h-4" />
+                                                                </Button>
+                                                                {['PENDING', 'DRAFT', 'SENT'].includes(summary.invoiceStatus || 'PENDING') && (
+                                                                    <>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => handleStatusUpdate(summary.invoiceId, 'APPROVED')}
+                                                                            className="bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                                                                            title="Approve"
+                                                                        >
+                                                                            <Check className="w-3 h-3 mr-1" />
+                                                                            Approve
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="destructive"
+                                                                            onClick={() => handleStatusUpdate(summary.invoiceId, 'REJECTED')}
+                                                                            title="Reject"
+                                                                            className="bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                                                                        >
+                                                                            <X className="w-3 h-3 mr-1" />
+                                                                            Reject
+                                                                        </Button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    </>
                                                 </TableRow>
                                                 {/* Nested Employee Rows */}
                                                 <TableRow>
@@ -318,11 +329,13 @@ const InvoiceSummaryPage = () => {
                                                                 <TableBody>
                                                                     {summary.employeeWorkSummaries.map((emp, i) => (
                                                                         <TableRow key={i}>
-                                                                            <TableCell>{emp.employeeName}</TableCell>
-                                                                            <TableCell className="text-right">{emp.companyId}</TableCell>
-                                                                            <TableCell className="text-right">{emp.totalHours}h</TableCell>
-                                                                            <TableCell className="text-right">{emp.rateCard.toFixed(2)}</TableCell>
-                                                                            <TableCell className="text-right font-medium">{emp.totalAmount.toFixed(2)}</TableCell>
+                                                                            <>
+                                                                                <TableCell>{emp.employeeName}</TableCell>
+                                                                                <TableCell className="text-right">{emp.companyId}</TableCell>
+                                                                                <TableCell className="text-right">{emp.totalHours}h</TableCell>
+                                                                                <TableCell className="text-right">{emp.rateCard.toFixed(2)}</TableCell>
+                                                                                <TableCell className="text-right font-medium">{emp.totalAmount.toFixed(2)}</TableCell>
+                                                                            </>
                                                                         </TableRow>
                                                                     ))}
                                                                 </TableBody>

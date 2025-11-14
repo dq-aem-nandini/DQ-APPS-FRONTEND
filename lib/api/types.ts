@@ -1257,17 +1257,29 @@ export interface EmployeeWorkSummaryDTO {
 }
 
 // ClientInvoiceSummaryDTO
+// export interface ClientInvoiceSummaryDTO {
+//   clientId: string;
+//   invoiceStatus: InvoiceStatus;
+//   invoiceId: string;
+//   invoiceNumber: string;
+//   invoiceDate: string; // ISO date string
+//   totalAmount: number;
+//   fromDate: string; // ISO date string
+//   toDate: string; // ISO date string
+//   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
+// }
 export interface ClientInvoiceSummaryDTO {
+  invoiceId: string;
   clientId: string;
   invoiceStatus: InvoiceStatus;
-  invoiceId: string;
   invoiceNumber: string;
-  invoiceDate: string; // ISO date string
+  invoiceDate: string;
   totalAmount: number;
-  fromDate: string; // ISO date string
-  toDate: string; // ISO date string
+  fromDate: string;
+  toDate: string;
   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
 }
+
 
 // WebResponseDTOListClientInvoiceSummaryDTO
 export interface WebResponseDTOListClientInvoiceSummaryDTO {
