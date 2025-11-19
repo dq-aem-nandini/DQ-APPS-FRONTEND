@@ -4,20 +4,25 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { leaveService } from '@/lib/api/leaveService';
+import { employeeService } from '@/lib/api/employeeService';
 import {
   LeaveCategoryType,
   FinancialType,
   LeaveRequestDTO,
+  EmployeeDTO
 } from '@/lib/api/types';
-import { useAuth } from '@/context/AuthContext';
 import BackButton from '../ui/BackButton';
 import Swal from 'sweetalert2';
+
 const ApplyLeavePage: React.FC = () => {
-  const { state: { user } } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const leaveId = searchParams.get('leaveId');
 
+  // All hooks at top level (unconditional) to avoid order issues
+  const [employeeId, setEmployeeId] = useState<string>('');
+  const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
+  const [loadingEmployee, setLoadingEmployee] = useState(true);
   const [formData, setFormData] = useState<LeaveRequestDTO>({
     leaveId: leaveId || undefined,
     categoryType: 'CASUAL' as LeaveCategoryType,
@@ -28,11 +33,9 @@ const ApplyLeavePage: React.FC = () => {
     toDate: '',
     context: '',
   });
-
   const [attachment, setAttachment] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [insufficientLeave, setInsufficientLeave] = useState(false);
@@ -40,10 +43,29 @@ const ApplyLeavePage: React.FC = () => {
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
   const financialTypes: FinancialType[] = ['PAID', 'UNPAID'];
 
-  // Fetch leave data for update
+  // Fetch current employee's details on mount (no params needed for authenticated user)
+  useEffect(() => {
+    const fetchEmployeeDetails = async () => {
+      try {
+        setLoadingEmployee(true);
+        // Call service method to get EmployeeDTO for current user
+        const empResponse = await employeeService.getEmployeeById();
+        setEmployee(empResponse);
+        setEmployeeId(empResponse.employeeId); // Set UUID for use in APIs (assume EmployeeDTO has employeeId: string)
+      } catch (err) {
+        // Fallback or error handling
+        router.push('/dashboard/error?message=Failed to load employee details');
+      } finally {
+        setLoadingEmployee(false);
+      }
+    };
+    fetchEmployeeDetails();
+  }, []);
+
+  // Fetch leave data for update (now uses fetched employeeId)
   useEffect(() => {
     const fetchLeaveData = async () => {
-      if (leaveId && user?.userId) {
+      if (leaveId && employeeId) {
         try {
           setLoading(true);
           setError(null);
@@ -59,7 +81,7 @@ const ApplyLeavePage: React.FC = () => {
             leaveDuration: leave.leaveDuration || 0,
           });
         } catch (err) {
-          console.error('Error fetching leave data:', err);
+          console.error('❌ Error fetching leave data:', err);
           setError('Failed to load leave data. Please try again.');
         } finally {
           setLoading(false);
@@ -67,7 +89,7 @@ const ApplyLeavePage: React.FC = () => {
       }
     };
     fetchLeaveData();
-  }, [leaveId, user?.userId]);
+  }, [leaveId, employeeId]);
 
   // Debounced duration calculation
   useEffect(() => {
@@ -77,7 +99,9 @@ const ApplyLeavePage: React.FC = () => {
       }
     }, 800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [formData.fromDate, formData.toDate, formData.partialDay, loading]);
 
   // Re-check when user manually selects PAID
@@ -86,16 +110,18 @@ const ApplyLeavePage: React.FC = () => {
       formData.financialType === 'PAID' &&
       formData.leaveDuration !== undefined &&
       formData.leaveDuration > 0 &&
-      user?.userId &&
+      employeeId &&
       !calculating &&
       !checkingAvailability
     ) {
-      checkAvailability(user.userId, formData.leaveDuration);
+      checkAvailability(employeeId, formData.leaveDuration);
     }
-  }, [formData.financialType, formData.leaveDuration, user?.userId]);
+  }, [formData.financialType, formData.leaveDuration, employeeId]);
 
   const calculateDuration = async () => {
-    if (!formData.fromDate || !formData.toDate || calculating) return;
+    if (!formData.fromDate || !formData.toDate || calculating) {
+      return;
+    }
 
     try {
       setCalculating(true);
@@ -107,12 +133,11 @@ const ApplyLeavePage: React.FC = () => {
 
       setFormData((prev) => ({ ...prev, leaveDuration: calculatedDuration }));
 
-      if (user?.userId && calculatedDuration > 0) {
-        const availability = await leaveService.checkLeaveAvailability(user.userId, calculatedDuration);
+      if (employeeId && calculatedDuration > 0) {
+        const availability = await leaveService.checkLeaveAvailability(employeeId, calculatedDuration);
 
         if (!availability.available) {
           setInsufficientLeave(true);
-          // NO AUTO-SWITCH
           if (formData.financialType === 'PAID') {
             setError(availability.message || 'Not enough paid leaves. Please select UNPAID.');
           }
@@ -124,18 +149,20 @@ const ApplyLeavePage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      // ... fallback
+      setError(err instanceof Error ? err.message : 'Failed to calculate duration. Please check your dates and try again.');
     } finally {
       setCalculating(false);
     }
   };
 
-  const checkAvailability = async (employeeId: string, leaveDuration: number) => {
-    if (!employeeId || leaveDuration <= 0) return;
+  const checkAvailability = async (empId: string, leaveDuration: number) => {
+    if (!empId || leaveDuration <= 0) {
+      return;
+    }
 
     try {
       setCheckingAvailability(true);
-      const availability = await leaveService.checkLeaveAvailability(employeeId, leaveDuration);
+      const availability = await leaveService.checkLeaveAvailability(empId, leaveDuration);
 
       if (!availability.available) {
         setInsufficientLeave(true);
@@ -149,7 +176,7 @@ const ApplyLeavePage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      if (err.code !== 'ERR_NETWORK') setError('Balance check failed.');
+      setError(err instanceof Error ? err.message : 'Failed to check leave balance. Please try again.');
     } finally {
       setCheckingAvailability(false);
     }
@@ -166,6 +193,7 @@ const ApplyLeavePage: React.FC = () => {
   ) => {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
+
 
     setFormData((prev) => ({
       ...prev,
@@ -188,10 +216,6 @@ const ApplyLeavePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      router.push('/unauthorized');
-      return;
-    }
 
     if (formData.fromDate && formData.toDate && new Date(formData.fromDate) > new Date(formData.toDate)) {
       setError('From date must be before To date');
@@ -246,6 +270,17 @@ const ApplyLeavePage: React.FC = () => {
       setLoading(false);
     }
   };
+  useEffect(() => {
+  }, [employeeId]);
+
+  // Wait for employeeId (UUID) before rendering form
+  if (loadingEmployee || !employeeId) {
+    return (
+      <div className="p-6 text-center">
+        <p>Loading employee details...</p>
+      </div>
+    );
+  }
   return (
     <div className="apply-leave-page p-6 max-w-2xl mx-auto">
       <div className="mb-10 flex items-center justify-between">
@@ -382,10 +417,10 @@ const ApplyLeavePage: React.FC = () => {
         </div>
 
         {/* Error Display */}
-        {error && formData.financialType === 'PAID' && (
+        {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             <p className="text-sm">{error}</p>
-            {insufficientLeave && (
+            {insufficientLeave && formData.financialType === 'PAID' && (
               <p className="text-xs mt-1">
                 Please switch to <strong>UNPAID</strong> to continue.
               </p>

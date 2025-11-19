@@ -104,11 +104,11 @@ class InvoiceService {
     * Endpoint: GET /web/api/v1/invoice/view/summary/client/{clientId}
     */
   async getClientInvoiceSummary(
-    clientId: string
+    invoiceId: string
   ): Promise<ClientInvoiceSummaryDTO[]> {
     try {
       const response: AxiosResponse<WebResponseDTOListClientInvoiceSummaryDTO> =
-        await api.get(`/invoice/view/summary/client/${clientId}`);
+        await api.get(`/invoice/view/summary/invoice/${invoiceId}`);
 
       console.log(
         'Full get client invoice summary API response:',

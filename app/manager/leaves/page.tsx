@@ -451,16 +451,19 @@ const Leavespage: React.FC = () => {
                         'None'
                       )}
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base">
-                      {leave.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleReviewLeave(leave)}
-                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                        >
-                          Review
-                        </button>
-                      )}
-                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-center">
+  {leave.status === 'PENDING' ? (
+    <button
+      onClick={() => handleReviewLeave(leave)}
+      className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+    >
+      Review
+    </button>
+  ) : (
+    <span className="text-gray-500 text-sm">-</span>
+  )}
+</td>
+
                   </tr>
                 ))}
               </tbody>

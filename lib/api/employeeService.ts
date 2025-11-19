@@ -17,7 +17,7 @@ import {
 import { AxiosResponse, AxiosError } from 'axios';
 
 class EmployeeService {
- 
+
   async updateEmployee(employee: EmployeeModel): Promise<WebResponseDTO<EmployeeDTO>> {
     try {
       const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> = await api.put(
@@ -101,8 +101,8 @@ class EmployeeService {
     }
   }
 
-  
-  
+
+
   /**
    * Get employees by designation (GET with path param).
    */
@@ -138,69 +138,69 @@ class EmployeeService {
       throw new Error(`Failed to get designation list: ${error}`);
     }
   }
-    // ✅ DELETE: Employee Address (New Global Endpoint)
-    async deleteEmployeeAddressGlobal(
-      employeeId: string,
-      addressId: string
-    ): Promise<WebResponseDTOString> {
-      console.log(`[delete] address ${addressId} for employee ${employeeId}`);
-    
-      try {
-        const response: AxiosResponse<WebResponseDTOString> = await api.delete(
-          `/employee/address/delete/${addressId}`
-        );
-    
-        if (!response.data.flag) {
-          throw new Error(response.data.message || 'Delete failed');
-        }
-    
-        console.log('Success:', response.data);
-        return response.data;
-      } catch (error: any) {
-        const msg =
-          error?.response?.data?.message ||
-          error?.message ||
-          'Failed to delete address';
-        console.error('Error:', msg);
-        throw new Error(msg);
+  // ✅ DELETE: Employee Address (New Global Endpoint)
+  async deleteEmployeeAddressGlobal(
+    employeeId: string,
+    addressId: string
+  ): Promise<WebResponseDTOString> {
+    console.log(`[delete] address ${addressId} for employee ${employeeId}`);
+
+    try {
+      const response: AxiosResponse<WebResponseDTOString> = await api.delete(
+        `/employee/address/delete/${addressId}`
+      );
+
+      if (!response.data.flag) {
+        throw new Error(response.data.message || 'Delete failed');
       }
+
+      console.log('Success:', response.data);
+      return response.data;
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to delete address';
+      console.error('Error:', msg);
+      throw new Error(msg);
     }
-    // my update requests
-    async getMyUpdateRequests(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {
-      try {
-        const response: AxiosResponse<WebResponseDTOListEmployeeUpdateRequestDTO> =
-          await api.get("/employee/update-request/my");
-    
-        console.log("📌 My Update Requests:", response.data);
-    
-        return response.data;
-      } catch (error: any) {
-        const msg =
-          error?.response?.data?.message ||
-          error.message ||
-          "Failed to fetch update requests";
-        throw new Error(msg);
-      }
+  }
+  // my update requests
+  async getMyUpdateRequests(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {
+    try {
+      const response: AxiosResponse<WebResponseDTOListEmployeeUpdateRequestDTO> =
+        await api.get("/employee/update-request/my");
+
+      console.log("📌 My Update Requests:", response.data);
+
+      return response.data;
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to fetch update requests";
+      throw new Error(msg);
     }
-    // submit update
-    async submitUpdateRequest(
-      payload: any
-    ): Promise<WebResponseDTOString> {
-      try {
-        const response: AxiosResponse<WebResponseDTOString> =
-          await api.post("/employee/update-request/submit", payload);
-    
-        console.log("📌 Submit Update Request:", response.data);
-    
-        return response.data;
-      } catch (error: any) {
-        const msg =
-          error?.response?.data?.message ||
-          error.message ||
-          "Failed to submit update request";
-        throw new Error(msg);
-      }
+  }
+  // submit update
+  async submitUpdateRequest(
+    payload: any
+  ): Promise<WebResponseDTOString> {
+    try {
+      const response: AxiosResponse<WebResponseDTOString> =
+        await api.post("/employee/update-request/submit", payload);
+
+      console.log("📌 Submit Update Request:", response.data);
+
+      return response.data;
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to submit update request";
+      throw new Error(msg);
     }
+  }
   // =====================================================
   // ✅ GET ALL ADMIN UPDATE REQUESTS
   // GET /admin/update-request/all
@@ -327,59 +327,59 @@ class EmployeeService {
     }
   }
   // =====================================================
-// ✅ GET IFSC DETAILS
-// GET /banks/ifsc/{ifscCode}
-// =====================================================
-async getIFSCDetails(ifscCode: string): Promise<WebResponseDTOIfsc> {
-  if (!ifscCode) throw new Error("IFSC code is required");
+  // ✅ GET IFSC DETAILS
+  // GET /banks/ifsc/{ifscCode}
+  // =====================================================
+  async getIFSCDetails(ifscCode: string): Promise<WebResponseDTOIfsc> {
+    if (!ifscCode) throw new Error("IFSC code is required");
 
-  try {
-    const response: AxiosResponse<WebResponseDTOIfsc> = await api.get(
-      `/banks/ifsc/${ifscCode}`
-    );
-    return response.data;
-  } catch (error: any) {
-    const msg =
-      error?.response?.data?.message ||
-      error.message ||
-      "Failed to fetch IFSC details";
-    throw new Error(msg);
-  }
-}
-
-// =====================================================
-// ✅ SEARCH BANK MASTER
-// GET /banks/search?query=
-// =====================================================
-async searchBankMaster(
-  query: string
-): Promise<WebResponseDTOListBankMaster> {
-  if (!query.trim()) {
-    return {
-      flag: false,
-      message: "Query is required",
-      status: 400,
-      response: [],
-      totalRecords: 0,
-      otherInfo: null,
-    };
+    try {
+      const response: AxiosResponse<WebResponseDTOIfsc> = await api.get(
+        `/banks/ifsc/${ifscCode}`
+      );
+      return response.data;
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to fetch IFSC details";
+      throw new Error(msg);
+    }
   }
 
-  try {
-    const response: AxiosResponse<WebResponseDTOListBankMaster> =
-      await api.get(`/banks/search`, {
-        params: { query },
-      });
+  // =====================================================
+  // ✅ SEARCH BANK MASTER
+  // GET /banks/search?query=
+  // =====================================================
+  async searchBankMaster(
+    query: string
+  ): Promise<WebResponseDTOListBankMaster> {
+    if (!query.trim()) {
+      return {
+        flag: false,
+        message: "Query is required",
+        status: 400,
+        response: [],
+        totalRecords: 0,
+        otherInfo: null,
+      };
+    }
 
-    return response.data;
-  } catch (error: any) {
-    const msg =
-      error?.response?.data?.message ||
-      error.message ||
-      "Failed to fetch bank master";
-    throw new Error(msg);
+    try {
+      const response: AxiosResponse<WebResponseDTOListBankMaster> =
+        await api.get(`/banks/search`, {
+          params: { query },
+        });
+
+      return response.data;
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to fetch bank master";
+      throw new Error(msg);
+    }
   }
-}
 }
 
 export const employeeService = new EmployeeService();

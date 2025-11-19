@@ -257,13 +257,13 @@ const Leavespage: React.FC = () => {
         </div>
       )}
       {/* Header */}
-        <div className="max-w-7xl mx-auto mb-0">
-          <div className="relative flex items-center justify-center mb-0">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Manage Leaves
-            </h1>
-          </div>
+      <div className="max-w-7xl mx-auto mb-0">
+        <div className="relative flex items-center justify-center mb-0">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Manage Leaves
+          </h1>
         </div>
+      </div>
 
 
       {/* Tabs */}
@@ -349,84 +349,119 @@ const Leavespage: React.FC = () => {
         </h3>
         {(activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 text-center">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Employee
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('leaveCategoryType,desc')} className="flex items-center gap-1">
-                      Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' : pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortChange('leaveCategoryType,desc')}
+                      className="flex justify-center items-center gap-1 w-full"
+                    >
+                      Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' :
+                        pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('leaveDuration,desc')} className="flex items-center gap-1">
-                      Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' : pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortChange('leaveDuration,desc')}
+                      className="flex justify-center items-center gap-1 w-full"
+                    >
+                      Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' :
+                        pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('fromDate,desc')} className="flex items-center gap-1">
-                      From Date {pagination.sort.includes('fromDate,desc') ? '↓' : pagination.sort.includes('fromDate,asc') ? '↑' : ''}
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Financial Type
+                  </th>
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortChange('fromDate,desc')}
+                      className="flex justify-center items-center gap-1 w-full"
+                    >
+                      From Date {pagination.sort.includes('fromDate,desc') ? '↓' :
+                        pagination.sort.includes('fromDate,asc') ? '↑' : ''}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('toDate,desc')} className="flex items-center gap-1">
-                      To Date {pagination.sort.includes('toDate,desc') ? '↓' : pagination.sort.includes('toDate,asc') ? '↑' : ''}
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortChange('toDate,desc')}
+                      className="flex justify-center items-center gap-1 w-full"
+                    >
+                      To Date {pagination.sort.includes('toDate,desc') ? '↓' :
+                        pagination.sort.includes('toDate,asc') ? '↑' : ''}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('status,desc')} className="flex items-center gap-1">
-                      Status {pagination.sort.includes('status,desc') ? '↓' : pagination.sort.includes('status,asc') ? '↑' : ''}
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortChange('status,desc')}
+                      className="flex justify-center items-center gap-1 w-full"
+                    >
+                      Status {pagination.sort.includes('status,desc') ? '↓' :
+                        pagination.sort.includes('status,asc') ? '↑' : ''}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Remaining Leaves
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Attachment
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+
+              <tbody className="divide-y divide-gray-200 text-center">
                 {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
-                  <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
+                  <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors text-center">
+
+                    <td className="px-6 py-5 text-base font-medium text-gray-900 text-center">
                       {leave.employeeName ?? 'Unknown'}
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+
+                    <td className="px-6 py-5 text-base text-gray-500 text-center">
                       {leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+
+                    <td className="px-6 py-5 text-base text-gray-500 text-center">
                       {leave.leaveDuration ?? 0} days
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+
+                    <td className="px-6 py-5 text-base text-gray-500 text-center">
+                      {leave.financialType ? getLabel(leave.financialType) : 'N/A'}
+                    </td>
+
+                    <td className="px-6 py-5 text-base text-gray-500 text-center">
                       {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+
+                    <td className="px-6 py-5 text-base text-gray-500 text-center">
                       {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base">
+
+                    <td className="px-6 py-5 text-base text-center">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === 'APPROVED'
-                            ? 'bg-green-100 text-green-800'
-                            : leave.status === 'PENDING'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : leave.status === 'REJECTED'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
-                          }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium 
+              ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                            leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                              leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'}
+            `}
                       >
                         {leave.status ?? 'PENDING'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {activeTab === 'pending' ? (leave as PendingLeavesResponseDTO).remainingLeaves : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+
+                    <td className="px-6 py-5 text-base text-center">
                       {leave.attachmentUrl ? (
                         <a
                           href={leave.attachmentUrl}
@@ -437,23 +472,28 @@ const Leavespage: React.FC = () => {
                           View
                         </a>
                       ) : (
-                        'None'
+                        <span className="text-gray-400">None</span>
                       )}
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base">
-                      {leave.status === 'PENDING' && (
+
+                    <td className="px-6 py-5 text-base text-center">
+                      {leave.status === 'PENDING' ? (
                         <button
                           onClick={() => handleReviewLeave(leave)}
                           className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
                         >
                           Review
                         </button>
+                      ) : (
+                        <span className="text-gray-500 text-sm">-</span>
                       )}
                     </td>
+
                   </tr>
                 ))}
               </tbody>
             </table>
+
             {activeTab === 'all' && (
               <div className="flex justify-between items-center mt-4">
                 <button

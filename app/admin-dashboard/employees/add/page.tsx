@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -165,6 +166,7 @@ const AddEmployeePage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { state } = useAuth();
   const router = useRouter();
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const today = new Date().toISOString().split('T')[0];
   const maxJoiningDate = new Date();
@@ -377,67 +379,70 @@ const AddEmployeePage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
+  
+    // === FRONTEND VALIDATION ===
     const requiredFields: (keyof EmployeeModel)[] = [
       'firstName', 'lastName', 'personalEmail', 'contactNumber',
       'designation', 'dateOfBirth', 'dateOfJoining', 'gender', 'nationality',
       'clientId',
     ];
-
+  
     const missingFields = requiredFields.filter(field => {
       if (field === 'clientId') {
         return !formData.clientId && !formData.clientSelection;
       }
       return !formData[field] || formData[field] === '';
     });
-
+  
     if (missingFields.length > 0) {
       Swal.fire({
         icon: 'error',
-        title: 'Validation Error',
-        text: `Please fill in all mandatory fields: ${missingFields.join(', ')}`,
+        title: 'Missing Fields',
+        text: `Please fill: ${missingFields.join(', ')}`,
       });
       setIsSubmitting(false);
       return;
     }
-
+  
     if (!/^[A-Za-z\s]+$/.test(formData.firstName) || !/^[A-Za-z\s]+$/.test(formData.lastName)) {
       Swal.fire({
         icon: 'error',
-        title: 'Validation Error',
+        title: 'Invalid Name',
         text: 'First and last names must contain only letters and spaces.',
       });
       setIsSubmitting(false);
       return;
     }
+  
     if (
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personalEmail) ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.companyEmail)
     ) {
       Swal.fire({
         icon: 'error',
-        title: 'Validation Error',
+        title: 'Invalid Email',
         text: 'Please enter valid email addresses.',
       });
       setIsSubmitting(false);
       return;
     }
+  
     if (formData.personalEmail.trim().toLowerCase() === formData.companyEmail.trim().toLowerCase()) {
       Swal.fire({
         icon: 'error',
-        title: 'Validation Error',
+        title: 'Email Conflict',
         text: 'Personal and company email addresses must be different.',
       });
       setIsSubmitting(false);
       return;
     }
-
-    // Upload document files
+  
+    // === UPLOAD DOCUMENT FILES ===
     const uploadedDocuments: EmployeeDocumentDTO[] = [];
     for (let i = 0; i < formData.documents.length; i++) {
       const doc = formData.documents[i];
       const file = documentFilesList[i];
-
+  
       if (file) {
         try {
           const uploadResponse = await adminService.uploadFile(file);
@@ -453,13 +458,18 @@ const AddEmployeePage = () => {
             throw new Error(uploadResponse.message || 'Upload failed');
           }
         } catch (err: any) {
-          Swal.fire({ icon: 'error', title: 'Upload Error', text: err.message });
+          Swal.fire({
+            icon: 'error',
+            title: 'Upload Failed',
+            text: err.message || 'Could not upload document',
+          });
           setIsSubmitting(false);
           return;
         }
       }
     }
-
+  
+    // === UPLOAD ADDITIONAL FILES ===
     const additionalFiles: { [key: string]: string } = {};
     for (const [key, file] of Object.entries(documentFiles)) {
       if (file) {
@@ -473,15 +483,16 @@ const AddEmployeePage = () => {
         } catch (err: any) {
           Swal.fire({
             icon: 'error',
-            title: 'Upload Error',
-            text: err.message || `Failed to upload ${key}. Please try again.`,
+            title: 'Upload Failed',
+            text: err.message || `Could not upload ${key}`,
           });
           setIsSubmitting(false);
           return;
         }
       }
     }
-
+  
+    // === PREPARE FINAL DATA ===
     const employeeData: EmployeeModel = {
       ...formData,
       documents: uploadedDocuments.length > 0 ? uploadedDocuments : formData.documents,
@@ -509,30 +520,42 @@ const AddEmployeePage = () => {
         ? formData.employeeEquipmentDTO
         : undefined,
     };
-
+  
+    // === CALL API ===
     try {
       const response = await adminService.addEmployee(employeeData);
-      if (response.flag && response.response) {
+  
+      if (response?.flag === true && response?.response) {
         await Swal.fire({
           icon: 'success',
-          title: 'Success',
+          title: 'Success!',
           text: 'Employee added successfully!',
           confirmButtonColor: '#3085d6',
         });
         router.push('/admin-dashboard/employees/list');
       } else {
-        throw new Error(response.message || 'Failed to add employee');
+        throw new Error(response?.message || 'Failed to add employee');
       }
     } catch (err: any) {
+      console.error('Add employee error:', err);
+  
+      // CLEAN ERROR MESSAGE - NO 500 ERROR SHOWN
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Something went wrong. Please try again.';
+  
       Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: err.message || 'Failed to add employee. Please try again.',
+        title: 'Failed to Add Employee',
+        text: errorMessage,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
   const selectValue = formData.clientSelection?.startsWith('STATUS:')
     ? formData.clientSelection.replace('STATUS:', '')
     : (formData.clientId ?? undefined);
@@ -656,6 +679,7 @@ const AddEmployeePage = () => {
                       <SelectContent>{employmentTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+
                   {/* rate card */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Rate Card</Label>
@@ -689,7 +713,6 @@ const AddEmployeePage = () => {
                       <SelectTrigger className="w-full min-w-[200px] !h-11">
                         <SelectValue placeholder="Select Pay Type" />
                       </SelectTrigger>
-
                       <SelectContent>
                         {PAY_TYPE_OPTIONS.map((type) => (
                           <SelectItem key={type} value={type}>
@@ -699,9 +722,10 @@ const AddEmployeePage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* ctc Pay */}
+
+                  {/* ctc*/}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">CTC *</Label>
+                    <Label className="mb-2 block text-sm font-medium">CTC</Label>
                     <Input
                       className="h-11"
                       type="number"
@@ -709,7 +733,7 @@ const AddEmployeePage = () => {
                       step="0.01"
                       name="employeeSalaryDTO.ctc"
                       required
-                      value={formData.employeeSalaryDTO?.ctc ?? ''}
+                      value={formData.employeeSalaryDTO?.ctc?? ''}
                       onChange={handleChange}
                     />
                   </div>
@@ -939,6 +963,7 @@ const AddEmployeePage = () => {
                       </div>
                     ))}
                     <Button
+                    type='button'
                       size="sm"
                       variant="outline"
                       onClick={() => {
@@ -1012,6 +1037,7 @@ const AddEmployeePage = () => {
                       </div>
                     ))}
                     <Button
+                    type='button'
                       size="sm"
                       variant="outline"
                       onClick={() => {
@@ -1114,7 +1140,7 @@ const AddEmployeePage = () => {
                 <FileUpload label="Contract" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('contract', f)} />
                 <FileUpload label="Tax Declaration" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('taxDeclarationForm', f)} />
                 <FileUpload label="Work Permit" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('workPermit', f)} />
-                <div><Label className="mb-2 block text-sm font-medium">Skills & Certifications </Label><Textarea name="skillsAndCertification" value={formData.skillsAndCertification} onChange={handleChange} /></div>
+                <div><Label className="mb-2 block text-sm font-medium">Skills & Certifications </Label><Textarea name="skillsAndCertification"  value={formData.skillsAndCertification} onChange={handleChange} /></div>
                 <div><Label className="mb-2 block text-sm font-medium">Background Check</Label><Input className="h-11" name="employeeAdditionalDetailsDTO.backgroundCheckStatus" value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''} onChange={handleChange} /></div>
                 <div><Label className="mb-2 block text-sm font-medium">Remarks</Label><Textarea name="employeeAdditionalDetailsDTO.remarks" value={formData.employeeAdditionalDetailsDTO?.remarks || ''} onChange={handleChange} /></div>
               </CardContent>

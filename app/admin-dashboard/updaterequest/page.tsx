@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { employeeService } from '@/lib/api/employeeService';
 import { EmployeeUpdateRequestDTO, EmployeeDTO } from '@/lib/api/types';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
+import Swal from 'sweetalert2';
 import {
   Card,
   CardContent,
@@ -76,10 +76,20 @@ const UpdateRequestAdminPage = () => {
         const uniqueIds = [...new Set(res.response.map(r => r.employeeId))];
         await Promise.all(uniqueIds.map(id => loadOldProfile(id)));
       } else {
-        toast.error(res.message || 'Failed to load requests');
+        Swal.fire({
+          icon: 'error',
+          title: 'Failed to load requests',
+          text: res.message || '',
+          confirmButtonColor: '#2563eb',
+        });
       }
     } catch (err: any) {
-      toast.error(err.message || 'Network error');
+      Swal.fire({
+        icon: 'error',
+        title: 'Network error',
+        text: err.message || '',
+        confirmButtonColor: '#2563eb',
+      });
     } finally {
       setLoading(false);
     }
@@ -92,14 +102,38 @@ const UpdateRequestAdminPage = () => {
   const handleApprove = async (requestId: string) => {
     if (processing) return;
     setProcessing(true);
+    Swal.fire({
+      title: 'Approving request...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      confirmButtonColor: '#2563eb',
+    });
     try {
       const res = await employeeService.approveUpdateRequest(requestId);
       if (res.flag) {
-        toast.success('Request approved');
+        Swal.fire({
+          icon: 'success',
+          title: 'Request approved successfully.',
+          confirmButtonColor: '#2563eb',
+        });
         fetchRequests();
       } else {
-        toast.error(res.message || 'Failed to approve');
+        Swal.fire({
+          icon: 'error',
+          title: 'Failed to approve request',
+          text: res.message || '',
+          confirmButtonColor: '#2563eb',
+        });
       }
+    } catch (err: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to approve request',
+        text: err.message || 'Network error',
+        confirmButtonColor: '#2563eb',
+      });
     } finally {
       setProcessing(false);
     }
@@ -114,18 +148,42 @@ const UpdateRequestAdminPage = () => {
   const handleReject = async () => {
     if (!selectedRequest || processing) return;
     setProcessing(true);
+    setIsRejectDialogOpen(false);
+    Swal.fire({
+      title: 'Rejecting request...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      confirmButtonColor: '#2563eb',
+    });
     try {
       const res = await employeeService.rejectUpdateRequest(
         selectedRequest.requestId,
         rejectComment.trim()
       );
       if (res.flag) {
-        toast.success('Request rejected');
-        setIsRejectDialogOpen(false);
+        Swal.fire({
+          icon: 'success',
+          title: 'Request rejected successfully.',
+          confirmButtonColor: '#2563eb',
+        });
         fetchRequests();
       } else {
-        toast.error(res.message || 'Failed to reject');
+        Swal.fire({
+          icon: 'error',
+          title: 'Failed to reject request',
+          text: res.message || '',
+          confirmButtonColor: '#2563eb',
+        });
       }
+    } catch (err: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to reject request',
+        text: err.message || 'Network error',
+        confirmButtonColor: '#2563eb',
+      });
     } finally {
       setProcessing(false);
     }
@@ -283,51 +341,9 @@ const UpdateRequestAdminPage = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>Employee</Label>
-              <p className="text-sm font-medium">{selectedRequest?.employeeName}</p>
+              <Label className="text-black font-semibold m-0.5">Employee : {selectedRequest?.employeeName}</Label>
             </div>
-            {/* <div>
-              <Label>Field Changes</Label>
-              {selectedRequest && oldProfiles[selectedRequest.employeeId] ? (
-                (() => {
-                  const profile = oldProfiles[selectedRequest.employeeId];
-                  let updatedData = selectedRequest.updatedData;
-                  if (typeof updatedData === 'string') {
-                    try { updatedData = JSON.parse(updatedData); } catch { updatedData = {}; }
-                  }
-
-                  const modifiedFields = Object.entries(updatedData || {}).filter(([key, newValue]) => {
-                    const oldValue = profile?.[key as keyof EmployeeDTO];
-                    if (newValue === null || newValue === '' || newValue === undefined) return false;
-                    return String(oldValue) !== String(newValue);
-                  });
-
-                  return modifiedFields.length > 0 ? (
-                    <div className="text-xs space-y-1 mt-2">
-                      {modifiedFields.slice(0, 5).map(([key, newValue]) => {
-                        const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
-                        return (
-                          <div key={key} className="flex justify-between">
-                            <span className="font-medium">{formatKey(key)}:</span>
-                            <span className="ml-2 text-green-700 font-medium">
-                              {String(newValue)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {modifiedFields.length > 5 && (
-                        <p className="text-gray-500 text-xs">+{modifiedFields.length - 5} more</p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500">No changes</p>
-                  );
-                })()
-              ) : (
-                <p className="text-xs text-gray-500">Loading...</p>
-              )}
-            </div> */}
-                        <div>
+            <div>
               <Label>Modified Fields</Label>
               {selectedRequest && oldProfiles[selectedRequest.employeeId] ? (
                 (() => {
@@ -384,7 +400,7 @@ const UpdateRequestAdminPage = () => {
               )}
             </div>
             <div>
-              <Label htmlFor="comment">Comment (required)</Label>
+              <Label htmlFor="comment" className="mb-2 block">Comment (required)</Label>
               <Textarea
                 id="comment"
                 placeholder="Enter reason..."
@@ -404,7 +420,7 @@ const UpdateRequestAdminPage = () => {
               onClick={handleReject}
               disabled={processing || !rejectComment.trim()}
             >
-              {processing ? 'Rejecting...' : 'Reject Request'}
+              Reject Request
             </Button>
           </DialogFooter>
         </DialogContent>

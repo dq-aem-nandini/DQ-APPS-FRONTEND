@@ -975,6 +975,7 @@ const EditEmployeePage = () => {
                       </div>
                     ))}
                     <Button
+                      type='button'
                       size="sm"
                       variant="outline"
                       onClick={() => {
@@ -1056,6 +1057,7 @@ const EditEmployeePage = () => {
                       </div>
                     ))}
                     <Button
+                    type='button'
                       size="sm"
                       variant="outline"
                       onClick={() => {

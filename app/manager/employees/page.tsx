@@ -108,13 +108,15 @@ const ManagerEmployeesPage: React.FC = () => {
 
       {/* Filters */}
       <div className="mb-8 bg-white p-6 rounded-lg shadow-md border">
-        <div className="flex gap-6 flex-col sm:flex-row">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Designation</label>
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-8">
+          <div className="flex flex-col items-center text-center">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Designation
+            </label>
             <select
               value={selectedDesignation}
               onChange={(e) => setSelectedDesignation(e.target.value)}
-              className="block w-48 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2"
+              className="block w-48 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2 text-center"
             >
               {designations.map((designation) => (
                 <option key={designation} value={designation}>
@@ -123,18 +125,23 @@ const ManagerEmployeesPage: React.FC = () => {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Search by Name</label>
+
+          <div className="flex flex-col items-center text-center">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Search by Name
+            </label>
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Enter employee name"
-              className="block w-full sm:w-64 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2"
+              className="block w-64 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2 text-center"
             />
           </div>
+
         </div>
       </div>
+
 
       {/* Loading State */}
       {loading && (
@@ -197,47 +204,59 @@ const ManagerEmployeesPage: React.FC = () => {
       {/* Employee Table */}
       {!loading && !error && (
         <div className="bg-white p-6 rounded-lg shadow-md border overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 text-center">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Employee Name
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Designation
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Available Leaves
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
+
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredEmployees.map((employee) => (
-                <tr key={employee.employeeId} className="hover:bg-gray-50 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                <tr
+                  key={employee.employeeId}
+                  className="hover:bg-gray-50 transition-colors duration-150 text-center"
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-center">
                     {employee.firstName} {employee.lastName}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
                     {formatType(employee.designation)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {employee.availableLeaves?.toFixed(2) || '0.00'}
+
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                    {employee.availableLeaves?.toFixed(2) || "0.00"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => router.push(`/manager/employeeLeave/${employee.employeeId}`)}
-                      className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition duration-300"
-                    >
-                      View Leaves
-                    </button>
+
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() =>
+                          router.push(`/manager/employeeLeave/${employee.employeeId}`)
+                        }
+                        className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition duration-300"
+                      >
+                        View Leaves
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 // Enums
-export type Role = "ADMIN" | "EMPLOYEE" | "CLIENT" | "MANAGER" | "HR" | "FINANCE"| "REPORTING_MANAGER" ;
+export type Role = "ADMIN" | "EMPLOYEE" | "CLIENT" | "MANAGER" | "HR" | "FINANCE" | "REPORTING_MANAGER";
 
 export type Designation =
   | "INTERN"
@@ -65,7 +65,7 @@ export type Department =
   | 'FINANCE'
   | 'BENCH';
 
-  export type ShiftTiming =
+export type ShiftTiming =
   | 'MORNING'
   | 'AFTERNOON'
   | 'NIGHT'
@@ -102,77 +102,77 @@ export type BondDuration =
   | 'TWO_YEARS'
   | 'THREE_YEARS'
   | 'NA';
-  export const PAY_TYPE_OPTIONS = [
-    "HOURLY",
-    "MONTHLY",
-    "WEEKLY",
-    "YEARLY",
-    "NA",
-  ] as const;
-  export const PAY_CLASS_OPTIONS = [
-    "A1",
-    "A2",
-    "B1",
-    "B2",
-    "CONTRACT",
-    "INTERN",
-    "NA",
-  ] as const;
-  export const DEPARTMENT_OPTIONS = [
-    'HR',
-    'IT',
-    'DEVELOPMENT',
-    'DELIVERY_MANAGEMENT',
-    'QA',
-    'DEVOPS',
-    'SALES',
-    'MARKETING',
-    'FINANCE',
-    'BENCH',
-  ] as const;
-  
-  export const SHIFT_TIMING_OPTIONS = [
-    'MORNING',
-    'AFTERNOON',
-    'NIGHT',
-    'GENERAL',
-    'FLEXIBLE',
-    'NA',
-  ] as const;
-  
-  export const NOTICE_PERIOD_OPTIONS = [
-    'FIFTEEN_DAYS',
-    'ONE_MONTH',
-    'TWO_MONTHS',
-    'THREE_MONTHS',
-    'SIX_MONTHS',
-    'NA',
-  ] as const;
-  
-  export const PROBATION_DURATION_OPTIONS = [
-    'ONE_MONTH',
-    'TWO_MONTHS',
-    'THREE_MONTHS',
-    'SIX_MONTHS',
-    'ONE_YEAR',
-    'NA',
-  ] as const;
-  
-  export const PROBATION_NOTICE_OPTIONS = [
-    'SEVEN_DAYS',
-    'FIFTEEN_DAYS',
-    'ONE_MONTH',
-    'TWO_MONTHS',
-    'NA',
-  ] as const;
-  
-  export const BOND_DURATION_OPTIONS = [
-    'SIX_MONTHS',
-    'ONE_YEAR',
-    'TWO_YEARS',
-    'THREE_YEARS',
-    'NA',
-  ] as const;
+export const PAY_TYPE_OPTIONS = [
+  "HOURLY",
+  "MONTHLY",
+  "WEEKLY",
+  "YEARLY",
+  "NA",
+] as const;
+export const PAY_CLASS_OPTIONS = [
+  "A1",
+  "A2",
+  "B1",
+  "B2",
+  "CONTRACT",
+  "INTERN",
+  "NA",
+] as const;
+export const DEPARTMENT_OPTIONS = [
+  'HR',
+  'IT',
+  'DEVELOPMENT',
+  'DELIVERY_MANAGEMENT',
+  'QA',
+  'DEVOPS',
+  'SALES',
+  'MARKETING',
+  'FINANCE',
+  'BENCH',
+] as const;
+
+export const SHIFT_TIMING_OPTIONS = [
+  'MORNING',
+  'AFTERNOON',
+  'NIGHT',
+  'GENERAL',
+  'FLEXIBLE',
+  'NA',
+] as const;
+
+export const NOTICE_PERIOD_OPTIONS = [
+  'FIFTEEN_DAYS',
+  'ONE_MONTH',
+  'TWO_MONTHS',
+  'THREE_MONTHS',
+  'SIX_MONTHS',
+  'NA',
+] as const;
+
+export const PROBATION_DURATION_OPTIONS = [
+  'ONE_MONTH',
+  'TWO_MONTHS',
+  'THREE_MONTHS',
+  'SIX_MONTHS',
+  'ONE_YEAR',
+  'NA',
+] as const;
+
+export const PROBATION_NOTICE_OPTIONS = [
+  'SEVEN_DAYS',
+  'FIFTEEN_DAYS',
+  'ONE_MONTH',
+  'TWO_MONTHS',
+  'NA',
+] as const;
+
+export const BOND_DURATION_OPTIONS = [
+  'SIX_MONTHS',
+  'ONE_YEAR',
+  'TWO_YEARS',
+  'THREE_YEARS',
+  'NA',
+] as const;
 
 // Core Models
 export interface AddressModel {
@@ -329,7 +329,7 @@ export interface EmployeeEmploymentDetailsDTO {
   bondApplicable: boolean;
   bondDuration?: BondDuration;
   bondDurationLabel?: string;
-  workingModel?: WorkingModel;  
+  workingModel?: WorkingModel;
   shiftTiming?: ShiftTiming;
   shiftTimingLabel?: string;
   department?: Department;
@@ -372,11 +372,11 @@ export interface EmployeeStatutoryDetailsDTO {
 export interface EmployeeSalaryDTO {
   employeeId: string; // UUID
   ctc: number;
-  payType: PayType; 
+  payType: PayType;
   standardHours: number;
   bankAccountNumber: string;
   ifscCode: string;
-  payClass: PayClass; 
+  payClass: PayClass;
   allowances?: AllowanceDTO[];
   deductions?: DeductionDTO[];
 }
@@ -552,7 +552,7 @@ export interface HolidaySchemeDTO {
   schemeCreatedAt: string;
   schemeUpdatedAt: string;
   holidayCalendarId: string[];      // <- Array of UUIDs
-  schemeActive: boolean;  
+  schemeActive: boolean;
 }
 
 export interface HolidayCalendarModel {
@@ -724,8 +724,8 @@ export interface LeaveRequestDTO {
   leaveId?: string; // uuid
   categoryType: LeaveCategoryType;
   financialType: FinancialType;
-  partialDay?: boolean;
-  leaveDuration?: number; // double
+  partialDay: boolean;
+  leaveDuration: number; // double
   fromDate?: string; // date
   toDate?: string; // date
   context?: string;
@@ -1257,17 +1257,29 @@ export interface EmployeeWorkSummaryDTO {
 }
 
 // ClientInvoiceSummaryDTO
+// export interface ClientInvoiceSummaryDTO {
+//   clientId: string;
+//   invoiceStatus: InvoiceStatus;
+//   invoiceId: string;
+//   invoiceNumber: string;
+//   invoiceDate: string; // ISO date string
+//   totalAmount: number;
+//   fromDate: string; // ISO date string
+//   toDate: string; // ISO date string
+//   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
+// }
 export interface ClientInvoiceSummaryDTO {
+  invoiceId: string;
   clientId: string;
   invoiceStatus: InvoiceStatus;
-  invoiceId: string;
   invoiceNumber: string;
-  invoiceDate: string; // ISO date string
+  invoiceDate: string;
   totalAmount: number;
-  fromDate: string; // ISO date string
-  toDate: string; // ISO date string
+  fromDate: string;
+  toDate: string;
   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
 }
+
 
 // WebResponseDTOListClientInvoiceSummaryDTO
 export interface WebResponseDTOListClientInvoiceSummaryDTO {

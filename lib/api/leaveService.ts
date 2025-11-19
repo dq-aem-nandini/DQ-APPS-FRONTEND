@@ -22,8 +22,9 @@ import {
   EmployeeDTO,
   WebResponseDTOListEmployeeLeaveDayDTO,
   EmployeeLeaveDayDTO,
+  WebResponseDTO,
 } from './types';
-import { AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 
 export const leaveService = {
   /**
@@ -199,30 +200,42 @@ export const leaveService = {
   /**
    * Check leave availability (POST with query params).
    */
+
   async checkLeaveAvailability(employeeId: string, leaveDuration: number): Promise<LeaveAvailabilityDTO> {
+    // Client-side validation
+    if (!employeeId || typeof employeeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(employeeId)) {
+      throw new Error('Invalid employee ID: must be a valid UUID string');
+    }
+    if (!Number.isFinite(leaveDuration) || leaveDuration <= 0) {
+      throw new Error('Invalid leave duration: must be a positive number');
+    }
+
     try {
       const params = new URLSearchParams();
       params.append('employeeId', employeeId);
       params.append('leaveDuration', leaveDuration.toString());
 
-      const response: AxiosResponse<WebResponseDTOLeaveAvailabilityDTO> = await api.post(
+      const response: AxiosResponse<WebResponseDTO<LeaveAvailabilityDTO>> = await api.post(
         `/employee/leave/checkLeaveAvailability?${params.toString()}`,
-        {}
+        {},
+        { headers: { 'Accept': '*/*' } }
       );
 
-      console.log('🧩 Full check leave availability API response:', response.data.response);
+      console.log('🧩 Full check leave availability API response:', response.data);
 
       if (response.data.flag && response.data.response) {
         return response.data.response;
       }
 
       throw new Error(response.data.message || 'Failed to check leave availability');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error checking leave availability:', error);
-      throw new Error(`Failed to check leave availability: ${error}`);
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw new Error(`Failed to check leave availability: ${error.message || error}`);
     }
   },
-
   /**
    * Get paginated leave summary (for dashboard; uses filters like employeeId, status, etc.).
    */
@@ -448,21 +461,21 @@ export const leaveService = {
   //     // Backend expects LocalDate format (ISO: YYYY-MM-DD), so pass as string
   //     const currentYear = year || new Date().getFullYear().toString();
   //     const formattedDate = `${currentYear}-01-01`; // Matches LocalDate.toString() in backend
-  
+
   //     const params = new URLSearchParams();
   //     params.append('currentYear', formattedDate); // Send as string; backend parses to LocalDate
-  
+
   //     const response: AxiosResponse<WebResponseDTOListEmployeeLeaveDayDTO> = await api.get(
   //       `/employee/approved/leaves`,
   //       { params }
   //     );
-  
+
   //     console.log('🧩 Full approved leaves API response:', response.data.response);
-  
+
   //     if (response.data.flag && response.data.response) {
   //       return response.data.response;
   //     }
-  
+
   //     throw new Error(response.data.message || 'Failed to fetch approved leaves');
   //   } catch (error) {
   //     console.error('❌ Error fetching approved leaves:', error);
@@ -471,39 +484,39 @@ export const leaveService = {
   // }
 
   async getApprovedLeaves(employeeId?: string, year?: string): Promise<EmployeeLeaveDayDTO[]> {
-  try {
-    // 🧩 1️⃣ Determine correct year format for backend (LocalDate -> "YYYY-01-01")
-    const currentYear = year 
-      ? `${year}-01-01` 
-      : `${new Date().getFullYear()}-01-01`;
+    try {
+      // 🧩 1️⃣ Determine correct year format for backend (LocalDate -> "YYYY-01-01")
+      const currentYear = year
+        ? `${year}-01-01`
+        : `${new Date().getFullYear()}-01-01`;
 
-    const params = new URLSearchParams();
+      const params = new URLSearchParams();
 
-    // 🧩 2️⃣ Only include employeeId if it's a MANAGER call
-    // (employeeId must be a valid UUID, not the logged-in user’s numeric ID)
-    const isManagerCall = employeeId && employeeId.includes('-'); // crude UUID check
+      // 🧩 2️⃣ Only include employeeId if it's a MANAGER call
+      // (employeeId must be a valid UUID, not the logged-in user’s numeric ID)
+      const isManagerCall = employeeId && employeeId.includes('-'); // crude UUID check
 
-    if (isManagerCall) {
-      params.append('employeeId', employeeId);
+      if (isManagerCall) {
+        params.append('employeeId', employeeId);
+      }
+
+      // 🧩 3️⃣ Always append currentYear (as LocalDate string)
+      params.append('currentYear', currentYear);
+
+      // 🧩 4️⃣ API call
+      const response: AxiosResponse<WebResponseDTOListEmployeeLeaveDayDTO> = await api.get(
+        `/employee/approved/leaves`,
+        { params }
+      );
+      if (response.data.flag && response.data.response) {
+        return response.data.response;
+      }
+
+      throw new Error(response.data.message || 'Failed to fetch approved leaves');
+    } catch (error) {
+      console.error('❌ Error fetching approved leaves:', error);
+      throw new Error(`Failed to fetch approved leaves: ${error}`);
     }
-
-    // 🧩 3️⃣ Always append currentYear (as LocalDate string)
-    params.append('currentYear', currentYear);
-
-    // 🧩 4️⃣ API call
-    const response: AxiosResponse<WebResponseDTOListEmployeeLeaveDayDTO> = await api.get(
-      `/employee/approved/leaves`,
-      { params }
-    );
-    if (response.data.flag && response.data.response) {
-      return response.data.response;
-    }
-
-    throw new Error(response.data.message || 'Failed to fetch approved leaves');
-  } catch (error) {
-    console.error('❌ Error fetching approved leaves:', error);
-    throw new Error(`Failed to fetch approved leaves: ${error}`);
   }
-}
 
 };

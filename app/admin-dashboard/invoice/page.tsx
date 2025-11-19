@@ -441,7 +441,7 @@ export default function InvoicesPage() {
                       <TableRow
                         key={inv.invoiceId}
                         className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => router.push(`/admin-dashboard/invoice/${inv.clientId}`)}
+                        onClick={() => router.push(`/admin-dashboard/invoice/${inv.invoiceId}`)}
                       >
                         <TableCell className="font-medium">{inv.invoiceNumber}</TableCell>
                         <TableCell>{inv.clientName}</TableCell>
