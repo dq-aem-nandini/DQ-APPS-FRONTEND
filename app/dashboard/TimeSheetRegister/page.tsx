@@ -282,7 +282,7 @@ const firstAllowedMonday = useMemo(() => {
     } finally {
       setLoading(false);
     }
-  }, [userId, weekStart, weekDates]);
+  }, [weekStart, weekDates]);
 
   useEffect(() => {
     const loadAllData = async () => {

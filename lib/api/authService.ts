@@ -29,14 +29,14 @@ export const authService = {
       const loginResp = innerData.loginResponseDTO;
       if (!loginResp) throw new Error("Invalid login response");
 
-      const role = loginResp.role as Role;
+      const role = loginResp.roleName as Role;
 
       const accessToken = loginResp.accessToken ?? "";
       const refreshToken = loginResp.refreshToken ?? "";
 
       // CORRECT ID FOR ALL ROLES (HR & FINANCE included)
       const userId =
-        role === "EMPLOYEE" || role === "MANAGER" || role === "HR" || role === "FINANCE"
+        role === "EMPLOYEE" || role === "MANAGER" || role === "HR" || role === "FINANCE" || role === "REPORTING_MANAGER" 
           ? innerData.employeeId
           : role === "CLIENT"
             ? innerData.clientId
