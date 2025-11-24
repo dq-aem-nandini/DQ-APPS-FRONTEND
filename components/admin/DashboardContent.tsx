@@ -116,23 +116,23 @@ const DashboardContent = () => {
     },
     scales: {
       y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { color: '#6b7280', font: { size: 11 } } },
-      x: { grid: { color: '#f3f4f6' }, ticks: { color: '#6b7280', font: { size: 11 } } },
+      x: { grid: { color: '#f3f4f6' }, ticks: { color: '#6b7280', font: { size: 11 }, maxRotation: 45, minRotation: 45 } }, // Added rotation for long labels on small screens
     },
   };
 
   if (loading) {
     return (
-      <div className="flex-1 p-4 sm:p-6 md:p-8 flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-t-4 border-sky-500"></div>
+      <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center bg-gray-50 min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 border-t-4 border-sky-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex-1 p-4 sm:p-6 md:p-8 bg-gray-50">
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center gap-2 max-w-md mx-auto">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+      <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 sm:p-4 rounded-xl flex items-center gap-2 max-w-sm sm:max-w-md mx-auto">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           <span className="text-sm">{error}</span>
         </div>
       </div>
@@ -140,26 +140,25 @@ const DashboardContent = () => {
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen space-y-6 md:space-y-8">
-
-      {/* Key Metrics - Responsive Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+    <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen space-y-4 sm:space-y-6 md:space-y-8 overflow-x-hidden">
+      {/* Key Metrics - Responsive Grid: Stacks better on mobile/tablet, 4 cols on lg, 5 on xl */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6 w-full">
         <ResponsiveMetricCard
-          icon={<Users className="w-5 h-5 sm:w-6 sm:h-6 text-sky-600" />}
+          icon={<Users className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-sky-600" />}
           title="Employees"
           value={totalEmployees}
           bg="bg-sky-50"
           border="border-sky-200"
         />
         <ResponsiveMetricCard
-          icon={<Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />}
+          icon={<Building2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-teal-600" />}
           title="Clients"
           value={totalClients}
           bg="bg-teal-50"
           border="border-teal-200"
         />
         <ResponsiveMetricCard
-          icon={<Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />}
+          icon={<Clock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-amber-600" />}
           title="Pending Leaves"
           value={pendingLeaves.length}
           bg="bg-amber-50"
@@ -167,14 +166,14 @@ const DashboardContent = () => {
           badge={pendingLeaves.length > 0}
         />
         <ResponsiveMetricCard
-          icon={<FileText className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />}
+          icon={<FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-emerald-600" />}
           title="Timesheets"
           value={totalTimesheets}
           bg="bg-emerald-50"
           border="border-emerald-200"
         />
         <ResponsiveMetricCard
-          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />}
+          icon={<DollarSign className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-purple-600" />}
           title="Revenue"
           value={`₹${totalRevenue.toLocaleString('en-IN')}`}
           bg="bg-purple-50"
@@ -182,44 +181,44 @@ const DashboardContent = () => {
         />
       </div>
 
-      {/* Charts + Pending Leaves - Stack on Mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      {/* Charts + Pending Leaves - Stack on mobile/tablet, responsive heights */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 w-full">
         {/* Timesheet Chart */}
-        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Timesheet Trend</h3>
-          <div className="h-64 sm:h-72 md:h-80">
+        <div className="lg:col-span-2 bg-white p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 mb-2 sm:mb-3 md:mb-4 line-clamp-1">Timesheet Trend</h3>
+          <div className="h-48 sm:h-56 md:h-64 lg:h-72 xl:h-80 w-full">
             <Line data={timesheetChartData} options={chartOptions} />
           </div>
         </div>
 
         {/* Pending Leaves */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800">Pending Leaves</h3>
+        <div className="bg-white p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
+            <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 line-clamp-1">Pending Leaves</h3>
             {pendingLeaves.length > 0 && (
-              <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap">
                 {pendingLeaves.length}
               </span>
             )}
           </div>
-          <div className="space-y-2 max-h-64 sm:max-h-80 overflow-y-auto">
+          <div className="space-y-2 max-h-48 sm:max-h-56 md:max-h-64 lg:max-h-80 overflow-y-auto">
             {pendingLeaves.length === 0 ? (
-              <p className="text-gray-500 text-xs sm:text-sm italic text-center py-4">No pending requests</p>
+              <p className="text-gray-500 text-xs sm:text-sm italic text-center py-3 sm:py-4">No pending requests</p>
             ) : (
               pendingLeaves.slice(0, 5).map((leave: any) => (
-                <div key={leave.leaveId} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="flex-1 min-w-0">
+                <div key={leave.leaveId} className="flex items-start justify-between p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-100 min-w-0">
+                  <div className="flex-1 min-w-0 pr-2">
                     <p className="font-medium text-xs sm:text-sm text-gray-800 truncate">{leave.employeeName}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 line-clamp-1">
                       {format(new Date(leave.fromDate), 'MMM dd')} – {format(new Date(leave.toDate), 'MMM dd')}
                     </p>
                   </div>
-                  <div className="flex gap-1 ml-2">
-                    <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Approve">
-                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <div className="flex gap-1 flex-shrink-0 ml-2">
+                    <button className="p-1 sm:p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md sm:rounded-lg transition flex-shrink-0" title="Approve">
+                      <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                     </button>
-                    <button className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" title="Reject">
-                      <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <button className="p-1 sm:p-1.5 text-red-600 hover:bg-red-50 rounded-md sm:rounded-lg transition flex-shrink-0" title="Reject">
+                      <XCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                     </button>
                   </div>
                 </div>
@@ -234,10 +233,10 @@ const DashboardContent = () => {
         </div>
       </div>
 
-      {/* Quick Actions - Stack on Mobile */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+      {/* Quick Actions - Stack on mobile, 2 on sm/tablet, 3 on md+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 w-full">
         <ResponsiveActionCard
-          icon={<Users className="w-5 h-5 sm:w-6 sm:h-6" />}
+          icon={<Users className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />}
           title="Employees"
           description="Manage team"
           href="/admin-dashboard/employees"
@@ -246,7 +245,7 @@ const DashboardContent = () => {
           border="border-sky-200"
         />
         <ResponsiveActionCard
-          icon={<Building2 className="w-5 h-5 sm:w-6 sm:h-6" />}
+          icon={<Building2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />}
           title="Clients"
           description="View clients"
           href="/admin-dashboard/clients"
@@ -255,7 +254,7 @@ const DashboardContent = () => {
           border="border-teal-200"
         />
         <ResponsiveActionCard
-          icon={<FileText className="w-5 h-5 sm:w-6 sm:h-6" />}
+          icon={<FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />}
           title="Invoices"
           description="Track revenue"
           href="/admin-dashboard/invoice"
@@ -268,39 +267,39 @@ const DashboardContent = () => {
   );
 };
 
-// Responsive Metric Card
+// Responsive Metric Card - Adjusted padding and text sizes for smaller screens
 const ResponsiveMetricCard = ({ icon, title, value, bg, border, badge }: any) => (
-  <div className={`bg-white p-4 sm:p-6 rounded-2xl shadow-sm border ${border} hover:shadow-md transition-all`}>
+  <div className={`bg-white p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-sm ${border} hover:shadow-md transition-all overflow-hidden`}>
     <div className="flex items-center justify-between">
-      <div>
-        <p className="text-xs sm:text-sm font-medium text-gray-600">{title}</p>
-        <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mt-1">{value}</p>
+      <div className="min-w-0 flex-1 pr-2">
+        <p className="text-xs sm:text-sm font-medium text-gray-600 line-clamp-1">{title}</p>
+        <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mt-1 truncate">{value}</p>
       </div>
-      <div className={`p-2.5 sm:p-3 rounded-xl ${bg}`}>
+      <div className={`p-2 sm:p-2.5 md:p-3 rounded-xl ${bg} flex-shrink-0`}>
         {icon}
       </div>
     </div>
     {badge && (
-      <span className="inline-block mt-2 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
+      <span className="inline-block mt-2 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
         Needs Review
       </span>
     )}
   </div>
 );
 
-// Responsive Action Card
+// Responsive Action Card - Adjusted for better wrapping and no overflow
 const ResponsiveActionCard = ({ icon, title, description, href, bg, hover, border }: any) => (
   <a
     href={href}
-    className={`block p-4 sm:p-6 rounded-2xl border ${border} ${bg} ${hover} transition-all hover:shadow-md hover:-translate-y-1`}
+    className={`block p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl ${border} ${bg} ${hover} transition-all hover:shadow-md hover:-translate-y-1 overflow-hidden`}
   >
-    <div className="flex items-start gap-3 sm:gap-4">
-      <div className="p-2.5 sm:p-3 rounded-xl bg-white shadow-sm">
+    <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
+      <div className={`p-2 sm:p-2.5 md:p-3 rounded-xl bg-white shadow-sm flex-shrink-0`}>
         {icon}
       </div>
-      <div>
-        <h3 className="font-semibold text-sm sm:text-base text-gray-800">{title}</h3>
-        <p className="text-xs sm:text-sm text-gray-600 mt-1">{description}</p>
+      <div className="min-w-0 flex-1">
+        <h3 className="font-semibold text-sm sm:text-base text-gray-800 line-clamp-1">{title}</h3>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{description}</p>
       </div>
     </div>
   </a>

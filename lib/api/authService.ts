@@ -5,80 +5,83 @@ import {
   LoggedInUser,
   WebResponseDTO,
   LoginInnerResponse,
-  Role,
+  RoleObject,
+  Role
 } from "./types";
 
 export const authService = {
   async login(
     credentials: LoginRequest
   ): Promise<{ user: LoggedInUser; accessToken?: string; refreshToken?: string }> {
+
+    console.log("📤 Sending Login Request:", credentials);
+   
     const params = new URLSearchParams();
-    if (credentials.inputKey) params.append("inputKey", credentials.inputKey);
-    if (credentials.password) params.append("password", credentials.password);
+    params.append("inputKey", credentials.inputKey);
+    params.append("password", credentials.password);
 
     const response = await api.post<WebResponseDTO<LoginInnerResponse>>(
       `/auth/login?${params.toString()}`,
       {}
     );
 
-    console.log("Login API Response:", response.data);
+    console.log("🔵 Login API Response:", response.data);
 
-    if (response.data.flag && response.data.response?.data) {
-      const innerData = response.data.response.data as any;
-
-      const loginResp = innerData.loginResponseDTO;
-      if (!loginResp) throw new Error("Invalid login response");
-
-      const role = loginResp.roleName as Role;
-
-      const accessToken = loginResp.accessToken ?? "";
-      const refreshToken = loginResp.refreshToken ?? "";
-
-      // CORRECT ID FOR ALL ROLES (HR & FINANCE included)
-      const userId =
-        role === "EMPLOYEE" || role === "MANAGER" || role === "HR" || role === "FINANCE" || role === "REPORTING_MANAGER" 
-          ? innerData.employeeId
-          : role === "CLIENT"
-            ? innerData.clientId
-            : innerData.userId || "";
-
-      const fullName =
-        innerData.userName ||
-        `${innerData.firstName ?? ""} ${innerData.lastName ?? ""}`.trim() ||
-        "User";
-
-      // FIXED: Extract firstLogin from loginResp (the correct location in response)
-      const firstLogin = loginResp.firstLogin ?? false; // Now pulls from loginResponseDTO.firstLogin
-
-      const user: LoggedInUser = {
-        userId: userId || "",
-        userName: fullName,
-        companyEmail: innerData.companyEmail || "",
-        role,
-        firstLogin, // Use the correctly extracted value
-        createdAt: innerData.createdAt || "",
-        updatedAt: innerData.updatedAt || "",
-        profileName: innerData.profileName?.trim() || fullName || "User",
-      };
-
-      console.log("LOGIN SUCCESS:", {
-        profileName: user.profileName,
-        userId: user.userId,
-        role: user.role,
-        firstLogin: user.firstLogin,
-      });
-      console.log("ALL POSSIBLE IDs FROM BACKEND:", {
-        employeeId: innerData.employeeId,
-        clientId: innerData.clientId,
-        entityId: innerData.entityId,
-        userId: innerData.userId,
-        id: innerData.id,
-      });
-      console.log("LOGIN SUCCESS - firstLogin:", user.firstLogin); // Debug log
-      return { user, accessToken, refreshToken };
+    // BACKEND FAILURE
+    if (!response.data.flag) {
+      throw new Error(response.data.message || "Incorrect credentials");
     }
 
-    throw new Error(response.data.message || "Login failed");
+    const innerData = response.data.response?.data;
+    if (!innerData) throw new Error("Invalid login response format");
+
+    const loginResp = innerData.loginResponseDTO;
+    if (!loginResp) throw new Error("Missing loginResponseDTO");
+
+    // ✔ Correct role name
+    const roleName: Role = loginResp.roleName;
+
+    // ✔ Build RoleObject with permissions
+    const roleObj: RoleObject = {
+      roleId: "",                  // backend does not send
+      roleName,
+      roleDesc: "",                // backend does not send
+      permissions: loginResp.permissions ?? [],
+    };
+    
+    // ✔ Build final user object
+    const user: LoggedInUser = {
+      userId: innerData.userId,
+      userName: innerData.userName,
+      companyEmail: innerData.companyEmail,
+
+      createdAt: innerData.createdAt,
+      updatedAt: innerData.updatedAt,
+
+      firstLogin: loginResp.firstLogin ?? false,
+      profileName: innerData.profileName || innerData.userName,
+
+      // NEW fields from your updated types
+      entityId: innerData.entityId,
+      hasSubordinates: innerData.hasSubordinates,
+
+      role: roleObj,
+      permissions: loginResp.permissions ?? [],
+    };
+
+    console.log("🟢 LOGIN PARSED USER:", {
+      userId: user.userId,
+      profileName: user.profileName,
+      role: user.role.roleName,
+      permissions: user.permissions,
+      firstLogin: user.firstLogin,
+    });
+
+    return {
+      user,
+      accessToken: loginResp.accessToken,
+      refreshToken: loginResp.refreshToken,
+    };
   },
 
   async presetDevice(): Promise<void> {

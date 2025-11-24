@@ -1,5 +1,12 @@
+
 // Enums
-export type Role = "ADMIN" | "EMPLOYEE" | "CLIENT" | "MANAGER" | "HR" | "FINANCE" | "REPORTING_MANAGER";
+export type Role =
+  | "ADMIN"
+  | "EMPLOYEE"
+  | "MANAGER"
+  | "HR"
+  | "FINANCE";
+
 
 export type Designation =
   | "INTERN"
@@ -220,13 +227,72 @@ export interface LeaveAvailabilityDTO {
 }
 
 export interface User {
-  userId: string; // uuid
+  userId: string;
   userName: string;
   companyEmail: string;
   password?: string;
-  role: Role;
-  createdAt: string; // date-time
-  updatedAt: string; // date-time
+
+  role: RoleObject;
+
+  createdAt: string;
+  updatedAt: string;
+
+  firstLogin: boolean;
+
+  entityId: string;
+  hasSubordinates: boolean;
+}
+
+export interface LoginResponseDTO {
+  accessToken: string;
+  refreshToken: string;
+  refreshExpiresAt: string;
+  tokenType: string;
+
+  roleName: Role;
+  permissions: string[];
+
+  firstLogin: boolean;
+}
+
+// export interface LoginResponseInner {
+//   loginResponseDTO: LoginResponseDTO;
+//   userId: string; // uuid
+//   userName: string;
+//   companyEmail: string;
+//   profileName:string;
+//   roleName:Role;
+//   entityId:string;
+//   token:string;
+//   createdAt: string; // date-time
+//   updatedAt: string; // date-time
+// }
+export interface LoginResponseInner {
+  userId: string;
+  userName: string;
+  companyEmail: string;
+
+  createdAt: string;
+  updatedAt: string;
+
+  entityId: string;
+
+  profileName: string;
+  hasSubordinates: boolean;
+
+  loginResponseDTO: LoginResponseDTO;
+}
+
+
+export interface RoleObject {
+  roleId: string; 
+  roleName: Role;
+  roleDesc: string;
+  permissions: string[]; // array of strings
+}
+export interface LoggedInUser extends User {
+  profileName: string;
+  permissions: string[];
 }
 
 export interface LoginRequest {
@@ -283,6 +349,29 @@ export type AuthAction =
   }
   | { type: "LOGOUT" }
   | { type: "SET_LOADING"; payload: boolean };
+// lib/api/types.ts
+
+// export interface FieldValidationRequest {
+//   entity: string;
+//   field: string;
+//   value: string;
+//   parentId?: string | null;     // ← null when parent not saved yet
+//   currentRecordId?: string | null; // ← ONLY send on EDIT, NEVER on create
+// }
+
+// export interface FieldValidationResponse {
+//   exists: boolean;
+//   message: string;
+// }
+
+// export interface WebResponseDTOFieldValidationResponse {
+//   flag: boolean;
+//   message: string;
+//   status: number;
+//   response?: FieldValidationResponse;
+//   totalRecords?: number;
+//   otherInfo?: any;
+// }
 
 // Additional Schemas
 export interface EmployeeDocumentDTO {
@@ -1099,30 +1188,7 @@ export interface RefreshInnerResponse {
   tokenType: string;
   data: any;
 }
-export interface LoginResponseDTO {
-  accessToken: string;
-  refreshToken: string;
-  refreshExpiresAt: string; // date-time
-  tokenType: string;
-  role: Role;
-  firstLogin:boolean;
-}
-export interface LoginResponseInner {
-  loginResponseDTO: LoginResponseDTO;
-  userId: string; // uuid
-  userName: string;
-  companyEmail: string;
-  profileName:string;
-  role:Role;
-  entityId:string;
-  token:string;
-  createdAt: string; // date-time
-  updatedAt: string; // date-time
-}
-export interface LoggedInUser extends User {
-  profileName: string;
-  firstLogin?: boolean;
-}
+
 export interface WebResponseDTOProjectDTO {
   flag: boolean;
   message: string;

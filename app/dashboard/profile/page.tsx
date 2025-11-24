@@ -58,10 +58,11 @@ const ProfilePage = () => {
   const [isLookingUp, setIsLookingUp] = useState(false);
 
   const fetchProfile = useCallback(async () => {
-    if (!user || user.role !== 'EMPLOYEE') {
-      router.push('/auth/login');
-      return;
-    }
+    // if (!user || user.role !== 'EMPLOYEE') {
+    //   router.push('/auth/login');
+    //   return;
+    // }
+    if (!user) return;
 
     setLoading(true);
     setError(null);

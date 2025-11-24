@@ -370,9 +370,9 @@ class HolidaysService {
   /**
    * Get holiday calendar by ID (GET with path param).
    */
-  async getCalendarById(id: string): Promise<WebResponseDTO<HolidayCalendarDTO>> {
+  async getCalendarById(holidayCalendarId: string): Promise<WebResponseDTO<HolidayCalendarDTO>> {
     try {
-      const response: AxiosResponse<WebResponseDTO<HolidayCalendarDTO>> = await api.get(`/holidays/view/calendar/${id}`);
+      const response: AxiosResponse<WebResponseDTO<HolidayCalendarDTO>> = await api.get(`/holidays/view/calendar/${holidayCalendarId}`);
       console.log('🧩 Full get calendar by ID API response:', response.data);
       if (response.data.flag && response.data.response) {
         return response.data;

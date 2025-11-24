@@ -38,7 +38,7 @@ const DashboardContent: React.FC = () => {
 
       while (retryCount <= maxRetries) {
         try {
-          if (!accessToken || !user || user.role !== 'MANAGER') {
+          if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
             throw new Error('Unauthorized access. Please log in as a manager.');
           }
 

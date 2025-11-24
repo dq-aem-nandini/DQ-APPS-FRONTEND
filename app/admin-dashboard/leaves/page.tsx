@@ -54,7 +54,7 @@ const Leavespage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      if (!accessToken || !user || user.role !== 'ADMIN') {
+      if (!accessToken || !user || user.role.roleName !== 'ADMIN') {
         throw new Error('Unauthorized access. Please log in as a manager.');
       }
 

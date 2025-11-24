@@ -164,7 +164,7 @@ const Header = () => {
                             {user.profileName || 'Manager'}
                           </CardTitle>
                           <CardDescription className="text-xs text-gray-500">
-                            Role: {user?.role || 'MANAGER'}
+                            Role: {user?.role.roleName || 'MANAGER'}
                           </CardDescription>
                         </div>
                       </div>

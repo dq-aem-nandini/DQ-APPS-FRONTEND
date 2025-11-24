@@ -335,7 +335,7 @@ export const leaveService = {
       otherInfo: {},
     };
   },
-
+  
   /**
    * Get pending leaves for manager dashboard (GET no params).
    */
@@ -396,7 +396,7 @@ export const leaveService = {
 
       let summary: PageLeaveResponseDTO;
       try {
-        const response = await this.getLeaveSummary(user.userId);
+        const response = await this.getLeaveSummary(user.entityId);
         if (!response.flag || !response.response) {
           throw new Error(response.message || 'Failed to fetch leave summary');
         }
@@ -456,32 +456,6 @@ export const leaveService = {
       };
     }
   },
-  // async getApprovedLeaves(year?: string): Promise<EmployeeLeaveDayDTO[]> {
-  //   try {
-  //     // Backend expects LocalDate format (ISO: YYYY-MM-DD), so pass as string
-  //     const currentYear = year || new Date().getFullYear().toString();
-  //     const formattedDate = `${currentYear}-01-01`; // Matches LocalDate.toString() in backend
-
-  //     const params = new URLSearchParams();
-  //     params.append('currentYear', formattedDate); // Send as string; backend parses to LocalDate
-
-  //     const response: AxiosResponse<WebResponseDTOListEmployeeLeaveDayDTO> = await api.get(
-  //       `/employee/approved/leaves`,
-  //       { params }
-  //     );
-
-  //     console.log('🧩 Full approved leaves API response:', response.data.response);
-
-  //     if (response.data.flag && response.data.response) {
-  //       return response.data.response;
-  //     }
-
-  //     throw new Error(response.data.message || 'Failed to fetch approved leaves');
-  //   } catch (error) {
-  //     console.error('❌ Error fetching approved leaves:', error);
-  //     throw new Error(`Failed to fetch approved leaves: ${error}`);
-  //   }
-  // }
 
   async getApprovedLeaves(employeeId?: string, year?: string): Promise<EmployeeLeaveDayDTO[]> {
     try {

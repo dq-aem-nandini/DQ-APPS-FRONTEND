@@ -160,10 +160,10 @@ const EmployeeList = () => {
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['ADMIN']}>
-        <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
+        <div className="flex flex-col items-center justify-center h-[80vh] space-y-4 p-4 sm:p-6 md:p-8">
           {/* Tailwind spinner */}
-          <div className="w-12 h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
-          <p className="text-gray-700 text-lg font-medium">Loading employees...</p>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
+          <p className="text-gray-700 text-base sm:text-lg font-medium text-center">Loading employees...</p>
         </div>
       </ProtectedRoute>
     );
@@ -172,46 +172,47 @@ const EmployeeList = () => {
 
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
-      <div className="p-8">
-        <div className="mb-10 flex items-center justify-between">
-          <BackButton to="/admin-dashboard/employees" />
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 md:p-8">
+        {/* Header */}
+        <div className="relative flex items-center justify-center mb-4 sm:mb-6 md:mb-8">
+          <div className="absolute left-0">
+            <BackButton to="/admin-dashboard/employees" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent px-16 sm:px-24 md:px-32">
             Employee List
           </h1>
-          <div className="w-20" />
         </div>
 
-        <div className="flex justify-end items-center mb-6">
-
+        <div className="flex justify-end mb-4 sm:mb-6">
           <Link
             href="/admin-dashboard/employees/add"
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+            className="w-full sm:w-auto max-w-xs sm:max-w-none bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium transition"
           >
             Add New Employee
           </Link>
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 md:p-6 mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">Search by Name or Email</label>
+              <label htmlFor="search" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Search by Name or Email</label>
               <input
                 id="search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                 placeholder="Search..."
               />
             </div>
             <div>
-              <label htmlFor="filterDesignation" className="block text-sm font-medium text-gray-700 mb-1">Filter by Designation</label>
+              <label htmlFor="filterDesignation" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Filter by Designation</label>
               <select
                 id="filterDesignation"
                 value={filterDesignation}
                 onChange={(e) => setFilterDesignation(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               >
                 <option value="">All Designations</option>
                 {designations.map((des) => (
@@ -223,77 +224,66 @@ const EmployeeList = () => {
         </div>
 
         {filteredEmployees.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 text-center text-gray-500">
             No employees found matching the criteria.
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort('firstName')}
                   >
                     Name {getSortIcon('firstName')}
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
                     onClick={() => requestSort('companyEmail')}
                   >
                     Email {getSortIcon('companyEmail')}
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden md:table-cell"
                     onClick={() => requestSort('clientName')}
                   >
                     Client {getSortIcon('clientName')}
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort('designation')}
                   >
                     Designation {getSortIcon('designation')}
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
                     onClick={() => requestSort('status')}
                   >
                     Status {getSortIcon('status')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
-                  <tr key={employee.employeeId}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{`${employee.firstName} ${employee.lastName}`}</div>
+                  <tr key={employee.employeeId} className="hover:bg-gray-50">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 line-clamp-1">{`${employee.firstName} ${employee.lastName}`}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFieldValue(employee.companyEmail)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFieldValue(employee.clientName)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFieldValue(employee.designation)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{getFieldValue(employee.companyEmail)}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">{getFieldValue(employee.clientName)}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 line-clamp-1">{getFieldValue(employee.designation)}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.status)}`}>
                         {employee.status}
                       </span>
                     </td>
-                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <Link href={`/admin-dashboard/employees/${employee.employeeId}`} className="text-indigo-600 hover:text-indigo-900">View</Link>
-                      <Link href={`/admin-dashboard/employees/${employee.employeeId}/edit`} className="text-indigo-600 hover:text-indigo-900">Edit</Link>
-                      <button 
-                        onClick={() => handleDelete(employee.employeeId)}
-                        disabled={deletingId === employee.employeeId}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        {deletingId === employee.employeeId ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </td> */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3 flex items-center">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-medium space-x-1 sm:space-x-3 flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-0">
                       {/* View Button */}
                       <Link
                         href={`/admin-dashboard/employees/${employee.employeeId}`}
-                        className="text-indigo-600 hover:text-indigo-900 transition"
+                        className="text-indigo-600 hover:text-indigo-900 transition text-xs sm:text-sm block sm:inline"
                       >
                         View
                       </Link>
@@ -301,7 +291,7 @@ const EmployeeList = () => {
                       {/* Edit Button */}
                       <Link
                         href={`/admin-dashboard/employees/${employee.employeeId}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900 transition"
+                        className="text-indigo-600 hover:text-indigo-900 transition text-xs sm:text-sm block sm:inline"
                       >
                         Edit
                       </Link>
@@ -310,11 +300,11 @@ const EmployeeList = () => {
                       <button
                         onClick={() => handleDelete(employee.employeeId)}
                         disabled={deletingId === employee.employeeId}
-                        className="relative inline-flex items-center text-red-600 hover:text-red-900 disabled:opacity-50 transition"
+                        className="relative inline-flex items-center text-red-600 hover:text-red-900 disabled:opacity-50 transition text-xs sm:text-sm"
                       >
                         {deletingId === employee.employeeId ? (
                           <>
-                            <span className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2"></span>
+                            <span className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-1 sm:mr-2"></span>
                             Deleting...
                           </>
                         ) : (

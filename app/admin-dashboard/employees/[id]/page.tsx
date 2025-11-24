@@ -68,25 +68,25 @@ const ViewEmployee = () => {
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+          <div className="text-center lg:text-left flex-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
               {employee.firstName} {employee.lastName}
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
               {employee.designation} {employee.clientName ? `• ${employee.clientName}` : ''}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
             <Link
               href={`/admin-dashboard/employees/${employee.employeeId}/edit`}
-              className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
+              className="w-full sm:w-auto px-4 sm:px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition text-sm"
             >
               Edit Employee
             </Link>
             <Link
               href="/admin-dashboard/employees/list"
-              className="px-5 py-2.5 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition"
+              className="w-full sm:w-auto px-4 sm:px-5 py-2.5 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition text-sm"
             >
               Back to List
             </Link>

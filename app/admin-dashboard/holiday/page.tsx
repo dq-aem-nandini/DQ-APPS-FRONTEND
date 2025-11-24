@@ -43,6 +43,19 @@ import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
+const countryOptions = [
+  { value: 'ALL', label: 'All Countries' },
+  { value: 'IN', label: 'India (IN)' },
+  { value: 'US', label: 'United States (US)' },
+  { value: 'GB', label: 'United Kingdom (GB)' },
+  { value: 'AU', label: 'Australia (AU)' },
+  { value: 'CA', label: 'Canada (CA)' },
+  { value: 'DE', label: 'Germany (DE)' },
+  { value: 'FR', label: 'France (FR)' },
+  { value: 'JP', label: 'Japan (JP)' },
+  { value: 'BR', label: 'Brazil (BR)' },
+];
+
 const HolidaysPage: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
@@ -55,8 +68,8 @@ const HolidaysPage: React.FC = () => {
   const [loadingSchemes, setLoadingSchemes] = useState(true);
   const [loadingCalendars, setLoadingCalendars] = useState(true);
 
-  const [schemeCountryInput, setSchemeCountryInput] = useState("");
-  const [calendarCountryInput, setCalendarCountryInput] = useState("");
+  const [schemeCountryInput, setSchemeCountryInput] = useState("ALL");
+  const [calendarCountryInput, setCalendarCountryInput] = useState("ALL");
   const [schemePage, setSchemePage] = useState(1);
   const [calendarPage, setCalendarPage] = useState(1);
 
@@ -69,15 +82,7 @@ const HolidaysPage: React.FC = () => {
   const [editingCalendar, setEditingCalendar] = useState<HolidayCalendarDTO | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSchemeCountry(schemeCountryInput.trim().toUpperCase());
-      setDebouncedCalendarCountry(calendarCountryInput.trim().toUpperCase());
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [schemeCountryInput, calendarCountryInput]);
-
-  useEffect(() => {
-    if (!accessToken || user?.role !== "ADMIN") {
+    if (!accessToken || user?.role.roleName !== "ADMIN") {
       router.push("/login");
       return;
     }
@@ -148,85 +153,99 @@ const HolidaysPage: React.FC = () => {
     setIsCalendarDialogOpen(true);
   };
 
-  return (
-    <div className="container mx-auto p-6">
+  const handleSchemeCountryChange = (v: string) => {
+    setSchemeCountryInput(v);
+    const countryCode = v === 'ALL' ? '' : v;
+    setDebouncedSchemeCountry(countryCode);
+    setSchemePage(1);
+  };
 
-       {/* Header */}
-       <div className="max-w-7xl mx-auto mb-10">
-        <div className="relative flex items-center justify-center mb-10">
-          <h1 className="text-4xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+  const handleCalendarCountryChange = (v: string) => {
+    setCalendarCountryInput(v);
+    const countryCode = v === 'ALL' ? '' : v;
+    setDebouncedCalendarCountry(countryCode);
+    setCalendarPage(1);
+  };
+
+  return (
+    <div className="container mx-auto p-4 sm:p-6">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
           Holiday Management
-          </h1>
-        </div>
+        </h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as any); setSchemePage(1); setCalendarPage(1); }}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="schemes">Holiday Schemas</TabsTrigger>
+
           <TabsTrigger value="calendars">Holiday Calendars</TabsTrigger>
+          <TabsTrigger value="schemes">Holiday Schemas</TabsTrigger>
         </TabsList>
 
         {/* SCHEMES TAB */}
-        <TabsContent value="schemes" className="mt-6">
+        <TabsContent value="schemes" className="mt-4 sm:mt-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Holiday Schemas</CardTitle>
-                  <CardDescription>Manage regional holiday schemas</CardDescription>
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg sm:text-xl">Holiday Schemas</CardTitle>
+                  <CardDescription className="text-sm">Manage regional holiday schemas</CardDescription>
                 </div>
-                <div className="flex items-end gap-4">
-                  <div className="w-32">
-                    <Label className="text-sm">Country</Label>
-                    <Input
-                      value={schemeCountryInput}
-                      onChange={(e) => {
-                        setSchemeCountryInput(e.target.value);
-                        setSchemePage(1);
-                      }}
-                      placeholder="IN"
-                      maxLength={2}
-                      className="uppercase"
-                    />
+                <div className="flex flex-col sm:flex-row items-end gap-3 sm:gap-4 w-full lg:w-auto">
+                  <div className="w-full sm:w-48 md:w-56">
+                    <Label className="text-xs sm:text-sm">Country</Label>
+                    <Select value={schemeCountryInput} onValueChange={handleSchemeCountryChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button onClick={() => openSchemeDialog()}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Schema
+                  <Button onClick={() => openSchemeDialog()} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Add Schema
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               {loadingSchemes ? (
-                <p className="text-center py-8 text-muted-foreground">Loading schemes...</p>
+                <p className="text-center py-6 sm:py-8 text-sm text-muted-foreground">Loading schemes...</p>
               ) : schemes.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No schemes found</p>
+                <p className="text-center py-6 sm:py-8 text-sm text-muted-foreground">No schemes found</p>
               ) : (
                 <>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {schemes.map((s) => {
                       const linked = s.holidayCalendarId
                         .map(id => calendars.find(c => c.holidayCalendarId === id))
                         .filter(Boolean);
                       return (
-                        <div key={s.holidaySchemeId} className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-semibold">{s.schemeName}</h3>
+                        <div key={s.holidaySchemeId} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition gap-3">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-sm sm:text-base line-clamp-1">{s.schemeName}</h3>
                               {!s.schemeActive && (
-                                <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Inactive</span>
+                                <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full whitespace-nowrap">Inactive</span>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">{s.schemeDescription || "No description"}</p>
-                            <p className="text-sm">{s.city || "N/A"}, {s.state || "N/A"} • {s.schemeCountryCode}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{s.schemeDescription || "No description"}</p>
+                            <p className="text-xs sm:text-sm line-clamp-1">{s.city || "N/A"}, {s.state || "N/A"} • {s.schemeCountryCode}</p>
                             {linked.length > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-muted-foreground line-clamp-1">
                                 Linked: {linked.map(c => c!.holidayName).join(", ")}
                               </p>
                             )}
                           </div>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => openSchemeDialog(s)} >
-                              <Edit3 className="h-4 w-4" />
+                          <div className="flex gap-2 self-start sm:self-auto">
+                            <Button variant="outline" size="sm" onClick={() => openSchemeDialog(s)} className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:px-3">
+                              <Edit3 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                             {s.schemeActive && (
                               <Button
@@ -238,8 +257,9 @@ const HolidaysPage: React.FC = () => {
                                     fetchSchemes();
                                   } else toast.error(res.message);
                                 })}
+                                className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:px-3"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                               </Button>
                             )}
                           </div>
@@ -248,11 +268,11 @@ const HolidaysPage: React.FC = () => {
                     })}
                   </div>
                   {/* Pagination */}
-                  <div className="flex justify-between items-center mt-6">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 sm:mt-6 gap-2 sm:gap-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                       Showing {(schemePage - 1) * PAGE_SIZE + 1}–{Math.min(schemePage * PAGE_SIZE, totalSchemes)} of {totalSchemes}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
                       <Button variant="outline" size="sm" disabled={schemePage === 1} onClick={() => setSchemePage(p => p - 1)}>Previous</Button>
                       <Button variant="outline" size="sm" disabled={schemePage * PAGE_SIZE >= totalSchemes} onClick={() => setSchemePage(p => p + 1)}>Next</Button>
                     </div>
@@ -264,67 +284,69 @@ const HolidaysPage: React.FC = () => {
         </TabsContent>
 
         {/* CALENDARS TAB */}
-        <TabsContent value="calendars" className="mt-6">
+        <TabsContent value="calendars" className="mt-4 sm:mt-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Holiday Calendars</CardTitle>
-                  <CardDescription>Manage individual holidays</CardDescription>
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg sm:text-xl">Holiday Calendars</CardTitle>
+                  <CardDescription className="text-sm">Manage individual holidays</CardDescription>
                 </div>
-                <div className="flex items-end gap-4">
-                  <div className="w-32">
-                    <Label className="text-sm">Country</Label>
-                    <Input
-                      value={calendarCountryInput}
-                      onChange={(e) => {
-                        setCalendarCountryInput(e.target.value);
-                        setCalendarPage(1);
-                      }}
-                      placeholder="IN"
-                      maxLength={2}
-                      className="uppercase"
-                    />
+                <div className="flex flex-col sm:flex-row items-end gap-3 sm:gap-4 w-full lg:w-auto">
+                  <div className="w-full sm:w-48 md:w-56">
+                    <Label className="text-xs sm:text-sm">Country</Label>
+                    <Select value={calendarCountryInput} onValueChange={handleCalendarCountryChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button onClick={() => openCalendarDialog()}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Holiday
+                  <Button onClick={() => openCalendarDialog()} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Add Holiday
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               {loadingCalendars ? (
-                <p className="text-center py-8 text-muted-foreground">Loading holidays...</p>
+                <p className="text-center py-6 sm:py-8 text-sm text-muted-foreground">Loading holidays...</p>
               ) : calendars.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No holidays found</p>
+                <p className="text-center py-6 sm:py-8 text-sm text-muted-foreground">No holidays found</p>
               ) : (
                 <>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {calendars.map((c) => (
-                      <div key={c.holidayCalendarId} className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-semibold">{c.holidayName}</h3>
+                      <div key={c.holidayCalendarId} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition gap-3">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-sm sm:text-base line-clamp-1">{c.holidayName}</h3>
                             {!c.holidayActive && (
-                              <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Inactive</span>
+                              <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full whitespace-nowrap">Inactive</span>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{c.calendarDescription || "No description"}</p>
-                          <div className="flex items-center gap-2 mt-1 text-sm">
-                            <CalendarIcon className="h-4 w-4" />
-                            <span>{new Date(c.holidayDate).toLocaleDateString()}</span>
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{c.calendarDescription || "No description"}</p>
+                          <div className="flex items-center gap-2 mt-1 text-xs sm:text-sm">
+                            <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="line-clamp-1">{new Date(c.holidayDate).toLocaleDateString()}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-sm">
-                            <MapPin className="h-4 w-4" />
-                            <span>{c.locationRegion || "Global"}</span>
+                          <div className="flex items-center gap-2 mt-1 text-xs sm:text-sm">
+                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="line-clamp-1">{c.locationRegion || "Global"}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground line-clamp-1">
                             {c.holidayType} • {c.recurrenceRule} • {c.calendarCountryCode || "N/A"}
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openCalendarDialog(c)} >
-                            <Edit3 className="h-4 w-4" />
+                        <div className="flex gap-2 self-start sm:self-auto">
+                          <Button variant="outline" size="sm" onClick={() => openCalendarDialog(c)} className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:px-3">
+                            <Edit3 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           {c.holidayActive && (
                             <Button
@@ -336,8 +358,9 @@ const HolidaysPage: React.FC = () => {
                                   fetchCalendars();
                                 } else toast.error(res.message);
                               })}
+                              className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:px-3"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           )}
                         </div>
@@ -345,11 +368,11 @@ const HolidaysPage: React.FC = () => {
                     ))}
                   </div>
                   {/* Pagination */}
-                  <div className="flex justify-between items-center mt-6">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 sm:mt-6 gap-2 sm:gap-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                       Showing {(calendarPage - 1) * PAGE_SIZE + 1}–{Math.min(calendarPage * PAGE_SIZE, totalCalendars)} of {totalCalendars}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
                       <Button variant="outline" size="sm" disabled={calendarPage === 1} onClick={() => setCalendarPage(p => p - 1)}>Previous</Button>
                       <Button variant="outline" size="sm" disabled={calendarPage * PAGE_SIZE >= totalCalendars} onClick={() => setCalendarPage(p => p + 1)}>Next</Button>
                     </div>
@@ -463,21 +486,21 @@ const SchemeDialog: React.FC<{
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{scheme ? "Edit Scheme" : "Create New Scheme"}</DialogTitle>
+          <DialogTitle className="text-sm sm:text-base">{scheme ? "Edit Scheme" : "Create New Scheme"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <Label>Scheme Name *</Label>
-            <Input value={form.schemeName || ""} onChange={e => setForm({ ...form, schemeName: e.target.value })} required />
+            <Label className="text-xs sm:text-sm">Scheme Name *</Label>
+            <Input value={form.schemeName || ""} onChange={e => setForm({ ...form, schemeName: e.target.value })} required className="text-sm" />
           </div>
           <div>
-            <Label>Description</Label>
-            <Input value={form.schemeDescription || ""} onChange={e => setForm({ ...form, schemeDescription: e.target.value })} />
+            <Label className="text-xs sm:text-sm">Description</Label>
+            <Input value={form.schemeDescription || ""} onChange={e => setForm({ ...form, schemeDescription: e.target.value })} className="text-sm" />
           </div>
           <div>
-            <Label>Link Calendar (Optional)</Label>
+            <Label className="text-xs sm:text-sm">Link Calendar (Optional)</Label>
             <Select value={form.holidayCalendarId ?? ""} onValueChange={v => setForm({ ...form, holidayCalendarId: v || undefined })}>
-              <SelectTrigger className="w-[400px]">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="None">
                   {selectedCalendar
                     ? `${selectedCalendar.holidayName} (${new Date(selectedCalendar.holidayDate).toLocaleDateString()})`
@@ -486,7 +509,7 @@ const SchemeDialog: React.FC<{
               </SelectTrigger>
               <SelectContent>
                 {calendars.length === 0 ? (
-                  <div className="px-2 py-1 text-sm text-muted-foreground">No calendars available</div>
+                  <div className="px-2 py-1 text-xs sm:text-sm text-muted-foreground">No calendars available</div>
                 ) : (
                   calendars.map(c => (
                     <SelectItem key={c.holidayCalendarId} value={c.holidayCalendarId}>
@@ -497,21 +520,21 @@ const SchemeDialog: React.FC<{
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>City</Label><Input value={form.city || ""} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
-            <div><Label>State</Label><Input value={form.state || ""} onChange={e => setForm({ ...form, state: e.target.value })} /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div><Label className="text-xs sm:text-sm">City</Label><Input value={form.city || ""} onChange={e => setForm({ ...form, city: e.target.value })} className="text-sm" /></div>
+            <div><Label className="text-xs sm:text-sm">State</Label><Input value={form.state || ""} onChange={e => setForm({ ...form, state: e.target.value })} className="text-sm" /></div>
           </div>
           <div>
-            <Label>Country Code</Label>
-            <Input value={form.schemeCountryCode || ""} onChange={e => setForm({ ...form, schemeCountryCode: e.target.value.toUpperCase() })} maxLength={2} className="uppercase" />
+            <Label className="text-xs sm:text-sm">Country Code</Label>
+            <Input value={form.schemeCountryCode || ""} onChange={e => setForm({ ...form, schemeCountryCode: e.target.value.toUpperCase() })} maxLength={2} className="text-sm uppercase" />
           </div>
           <div className="flex items-center space-x-2">
             <input type="checkbox" id="active" checked={form.activeStatus} onChange={e => setForm({ ...form, activeStatus: e.target.checked })} className="w-4 h-4 rounded" />
-            <Label htmlFor="active" className="font-normal cursor-pointer">Active</Label>
+            <Label htmlFor="active" className="text-xs sm:text-sm font-normal cursor-pointer">Active</Label>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">{scheme ? "Update" : "Create"} Scheme</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="text-xs sm:text-sm">Cancel</Button>
+            <Button type="submit" className="text-xs sm:text-sm">{scheme ? "Update" : "Create"} Scheme</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -592,34 +615,36 @@ const CalendarDialog: React.FC<CalendarDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{calendar ? "Edit Holiday" : "Add New Holiday"}</DialogTitle>
+          <DialogTitle className="text-sm sm:text-base">{calendar ? "Edit Holiday" : "Add New Holiday"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <Label>Holiday Name *</Label>
+            <Label className="text-xs sm:text-sm">Holiday Name *</Label>
             <Input
               value={form.holidayName}
               onChange={(e) => setForm({ ...form, holidayName: e.target.value })}
               required
               placeholder="Diwali"
+              className="text-sm"
             />
           </div>
           <div>
-            <Label>Date *</Label>
+            <Label className="text-xs sm:text-sm">Date *</Label>
             <Input
               type="date"
               value={form.holidayDate}
               onChange={(e) => setForm({ ...form, holidayDate: e.target.value })}
               required
+              className="text-sm"
             />
           </div>
           <div>
-            <Label>Type</Label>
+            <Label className="text-xs sm:text-sm">Type</Label>
             <Select
               value={form.holidayType}
               onValueChange={(v) => setForm({ ...form, holidayType: v as HolidayType })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full" >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -631,12 +656,12 @@ const CalendarDialog: React.FC<CalendarDialogProps> = ({
             </Select>
           </div>
           <div>
-            <Label>Recurrence</Label>
+            <Label className="text-xs sm:text-sm">Recurrence</Label>
             <Select
               value={form.recurrenceRule}
               onValueChange={(v) => setForm({ ...form, recurrenceRule: v as RecurrenceRule })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -646,28 +671,30 @@ const CalendarDialog: React.FC<CalendarDialogProps> = ({
             </Select>
           </div>
           <div>
-            <Label>Region</Label>
+            <Label className="text-xs sm:text-sm">Region</Label>
             <Input
               value={form.locationRegion}
               onChange={(e) => setForm({ ...form, locationRegion: e.target.value })}
               placeholder="Maharashtra"
+              className="text-sm"
             />
           </div>
           <div>
-            <Label>Country Code</Label>
+            <Label className="text-xs sm:text-sm">Country Code</Label>
             <Input
               value={form.calendarCountryCode}
               onChange={(e) => setForm({ ...form, calendarCountryCode: e.target.value.toUpperCase() })}
               placeholder="IN"
               maxLength={2}
-              className="uppercase"
+              className="text-sm uppercase"
             />
           </div>
           <div>
-            <Label>Description</Label>
+            <Label className="text-xs sm:text-sm">Description</Label>
             <Input
               value={form.calendarDescription}
               onChange={(e) => setForm({ ...form, calendarDescription: e.target.value })}
+              className="text-sm"
             />
           </div>
           <div className="flex items-center space-x-2">
@@ -678,15 +705,15 @@ const CalendarDialog: React.FC<CalendarDialogProps> = ({
               onChange={(e) => setForm({ ...form, activeStatus: e.target.checked })}
               className="w-4 h-4 rounded"
             />
-            <Label htmlFor="activeCal" className="font-normal cursor-pointer">
+            <Label htmlFor="activeCal" className="text-xs sm:text-sm font-normal cursor-pointer">
               Active
             </Label>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} className="text-xs sm:text-sm">
               Cancel
             </Button>
-            <Button type="submit">{calendar ? "Update" : "Create"}</Button>
+            <Button type="submit" className="text-xs sm:text-sm">{calendar ? "Update" : "Create"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

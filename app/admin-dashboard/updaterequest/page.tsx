@@ -207,9 +207,14 @@ const UpdateRequestAdminPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
-      <h1 className="text-4xl font-bold text-gray-900 text-center mb-8">
-        Update Requests
-      </h1>
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-10">
+        <div className="relative flex items-center justify-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Update Requests
+          </h1>
+        </div>
+      </div>
 
       {requests.length === 0 ? (
         <Card>

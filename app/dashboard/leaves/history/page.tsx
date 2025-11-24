@@ -2,16 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { leaveService } from '@/lib/api/leaveService';
-import { LeaveResponseDTO, PageLeaveResponseDTO, LeaveStatus, LeaveCategoryType } from '@/lib/api/types';
+import { LeaveResponseDTO, PageLeaveResponseDTO, LeaveStatus, LeaveCategoryType, EmployeeDTO } from '@/lib/api/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { ArrowLeft } from 'lucide-react';
 import BackButton from '@/components/ui/BackButton';
+import { employeeService } from '@/lib/api/employeeService';
 
 const LeaveHistoryPage = () => {
   const router = useRouter();
   const { state: { user, accessToken } } = useAuth();
+  const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
+
 
   const [leaveHistory, setLeaveHistory] = useState<PageLeaveResponseDTO>({
     totalElements: 0,
@@ -46,20 +49,47 @@ const LeaveHistoryPage = () => {
 
   // Enum values
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
-
+  useEffect(() => {
+    const loadEmployee = async () => {
+      console.log("📌 [INIT] Fetching employee details...");
+  
+      try {
+        const emp = await employeeService.getEmployeeById();
+  
+        console.log("🟢 [EMPLOYEE LOADED] EmployeeDTO:", {
+          employeeId: emp.employeeId,
+          reportingManagerId: emp.reportingManagerId,
+          name: emp.firstName + " " + emp.lastName,
+        });
+  
+        setEmployee(emp);
+      } catch (error) {
+        console.error("❌ [EMPLOYEE ERROR] Failed to load EmployeeDTO", error);
+      }
+    };
+  
+    loadEmployee();
+  }, []);
+  
   // Fetch leave history
   const fetchLeaveHistory = useCallback(async () => {
     if (!user || !accessToken) {
-      setError('Please log in to view leave history.');
-      router.push('/auth/login');
+      setError("Please log in to view leave history.");
+      router.push("/auth/login");
       return;
     }
-
+  
+    if (!employee?.employeeId) {
+      console.log("⛔ Employee not loaded yet");
+      return;
+    }
+  
     setLoading(true);
     setError(null);
+  
     try {
       const response = await leaveService.getLeaveSummary(
-        user.userId,
+        employee.employeeId,         // ✅ FIXED
         filters.month,
         filters.leaveCategory,
         filters.status,
@@ -70,39 +100,19 @@ const LeaveHistoryPage = () => {
         pagination.size,
         pagination.sort
       );
-      console.log('🧩 Leave History Response:', response);
+  
       if (!response.flag || !response.response) {
-        throw new Error(
-          response.message.includes('assignedManager')
-            ? 'Unable to load leave history. Some employees may not have assigned managers. Please check employee settings or contact support.'
-            : response.message || 'Failed to fetch leave history'
-        );
+        throw new Error(response.message || "Failed to fetch leave history");
       }
+  
       setLeaveHistory(response.response);
     } catch (err: any) {
-      console.error('❌ Error fetching leave history:', err);
-      setError(
-        err.message.includes('assignedManager')
-          ? 'Unable to load leave history. Some employees may not have assigned managers. Please check employee settings or contact support.'
-          : err.message || 'Failed to load leave history. Please try again.'
-      );
-      setLeaveHistory({
-        totalElements: 0,
-        totalPages: 0,
-        first: true,
-        last: true,
-        numberOfElements: 0,
-        pageable: { paged: true, unpaged: false, pageNumber: 0, pageSize: 5, offset: 0, sort: { sorted: true, unsorted: false, empty: false } },
-        size: 5,
-        content: [],
-        number: 0,
-        sort: { sorted: true, unsorted: false, empty: false },
-        empty: true,
-      });
+      setError(err.message || "Failed to load leave history.");
     } finally {
       setLoading(false);
     }
-  }, [user, accessToken, filters, pagination, router]);
+  }, [employee, user, accessToken, filters, pagination, router]);
+  
 
   // Handle withdraw leave request with SweetAlert2
   const handleWithdrawLeave = async (leaveId: string) => {
@@ -163,9 +173,15 @@ const LeaveHistoryPage = () => {
   };
 
   // Initial fetch for leave history
+  // useEffect(() => {
+  //   fetchLeaveHistory();
+  // }, [fetchLeaveHistory]);
   useEffect(() => {
-    fetchLeaveHistory();
-  }, [fetchLeaveHistory]);
+    if (employee) {
+      fetchLeaveHistory();
+    }
+  }, [employee, fetchLeaveHistory]);
+  
 
   // Handle filter changes
   const handleFilterChange = (key: keyof typeof filters, value: string | boolean | undefined) => {
@@ -191,11 +207,6 @@ const LeaveHistoryPage = () => {
     const capitalized = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     return isCategory ? `${capitalized} Leave` : capitalized;
   };
-
-  // if (!user || !accessToken) {
-  //   router.push('/auth/login');
-  //   return null;
-  // }
   useEffect(() => {
     if (!user || !accessToken) {
       router.push('/auth/login');
@@ -399,3 +410,4 @@ const LeaveHistoryPage = () => {
 };
 
 export default LeaveHistoryPage;
+

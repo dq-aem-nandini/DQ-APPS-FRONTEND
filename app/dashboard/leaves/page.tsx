@@ -25,11 +25,11 @@ const LeaveDashboard: React.FC = () => {
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
-    if (!user || user.role !== 'EMPLOYEE') {
-      router.push('/unauthorized');
-      return;
-    }
-
+    // if (!user || user.role.roleName !== 'EMPLOYEE') {
+    //   router.push('/unauthorized');
+    //   return;
+    // }
+    if (!user) return;
     const fetchDashboard = async () => {
       try {
         setLoading(true);
