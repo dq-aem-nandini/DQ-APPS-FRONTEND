@@ -357,17 +357,22 @@ const ApplyLeavePage: React.FC = () => {
           <input
             type="number"
             name="leaveDuration"
-            value={formData.leaveDuration || ''}
+            value={formData.leaveDuration}
             onChange={handleInputChange}
             min="0.5"
             step="0.5"
             className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Auto-calculated..."
+            placeholder={calculating ? "Calculating..." : "Auto-calculated..."}
             required
             readOnly
           />
-          {(calculating || checkingAvailability) && (
-            <p className="text-xs text-gray-500 mt-1">Calculating...</p>
+          {calculating && (
+            <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
+          )}
+          {!calculating && formData.leaveDuration === 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              0 days — Check dates (weekend/holiday or same day)
+            </p>
           )}
         </div>
 

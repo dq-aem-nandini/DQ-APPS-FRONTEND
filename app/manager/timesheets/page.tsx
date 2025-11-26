@@ -392,18 +392,21 @@ export default function ManagerTimesheetReview() {
 
           {/* Navigation arrows */}
           <div className="flex items-center space-x-2">
-            <ChevronLeft
-              className={`cursor-pointer text-gray-600 hover:text-gray-800 ${
-                firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')
-                  ? 'opacity-50 cursor-not-allowed'
-                  : ''
-              }`}
-              size={24}
-              onClick={() => {
-                if (firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')) return;
-                setCurrentWeekStart((prev) => (prev ?? dayjs().startOf('isoWeek')).subtract(1, 'week'));
-              }}
-            />
+          <ChevronLeft
+            className={`cursor-pointer text-gray-600 hover:text-gray-800 transition-colors ${
+              firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
+            }`}
+            size={24}
+            onClick={() => {
+              if (firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')) return;
+
+              const newWeek = weekStart.subtract(1, 'week');
+              setCurrentWeekStart(newWeek);
+              setSelectedDate(newWeek.format('YYYY-MM-DD')); // ← Critical fix
+            }}
+          />
 
             <ChevronRight
               className="cursor-pointer text-gray-600 hover:text-gray-800"
@@ -427,54 +430,53 @@ export default function ManagerTimesheetReview() {
         </p>
       )}
 
-      {/* Status + Comment */}
-      {timesheets.length > 0 && (
-        <div
-          className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${
-            timesheets[0].status === 'DRAFT'
-              ? 'bg-gray-50 text-gray-700 border-gray-300'
-              : timesheets[0].status === 'PENDING'
-              ? 'bg-orange-50 text-orange-800 border-orange-300'
-              : timesheets[0].status === 'SUBMITTED'
-              ? 'bg-blue-50 text-blue-800 border-blue-300'
-              : timesheets[0].status === 'APPROVED'
-              ? 'bg-green-50 text-green-800 border-green-300'
-              : timesheets[0].status === 'REJECTED'
-              ? 'bg-red-50 text-red-800 border-red-300'
-              : 'bg-gray-50 text-gray-700 border-gray-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-sm">Timesheet Status:</span>{' '}
-              <strong className="text-base">{timesheets[0].status}</strong>
-              <span className="text-sm ml-2">
-                {timesheets[0].status === 'DRAFT' }
-                {timesheets[0].status === 'PENDING' }
-                {timesheets[0].status === 'SUBMITTED' }
-                {timesheets[0].status === 'APPROVED' }
-                {timesheets[0].status === 'REJECTED' }
-              </span>
-            </div>
-            {timesheets[0].managerComment && (
-              <div className="text-right">
-                <span className="text-xs block text-gray-600">Manager Comment:</span>
-                <span className="text-sm font-medium">{timesheets[0].managerComment}</span>
+      {/* Timesheet Status + Manager Comment */}
+        {timesheets.length > 0 && (
+          <div
+            className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${
+              timesheets[0].status === 'DRAFTED'
+                ? 'bg-gray-50 text-gray-700 border-gray-300'
+                : timesheets[0].status === 'PENDING'
+                ? 'bg-orange-50 text-orange-800 border-orange-300'
+                : timesheets[0].status === 'APPROVED'
+                ? 'bg-green-50 text-green-800 border-green-300'
+                : timesheets[0].status === 'REJECTED'
+                ? 'bg-red-50 text-red-800 border-red-300'
+                : 'bg-gray-50 text-gray-700 border-gray-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">Timesheet Status:</span>
+                <span className="text-base font-bold">
+                  {timesheets[0].status === 'DRAFTED' && 'Drafted'}
+                  {timesheets[0].status === 'PENDING' && 'Pending Approval'}
+                  {timesheets[0].status === 'APPROVED' && 'Approved'}
+                  {timesheets[0].status === 'REJECTED' && 'Rejected'}
+                </span>
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Timesheet Grid */}
+              {/* Manager Comment */}
+              {timesheets[0].managerComment && (
+                <div className="text-right max-w-md">
+                  <span className="block text-xs text-gray-600">Manager Comment:</span>
+                  <span className="text-sm font-medium text-gray-800 break-words">
+                    {timesheets[0].managerComment}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+              {/* Timesheet Grid */}
       {loading ? (
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
-      ) : timesheets.length === 0 || timesheets[0]?.status === 'SUBMITTED' ? (
+      ) : timesheets.length === 0 || timesheets[0]?.status === 'DRAFTED' ? (
         <p className="text-center text-gray-500 mt-10">
-          {timesheets[0]?.status === 'SUBMITTED'
-            ? 'Timesheet is submitted and awaiting approval.'
+          {timesheets[0]?.status === 'DRAFTED'
+            ? 'Timesheet in draft state.'
             : 'No data found for this week.'}
         </p>
       ) : (
@@ -544,7 +546,7 @@ export default function ManagerTimesheetReview() {
                   Total Hours for the Week:
                 </span>
                 <span className="text-lg font-bold text-indigo-700">
-                  {totalWeekHours.toFixed(1)} h
+                  {totalWeekHours.toFixed(totalWeekHours % 1 === 0 ? 0 : 1)} hours
                 </span>
               </div>
 
