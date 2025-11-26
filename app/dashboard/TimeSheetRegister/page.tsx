@@ -35,12 +35,13 @@ interface TaskRow {
 
   const TimeSheetRegister: React.FC = () => {
     // TESTING: Remove in production
-  const TEST_TODAY = '2025-07-05'; // Set to null to use real date
-  const now = TEST_TODAY ? dayjs(TEST_TODAY) : dayjs();
-  const todayKey = now.format('YYYY-MM-DD');
+  // const TEST_TODAY = '2025-06-30'; 
+  // const now = TEST_TODAY ? dayjs(TEST_TODAY) : dayjs();
+  // const todayKey = now.format('YYYY-MM-DD');
 
-// const todayKey = dayjs().format('YYYY-MM-DD');
+  const todayKey = dayjs().format('YYYY-MM-DD');
 
+  const now = dayjs();
   const currentMonday = now.startOf('isoWeek');
   const { state } = useAuth();
   const [joiningDate, setJoiningDate] = useState<dayjs.Dayjs | null>(null);
@@ -48,7 +49,7 @@ interface TaskRow {
 
   const [weekStart, setWeekStart] = useState(() => dayjs().startOf('isoWeek')); // Monday
   const [weekStatus, setWeekStatus] = useState<'DRAFTED' | 'APPROVED' | 'PENDING' | 'REJECTED' | ''>('');
-  const [selectedDate, setSelectedDate] = useState(weekStart.format('YYYY-MM-DD'));
+  // const [selectedDate, setSelectedDate] = useState(weekStart.format('YYYY-MM-DD'));
   const [selectedSubmitDate, setSelectedSubmitDate] = useState<string | null>(null);
 
   const [rows, setRows] = useState<TaskRow[]>([]);
@@ -149,7 +150,7 @@ interface TaskRow {
     // If selected date is in a previous week but after DOJ → still allow
     setWeekStart(selectedMonday);
     setDisplayDate(value);
-    setSelectedDate(selectedMonday.format('YYYY-MM-DD'));
+    // setSelectedDate(selectedMonday.format('YYYY-MM-DD'));
     setSelectedSubmitDate(null);
   };
 
@@ -524,7 +525,6 @@ interface TaskRow {
       rows.forEach(r => {
         const isDirty = r._dirty;
         const hasTimesheetIds = r.timesheetIds && Object.keys(r.timesheetIds).length > 0;
-              workDate: date,
         if (isDirty || hasTimesheetIds) {
           Object.entries(r.hours).forEach(([date, hours]) => {
             const tsId = r.timesheetIds?.[date];
@@ -623,36 +623,6 @@ interface TaskRow {
     }
   };
 
-  const submitSelectedDay = async () => {
-    if (!selectedSubmitDate) return;
-    const ids = rows
-      .map(r => r.timesheetIds?.[selectedSubmitDate])
-      .filter(Boolean) as string[];
-
-    if (ids.length === 0) {
-      pushMessage('error', 'No entries to submit');
-      return;
-    }
-
-    const validation = runValidationForDates([selectedSubmitDate]);
-    if (!validation.ok) {
-      validation.messages.forEach(m => pushMessage('error', m));
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await timesheetService.submitForApproval(ids);
-      if (!res.flag) throw new Error(res.message);
-      pushMessage('success', `${dayjs(selectedSubmitDate).format('D MMMM YYYY')} submitted!`);
-      setSelectedSubmitDate(null);
-      await fetchData();
-    } catch (err: any) {
-      pushMessage('error', err.message || 'Submission failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleConfirmSubmit = async () => {
     setConfirmSubmitOpen(false);

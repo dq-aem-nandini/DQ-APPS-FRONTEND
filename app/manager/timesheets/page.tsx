@@ -392,18 +392,21 @@ export default function ManagerTimesheetReview() {
 
           {/* Navigation arrows */}
           <div className="flex items-center space-x-2">
-            <ChevronLeft
-              className={`cursor-pointer text-gray-600 hover:text-gray-800 ${
-                firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')
-                  ? 'opacity-50 cursor-not-allowed'
-                  : ''
-              }`}
-              size={24}
-              onClick={() => {
-                if (firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')) return;
-                setCurrentWeekStart((prev) => (prev ?? dayjs().startOf('isoWeek')).subtract(1, 'week'));
-              }}
-            />
+          <ChevronLeft
+            className={`cursor-pointer text-gray-600 hover:text-gray-800 transition-colors ${
+              firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
+            }`}
+            size={24}
+            onClick={() => {
+              if (firstAllowedMonday && weekStart.isSameOrBefore(firstAllowedMonday, 'day')) return;
+
+              const newWeek = weekStart.subtract(1, 'week');
+              setCurrentWeekStart(newWeek);
+              setSelectedDate(newWeek.format('YYYY-MM-DD')); // ← Critical fix
+            }}
+          />
 
             <ChevronRight
               className="cursor-pointer text-gray-600 hover:text-gray-800"
@@ -543,7 +546,7 @@ export default function ManagerTimesheetReview() {
                   Total Hours for the Week:
                 </span>
                 <span className="text-lg font-bold text-indigo-700">
-                  {totalWeekHours.toFixed(1)} h
+                  {totalWeekHours.toFixed(totalWeekHours % 1 === 0 ? 0 : 1)} hours
                 </span>
               </div>
 
