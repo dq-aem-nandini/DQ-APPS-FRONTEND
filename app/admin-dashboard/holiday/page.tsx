@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Plus, Edit2, Trash2, Search, Loader2, Calendar } from 'lucide-react';
@@ -12,7 +11,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { holidayService } from '@/lib/api/holidayService';
 import type { HolidaysDTO, HolidaysModel } from '@/lib/api/types';
-
 export default function HolidayListPage() {
   const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,13 +18,11 @@ export default function HolidayListPage() {
   const [editingHoliday, setEditingHoliday] = useState<HolidaysDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
   const [formData, setFormData] = useState<HolidaysModel>({
     holidayName: '',
     holidayDate: '',
     comments: '',
   });
-
   // Fetch all holidays
   const fetchHolidays = async () => {
     try {
@@ -51,7 +47,6 @@ export default function HolidayListPage() {
     h.holidayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     h.holidayDate.includes(searchTerm)
   );
-
   // Open dialog
   const openDialog = async (holiday?: HolidaysDTO) => {
     if (holiday) {
@@ -75,7 +70,6 @@ export default function HolidayListPage() {
     }
     setIsDialogOpen(true);
   };
-
   // Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +77,6 @@ export default function HolidayListPage() {
       toast.error('Holiday name and date are required');
       return;
     }
-
     try {
       setSubmitting(true);
       const payload: HolidaysModel = {
@@ -91,7 +84,6 @@ export default function HolidayListPage() {
         holidayDate: formData.holidayDate,
         comments: formData.comments.trim() || '',
       };
-
       if (editingHoliday) {
         await holidayService.updateHoliday(editingHoliday.holidayId, payload);
         toast.success('Holiday updated successfully');
@@ -120,7 +112,6 @@ export default function HolidayListPage() {
       toast.error(err.message || 'Failed to delete holiday');
     }
   };
-
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 py-8 px-4">
@@ -144,7 +135,6 @@ export default function HolidayListPage() {
               </Button>
             </div>
           </div>
-
           {/* Search */}
           <Card className="mb-8 shadow-xl">
             <CardContent className="p-6">
@@ -159,7 +149,6 @@ export default function HolidayListPage() {
               </div>
             </CardContent>
           </Card>
-
           {/* Holiday List */}
           <Card className="shadow-2xl">
             <CardHeader>
@@ -241,7 +230,6 @@ export default function HolidayListPage() {
             </CardContent>
           </Card>
         </div>
-
         {/* Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">

@@ -24,29 +24,29 @@ dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
 
 export default function ManagerTimesheetReview() {
-// ------------------------------------------------------------------
-// State
-// ------------------------------------------------------------------
-const [employees, setEmployees] = useState<
-{ id: string; name: string; dateOfJoining: string }[]
->([]);
-const [selectedEmployee, setSelectedEmployee] = useState<{
-id: string;
-name: string;
-dateOfJoining: string;
-clientName?: string;
-reportingManagerName?: string;
-designation?: string;
-} | null>(null);
-const [timesheets, setTimesheets] = useState<TimeSheetResponseDto[]>([]);
-const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
-const [leaves, setLeaves] = useState<EmployeeLeaveDayDTO[]>([]);
-const [loading, setLoading] = useState(false);
-const [showModal, setShowModal] = useState(false);
-const [modalAction, setModalAction] = useState<'APPROVE' | 'REJECT' | null>(null);
-const [managerComment, setManagerComment] = useState('');
-const [firstAllowedMonday, setFirstAllowedMonday] = useState<dayjs.Dayjs | null>(null);
-const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  // ------------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------------
+  const [employees, setEmployees] = useState<
+    { id: string; name: string; dateOfJoining: string }[]
+  >([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<{
+    id: string;
+    name: string;
+    dateOfJoining: string;
+    clientName?: string;
+    reportingManagerName?: string;
+    designation?: string;
+  } | null>(null);
+  const [timesheets, setTimesheets] = useState<TimeSheetResponseDto[]>([]);
+  const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
+  const [leaves, setLeaves] = useState<EmployeeLeaveDayDTO[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalAction, setModalAction] = useState<'APPROVE' | 'REJECT' | null>(null);
+  const [managerComment, setManagerComment] = useState('');
+  const [firstAllowedMonday, setFirstAllowedMonday] = useState<dayjs.Dayjs | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
 // Week handling – initialise on client
 const [currentWeekStart, setCurrentWeekStart] = useState<dayjs.Dayjs | undefined>(undefined);

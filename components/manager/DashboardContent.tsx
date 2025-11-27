@@ -1,5 +1,5 @@
 'use client';
-
+ 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -15,11 +15,10 @@ import {
 import { format } from 'date-fns';
 import { CheckCircle, XCircle, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
-
+ 
 const DashboardContent: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
-
   const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
   const [approvedLeavesCount, setApprovedLeavesCount] = useState(0);
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidaysDTO[]>([]);
@@ -48,7 +47,6 @@ const DashboardContent: React.FC = () => {
           holidaysRes,
         ] = await Promise.all([
           leaveService.getPendingLeaves(),
-
           // CORRECT CALL — matches your backend method exactly
           leaveService.getLeaveSummary(
             undefined, // employeeId
@@ -81,12 +79,10 @@ const DashboardContent: React.FC = () => {
         setTeamCount(teamMembers.length);
         const totalLeaves = teamMembers.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
         setAverageLeaves(teamMembers.length > 0 ? Math.round(totalLeaves / teamMembers.length) : 0);
-
         // Upcoming Holidays
         if (holidaysRes.flag && Array.isArray(holidaysRes.response)) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-
           const upcoming = holidaysRes.response
             .filter(h => {
               const hDate = new Date(h.holidayDate);
@@ -105,10 +101,9 @@ const DashboardContent: React.FC = () => {
         setLoading(false);
       }
     };
-
+ 
     fetchData();
   }, [accessToken, user]);
-
   const handleReviewLeave = (leave: PendingLeavesResponseDTO) => {
     Swal.fire({
       title: 'Review Leave Request',
@@ -167,7 +162,7 @@ const DashboardContent: React.FC = () => {
       }
     });
   };
-
+ 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -178,7 +173,7 @@ const DashboardContent: React.FC = () => {
       </div>
     );
   }
-
+ 
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-6">
@@ -196,11 +191,10 @@ const DashboardContent: React.FC = () => {
       </div>
     );
   }
-
+ 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4">
       <div className="max-w-7xl mx-auto space-y-8">
-
         {/* Confirmation Toast */}
         {confirmation && (
           <div className="fixed top-6 right-6 z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
@@ -208,7 +202,6 @@ const DashboardContent: React.FC = () => {
             <span className="font-medium">{confirmation}</span>
           </div>
         )}
-
         {/* Responsive Header */}
         <div className="text-center mb-8 sm:mb-12">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight">
@@ -218,7 +211,6 @@ const DashboardContent: React.FC = () => {
             Welcome back! Here’s your team overview
           </p>
         </div>
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition">
@@ -236,7 +228,6 @@ const DashboardContent: React.FC = () => {
               Review Now
             </button>
           </div>
-
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition">
             <div className="flex items-center justify-between">
               <div>
@@ -247,7 +238,6 @@ const DashboardContent: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Pending Leaves */}
           {recentPendingLeaves.length > 0 && (
@@ -297,7 +287,6 @@ const DashboardContent: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Upcoming Holidays */}
           {upcomingHolidays.length > 0 && (
             <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">

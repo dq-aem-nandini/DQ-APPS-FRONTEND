@@ -6,7 +6,6 @@ import type {
   WebResponseDTO,
   HolidaysModel,
 } from "@/lib/api/types";
-
 export class HolidayService {
   
   // Extract only backend error message
@@ -28,7 +27,6 @@ export class HolidayService {
       this.handleError(error);
     }
   }
-
   // Update Holiday
   async updateHoliday(
     holidayId: string,
@@ -44,7 +42,6 @@ export class HolidayService {
       this.handleError(error);
     }
   }
-
   // Get holiday by Id
   async getHolidayById(
     holidayId: string
@@ -58,7 +55,6 @@ export class HolidayService {
       this.handleError(error);
     }
   }
-
   // Get all holidays
   async getAllHolidays(): Promise<WebResponseDTOListHolidaysDTO> {
     try {
@@ -68,7 +64,6 @@ export class HolidayService {
       this.handleError(error);
     }
   }
-
   // Delete holiday
   async deleteHoliday(
     holidayId: string
@@ -83,6 +78,5 @@ export class HolidayService {
     }
   }
 }
-
 // Export instance
 export const holidayService = new HolidayService();
