@@ -5,383 +5,346 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { leaveService } from '@/lib/api/leaveService';
 import { adminService } from '@/lib/api/adminService';
-import { holidaysService } from '@/lib/api/holidayService';
+import { holidayService } from '@/lib/api/holidayService'; // Correct service
 import {
   PendingLeavesResponseDTO,
   WebResponseDTOPageLeaveResponseDTO,
   WebResponseDTOListEmployeeDTO,
-  LeaveStatus,
-  EmployeeDTO,
-  HolidayCalendarDTO,
+  HolidaysDTO,
 } from '@/lib/api/types';
-import { ArrowLeft, CheckCircle, XCircle, Calendar, Users } from 'lucide-react';
+import { format } from 'date-fns';
+import { CheckCircle, XCircle, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const DashboardContent: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
+
   const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
   const [approvedLeavesCount, setApprovedLeavesCount] = useState(0);
-  const [upcomingHolidays, setUpcomingHolidays] = useState<HolidayCalendarDTO[]>([]);
+  const [upcomingHolidays, setUpcomingHolidays] = useState<HolidaysDTO[]>([]);
   const [teamCount, setTeamCount] = useState(0);
   const [averageLeaves, setAverageLeaves] = useState(0);
   const [recentPendingLeaves, setRecentPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
-
   useEffect(() => {
-    const fetchData = async (maxRetries: number = 3) => {
-      setLoading(true);
-      setError(null);
-      let retryCount = 0;
-
-      while (retryCount <= maxRetries) {
-        try {
-          if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
-            throw new Error('Unauthorized access. Please log in as a manager.');
-          }
-
-          // Fetch pending leaves
-          const pendingLeaves = await leaveService.getPendingLeaves();
-          console.log('🧩 Pending Leaves Response:', pendingLeaves);
-          setPendingLeavesCount(pendingLeaves.length);
-          setRecentPendingLeaves(pendingLeaves.slice(0, 3));
-
-          // Fetch leave summary for approved leaves
-          const leaveSummary: WebResponseDTOPageLeaveResponseDTO = await leaveService.getLeaveSummary(
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            0,
-            1000,
-            'fromDate,desc'
-          );
-          console.log('🧩 Leave Summary Response:', leaveSummary);
-          if (!leaveSummary.flag || !leaveSummary.response) {
-            throw new Error(leaveSummary.message || 'Failed to fetch leave summary');
-          }
-          const approvedLeaves = leaveSummary.response.content.filter((leave) => leave.status === 'APPROVED');
-          setApprovedLeavesCount(approvedLeaves.length);
-
-          // Fetch team members
-          const managerId = user.userId || 'manager-id-placeholder';
-          const employeeResponse: WebResponseDTOListEmployeeDTO = await adminService.getAllEmployees();
-          console.log('🧩 Employee Response:', employeeResponse);
-          if (!employeeResponse.flag || !employeeResponse.response) {
-            throw new Error(employeeResponse.message || 'Failed to fetch employees');
-          }
-          const validEmployees = employeeResponse.response.filter(
-            (emp: EmployeeDTO) => emp.reportingManagerId === managerId
-          );
-          setTeamCount(validEmployees.length);
-          const totalLeaves = validEmployees.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
-          setAverageLeaves(validEmployees.length ? totalLeaves / validEmployees.length : 0);
-
-          // Fetch upcoming holidays
-          const holidaysResponse = await holidaysService.getAllCalendars();
-          console.log('🧩 Holidays Response:', holidaysResponse);
-          if (!holidaysResponse.flag || !holidaysResponse.response) {
-            throw new Error(holidaysResponse.message || 'Failed to fetch holidays');
-          }
-          setUpcomingHolidays(holidaysResponse.response);
-
-          break; // Exit retry loop on success
-        } catch (err: any) {
-          retryCount++;
-          console.error(`❌ Error fetching data (Attempt ${retryCount}/${maxRetries}):`, err);
-          if (retryCount > maxRetries) {
-            setError(
-              err.message.includes('assignedManager')
-                ? 'Unable to load dashboard data. Some employees may not have assigned managers. Please check employee settings or contact support.'
-                : err.message || 'Failed to load dashboard data. Please try again or contact support.'
-            );
-            break;
-          }
-          // Exponential backoff
-          await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
-        } finally {
-          if (retryCount >= maxRetries) {
-            setLoading(false);
-          }
-        }
+    const fetchData = async () => {
+      if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
+        setError('Unauthorized access. Please log in as a manager.');
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [
+          pendingLeavesRes,
+          leaveSummaryRes,
+          employeesRes,
+          holidaysRes,
+        ] = await Promise.all([
+          leaveService.getPendingLeaves(),
+
+          // CORRECT CALL — matches your backend method exactly
+          leaveService.getLeaveSummary(
+            undefined, // employeeId
+            undefined, // month
+            undefined, // type
+            undefined, // status
+            undefined, // financialType
+            undefined, // futureApproved
+            undefined, // date
+            0,         // page
+            1000,      // size
+            'fromDate,desc' // sort
+          ),
+
+          adminService.getAllEmployees(),
+          holidayService.getAllHolidays(),
+        ]);
+
+        // Pending Leaves
+        setPendingLeavesCount(pendingLeavesRes.length);
+        setRecentPendingLeaves(pendingLeavesRes.slice(0, 5));
+
+        // Approved Leaves
+        const approved = leaveSummaryRes.response?.content?.filter(l => l.status === 'APPROVED') || [];
+        setApprovedLeavesCount(approved.length);
+
+        // Team Stats
+        const managerId = user.userId;
+        const teamMembers = employeesRes.response?.filter(emp => emp.reportingManagerId === managerId) || [];
+        setTeamCount(teamMembers.length);
+        const totalLeaves = teamMembers.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
+        setAverageLeaves(teamMembers.length > 0 ? Math.round(totalLeaves / teamMembers.length) : 0);
+
+        // Upcoming Holidays
+        if (holidaysRes.flag && Array.isArray(holidaysRes.response)) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const upcoming = holidaysRes.response
+            .filter(h => {
+              const hDate = new Date(h.holidayDate);
+              hDate.setHours(0, 0, 0, 0);
+              return hDate >= today;
+            })
+            .sort((a, b) => new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime())
+            .slice(0, 5);
+
+          setUpcomingHolidays(upcoming);
+        }
+
+      } catch (err: any) {
+        setError(err.message || 'Failed to load dashboard data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
-  }, [accessToken, user, router]);
+  }, [accessToken, user]);
 
   const handleReviewLeave = (leave: PendingLeavesResponseDTO) => {
     Swal.fire({
       title: 'Review Leave Request',
       html: `
-        <div class="text-left text-sm text-gray-600 space-y-3">
-          <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
-          <p><strong>Type:</strong> ${leave.leaveCategoryType ?? 'N/A'}</p>
-          <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
-          <p><strong>From Date:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
-          <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
+        <div class="text-left space-y-3 text-sm">
+          <p><strong>Employee:</strong> ${leave.employeeName || 'N/A'}</p>
+          <p><strong>Type:</strong> ${leave.leaveCategoryType || 'N/A'}</p>
+          <p><strong>Duration:</strong> ${leave.leaveDuration || 0} day(s)</p>
+          <p><strong>From:</strong> ${leave.fromDate ? format(new Date(leave.fromDate), 'dd MMM yyyy') : 'N/A'}</p>
+          <p><strong>To:</strong> ${leave.toDate ? format(new Date(leave.toDate), 'dd MMM yyyy') : 'N/A'}</p>
+          <p><strong>Reason:</strong> ${leave.context || 'No reason provided'}</p>
           ${leave.attachmentUrl
-          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
+          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View</a></p>`
           : '<p><strong>Attachment:</strong> None</p>'
         }
-          <div>
-            <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
-            <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Comment (optional)</label>
+            <textarea id="swal-comment" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" rows="3" placeholder="Enter your comment..."></textarea>
           </div>
         </div>
       `,
       showCancelButton: true,
       showDenyButton: true,
-      showConfirmButton: true,
-      cancelButtonText: 'Cancel',
-      denyButtonText: 'Reject',
       confirmButtonText: 'Approve',
+      denyButtonText: 'Reject',
+      cancelButtonText: 'Cancel',
       customClass: {
-        popup: 'rounded-lg',
-        confirmButton: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700',
-        denyButton: 'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700',
-        cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300',
+        confirmButton: 'bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg mx-2',
+        denyButton: 'bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg mx-2',
+        cancelButton: 'bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg mx-2',
       },
       preConfirm: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
-        return { action: 'approve', reason };
+        const comment = (document.getElementById('swal-comment') as HTMLTextAreaElement)?.value || '';
+        return { action: 'APPROVED', comment };
       },
       preDeny: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
-        return { action: 'reject', reason };
+        const comment = (document.getElementById('swal-comment') as HTMLTextAreaElement)?.value || '';
+        return { action: 'REJECTED', comment };
       },
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        const { reason } = result.value;
+      if (result.isConfirmed || result.isDenied) {
+        const { action, comment } = result.value;
         try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, 'APPROVED', reason);
-          setConfirmation(`Leave ${leave.leaveId} approved successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-          setRecentPendingLeaves((prev) =>
-            prev.map((l) => (l.leaveId === leave.leaveId ? { ...l, status: 'APPROVED' } : l))
-          );
-          setPendingLeavesCount((prev) => prev - 1);
-          setApprovedLeavesCount((prev) => prev + 1);
+          await leaveService.updateLeaveStatus(leave.leaveId!, action, comment);
+          const actionText = action === 'APPROVED' ? 'approved' : 'rejected';
+          setConfirmation(`Leave request ${actionText} successfully${comment ? ` with comment` : ''}.`);
+
+          setRecentPendingLeaves(prev => prev.filter(l => l.leaveId !== leave.leaveId));
+          setPendingLeavesCount(prev => prev - 1);
+          if (action === 'APPROVED') setApprovedLeavesCount(prev => prev + 1);
+
+          setTimeout(() => setConfirmation(null), 4000);
         } catch (err: any) {
-          setError(err.message || 'Failed to approve leave');
-        }
-      } else if (result.isDenied) {
-        const { reason } = result.value;
-        try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, 'REJECTED', reason);
-          setConfirmation(`Leave ${leave.leaveId} rejected successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-          setRecentPendingLeaves((prev) =>
-            prev.map((l) => (l.leaveId === leave.leaveId ? { ...l, status: 'REJECTED' } : l))
-          );
-          setPendingLeavesCount((prev) => prev - 1);
-        } catch (err: any) {
-          setError(err.message || 'Failed to reject leave');
+          Swal.fire('Error', err.message || `Failed to ${action.toLowerCase()} leave`, 'error');
         }
       }
-      setTimeout(() => setConfirmation(null), 3000);
     });
   };
 
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <svg
-          className="animate-spin h-8 w-8 text-indigo-600 mx-auto"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
-        </svg>
-        <p className="text-gray-600 mt-4">Loading dashboard...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
+          <p className="mt-6 text-xl font-medium text-gray-700">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg m-6">
-        {error.includes('403')
-          ? 'You do not have permission to view this dashboard. Please contact your administrator.'
-          : error}
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl shadow-2xl p-10 max-w-md text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Access Denied</h2>
+          <p className="text-gray-600">{error}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          >
+            Back to Home
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 flex-1">
-      {/* Confirmation Message */}
-      {confirmation && (
-        <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-lg flex justify-between items-center">
-          <span>{confirmation}</span>
-          <button
-            onClick={() => setConfirmation(null)}
-            className="text-green-700 hover:text-green-900"
-          >
-            <XCircle size={20} />
-          </button>
-        </div>
-      )}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-      {/* Summary Cards */}
-      <div className="flex flex-wrap justify-center gap-6">
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4 max-w-sm">
-          <Calendar className="h-10 w-10 text-indigo-600" />
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Pending Leaves</h3>
-            <p className="text-2xl font-bold text-gray-700">{pendingLeavesCount}</p>
+        {/* Confirmation Toast */}
+        {confirmation && (
+          <div className="fixed top-6 right-6 z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
+            <CheckCircle className="w-6 h-6" />
+            <span className="font-medium">{confirmation}</span>
+          </div>
+        )}
+
+        {/* Responsive Header */}
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight">
+            Manager Dashboard
+          </h1>
+          <p className="mt-3 sm:mt-4 text-sm sm:text-base md:text-lg text-gray-600 font-medium">
+            Welcome back! Here’s your team overview
+          </p>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Pending Leaves</p>
+                <p className="text-4xl font-bold text-indigo-600 mt-2">{pendingLeavesCount}</p>
+              </div>
+              <Calendar className="w-12 h-12 text-indigo-500 opacity-80" />
+            </div>
             <button
               onClick={() => router.push('/manager/leaves')}
-              className="mt-2 text-sm text-indigo-600 hover:underline"
+              className="mt-4 text-indigo-600 hover:underline text-sm font-medium"
             >
-              View All
+              Review Now
             </button>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Approved This Month</p>
+                <p className="text-4xl font-bold text-green-600 mt-2">{approvedLeavesCount}</p>
+              </div>
+              <CheckCircle className="w-12 h-12 text-green-500 opacity-80" />
+            </div>
           </div>
         </div>
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6 flex items-center space-x-4 max-w-sm">
-          <CheckCircle className="h-10 w-10 text-green-600" />
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Approved Leaves</h3>
-            <p className="text-2xl font-bold text-gray-700">{approvedLeavesCount}</p>
-            <button
-              onClick={() => router.push('/manager/leaves')}
-              className="mt-2 text-sm text-indigo-600 hover:underline"
-            >
-              View All
-            </button>
-          </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recent Pending Leaves */}
+          {recentPendingLeaves.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                  <AlertCircle className="w-7 h-7 text-yellow-600" />
+                  Pending Leave Requests
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50/80">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Employee</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Dates</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {recentPendingLeaves.map((leave) => (
+                      <tr key={leave.leaveId} className="hover:bg-gray-50/50 transition">
+                        <td className="px-6 py-5 text-sm font-medium text-gray-900">
+                          {leave.employeeName || 'Unknown'}
+                        </td>
+                        <td className="px-6 py-5 text-sm text-gray-600">
+                          {leave.leaveCategoryType || 'N/A'}
+                        </td>
+                        <td className="px-6 py-5 text-sm text-gray-600">
+                          {leave.fromDate && leave.toDate
+                            ? `${format(new Date(leave.fromDate), 'dd MMM')} → ${format(new Date(leave.toDate), 'dd MMM yyyy')}`
+                            : 'N/A'}
+                        </td>
+                        <td className="px-6 py-5">
+                          <button
+                            onClick={() => handleReviewLeave(leave)}
+                            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition shadow-md"
+                          >
+                            Review
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Holidays */}
+          {upcomingHolidays.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
+              <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                  <Calendar className="w-7 h-7 text-purple-600" />
+                  Upcoming Holidays
+                </h3>
+              </div>
+              <div className="p-6 space-y-4">
+                {upcomingHolidays.map((holiday) => (
+                  <div
+                    key={holiday.holidayId}
+                    className="flex items-center justify-between p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300 border border-purple-100"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-800 text-lg">{holiday.holidayName}</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {format(new Date(holiday.holidayDate), 'EEEE, MMMM d, yyyy')}
+                      </p>
+                      {holiday.comments && (
+                        <p className="text-xs text-gray-500 mt-2 italic">"{holiday.comments}"</p>
+                      )}
+                    </div>
+                    <div className="text-right ml-4">
+                      <div className="text-4xl font-bold text-purple-600">
+                        {format(new Date(holiday.holidayDate), 'dd')}
+                      </div>
+                      <div className="text-sm font-medium text-purple-600 uppercase tracking-wider">
+                        {format(new Date(holiday.holidayDate), 'MMM')}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="text-center mt-6">
+                  <button
+                    onClick={() => router.push('/manager/holiday')}
+                    className="text-indigo-600 hover:text-indigo-800 font-medium text-sm hover:underline"
+                  >
+                    View Full Holiday Calendar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Recent Pending Leaves */}
-      {recentPendingLeaves.length > 0 && (
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Pending Leaves</h3>
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Employee
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Category Type
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Duration
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Financial Type
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    From Date
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    To Date
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Attachment
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentPendingLeaves.map((leave) => (
-                  <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
-                      {leave.employeeName ?? 'Unknown'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.leaveCategoryType ?? 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.leaveDuration ?? 0} days
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.financialType ?? 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.attachmentUrl ? (
-                        <a
-                          href={leave.attachmentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-indigo-600 hover:underline"
-                        >
-                          View
-                        </a>
-                      ) : (
-                        'None'
-                      )}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        {leave.status ?? 'PENDING'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base">
-                      <button
-                        onClick={() => handleReviewLeave(leave)}
-                        className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                      >
-                        Review
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Upcoming Holidays */}
-      {upcomingHolidays.length > 0 && (
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Upcoming Holidays</h3>
-          <ul className="space-y-2">
-            {upcomingHolidays
-              .filter((holiday) => holiday.holidayActive && new Date(holiday.holidayDate) >= new Date())
-              .sort((a, b) => new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime())
-              .slice(0, 5)
-              .map((holiday) => (
-                <li key={holiday.holidayCalendarId} className="flex justify-between text-base text-gray-600">
-                  <span>{holiday.holidayDate ? new Date(holiday.holidayDate).toLocaleDateString() : 'N/A'}</span>
-                  <span>{holiday.holidayName || 'Unnamed Holiday'}</span>
-                </li>
-              ))}
-          </ul>
-          <button
-            onClick={() => router.push('/manager/holiday')}
-            className="mt-4 text-sm text-indigo-600 hover:underline"
-          >
-            View All Holidays
-          </button>
-        </div>
-      )}
     </div>
   );
 };

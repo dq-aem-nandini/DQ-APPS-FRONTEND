@@ -12,6 +12,9 @@ import {
   WebResponseDTOListEmployeeUpdateRequestDTO,
   WebResponseDTOListBankMaster,
   WebResponseDTOIfsc,
+  Department,
+  EmployeeDepartmentDTO,
+  WebResponseDTOEmployeeDepartmentList,
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -380,6 +383,28 @@ class EmployeeService {
       throw new Error(msg);
     }
   }
+  async getEmployeesByDepartment(
+    department: Department
+  ): Promise<EmployeeDepartmentDTO[]> {
+    try {
+      const response = await api.get<WebResponseDTOEmployeeDepartmentList>(
+        `/employee/department/${department}`
+      );
+  
+      console.log("📌 Department employees API:", response.data);
+  
+      if (response.data.flag) {
+        return response.data.response;
+      }
+  
+      throw new Error(response.data.message || "Failed to fetch employees");
+    } catch (error: any) {
+      console.error("❌ Error fetching employees by department:", error);
+      throw new Error(error.response?.data?.message || "Failed to fetch employees");
+    }
+  }
+  
+
 }
 
 export const employeeService = new EmployeeService();

@@ -14,15 +14,14 @@ import {
   WebResponseDTOLeaveResponseDTO,
   WebResponseDTOPageLeaveResponseDTO,
   WebResponseDTOWorkdayResponseDTO,
-  WebResponseDTOLeaveAvailabilityDTO,
   WebResponseDTOString,
   WebResponseDTOListPendingLeavesResponseDTO,
   PendingLeavesResponseDTO,
-  User,
-  EmployeeDTO,
   WebResponseDTOListEmployeeLeaveDayDTO,
   EmployeeLeaveDayDTO,
   WebResponseDTO,
+  LeaveStatusCountResponseDTO,
+  WebResponseDTOLeaveStatusCount,
 } from './types';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 
@@ -335,7 +334,7 @@ export const leaveService = {
       otherInfo: {},
     };
   },
-  
+
   /**
    * Get pending leaves for manager dashboard (GET no params).
    */
@@ -366,97 +365,28 @@ export const leaveService = {
     }
     return [];
   },
-
-  /**
-   * Get leave dashboard data (fetches real employee balances + categorized requests; no hardcoded values).
-   */
-  async getLeaveDashboard(user: User): Promise<{
-    balances: { availableLeaves: number };
-    pendingRequests: LeaveResponseDTO[];
-    approvedRequests: LeaveResponseDTO[];
-    rejectedRequests: LeaveResponseDTO[];
-    withdrawnRequests: LeaveResponseDTO[];
-    totalLeavesTaken: number;
-    remainingLeaves: number;
-    error?: string;
-  }> {
+  // Get leave status counts for dashboard (GET no params).
+  async getLeaveStatusCount(): Promise<LeaveStatusCountResponseDTO> {
     try {
-      let availableLeaves = 0;
-      try {
-        const employeeResponse: EmployeeDTO = await employeeService.getEmployeeById();
-        if (employeeResponse) {
-          availableLeaves = employeeResponse.availableLeaves || 0;
-        } else {
-          console.warn('⚠️ Employee response invalid');
-        }
-      } catch (empError) {
-        console.warn('⚠️ Error fetching employee details:', empError);
-        availableLeaves = 0;
+      const response: AxiosResponse<WebResponseDTOLeaveStatusCount> =
+        await api.get(`/employee/leave/status/count`);
+
+      console.log("🧩 Leave Status Count API response:", response.data);
+
+      if (response.data.flag && response.data.response) {
+        return response.data.response;
       }
 
-      let summary: PageLeaveResponseDTO;
-      try {
-        const response = await this.getLeaveSummary(user.entityId);
-        if (!response.flag || !response.response) {
-          throw new Error(response.message || 'Failed to fetch leave summary');
-        }
-        summary = response.response;
-      } catch (sumError) {
-        console.warn('⚠️ Error fetching leave summary, using empty data:', sumError);
-        summary = {
-          totalElements: 0,
-          totalPages: 0,
-          first: true,
-          last: true,
-          numberOfElements: 0,
-          pageable: {
-            paged: true,
-            unpaged: false,
-            pageNumber: 0,
-            pageSize: 10,
-            offset: 0,
-            sort: { sorted: false, unsorted: true, empty: true },
-          },
-          size: 10,
-          content: [],
-          number: 0,
-          sort: { sorted: false, unsorted: true, empty: true },
-          empty: true,
-        };
-      }
-
-      const pendingRequests = summary.content.filter((req) => req.status === 'PENDING');
-      const approvedRequests = summary.content.filter((req) => req.status === 'APPROVED');
-      const rejectedRequests = summary.content.filter((req) => req.status === 'REJECTED');
-      const withdrawnRequests = summary.content.filter((req) => req.status === 'WITHDRAWN');
-
-      const totalLeavesTaken = approvedRequests.reduce((sum, req) => sum + (req.leaveDuration ?? 0), 0);
-      const remainingLeaves = Math.max(0, availableLeaves - totalLeavesTaken);
-
-      return {
-        balances: { availableLeaves },
-        pendingRequests,
-        approvedRequests,
-        rejectedRequests,
-        withdrawnRequests,
-        totalLeavesTaken,
-        remainingLeaves,
-      };
-    } catch (error) {
-      console.error('❌ Error fetching dashboard data:', error);
-      return {
-        balances: { availableLeaves: 0 },
-        pendingRequests: [],
-        approvedRequests: [],
-        rejectedRequests: [],
-        withdrawnRequests: [],
-        totalLeavesTaken: 0,
-        remainingLeaves: 0,
-        error: 'Failed to load leave dashboard data. Please try refreshing or contact support if the issue persists.',
-      };
+      throw new Error(response.data.message || "Failed to fetch leave status count");
+    } catch (error: any) {
+      console.error("❌ Error fetching leave status count:", error);
+      throw new Error(error.response?.data?.message || "Failed to fetch leave status count");
     }
   },
 
+  /**
+   * Get approved leaves for an employee in a given year (GET with query params).
+   */
   async getApprovedLeaves(employeeId?: string, year?: string): Promise<EmployeeLeaveDayDTO[]> {
     try {
       // 🧩 1️⃣ Determine correct year format for backend (LocalDate -> "YYYY-01-01")

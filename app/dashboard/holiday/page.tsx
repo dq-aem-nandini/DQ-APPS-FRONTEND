@@ -1,299 +1,274 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { holidaysService } from '@/lib/api/holidayService';
-import { employeeService } from '@/lib/api/employeeService';
-import { HolidayCalendarDTO, WebResponseDTO } from '@/lib/api/types';
-import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
+import { Calendar, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { holidayService } from '@/lib/api/holidayService';
+import type { HolidaysDTO } from '@/lib/api/types';
 
-const HolidayCalendarPage: React.FC = () => {
-  const [employee, setEmployee] = useState<any>(null);
-  const [schemes, setSchemes] = useState<any[]>([]);
-  const [holidays, setHolidays] = useState<HolidayCalendarDTO[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadingEmployee, setLoadingEmployee] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedCountry, setSelectedCountry] = useState<string>('All');
-  const [selectedHoliday, setSelectedHoliday] = useState<HolidayCalendarDTO | null>(null);
+export default function EmployeeHolidayDashboard() {
+  const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [showAllHolidays, setShowAllHolidays] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
-
-  // FETCH EMPLOYEE
   useEffect(() => {
-    const fetchEmployee = async () => {
-      try {
-        setLoadingEmployee(true);
-        const emp = await employeeService.getEmployeeById();
-        setEmployee(emp);
-      } catch (err) {
-        setError('Failed to load profile');
-      } finally {
-        setLoadingEmployee(false);
-      }
-    };
-    fetchEmployee();
-  }, []);
-
-  // FETCH ALL SCHEMES
-  useEffect(() => {
-    const fetchSchemes = async () => {
+    const fetchHolidays = async () => {
       try {
         setLoading(true);
-        const response = await holidaysService.getAllSchemes();
-        if (response.flag && Array.isArray(response.response)) {
-          setSchemes(response.response);
+        const res = await holidayService.getAllHolidays();
+        if (res.flag && Array.isArray(res.response)) {
+          setHolidays(res.response.sort((a, b) => a.holidayDate.localeCompare(b.holidayDate)));
         }
       } catch (err) {
-        setError('Failed to load holiday schemes');
+        console.error('Failed to load holidays');
       } finally {
         setLoading(false);
       }
     };
-    fetchSchemes();
+    fetchHolidays();
   }, []);
 
-  // AUTO-SELECT SCHEME BASED ON CLIENT NAME
-  const currentScheme = useMemo(() => {
-    if (!employee?.clientName || schemes.length === 0) return null;
-    const clientLower = employee.clientName.toLowerCase();
-    return schemes.find(s =>
-      s.schemeName.toLowerCase().includes(clientLower) ||
-      clientLower.includes(s.schemeName.toLowerCase()) ||
-      s.city?.toLowerCase().includes(clientLower)
-    ) || schemes[0];
-  }, [employee, schemes]);
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // LOAD HOLIDAYS FROM SELECTED SCHEME
-  useEffect(() => {
-    if (schemes.length === 0) return;
-  
-    const loadAllHolidays = async () => {
-      try {
-        setLoading(true);
-  
-        // Collect all calendar IDs from all schemes
-        const allCalendarIds = schemes
-          .flatMap(s => s.holidayCalendarId || [])
-          .filter(Boolean);
-  
-        const responses = await Promise.all(
-          allCalendarIds.map((id: string) =>
-            holidaysService.getCalendarById(id).catch(() => ({ flag: false }))
-          )
-        );
-  
-        const validHolidays = responses
-  .filter((res): res is WebResponseDTO<HolidayCalendarDTO> => {
-    return (res as WebResponseDTO<HolidayCalendarDTO>).response !== undefined;
-  })
-  .map(res => res.response as HolidayCalendarDTO);
-
-setHolidays(validHolidays);
-
-      } catch (err) {
-        console.error("Failed loading all holidays:", err);
-        setHolidays([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    loadAllHolidays();
-  }, [schemes]);
-  
-
-  // COUNTRY LIST FROM SCHEMES
-  const countries = useMemo(() => {
-    const unique = [...new Set(schemes.map(s => s.schemeCountryCode || 'Unknown').filter(Boolean))].sort();
-    return ['All', ...unique];
-  }, [schemes]);
-
-  // FILTER: Year + Country (from scheme)
-  const filteredHolidays = useMemo(() => {
+  const getHolidaysForDate = (date: Date) => {
+    const year = currentMonth.getFullYear();
     return holidays.filter(h => {
-      const yearMatch = new Date(h.holidayDate).getFullYear() === selectedYear;
-      const countryMatch = selectedCountry === 'All' || currentScheme?.schemeCountryCode === selectedCountry;
-      return yearMatch && countryMatch && h.holidayActive !== false;
+      if (!h.holidayDate) return false;
+      const holidayDate = new Date(h.holidayDate);
+      return isSameDay(holidayDate, date) && holidayDate.getFullYear() === year;
     });
-  }, [holidays, selectedYear, selectedCountry, currentScheme]);
-
-  const formatDate = (d: string) => format(new Date(d), 'MMMM d, yyyy');
-  const formatHolidayType = (type?: string | null): string => {
-    return type ? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'N/A';
   };
 
-  if (loadingEmployee || loading) {
-    return (
-      <div className="container mx-auto p-4 sm:p-6 min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-base sm:text-xl text-gray-600">Loading your holiday calendar...</p>
-        </div>
-      </div>
-    );
-  }
+  const upcomingHolidays = holidays
+    .filter(h => {
+      if (!h.holidayDate) return false;
+      const hDate = new Date(h.holidayDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      hDate.setHours(0, 0, 0, 0);
+      return hDate > today;
+    })
+    .slice(0, 6);
+
+  const filteredAllHolidays = holidays.filter(h =>
+    h.holidayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    h.holidayDate.includes(searchTerm)
+  );
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10">
-        <div className="text-center mb-6 sm:mb-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Holiday Calendar
-          </h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Holiday Calendar</h1>
+          <p className="text-gray-600 mt-1">Your upcoming company holidays</p>
         </div>
-        <div className="text-center">
-          <p className="text-lg sm:text-2xl font-semibold text-gray-800">
-            Your holidays for{' '}
-            <span className="text-indigo-600 font-bold">{employee?.clientName}</span>
-            {currentScheme && (
-              <span className="text-gray-600 block sm:inline">
-                {' '} - {currentScheme.city || 'All Cities'}
-                {currentScheme.state && `, ${currentScheme.state}`}
-                {currentScheme.schemeCountryCode && ` (${currentScheme.schemeCountryCode})`}
-              </span>
+
+        {/* Upcoming Holidays */}
+        <Card className="mb-8">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Upcoming Holidays ({upcomingHolidays.length})
+              </CardTitle>
+              {holidays.length > 6 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllHolidays(true)}
+                  className="text-indigo-600 border-indigo-600 hover:bg-indigo-50"
+                >
+                  View All ({holidays.length})
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-14 bg-gray-200 rounded animate-pulse" />
+                ))}
+              </div>
+            ) : upcomingHolidays.length === 0 ? (
+              <p className="text-center text-gray-500 py-6">No upcoming holidays</p>
+            ) : (
+              <div className="space-y-3">
+                {upcomingHolidays.map(holiday => (
+                  <div
+                    key={holiday.holidayId}
+                    className="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50 transition text-sm"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">{holiday.holidayName}</p>
+                      <p className="text-xs text-gray-500">
+                        {holiday.holidayDate ? format(new Date(holiday.holidayDate), 'EEE, d MMM yyyy') : '—'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-gray-800">
+                        {holiday.holidayDate ? format(new Date(holiday.holidayDate), 'dd') : '--'}
+                      </div>
+                      <div className="text-xs text-gray-600 uppercase">
+                        {holiday.holidayDate ? format(new Date(holiday.holidayDate), 'MMM') : ''}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </p>
-        </div>
-      </div>
+          </CardContent>
+        </Card>
 
-      {/* Filters: Year + Country */}
-      <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm flex-1 max-w-xs">
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Year</label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-          >
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
+        {/* Calendar */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1))}>
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <CardTitle className="text-lg">{format(currentMonth, 'MMMM yyyy')}</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1))}>
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <div className="grid grid-cols-7 gap-1 text-center text-xs">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                <div key={index} className="font-bold text-gray-700 py-2">
+                  {day}
+                </div>
+              ))}
 
-        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm flex-1 max-w-xs">
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Country</label>
-          <select
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-          >
-            {countries.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+              {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
 
-      {/* Error */}
-      {error && (
-        <div className="text-center py-6 sm:py-8 bg-red-50 border border-red-300 rounded-lg mx-4 sm:mx-0">
-          <p className="text-red-800 font-medium text-sm sm:text-base">{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-3 px-4 sm:px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* No Holidays */}
-      {!loading && !error && filteredHolidays.length === 0 && (
-        <div className="text-center py-8 sm:py-12 bg-white rounded-lg shadow-sm text-gray-600 text-sm sm:text-lg mx-4 sm:mx-0">
-          No holidays found for <strong>{employee?.clientName}</strong> in {selectedYear}
-          {selectedCountry !== 'All' && ` (${selectedCountry})`}.
-        </div>
-      )}
-
-      {/* Table with City, State, Country from scheme */}
-      {!loading && !error && filteredHolidays.length > 0 && (
-        <div className="overflow-x-auto bg-white rounded-lg shadow-lg mx-4 sm:mx-0">
-          <div className="sm:hidden">
-            {/* Mobile: Card List */}
-            <div className="space-y-4 p-4">
-              {filteredHolidays.map((h, index) => {
-                const uniqueKey = h.holidayCalendarId
-                  ? h.holidayCalendarId
-                  : `holiday-${h.holidayName}-${h.holidayDate}-${index}`;
+              {monthDays.map(day => {
+                const dayHolidays = getHolidaysForDate(day);
+                const today = isToday(day);
 
                 return (
                   <div
-                    key={uniqueKey}
-                    className="bg-gray-50 p-4 rounded-lg cursor-pointer transition-colors hover:bg-gray-100"
-                    onClick={() => setSelectedHoliday(h)}
+                    key={day.toISOString()}
+                    className={`
+                      min-h-16 p-1 border rounded text-xs leading-tight
+                      ${today ? 'bg-blue-100 border-blue-400 font-bold' : 'border-gray-200'}
+                      ${dayHolidays.length > 0 ? 'bg-red-50' : 'bg-white'}
+                    `}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-base text-gray-900 line-clamp-1">{h.holidayName}</h3>
-                      <span className="text-sm text-gray-600 font-medium">{formatDate(h.holidayDate)}</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mb-2">{h.calendarDescription || 'N/A'}</p>
-                    <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                      <span>City: {currentScheme?.city || 'All'}</span>
-                      <span>State: {currentScheme?.state || 'All'}</span>
-                      <span>Country: {currentScheme?.schemeCountryCode || 'Global'}</span>
-                    </div>
+                    <div className="font-medium">{format(day, 'd')}</div>
+                    {dayHolidays.length > 0 && (
+                      <div className="mt-1 space-y-0.5 max-h-12 overflow-y-auto scrollbar-thin">
+                        {dayHolidays.slice(0, 2).map(h => (
+                          <div
+                            key={h.holidayId}
+                            className="text-[10px] bg-red-600 text-white px-1 py-0.5 rounded truncate font-medium"
+                            title={h.holidayName}
+                          >
+                            {h.holidayName}
+                          </div>
+                        ))}
+                        {dayHolidays.length > 2 && (
+                          <div className="text-[9px] text-red-700 font-bold text-center">
+                            +{dayHolidays.length - 2}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          </div>
-          <div className="hidden sm:block">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Holiday Name</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredHolidays.map((h, index) => {
-                  const uniqueKey = h.holidayCalendarId
-                    ? h.holidayCalendarId
-                    : `holiday-${h.holidayName}-${h.holidayDate}-${index}`;
+          </CardContent>
+        </Card>
 
-                  return (
-                    <tr
-                      key={uniqueKey}
-                      className="hover:bg-blue-50 cursor-pointer transition-colors"
-                      onClick={() => setSelectedHoliday(h)}
-                    >
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{h.holidayName}</td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDate(h.holidayDate)}</td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{currentScheme?.city || 'All'}</td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{currentScheme?.state || 'All'}</td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{currentScheme?.schemeCountryCode || 'Global'}</td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-600 line-clamp-2">{h.calendarDescription || 'N/A'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {/* Total Holidays */}
+        <div className="text-center mt-10">
+          <p className="text-lg font-medium text-gray-700">
+            Total Holidays in <span className="font-bold text-indigo-600">{format(currentMonth, 'yyyy')}</span>:
+            <span className="ml-2 font-bold text-indigo-600">
+              {holidays.filter(h => h.holidayDate && new Date(h.holidayDate).getFullYear() === currentMonth.getFullYear()).length}
+            </span>
+          </p>
         </div>
-      )}
+      </div>
 
-      {/* Modal */}
-      {selectedHoliday && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-sm w-full shadow-xl">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4 line-clamp-2">{selectedHoliday.holidayName}</h2>
-            <div className="space-y-2 mb-4 text-sm">
-              <p className="text-gray-600"><strong>Date:</strong> {formatDate(selectedHoliday.holidayDate)}</p>
-              <p className="text-gray-600"><strong>Client:</strong> <span className="font-semibold text-indigo-600">{employee?.clientName}</span></p>
-              <p className="text-gray-600"><strong>City:</strong> {currentScheme?.city || 'All'}</p>
-              <p className="text-gray-600"><strong>State:</strong> {currentScheme?.state || 'All'}</p>
-              <p className="text-gray-600"><strong>Country:</strong> {currentScheme?.schemeCountryCode || 'Global'}</p>
+      {/* View All Holidays Modal - FIXED & BEAUTIFUL */}
+      <Dialog open={showAllHolidays} onOpenChange={setShowAllHolidays}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center justify-between">
+              All Holidays ({holidays.length})
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Complete list of company holidays for all years
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-6">
+            {/* Search */}
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <Input
+                placeholder="Search by holiday name or date..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 h-11"
+              />
             </div>
-            <button onClick={() => setSelectedHoliday(null)} className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
-              Close
-            </button>
+
+            {/* Table */}
+            <div className="border rounded-xl overflow-hidden shadow-sm">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left p-4 font-semibold text-gray-700 text-sm">Date</th>
+                    <th className="text-left p-4 font-semibold text-gray-700 text-sm">Holiday Name</th>
+                    <th className="text-left p-4 font-semibold text-gray-700 text-sm">Comments</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredAllHolidays.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-center py-16 text-gray-500">
+                        <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg font-medium">No holidays found</p>
+                        {searchTerm && <p className="text-sm mt-2">Try adjusting your search</p>}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAllHolidays.map(holiday => (
+                      <tr key={holiday.holidayId} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-4 text-sm font-medium text-gray-900">
+                          {holiday.holidayDate ? format(new Date(holiday.holidayDate), 'dd MMM yyyy') : '—'}
+                        </td>
+                        <td className="p-4 font-medium text-gray-900">
+                          {holiday.holidayName}
+                        </td>
+                        <td className="p-4 text-sm text-gray-600">
+                          {holiday.comments || '—'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
-
-export default HolidayCalendarPage;
+}

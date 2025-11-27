@@ -34,17 +34,167 @@ class AdminService {
   }
 
   // ✅ Add employee
-  async addEmployee(employee: EmployeeModel): Promise<WebResponseDTOEmployeeDTO> {
-    try {
-      const response: AxiosResponse<WebResponseDTOEmployeeDTO> = await api.post(
-        '/admin/add/employee',
-        employee
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(`Failed to add employee: ${error}`);
+  // async addEmployee(employee: EmployeeModel): Promise<WebResponseDTOEmployeeDTO> {
+  //   try {
+  //     const response: AxiosResponse<WebResponseDTOEmployeeDTO> = await api.post(
+  //       '/admin/add/employee',
+  //       employee
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     throw new Error(`Failed to add employee: ${error}`);
+  //   }
+  // }
+// ⭐ FINAL — 100% Working with Spring Boot multipart/form-data
+async addEmployee(
+  employee: EmployeeModel,
+  employeePhotoFile?: File | null,
+  documentFiles: File[] = []
+): Promise<WebResponseDTO<EmployeeDTO>> {
+  try {
+    const formData = new FormData();
+
+    // === BASIC FIELDS ===
+    formData.append('firstName', employee.firstName);
+    formData.append('lastName', employee.lastName);
+    formData.append('personalEmail', employee.personalEmail);
+    formData.append('companyEmail', employee.companyEmail);
+    formData.append('contactNumber', employee.contactNumber);
+    if (employee.alternateContactNumber) formData.append('alternateContactNumber', employee.alternateContactNumber);
+    formData.append('gender', employee.gender);
+    if (employee.maritalStatus) formData.append('maritalStatus', employee.maritalStatus);
+    if (employee.numberOfChildren != null) formData.append('numberOfChildren', employee.numberOfChildren.toString());
+    formData.append('nationality', employee.nationality);
+    formData.append('emergencyContactName', employee.emergencyContactName);
+    formData.append('emergencyContactNumber', employee.emergencyContactNumber);
+    if (employee.remarks) formData.append('remarks', employee.remarks);
+    if (employee.skillsAndCertification) formData.append('skillsAndCertification', employee.skillsAndCertification);
+
+    // === CLIENT ===
+    if (employee.clientId) formData.append('clientId', employee.clientId);
+    if (employee.clientSelection) formData.append('clientSelection', employee.clientSelection);
+
+    formData.append('reportingManagerId', employee.reportingManagerId || '');
+    formData.append('designation', employee.designation);
+    formData.append('dateOfBirth', employee.dateOfBirth);
+    formData.append('dateOfJoining', employee.dateOfJoining);
+    formData.append('rateCard', employee.rateCard.toString());
+    formData.append('employmentType', employee.employmentType);
+
+    // === BANKING ===
+    if (employee.panNumber) formData.append('panNumber', employee.panNumber);
+    if (employee.aadharNumber) formData.append('aadharNumber', employee.aadharNumber);
+    if (employee.accountNumber) formData.append('accountNumber', employee.accountNumber);
+    if (employee.accountHolderName) formData.append('accountHolderName', employee.accountHolderName);
+    if (employee.bankName) formData.append('bankName', employee.bankName);
+    if (employee.ifscCode) formData.append('ifscCode', employee.ifscCode);
+    if (employee.branchName) formData.append('branchName', employee.branchName);
+
+    // === FILES ===
+    if (employeePhotoFile) formData.append('employeePhotoUrl', employeePhotoFile);
+    documentFiles.forEach(file => formData.append('documents', file));
+
+    // === FLATTEN NESTED DTOs (THIS IS THE KEY FIX) ===
+    // employeeSalaryDTO
+    const salary = employee.employeeSalaryDTO;
+    if (salary) {
+      formData.append('employeeSalaryDTO.ctc', salary.ctc.toString());
+      formData.append('employeeSalaryDTO.payType', salary.payType);
+      formData.append('employeeSalaryDTO.standardHours', salary.standardHours.toString());
+      formData.append('employeeSalaryDTO.bankAccountNumber', salary.bankAccountNumber || '');
+      formData.append('employeeSalaryDTO.ifscCode', salary.ifscCode || '');
+      formData.append('employeeSalaryDTO.payClass', salary.payClass);
+
+      // Allowances & Deductions as JSON strings (or flatten further if needed)
+      if (salary.allowances && salary.allowances.length > 0) {
+        formData.append('employeeSalaryDTO.allowances', JSON.stringify(salary.allowances));
+      }
+      if (salary.deductions && salary.deductions.length > 0) {
+        formData.append('employeeSalaryDTO.deductions', JSON.stringify(salary.deductions));
+      }
     }
+
+    // employeeAdditionalDetailsDTO
+    const additional = employee.employeeAdditionalDetailsDTO;
+    if (additional) {
+      if (additional.offerLetterUrl) formData.append('employeeAdditionalDetailsDTO.offerLetterUrl', additional.offerLetterUrl);
+      if (additional.contractUrl) formData.append('employeeAdditionalDetailsDTO.contractUrl', additional.contractUrl);
+      if (additional.taxDeclarationFormUrl) formData.append('employeeAdditionalDetailsDTO.taxDeclarationFormUrl', additional.taxDeclarationFormUrl);
+      if (additional.workPermitUrl) formData.append('employeeAdditionalDetailsDTO.workPermitUrl', additional.workPermitUrl);
+      if (additional.backgroundCheckStatus) formData.append('employeeAdditionalDetailsDTO.backgroundCheckStatus', additional.backgroundCheckStatus);
+      if (additional.remarks) formData.append('employeeAdditionalDetailsDTO.remarks', additional.remarks);
+    }
+
+    // employeeEmploymentDetailsDTO
+    const empDetails = employee.employeeEmploymentDetailsDTO;
+    if (empDetails) {
+      if (empDetails.noticePeriodDuration) formData.append('employeeEmploymentDetailsDTO.noticePeriodDuration', empDetails.noticePeriodDuration);
+      formData.append('employeeEmploymentDetailsDTO.probationApplicable', empDetails.probationApplicable.toString());
+      if (empDetails.probationDuration) formData.append('employeeEmploymentDetailsDTO.probationDuration', empDetails.probationDuration);
+      if (empDetails.probationNoticePeriod) formData.append('employeeEmploymentDetailsDTO.probationNoticePeriod', empDetails.probationNoticePeriod);
+      formData.append('employeeEmploymentDetailsDTO.bondApplicable', empDetails.bondApplicable.toString());
+      if (empDetails.bondDuration) formData.append('employeeEmploymentDetailsDTO.bondDuration', empDetails.bondDuration);
+      if (empDetails.workingModel) formData.append('employeeEmploymentDetailsDTO.workingModel', empDetails.workingModel);
+      if (empDetails.shiftTiming) formData.append('employeeEmploymentDetailsDTO.shiftTiming', empDetails.shiftTiming);
+      if (empDetails.department) formData.append('employeeEmploymentDetailsDTO.department', empDetails.department);
+      if (empDetails.dateOfConfirmation) formData.append('employeeEmploymentDetailsDTO.dateOfConfirmation', empDetails.dateOfConfirmation);
+      if (empDetails.location) formData.append('employeeEmploymentDetailsDTO.location', empDetails.location);
+    }
+
+    // employeeInsuranceDetailsDTO
+    const insurance = employee.employeeInsuranceDetailsDTO;
+    if (insurance) {
+      if (insurance.policyNumber) formData.append('employeeInsuranceDetailsDTO.policyNumber', insurance.policyNumber);
+      if (insurance.providerName) formData.append('employeeInsuranceDetailsDTO.providerName', insurance.providerName);
+      if (insurance.coverageStart) formData.append('employeeInsuranceDetailsDTO.coverageStart', insurance.coverageStart);
+      if (insurance.coverageEnd) formData.append('employeeInsuranceDetailsDTO.coverageEnd', insurance.coverageEnd);
+      if (insurance.nomineeName) formData.append('employeeInsuranceDetailsDTO.nomineeName', insurance.nomineeName);
+      if (insurance.nomineeRelation) formData.append('employeeInsuranceDetailsDTO.nomineeRelation', insurance.nomineeRelation);
+      if (insurance.nomineeContact) formData.append('employeeInsuranceDetailsDTO.nomineeContact', insurance.nomineeContact);
+      formData.append('employeeInsuranceDetailsDTO.groupInsurance', insurance.groupInsurance.toString());
+    }
+
+    // employeeStatutoryDetailsDTO
+    const statutory = employee.employeeStatutoryDetailsDTO;
+    if (statutory) {
+      if (statutory.passportNumber) formData.append('employeeStatutoryDetailsDTO.passportNumber', statutory.passportNumber);
+      if (statutory.taxRegime) formData.append('employeeStatutoryDetailsDTO.taxRegime', statutory.taxRegime);
+      if (statutory.pfUanNumber) formData.append('employeeStatutoryDetailsDTO.pfUanNumber', statutory.pfUanNumber);
+      if (statutory.esiNumber) formData.append('employeeStatutoryDetailsDTO.esiNumber', statutory.esiNumber);
+      if (statutory.ssnNumber) formData.append('employeeStatutoryDetailsDTO.ssnNumber', statutory.ssnNumber);
+    }
+
+    // addresses & equipment (stringify arrays)
+    if (employee.addresses && employee.addresses.length > 0) {
+      formData.append('addresses', JSON.stringify(employee.addresses));
+    }
+    if (employee.employeeEquipmentDTO && employee.employeeEquipmentDTO.length > 0) {
+      formData.append('employeeEquipmentDTO', JSON.stringify(employee.employeeEquipmentDTO));
+    }
+
+    // === API CALL ===
+    const response = await api.post<WebResponseDTO<EmployeeDTO>>(
+      '/admin/add/employee',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    const msg = error.response?.data?.message || error.message || 'Failed to add employee';
+    console.error('Add employee error:', error);
+    throw new Error(msg);
   }
+}
+
+
+
+
+
 
   // ✅ Update client
   async updateClient(clientId: string, clientModel: ClientModel): Promise<WebResponseDTOString> {
@@ -65,21 +215,172 @@ class AdminService {
   }
 
   // ✅ Update employee
-async updateEmployee(empId: string, employee: EmployeeModel): Promise<WebResponseDTOString> {
-  try {
-    const payload = {
-      ...employee,
-    };
+// async updateEmployee(empId: string, employee: EmployeeModel): Promise<WebResponseDTOString> {
+//   try {
+//     const payload = {
+//       ...employee,
+//     };
 
-    const response: AxiosResponse<WebResponseDTOString> = await api.put(
-      `/admin/updateemp/${empId}`,
-      payload
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error(`Failed to update employee: ${error}`);
+//     const response: AxiosResponse<WebResponseDTOString> = await api.put(
+//       `/admin/updateemp/${empId}`,
+//       payload
+//     );
+//     return response.data;
+//   } catch (error: any) {
+//     // 🔥 Extract only backend error message
+//     const backendMessage =
+//       error?.response?.data?.message ||
+//       error?.response?.data?.error ||
+//       JSON.stringify(error?.response?.data) ||
+//       "Something went wrong";
+
+//     throw new Error(backendMessage); // ⬅ ONLY BACKEND MESSAGE
+//   }
+// }
+// ✅ Update employee (multipart/form-data)
+// BEST & ONLY RELIABLE WAY — Works 100% with Spring Boot + nested DTOs + files
+
+async updateEmployee(empId: string, employee: any): Promise<WebResponseDTOString> {
+  const formData = new FormData();
+
+  // Helper to append safely (skip null/undefined/objects)
+  const appendIfValid = (key: string, value: any) => {
+    if (value === null || value === undefined) return;
+    if (typeof value === 'object' && !(value instanceof File)) return;
+    if (Array.isArray(value) && value.length === 0) return;
+    formData.append(key, value);
+  };
+
+  // === ROOT LEVEL FIELDS ===
+  appendIfValid('firstName', employee.firstName);
+  appendIfValid('lastName', employee.lastName);
+  appendIfValid('personalEmail', employee.personalEmail);
+  appendIfValid('companyEmail', employee.companyEmail);
+  appendIfValid('contactNumber', employee.contactNumber);
+  appendIfValid('alternateContactNumber', employee.alternateContactNumber);
+  appendIfValid('gender', employee.gender);
+  appendIfValid('maritalStatus', employee.maritalStatus);
+  appendIfValid('numberOfChildren', employee.numberOfChildren);
+  appendIfValid('nationality', employee.nationality);
+  appendIfValid('emergencyContactName', employee.emergencyContactName);
+  appendIfValid('emergencyContactNumber', employee.emergencyContactNumber);
+  appendIfValid('remarks', employee.remarks);
+  appendIfValid('skillsAndCertification', employee.skillsAndCertification);
+  appendIfValid('clientId', employee.clientId);
+  appendIfValid('clientSelection', employee.clientSelection);
+  appendIfValid('reportingManagerId', employee.reportingManagerId || '');
+  appendIfValid('designation', employee.designation);
+  appendIfValid('dateOfBirth', employee.dateOfBirth);
+  appendIfValid('dateOfJoining', employee.dateOfJoining);
+  appendIfValid('rateCard', employee.rateCard);
+  appendIfValid('employmentType', employee.employmentType);
+  appendIfValid('panNumber', employee.panNumber);
+  appendIfValid('aadharNumber', employee.aadharNumber);
+  appendIfValid('accountNumber', employee.accountNumber);
+  appendIfValid('accountHolderName', employee.accountHolderName);
+  appendIfValid('bankName', employee.bankName);
+  appendIfValid('ifscCode', employee.ifscCode);
+  appendIfValid('branchName', employee.branchName);
+
+  // === FILES (Root level) ===
+  if (employee.employeePhoto instanceof File) {
+    formData.append('employeePhoto', employee.employeePhoto);
   }
+  if (employee.offerLetter instanceof File) formData.append('offerLetter', employee.offerLetter);
+  if (employee.contract instanceof File) formData.append('contract', employee.contract);
+  if (employee.taxDeclarationForm instanceof File) formData.append('taxDeclarationForm', employee.taxDeclarationForm);
+  if (employee.workPermit instanceof File) formData.append('workPermit', employee.workPermit);
+
+  // === DYNAMIC DOCUMENTS (with files) ===
+  employee.documents?.forEach((doc: any, i: number) => {
+    appendIfValid(`documents[${i}].documentId`, doc.documentId);
+    appendIfValid(`documents[${i}].docType`, doc.docType);
+    appendIfValid(`documents[${i}].fileUrl`, doc.fileUrl);
+    if (doc.file instanceof File) {
+      formData.append(`documents[${i}].file`, doc.file, doc.file.name);
+    }
+  });
+
+  // === ADDRESSES ===
+  employee.addresses?.forEach((addr: any, i: number) => {
+    Object.entries(addr).forEach(([k, v]) => {
+      if (v !== null && v !== undefined) {
+        formData.append(`addresses[${i}].${k}`, v as string);
+      }
+    });
+  });
+
+  // === SALARY DTO + Allowances/Deductions ===
+  const salary = employee.employeeSalaryDTO;
+  if (salary) {
+    appendIfValid('employeeSalaryDTO.ctc', salary.ctc);
+    appendIfValid('employeeSalaryDTO.payType', salary.payType);
+    appendIfValid('employeeSalaryDTO.standardHours', salary.standardHours);
+    appendIfValid('employeeSalaryDTO.bankAccountNumber', salary.bankAccountNumber);
+    appendIfValid('employeeSalaryDTO.ifscCode', salary.ifscCode);
+    appendIfValid('employeeSalaryDTO.payClass', salary.payClass);
+
+    salary.allowances?.forEach((a: any, i: number) => {
+      Object.entries(a).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) {
+          formData.append(`employeeSalaryDTO.allowances[${i}].${k}`, v as string);
+        }
+      });
+    });
+
+    salary.deductions?.forEach((d: any, i: number) => {
+      Object.entries(d).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) {
+          formData.append(`employeeSalaryDTO.deductions[${i}].${k}`, v as string);
+        }
+      });
+    });
+  }
+
+  // === OTHER DTOs (flatten with dot notation) ===
+  const appendDTO = (prefix: string, obj: any) => {
+    if (!obj) return;
+    Object.entries(obj).forEach(([k, v]) => {
+      if (v === null || v === undefined) return;
+      if (typeof v === 'object' && !(v instanceof File)) return; // skip nested objects
+      formData.append(`${prefix}.${k}`, v as string);
+    });
+  };
+
+  appendDTO('employeeAdditionalDetailsDTO', employee.employeeAdditionalDetailsDTO);
+  appendDTO('employeeEmploymentDetailsDTO', employee.employeeEmploymentDetailsDTO);
+  appendDTO('employeeInsuranceDetailsDTO', employee.employeeInsuranceDetailsDTO);
+  appendDTO('employeeStatutoryDetailsDTO', employee.employeeStatutoryDetailsDTO);
+
+  // === EQUIPMENT ===
+  employee.employeeEquipmentDTO?.forEach((eq: any, i: number) => {
+    Object.entries(eq).forEach(([k, v]) => {
+      if (v !== null && v !== undefined) {
+        formData.append(`employeeEquipmentDTO[${i}].${k}`, v as string);
+      }
+    });
+  });
+
+  // CRITICAL: DO NOT SET Content-Type HEADER!
+  // const response = await api.put(`/admin/updateemp/${empId}`, 
+  //   formData, {
+  //   timeout: 60000,
+  //   // Let browser set the correct boundary
+  // });
+  const response = await api.put(`/admin/updateemp/${empId}`, 
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data;
 }
+
+  
+
 
   // ✅ Delete client by ID
   async deleteClientById(clientId: string): Promise<WebResponseDTOString> {

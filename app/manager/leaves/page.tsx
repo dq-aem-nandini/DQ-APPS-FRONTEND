@@ -23,7 +23,7 @@ const Leavespage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+  // const [confirmation, setConfirmation] = useState<string | null>(null);
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
@@ -126,7 +126,6 @@ const Leavespage: React.FC = () => {
     }));
   };
 
-  // Handle review leave request
   const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
     Swal.fire({
       title: 'Review Leave Request',
@@ -135,63 +134,81 @@ const Leavespage: React.FC = () => {
           <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
           <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
           <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
-          <p><strong>From Date:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
+          <p><strong>From:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
+          <p><strong>To:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
           <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
-          <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
-          ${leave.attachmentUrl
-          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-          : '<p><strong>Attachment:</strong> None</p>'
-        }
           <div>
-            <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
-            <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
+            <label class="block text-sm font-medium text-gray-700">Comment (optional)</label>
+            <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" rows="3"></textarea>
           </div>
         </div>
       `,
       showCancelButton: true,
       showDenyButton: true,
-      showConfirmButton: true,
-      cancelButtonText: 'Cancel',
-      denyButtonText: 'Reject',
-      confirmButtonText: 'Approve',
+      confirmButtonText: "Approve",
+      denyButtonText: "Reject",
+      cancelButtonText: "Cancel",
       customClass: {
-        popup: 'rounded-lg',
-        confirmButton: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700',
-        denyButton: 'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700',
-        cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300',
+        confirmButton: "bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700",
+        denyButton: "bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700",
+        cancelButton: "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
       },
       preConfirm: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
-        return { action: 'approve', reason };
+        return {
+          action: "APPROVED",
+          reason: (document.getElementById("reason") as HTMLTextAreaElement)?.value || ""
+        };
       },
       preDeny: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
-        return { action: 'reject', reason };
-      },
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        const { reason } = result.value;
-        try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, 'APPROVED', reason);
-          setConfirmation(`Leave ${leave.leaveId} approved successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-          updateLeaveStatus(leave.leaveId!, 'APPROVED');
-        } catch (err: any) {
-          setError(err.message || 'Failed to approve leave');
-        }
-      } else if (result.isDenied) {
-        const { reason } = result.value;
-        try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, 'REJECTED', reason);
-          setConfirmation(`Leave ${leave.leaveId} rejected successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-          updateLeaveStatus(leave.leaveId!, 'REJECTED');
-        } catch (err: any) {
-          setError(err.message || 'Failed to reject leave');
-        }
+        return {
+          action: "REJECTED",
+          reason: (document.getElementById("reason") as HTMLTextAreaElement)?.value || ""
+        };
       }
-      setTimeout(() => setConfirmation(null), 3000);
+    }).then(async (result) => {
+      if (!result.value) return;
+  
+      const { action, reason } = result.value;
+  
+      // ⭐ Show loading indicator
+      Swal.fire({
+        title: "Processing...",
+        text: "Please wait",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+  
+      try {
+        // Backend call
+        await leaveService.updateLeaveStatus(leave.leaveId!, action, reason);
+  
+        // Update UI instantly
+        updateLeaveStatus(leave.leaveId!, action as LeaveStatus);
+  
+        // ⭐ Success Alert
+        Swal.fire({
+          icon: "success",
+          title: action === "APPROVED" ? "Leave Approved" : "Leave Rejected",
+          text: reason ? `Reason: ${reason}` : undefined,
+          confirmButtonColor: "#4f46e5"
+        });
+  
+      } catch (err: any) {
+  
+        // ❌ Error alert
+        Swal.fire({
+          icon: "error",
+          title: "Action Failed",
+          text: err.message || "Unable to update leave status"
+        });
+      }
     });
   };
+  
+  
 
   const updateLeaveStatus = (leaveId: string, status: LeaveStatus) => {
     if (activeTab === 'pending') {
@@ -244,7 +261,7 @@ const Leavespage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      {/* Confirmation Message */}
+      {/* Confirmation Message
       {confirmation && (
         <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-lg flex justify-between items-center mb-6">
           <span>{confirmation}</span>
@@ -255,7 +272,7 @@ const Leavespage: React.FC = () => {
             <XCircle size={20} />
           </button>
         </div>
-      )}
+      )} */}
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-0">
