@@ -127,6 +127,7 @@ const Login: React.FC = () => {
               required
               disabled={isLoading}
               value={credentials.inputKey}
+              autoComplete="username"
               onChange={(e) => setCredentials({ ...credentials, inputKey: e.target.value })}
               placeholder="Enter your username or email"
               className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 px-3"
@@ -145,23 +146,24 @@ const Login: React.FC = () => {
                 disabled={isLoading}
                 value={credentials.password}
                 onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                autoComplete="current-password"
                 placeholder="Enter your password"
                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 px-3"
               />
 
               {/* Eye Button */}
               <button
-  type="button"
-  onClick={() => setShowPassword(!showPassword)}
-  disabled={isLoading}
-  className="absolute inset-y-0 right-0 pr-3 flex items-center"
->
-  {showPassword ? (
-    <EyeOff className="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors" />
-  ) : (
-    <Eye className="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors" />
-  )}
-</button>
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors" />
+                ) : (
+                  <Eye className="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors" />
+                )}
+              </button>
 
             </div>
           </div>
@@ -204,15 +206,17 @@ const Login: React.FC = () => {
 
         <p className="text-center text-xs text-gray-500 mt-6">
           © {new Date().getFullYear()}
-          <a
-            href="https://digiquadsolutions.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-indigo-600"
-          >
+          <span className="font-semibold text-indigo-600">
             {" "}
-            DigiQuad Technologies
-          </a>
+            <a
+              href="https://digiquadsolutions.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              DigiQuad Technologies
+            </a>
+          </span>
           . All rights reserved.
         </p>
  

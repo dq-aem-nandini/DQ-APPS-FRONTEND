@@ -10,9 +10,14 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
-import { Phone, MapPin, DollarSign, FileText, User, Edit3, Save, X, Briefcase, Shield, Building } from 'lucide-react';
+import { Phone, MapPin, DollarSign, FileText, User, Edit3, Save, X, Briefcase, Shield, Building, Upload, Trash2, Download, Eye } from 'lucide-react';
 import Swal from 'sweetalert2';
-
+import { DocumentType, EmployeeDocumentDTO } from '@/lib/api/types';
+export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
+  "OFFER_LETTER", "CONTRACT", "TAX_DECLARATION_FORM", "WORK_PERMIT",
+  "PAN_CARD", "AADHAR_CARD", "BANK_PASSBOOK", "TENTH_CERTIFICATE",
+  "TWELFTH_CERTIFICATE", "DEGREE_CERTIFICATE", "POST_GRADUATION_CERTIFICATE", "OTHER"
+] as const;
 // Safe value
 const safe = (val: any) => (val === null || val === undefined ? '—' : String(val));
 
@@ -52,16 +57,15 @@ const ProfilePage = () => {
   const [bankSearch, setBankSearch] = useState('');
   const [bankOptions, setBankOptions] = useState<BankMaster[]>([]);
   const [bankSearchTimeout, setBankSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-
+  const [documents, setDocuments] = useState<FormDocument[]>([]);
   // IFSC local state (prevents focus loss)
   const [localIfsc, setLocalIfsc] = useState<string>('');
   const [isLookingUp, setIsLookingUp] = useState(false);
-
+  interface FormDocument extends EmployeeDocumentDTO {
+    fileObj?: File | null;
+    tempId?: string;
+  }
   const fetchProfile = useCallback(async () => {
-    // if (!user || user.role !== 'EMPLOYEE') {
-    //   router.push('/auth/login');
-    //   return;
-    // }
     if (!user) return;
 
     setLoading(true);
@@ -86,13 +90,38 @@ const ProfilePage = () => {
       setFormData(clean);
       setAddresses(clean.addresses || []);
       setLocalIfsc(clean.ifscCode || ''); // Sync local IFSC
+      setDocuments((clean.documents || []).map(d => ({
+        ...d,
+        fileObj: null,
+        tempId: uuidv4(),
+
+      })));
     } catch (err: any) {
       setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
   }, [user, router]);
+  const addDocument = () => {
+    setDocuments(prev => [...prev, {
+      documentId: '',
+      docType: 'OTHER' as DocumentType,
+      file: '',
+      uploadedAt: '',
+      verified: false,
+      fileObj: null,
+      tempId: uuidv4(),
+    } as FormDocument]);
+  };
+  const updateDocument = (index: number, field: 'docType' | 'fileObj', value: any) => {
+    setDocuments(prev => prev.map((d, i) =>
+      i === index ? { ...d, [field]: value } : d
+    ));
+  };
 
+  const removeDocument = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
   // Handle IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
     if (isLookingUp || !formData) return;
@@ -128,71 +157,98 @@ const ProfilePage = () => {
     }
   };
 
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData || !profile) return;
 
+    // Only validate 5 required fields
+    const requiredFields = ['firstName', 'lastName', 'dateOfBirth', 'gender', 'maritalStatus', 'nationality'];
+    for (const field of requiredFields) {
+      if (!formData[field as keyof EmployeeDTO]) {
+        setError(`Please fill ${field === 'firstName' ? 'First Name' : field === 'lastName' ? 'Last Name' :
+          field === 'dateOfBirth' ? 'Date of Birth' : field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+        return;
+      }
+    }
+
     setUpdating(true);
     setError(null);
-    setSuccess(null);
 
     try {
-      const merged = deduplicateAddresses([...profile.addresses, ...addresses]);
-      if (addresses.length > 0 && merged.length === 0) throw new Error('Complete all address fields');
+      const payload = new FormData();
 
-      const payload: Partial<EmployeeDTO> = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        personalEmail: formData.personalEmail,
-        contactNumber: formData.contactNumber,
-        alternateContactNumber: formData.alternateContactNumber,
-        gender: formData.gender,
-        companyEmail: formData.companyEmail,
-        maritalStatus: formData.maritalStatus,
-        numberOfChildren: formData.numberOfChildren,
-        dateOfBirth: formData.dateOfBirth,
-        nationality: formData.nationality,
-        emergencyContactName: formData.emergencyContactName,
-        emergencyContactNumber: formData.emergencyContactNumber,
-        panNumber: formData.panNumber,
-        aadharNumber: formData.aadharNumber,
-        accountNumber: formData.accountNumber,
-        accountHolderName: formData.accountHolderName,
-        bankName: formData.bankName,
-        ifscCode: localIfsc, // Use localIfsc (always up to date)
-        branchName: formData.branchName,
-        employeePhotoUrl: formData.employeePhotoUrl,
-        addresses: merged.map(addr => {
-          const { addressId, ...rest } = addr;
-          return addressId && !addressId.startsWith('temp-') ? addr : rest;
-        }),
-      };
+      // Required & basic fields
+      payload.append('firstName', formData.firstName);
+      payload.append('lastName', formData.lastName);
+      payload.append('dateOfBirth', formData.dateOfBirth);
+      payload.append('gender', formData.gender);
+      payload.append('maritalStatus', formData.maritalStatus);
+      payload.append('nationality', formData.nationality);
+
+      // Optional fields
+      payload.append('personalEmail', formData.personalEmail || '');
+      payload.append('contactNumber', formData.contactNumber || '');
+      payload.append('alternateContactNumber', formData.alternateContactNumber || '');
+      payload.append('emergencyContactName', formData.emergencyContactName || '');
+      payload.append('emergencyContactNumber', formData.emergencyContactNumber || '');
+      payload.append('panNumber', formData.panNumber || '');
+      payload.append('aadharNumber', formData.aadharNumber || '');
+      payload.append('accountNumber', formData.accountNumber || '');
+      payload.append('accountHolderName', formData.accountHolderName || '');
+      payload.append('bankName', formData.bankName || '');
+      payload.append('ifscCode', localIfsc);
+      payload.append('branchName', formData.branchName || '');
+
+      // Addresses
+      addresses.forEach((addr, i) => {
+        if (addr.addressId && !addr.addressId.startsWith('temp-')) {
+          payload.append(`addresses[${i}].addressId`, addr.addressId);
+        }
+        payload.append(`addresses[${i}].houseNo`, addr.houseNo || '');
+        payload.append(`addresses[${i}].streetName`, addr.streetName || '');
+        payload.append(`addresses[${i}].city`, addr.city || '');
+        payload.append(`addresses[${i}].state`, addr.state || '');
+        payload.append(`addresses[${i}].country`, addr.country || '');
+        payload.append(`addresses[${i}].pincode`, addr.pincode || '');
+        payload.append(`addresses[${i}].addressType`, addr.addressType || '');
+      });
+
+      // Documents - only new uploads
+      documents
+        .filter(d => d.fileObj instanceof File)
+        .forEach((doc, i) => {
+          if (doc.documentId) payload.append(`documents[${i}].documentId`, doc.documentId);
+          payload.append(`documents[${i}].docType`, doc.docType);
+          payload.append(`documents[${i}].file`, doc.fileObj!);
+        });
 
       const res = await employeeService.submitUpdateRequest(payload);
-      if (!res.flag) throw new Error(res.message || "Failed to submit update request");
+      if (!res.flag) throw new Error(res.message || 'Update failed');
 
       await Swal.fire({
-        icon: "success",
-        title: "Request Submitted",
-        text: "Your update request has been sent to the admin for review.",
-        confirmButtonColor: "#4F46E5",
+        icon: 'success',
+        title: 'Success!',
+        text: 'Your update request has been sent to admin.',
+        confirmButtonColor: '#4F46E5',
       });
-      await fetchProfile(); // THIS IS THE KEY
+
+      await fetchProfile();
       setEditing(false);
-      // setSuccess('Update request sent successfully!');
     } catch (err: any) {
-      setError(err.message || "Request failed");
+      setError(err.message || 'Failed');
     } finally {
       setUpdating(false);
     }
   };
-
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => prev ? { ...prev, [name]: value } : null);
-    console.log('localIfsc:', value, 'formData.ifscCode:', formData?.ifscCode);
-  };
+    const normalizedValue = name === 'gender' || name === 'maritalStatus'
+      ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+      : value;
 
+    setFormData(prev => prev ? { ...prev, [name]: normalizedValue } : null);
+  };
   const addAddress = () => {
     const newAddr: AddressModel = {
       addressId: `temp-${uuidv4()}`,
@@ -309,38 +365,44 @@ const ProfilePage = () => {
             )}
 
             {editing ? (
+              // EDIT MODE
               <form onSubmit={handleUpdate} className="space-y-8">
-                {/* Personal Info */}
+                {/* Personal Information */}
                 <Card title="Personal Information" icon={<User className="w-5 h-5" />}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                    {/* REQUIRED FIELDS WITH RED STAR */}
                     <Input label="First Name" name="firstName" value={formData.firstName} onChange={onChange} required />
                     <Input label="Last Name" name="lastName" value={formData.lastName} onChange={onChange} required />
-                    <Input label="Personal Email Address" name="personalEmail" type="email" value={formData.personalEmail} onChange={onChange} required />
-                    <Input label="Primary Contact Number" name="contactNumber" value={formData.contactNumber} onChange={onChange} pattern="[0-9]{10}" required />
-                    <Input label="Alternate Contact Number" name="alternateContactNumber" value={formData.alternateContactNumber} onChange={onChange} pattern="[0-9]{10}" />
-                    <Select label="Gender" name="gender" value={formData.gender} onChange={onChange} options={['Male', 'Female', 'Other']} required />
-                    <Select label="Marital Status" name="maritalStatus" value={formData.maritalStatus} onChange={onChange} options={['Single', 'Married', 'Divorced']} required />
-                    <Input label="Number of Children" name="numberOfChildren" type="number" value={formData.numberOfChildren} onChange={onChange} min="0" required />
                     <Input label="Date of Birth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={onChange} required />
+                    <Select label="Gender" name="gender" value={formData.gender || ''} onChange={onChange} options={['MALE', 'FEMALE', 'OTHER']} required />
+                    <Select label="Marital Status" name="maritalStatus" value={formData.maritalStatus || ''} onChange={onChange} options={['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED']} required />
                     <Input label="Nationality" name="nationality" value={formData.nationality} onChange={onChange} required />
+
+                    {/* OPTIONAL FIELDS */}
+                    <Input label="Personal Email Address" name="personalEmail" type="email" value={formData.personalEmail} onChange={onChange} />
+                    <Input label="Primary Contact Number" name="contactNumber" value={formData.contactNumber} onChange={onChange} pattern="[0-9]{10}" />
+                    <Input label="Alternate Contact Number" name="alternateContactNumber" value={formData.alternateContactNumber} onChange={onChange} pattern="[0-9]{10}" />
+                    <Input label="Number of Children" name="numberOfChildren" type="number" value={formData.numberOfChildren} onChange={onChange} min="0" />
+
                   </div>
                 </Card>
 
                 {/* Emergency Contact */}
                 <Card title="Emergency Contact" icon={<Phone className="w-5 h-5" />}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Input label="Emergency Contact Name" name="emergencyContactName" value={formData.emergencyContactName} onChange={onChange} required />
-                    <Input label="Emergency Contact Number" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={onChange} pattern="[0-9]{10}" required />
+                    <Input label="Emergency Contact Name" name="emergencyContactName" value={formData.emergencyContactName} onChange={onChange} />
+                    <Input label="Emergency Contact Number" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={onChange} pattern="[0-9]{10}" />
                   </div>
                 </Card>
 
-                {/* Bank Details - FINAL FIXED */}
+                {/* Bank Details */}
                 <Card title="Bank Details" icon={<DollarSign className="w-5 h-5" />}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Input label="PAN Number" name="panNumber" value={formData.panNumber} onChange={onChange} pattern="[A-Z0-9]{10}" required />
-                    <Input label="Aadhaar Number" name="aadharNumber" value={formData.aadharNumber} onChange={onChange} pattern="[0-9]{12}" required />
+                    <Input label="PAN Number" name="panNumber" value={formData.panNumber} onChange={onChange} pattern="[A-Z0-9]{10}" />
+                    <Input label="Aadhaar Number" name="aadharNumber" value={formData.aadharNumber} onChange={onChange} pattern="[0-9]{12}" />
 
-                    {/* IFSC Code - NO FOCUS LOSS EVER (FINAL) */}
+                    {/* IFSC Code */}
                     <div className="relative">
                       <Input
                         label="IFSC Code"
@@ -348,17 +410,11 @@ const ProfilePage = () => {
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
                           setLocalIfsc(val);
-
-                          // ONLY CALL API, DO NOT TOUCH formData YET
-                          if (val.length === 11) {
-                            console.log('IFSC complete, calling lookup...');
-                            handleIfscLookup(val);
-                          }
+                          if (val.length === 11) handleIfscLookup(val);
                         }}
                         placeholder="HDFC0000123"
                         maxLength={11}
                         autoComplete="off"
-                        required
                       />
                       {(localIfsc?.length ?? 0) === 11 && (
                         <div className="absolute right-3 top-10 text-green-600 text-xs font-medium pointer-events-none">
@@ -366,20 +422,17 @@ const ProfilePage = () => {
                         </div>
                       )}
                     </div>
+
                     {/* Bank Name Search */}
                     <div className="relative">
                       <Input
                         label="Bank Name"
                         name="bankName"
                         value={formData.bankName || ''}
-                        onChange={(e) => {
-                          onChange(e);
-                          setBankSearch(e.target.value);
-                        }}
+                        onChange={(e) => { onChange(e); setBankSearch(e.target.value); }}
                         onFocus={() => formData.bankName && setBankSearch(formData.bankName)}
                         placeholder="Type to search bank..."
                         autoComplete="off"
-                        required
                       />
                       {bankSearch && bankOptions.length > 0 && (
                         <div className="absolute z-50 w-full mt-1 top-full bg-white border border-gray-300 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
@@ -391,10 +444,6 @@ const ProfilePage = () => {
                                 setFormData(prev => prev ? { ...prev, bankName: bank.bankName } : null);
                                 setBankSearch('');
                                 setBankOptions([]);
-                                setTimeout(() => {
-                                  const input = document.querySelector('input[name="bankName"]') as HTMLInputElement | null;
-                                  input?.focus();
-                                }, 0);
                               }}
                               className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition font-medium"
                             >
@@ -405,41 +454,34 @@ const ProfilePage = () => {
                       )}
                     </div>
 
-                    <Input label="Account Number" name="accountNumber" value={formData.accountNumber} onChange={onChange} required />
-                    <Input label="Account Holder Name" name="accountHolderName" value={formData.accountHolderName} onChange={onChange} required />
-                    <Input label="Branch Name" name="branchName" value={formData.branchName || ''} onChange={onChange} required />
+                    <Input label="Account Number" name="accountNumber" value={formData.accountNumber} onChange={onChange} />
+                    <Input label="Account Holder Name" name="accountHolderName" value={formData.accountHolderName} onChange={onChange} />
+                    <Input label="Branch Name" name="branchName" value={formData.branchName || ''} onChange={onChange} />
                   </div>
                 </Card>
 
-                {/* Photo, Addresses, Submit */}
-                <Card title="Photo" icon={<FileText className="w-5 h-5" />}>
-                  <Input label="Employee Photo URL" name="employeePhotoUrl" value={formData.employeePhotoUrl} onChange={onChange} />
-                </Card>
-
+                {/* Addresses */}
                 <Card title="Addresses" icon={<MapPin className="w-5 h-5" />}>
                   {addresses.map((addr, i) => (
                     <div key={addr.addressId} className="border rounded-xl p-5 mb-5 bg-gradient-to-r from-gray-50 to-gray-100">
                       <div className="flex justify-between items-center mb-4">
                         <h4 className="font-semibold text-gray-700">Address {i + 1}</h4>
-                        <button type="button" onClick={() => removeAddress(i)} disabled={!!addr.addressId && deletingAddresses.has(addr.addressId)} className="text-red-600 hover:text-red-800 disabled:text-gray-400">
-                          {deletingAddresses.has(addr.addressId!) ? 'Deleting...' : 'Remove'}
+                        <button type="button" onClick={() => removeAddress(i)} className="text-red-600 hover:text-red-800">
+                          Remove
                         </button>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input label="House Number" value={addr.houseNo} onChange={(e) => updateAddress(i, 'houseNo', e.target.value)} required />
-                        <Input label="Street Name" value={addr.streetName} onChange={(e) => updateAddress(i, 'streetName', e.target.value)} required />
-                        <Input label="City" value={addr.city} onChange={(e) => updateAddress(i, 'city', e.target.value)} required />
-                        <Input label="State" value={addr.state} onChange={(e) => updateAddress(i, 'state', e.target.value)} required />
-                        <Input label="Country" value={addr.country} onChange={(e) => updateAddress(i, 'country', e.target.value)} required />
-                        <Input label="PIN Code" value={addr.pincode} onChange={(e) => updateAddress(i, 'pincode', e.target.value)} required />
+                        <Input label="House Number" value={addr.houseNo || ''} onChange={(e) => updateAddress(i, 'houseNo', e.target.value)} />
+                        <Input label="Street Name" value={addr.streetName || ''} onChange={(e) => updateAddress(i, 'streetName', e.target.value)} />
+                        <Input label="City" value={addr.city || ''} onChange={(e) => updateAddress(i, 'city', e.target.value)} />
+                        <Input label="State" value={addr.state || ''} onChange={(e) => updateAddress(i, 'state', e.target.value)} />
+                        <Input label="Country" value={addr.country || ''} onChange={(e) => updateAddress(i, 'country', e.target.value)} />
+                        <Input label="PIN Code" value={addr.pincode || ''} onChange={(e) => updateAddress(i, 'pincode', e.target.value)} />
                         <Select
                           label="Address Type"
                           value={addr.addressType ?? ''}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                            updateAddress(i, 'addressType', e.target.value)
-                          }
+                          onChange={(e) => updateAddress(i, 'addressType', e.target.value)}
                           options={['PERMANENT', 'CURRENT']}
-                          required
                         />
                       </div>
                     </div>
@@ -449,10 +491,104 @@ const ProfilePage = () => {
                   </button>
                 </Card>
 
+                {/* Upload Documents */}
+                <Card title="Upload Documents" icon={<Upload className="w-5 h-5" />}>
+                  {documents.map((doc, i) => (
+                    <div
+                      key={doc.tempId || doc.documentId}
+                      className="flex flex-wrap items-end gap-4 p-5 bg-gray-50 rounded-xl mb-4 border border-gray-200"
+                    >
+                      {/* Document Type */}
+                      <div className="flex-1 min-w-[200px]">
+                        <Select
+                          label="Document Type"
+                          value={doc.docType}
+                          onChange={(e) => updateDocument(i, 'docType', e.target.value as DocumentType)}
+                          options={DOCUMENT_TYPE_OPTIONS}
+                        />
+                      </div>
+
+                      {/* File Input */}
+                      <div className="flex-1 min-w-[280px]">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Upload File
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => updateDocument(i, 'fileObj', e.target.files?.[0] || null)}
+                          className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Current File or Selected File */}
+                      <div className="flex-1 min-w-[200px]">
+                        {doc.fileObj ? (
+                          <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span className="truncate">{doc.fileObj.name}</span>
+                          </div>
+                        ) : doc.file ? (
+                          <a
+                            href={doc.file}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Current File
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-sm italic">No file selected</span>
+                        )}
+                      </div>
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(i)}
+                        className="text-red-600 hover:text-red-800 transition"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add Document Button */}
+                  <button
+                    type="button"
+                    onClick={addDocument}
+                    className="flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md font-medium"
+                  >
+                    <Upload className="w-5 h-5" />
+                    Add Another Document
+                  </button>
+                </Card>
+
+                {/* Submit Buttons */}
                 <div className="flex justify-end gap-4 pt-6 border-t">
-                  <button type="button" onClick={() => { setEditing(false); setAddresses(profile.addresses.map(a => ({ ...a }))); setFormData({ ...profile }); setLocalIfsc(profile.ifscCode || ''); }} className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
-                  <button type="submit" disabled={updating} className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition disabled:opacity-50 flex items-center gap-2">
-                    <Save className="w-5 h-5" /> {updating ? 'Submitting...' : 'Update Request'}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(false);
+                      setAddresses(profile.addresses.map(a => ({ ...a })));
+                      setFormData({ ...profile });
+                      setLocalIfsc(profile.ifscCode || '');
+                    }}
+                    className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Save className="w-5 h-5" />
+                    {updating ? 'Submitting...' : 'Submit Request'}
                   </button>
                 </div>
               </form>
@@ -460,12 +596,13 @@ const ProfilePage = () => {
               /* VIEW MODE - SAME AS BEFORE */
               <div className="space-y-8">
                 <InfoCard title="Personal" icon={<User className="w-6 h-6 text-blue-600" />}>
-                  <Info label="Full Name" value={`${profile.firstName} ${profile.lastName}`} />
-                  <Info label="Date of Birth" value={formatDate(profile.dateOfBirth)} />
-                  <Info label="Gender" value={profile.gender} />
-                  <Info label="Marital Status" value={profile.maritalStatus} />
+                  <Info label="Full Name" value={`${profile.firstName} ${profile.lastName}`} required />
+                  <Info label="Date of Birth" value={formatDate(profile.dateOfBirth)} required />
+                  <Info label="Gender" value={profile.gender} required />
+                  <Info label="Marital Status" value={profile.maritalStatus} required />
+                  <Info label="Nationality" value={profile.nationality} required />
+
                   <Info label="Number of Children" value={profile.numberOfChildren} />
-                  <Info label="Nationality" value={profile.nationality} />
                   <Info label="Personal Email Address" value={profile.personalEmail} />
                   <Info label="Company Email Address" value={profile.companyEmail} />
                   <Info label="Primary Contact Number" value={profile.contactNumber} />
@@ -509,6 +646,35 @@ const ProfilePage = () => {
                     <p className="text-gray-500">No addresses added</p>
                   )}
                 </InfoCard>
+
+                {profile.documents && profile.documents.length > 0 && (
+                  <InfoCard title="Documents" icon={<FileText className="w-6 h-6 text-indigo-600" />}>
+                    <div className="space-y-3">
+                      {profile.documents.map((doc, i) => (
+                        <div key={i} className="flex items-center justify-between bg-indigo-50 p-4 rounded-xl">
+                          <div>
+                            <p className="font-medium">{doc.docType.replace(/_/g, ' ')}</p>
+                          </div>
+
+                          {doc.file ? (
+                            <a
+                              href={doc.file}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                            >
+                              <Eye className="w-5 h-5" />
+                              <span className="text-sm">View</span>
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-sm italic">No file</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </InfoCard>
+                )}
+
 
                 {profile.employeeSalaryDTO && (
                   <InfoCard title="Salary" icon={<DollarSign className="w-6 h-6 text-green-600" />}>
@@ -604,45 +770,60 @@ const InfoCard = ({ title, icon, children }: { title: string; icon: React.ReactN
   </div>
 );
 
-const Input = ({ label, className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
+const Input = ({
+  label,
+  required,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
   <div>
-    <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
-    <input {...props} className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${className}`} value={props.value ?? ''} />
+    <label className="block text-sm font-semibold text-gray-700 mb-2">
+      {label}
+      {required && <span className="text-red-600 ml-1 font-bold">*</span>}
+    </label>
+    <input
+      {...props}
+      required={required}
+      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+    />
   </div>
 );
-
-// const Select = ({ label, options, ...props }: any) => (
-//   <div>
-//     <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
-//     <select className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" {...props}>
-//       <option value="">Select</option>
-//       {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-//     </select>
-//   </div>
-// );
 const Select = ({
   label,
   options,
+  required,
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; options: string[] }) => (
+}: React.SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string;
+  options: string[]
+}) => (
   <div>
-    <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">
+      {label}
+      {required && <span className="text-red-600 ml-1 font-bold">*</span>}
+    </label>
     <select
-      className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
       {...props}
+      required={required}
+      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
     >
       <option value="">Select</option>
       {options.map((opt) => (
-        <option key={opt} value={opt}>{opt}</option>
+        <option key={opt} value={opt}>
+          {opt.charAt(0) + opt.slice(1).toLowerCase()}
+        </option>
       ))}
     </select>
   </div>
 );
-
-const Info = ({ label, value }: { label: string; value?: any }) => (
+const Info = ({ label, value, required }: { label: string; value?: any; required?: boolean }) => (
   <div>
-    <p className="text-gray-600 font-medium">{label}</p>
-    <p className="font-bold text-gray-900 mt-1">{safe(value)}</p>
+    <p className="text-gray-600 font-medium">
+      {label}
+      {required && <span className="text-red-600 ml-1 font-bold">*</span>}
+    </p>
+    <p className="font-bold text-gray-900 mt-1">
+      {safe(value)}
+    </p>
   </div>
 );
 

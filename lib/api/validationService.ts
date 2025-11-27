@@ -11,9 +11,11 @@ export type UniqueField =
   | "AADHAR_NUMBER"
   | "ACCOUNT_NUMBER"
   | "ACCOUNT_HOLDER_NAME"
+  | "PASSPORT_NUMBER"
   | "PF_UAN_NUMBER"
   | "ESI_NUMBER"
   | "SSN_NUMBER"
+  | "POLICY_NUMBER"
   | "SERIAL_NUMBER";
 
 export const validationService = {
@@ -69,3 +71,4 @@ export const validationService = {
     }
   },
 };
+

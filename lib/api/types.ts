@@ -36,7 +36,7 @@ export type HolidayType =
   | "COMPANY_SPECIFIC";
 export type RecurrenceRule = "ANNUAL" | "ONE_TIME";
 export type EmploymentType = "CONTRACTOR" | "FREELANCER" | "FULLTIME";
-export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" | "WORK_PERMIT" | "PAN_CARD" | "AADHAR_CARD" | "BANK_PASSBOOK" | "TENTH_CERTIFICATE" | "INTERMEDIATE_CERTIFICATE" | "DEGREE_CERTIFICATE" | "POST_GRADUATION_CERTIFICATE" | "OTHER";
+export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" | "WORK_PERMIT" | "PAN_CARD" | "AADHAR_CARD" | "BANK_PASSBOOK" | "TENTH_CERTIFICATE" | "TWELFTH_CERTIFICATE" | "DEGREE_CERTIFICATE" | "POST_GRADUATION_CERTIFICATE" | "OTHER";
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY";
 export type ProjectStatus = "ACTIVE" | "INACTIVE" | "COMPLETED" | "ON_HOLD";
 export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
@@ -180,6 +180,36 @@ export const BOND_DURATION_OPTIONS = [
   'THREE_YEARS',
   'NA',
 ] as const;
+export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
+  "OFFER_LETTER",
+  "CONTRACT",
+  "TAX_DECLARATION_FORM",
+  "WORK_PERMIT",
+  "PAN_CARD",
+  "AADHAR_CARD",
+  "BANK_PASSBOOK",
+  "TENTH_CERTIFICATE",
+  "TWELFTH_CERTIFICATE",
+  "DEGREE_CERTIFICATE",
+  "POST_GRADUATION_CERTIFICATE",
+  "OTHER",
+] as const;
+
+export interface EmployeeDepartmentDTO {
+  employeeId: string;
+  fullName: string;
+  designation: string;
+  department: Department;
+}
+
+export interface WebResponseDTOEmployeeDepartmentList {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: EmployeeDepartmentDTO[];
+  totalRecords: number;
+  otherInfo: string | null;
+}
 
 // Core Models
 export interface AddressModel {
@@ -285,7 +315,7 @@ export interface LoginResponseInner {
 
 
 export interface RoleObject {
-  roleId: string; 
+  roleId: string;
   roleName: Role;
   roleDesc: string;
   permissions: string[]; // array of strings
@@ -349,35 +379,41 @@ export type AuthAction =
   }
   | { type: "LOGOUT" }
   | { type: "SET_LOADING"; payload: boolean };
-// lib/api/types.ts
 
-// export interface FieldValidationRequest {
-//   entity: string;
-//   field: string;
-//   value: string;
-//   parentId?: string | null;     // ← null when parent not saved yet
-//   currentRecordId?: string | null; // ← ONLY send on EDIT, NEVER on create
-// }
 
-// export interface FieldValidationResponse {
-//   exists: boolean;
-//   message: string;
-// }
+export interface PasswordCheckRequestDTO {
+  companyEmail: string;
+  newPassword: string;
+}
 
-// export interface WebResponseDTOFieldValidationResponse {
-//   flag: boolean;
-//   message: string;
-//   status: number;
-//   response?: FieldValidationResponse;
-//   totalRecords?: number;
-//   otherInfo?: any;
-// }
+export interface WebResponseDTOPasswordCheck {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: boolean;
+  totalRecords: number;
+  otherInfo: string | null;
+}
+export interface LeaveStatusCountResponseDTO {
+  approved: number;
+  availed: number;
+  availableLeaves: number;
+}
+
+export interface WebResponseDTOLeaveStatusCount {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: LeaveStatusCountResponseDTO;
+  totalRecords: number;
+  otherInfo: string | null;
+}
 
 // Additional Schemas
 export interface EmployeeDocumentDTO {
   documentId: string; // uuid
   docType: DocumentType;
-  fileUrl: string;
+  file: string;
   uploadedAt: string; // date-time
   verified: boolean;
 }
@@ -621,15 +657,6 @@ export interface BankDetails {
   updatedAt: string; // date-time
 }
 
-export interface HolidaySchemeModel {
-  holidayCalendarId?: string | undefined // UUID
-  schemeName?: string;
-  schemeDescription?: string;
-  city?: string;
-  state?: string;
-  schemeCountryCode?: string;
-  activeStatus?: boolean;
-}
 export interface HolidaySchemeDTO {
   holidaySchemeId: string;          // <- ID from backend
   schemeName: string;
@@ -643,32 +670,6 @@ export interface HolidaySchemeDTO {
   holidayCalendarId: string[];      // <- Array of UUIDs
   schemeActive: boolean;
 }
-
-export interface HolidayCalendarModel {
-  holidayName?: string;
-  calendarDescription?: string;
-  holidayDate?: string; // Date format (YYYY-MM-DD)
-  locationRegion?: string;
-  holidayType?: HolidayType;
-  recurrenceRule?: RecurrenceRule;
-  calendarCountryCode?: string;
-  activeStatus?: boolean;
-}
-
-export interface HolidayCalendarDTO {
-  holidayCalendarId: string; // uuid
-  holidayName: string;
-  calendarDescription: string;
-  holidayDate: string; // date
-  locationRegion: string;
-  holidayType: HolidayType;
-  recurrenceRule: RecurrenceRule;
-  calendarCountryCode: string | null;
-  createdByAdminId: string; // uuid
-  createAt:string;
-  holidayActive: boolean;
-}
-
 
 export interface ClientPoc {
   pocId: string; // uuid
@@ -953,10 +954,46 @@ export interface BankMaster {
   bankCode: string;
   bankName: string;
 }
-export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> {}
+
+// Request body for creating or updating holiday
+export interface HolidaysModel {
+  holidayDate: string; // yyyy-MM-dd
+  holidayName: string;
+  comments: string;
+}
+ 
+// Response DTO when fetching one holiday or listing all
+export interface HolidaysDTO {
+  holidayId: string; // UUID
+  holidayDate: string;
+  holidayName: string;
+  comments: string;
+  updateAt: string; // ISO DateTime
+  createdAt: string; // ISO DateTime
+}
+
+// Single object response
+export interface WebResponseDTOHolidaysDTO {
+  flag: boolean;
+  message: string;
+  status?: number;
+  response: HolidaysDTO;
+  otherInfo?: any;
+}
+ 
+// List response
+export interface WebResponseDTOListHolidaysDTO {
+  flag: boolean;
+  message: string;
+  status?: number;
+  response: HolidaysDTO[];
+  totalRecords: number;
+  otherInfo?: any;
+}
+export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> { }
 
 export interface WebResponseDTOListBankMaster
-  extends WebResponseDTO<BankMaster[]> {}
+  extends WebResponseDTO<BankMaster[]> { }
 // WebResponse Wrappers
 export interface WebResponseDTOString {
   flag: boolean;
@@ -1081,32 +1118,6 @@ export interface WebResponseDTOListNotificationDTO {
   response: NotificationDTO[];
   totalRecords: number; // int64
   otherInfo: any;
-}
-
-export interface WebResponseDTOHolidayCalendarDTO {
-  flag: boolean;
-  message: string;
-  status: number; // int32
-  response: HolidayCalendarDTO;
-  totalRecords: number; // int64
-  otherInfo?: Record<string, unknown>;
-}
-
-export interface WebResponseDTOListHolidayCalendarDTO {
-  flag: boolean;
-  message: string;
-  status: number; // int32
-  response: HolidayCalendarDTO[];
-  totalRecords: number; // int64
-  otherInfo: any;
-}
-export interface WebResponseDTOListHolidaySchemeDTO {
-  flag: boolean;
-  message: string;
-  status: number;
-  response: HolidaySchemeDTO[];     // List of schemes
-  totalRecords: number;
-  otherInfo?: any;
 }
 
 export interface WebResponseDTOListTimeSheetResponseDto {
@@ -1358,3 +1369,50 @@ export interface WebResponseDTOListClientInvoiceSummaryDTO {
 }
 // export const enumNamesFromMap = <T extends string>(map: Record<T, any>): T[] =>
 //   Object.keys(map) as T[];
+
+// ---------------- Holiday DTOs ----------------
+
+// Request body for creating or updating holiday
+export interface HolidaysModel {
+  holidayDate: string; // yyyy-MM-dd
+  holidayName: string;
+  comments: string;
+}
+
+// Response DTO when fetching one holiday or listing all
+export interface HolidaysDTO {
+  holidayId: string; // UUID
+  holidayDate: string;
+  holidayName: string;
+  comments: string;
+  updateAt: string; // ISO DateTime
+  createdAt: string; // ISO DateTime
+}
+
+// ---------- Generic WebResponse DTOs ----------
+
+// Single object response
+export interface WebResponseDTOHolidaysDTO {
+  flag: boolean;
+  message: string;
+  status?: number;
+  response: HolidaysDTO;
+  otherInfo?: any;
+}
+
+// List response
+export interface WebResponseDTOListHolidaysDTO {
+  flag: boolean;
+  message: string;
+  status?: number;
+  response: HolidaysDTO[];
+  totalRecords: number;
+  otherInfo?: any;
+}
+
+// Create / Update / Delete response (no response object)
+export interface WebResponseDTOGeneric {
+  flag: boolean;
+  message: string;
+  status: number;
+}

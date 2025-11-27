@@ -29,7 +29,7 @@ import {
   XCircle,
   Menu,
 } from 'lucide-react';
-import { timesheetService } from '@/lib/api/timeSheetService';
+// import { timesheetService } from '@/lib/api/timeSheetService';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -58,28 +58,28 @@ const DashboardContent = () => {
           clientsRes,
           employeesRes,
           pendingRes,
-          timesheetsRes,
+          // timesheetsRes,
           invoicesRes,
         ] = await Promise.all([
           adminService.getAllClients(),
           adminService.getAllEmployees(),
           leaveService.getPendingLeaves(),
-          timesheetService.getAllTimesheets({ startDate: monthStart, endDate: monthEnd, size: 1000 }),
+          // timesheetService.getAllTimesheets({ startDate: monthStart, endDate: monthEnd, size: 1000 }),
           invoiceService.getAllInvoices(),
         ]);
 
         setTotalClients(clientsRes.response?.length || 0);
         setTotalEmployees(employeesRes.response?.length || 0);
         setPendingLeaves(pendingRes);
-        setTotalTimesheets(timesheetsRes.response?.length || 0);
+        // setTotalTimesheets(timesheetsRes.response?.length || 0);
         setTotalRevenue(invoicesRes.reduce((sum: number, inv: any) => sum + inv.totalAmount, 0));
 
         const days = eachDayOfInterval({ start: startOfMonth(today), end: endOfMonth(today) });
-        const trend = days.map(day => {
-          const dateStr = format(day, 'yyyy-MM-dd');
-          return timesheetsRes.response?.filter((t: any) => t.workDate === dateStr).length || 0;
-        });
-        setTimesheetTrend(trend);
+        // const trend = days.map(day => {
+        //   const dateStr = format(day, 'yyyy-MM-dd');
+        //   return timesheetsRes.response?.filter((t: any) => t.workDate === dateStr).length || 0;
+        // });
+        // setTimesheetTrend(trend);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard');
       } finally {
