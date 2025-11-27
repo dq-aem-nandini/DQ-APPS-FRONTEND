@@ -1,5 +1,5 @@
 'use client';
-
+import { salaryGenerateService } from '@/lib/api/salarybuttonGenerateService';
 import React, { useEffect, useState } from 'react';
 import { salaryService } from '@/lib/api/salaryService';
 import { ListofEmployeeSalaries } from '@/lib/api/ListofEmployeSalaries';
@@ -185,6 +185,44 @@ export default function AdminPage() {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* TEMP: Generate Salary Button */}
+          <div className="flex justify-start ">
+          <input
+              type="month"
+              className="border rounded p-2 mr-4"
+              onChange={(e) => {
+                const [year, month] = e.target.value.split("-");
+                setSelectedYear(Number(year));
+                setSelectedMonth(Number(month));
+              }}
+            />
+
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!selectedYear || !selectedMonth) {
+                  alert("Please select year and month first");
+                  return;
+                }
+                const monthString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+
+                try {
+                  await salaryGenerateService.generateSalary(
+                    selectedYear.toString(),
+                    String(selectedMonth).padStart(2, '0')
+                  );
+                  alert("Salary generation triggered successfully!");
+                } catch (err) {
+                  console.error(err);
+                  alert("Failed to generate salary");
+                }
+              }}
+            >
+              Generate Salary (TEMP)
+            </Button>
+          </div>
+
+
           {/* Employee Select */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Employee</label>

@@ -155,28 +155,29 @@ class TimesheetService {
   /**
    *  Delete a timesheet (DELETE)
    */
-  async deleteTimesheet(timesheetId: string): Promise<WebResponseDTO<string>> {
-    if (!timesheetId) {
+  async deleteTimesheet(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
+    if (!timesheetIds || timesheetIds.length === 0) {
       return {
         flag: false,
-        message: "Timesheet ID is required",
+        message: "Timesheet IDs are required",
         status: 400,
         response: '',
         totalRecords: 0,
         otherInfo: null,
       };
     }
-
+  
     return this._mutation(
       "/employee/timesheet/delete",
       "delete",
       undefined,
-      { params: { timesheetId } },
+      { params: { timesheetId: timesheetIds } },   // ⬅ sending list
       false,
       "Timesheet deleted successfully",
       "Failed to delete timesheet"
     );
   }
+  
 
   /**
    * 📤 Submit timesheets for manager approval (GET)
@@ -238,17 +239,13 @@ class TimesheetService {
 async getAllTimesheets(params?: {
   page?: number;
   size?: number;
-  direction?: string;
-  orderBy?: string;
   startDate?: string;
   endDate?: string;
 }): Promise<WebResponseDTOList<TimeSheetResponseDto>> {
   // Default values for every call
   const defaultParams = {
     page: 0,
-    size: 25,
-    direction: "DESC",
-    orderBy: "createdAt",
+    size: 25
   };
 
   // Merge defaults with user-provided params and remove null/undefined

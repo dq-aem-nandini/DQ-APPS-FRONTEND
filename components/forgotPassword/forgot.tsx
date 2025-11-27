@@ -299,8 +299,19 @@ const ForgotPassword: React.FC = () => {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-6">
-          © {new Date().getFullYear()} <span className="font-semibold text-indigo-600">DigiQuad Technologies</span>. All rights reserved.
+          © {new Date().getFullYear()}
+          <a
+            href="https://digiquadsolutions.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-indigo-600"
+          >
+            {" "}
+            DigiQuad Technologies
+          </a>
+          . All rights reserved.
         </p>
+ 
       </div>
     </div>
   );

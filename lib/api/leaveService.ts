@@ -202,8 +202,8 @@ export const leaveService = {
    */
 
   async checkLeaveAvailability(employeeId: string, leaveDuration: number): Promise<LeaveAvailabilityDTO> {
-    // Client-side validation
-    if (!employeeId || typeof employeeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(employeeId)) {
+    // Client-side validation    
+    if (!employeeId || typeof employeeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(employeeId)){
       throw new Error('Invalid employee ID: must be a valid UUID string');
     }
     if (!Number.isFinite(leaveDuration) || leaveDuration <= 0) {
