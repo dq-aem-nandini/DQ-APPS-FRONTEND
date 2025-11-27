@@ -42,7 +42,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Invoices: <Receipt size={18} />,
 };
 
-const sidebarRoles = ["EMPLOYEE", "MANAGER", "HR", "FINANCE"] as const;
+const sidebarRoles = ["MANAGER", "HR", "FINANCE"] as const;
 type SidebarRole = typeof sidebarRoles[number];
 
 const isSidebarRole = (r: string): r is SidebarRole =>

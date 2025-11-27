@@ -30,18 +30,44 @@ const dropdownRef = useRef<HTMLDivElement>(null);
   const { state } = useAuth();
   const userRole = state.user?.role.roleName; // "EMPLOYEE" | "MANAGER" | "ADMIN" etc.
 
-  const userId =
-    typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+  // Get userId directly from AuthContext
+const userId = state.user?.userId;
+console.log("User ID in NotificationBell (from context):", userId);
 
-  useEffect(() => {
-    loadNotifications();
 
-    if (!userId) return;
+ useEffect(() => {
+  loadNotifications();
 
-    const socket = new SockJS("http://localhost:8080/ws");
-    const stompClient = Stomp.over(socket);
+  if (!userId) {
+    console.log("No userId, skipping WebSocket connection");
+    return;
+  }
 
-    stompClient.connect({}, () => {
+  const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/ws`
+    : "http://192.168.1.12:8080/ws";
+
+  const socket = new SockJS(SOCKET_URL);
+
+  const stompClient = Stomp.over(socket);
+
+  // GET JWT FROM wherever you store it (localStorage, cookies, etc.)
+  const token = localStorage.getItem("accessToken") || 
+                localStorage.getItem("token") || 
+                document.cookie.split("; ").find(row => row.startsWith("accessToken="))?.split("=")[1];
+
+  if (!token) {
+    console.error("No JWT token found! WebSocket auth will fail.");
+    return;
+  }
+
+  stompClient.connect(
+    {
+      Authorization: `Bearer ${token}`,  // THIS IS THE KEY LINE
+    },
+    () => {
+      console.log("WebSocket Connected & Authenticated!");
+
       stompClient.subscribe(`/topic/notifications/${userId}`, (message) => {
         if (message.body) {
           try {
@@ -49,22 +75,33 @@ const dropdownRef = useRef<HTMLDivElement>(null);
             const newNotifications = Array.isArray(data) ? data : [data];
 
             setNotifications((prev) => [
-              ...newNotifications.map((n) => ({ ...n, read: false })),
-              ...prev,
+              ...newNotifications.map((n: NotificationDTO) => ({ ...n, read: false })),
+              ...prev.filter(existing => 
+                !newNotifications.some(newNotif => newNotif.id === existing.id)
+              ), // avoid duplicates
             ]);
           } catch (err) {
-            console.error("WebSocket error:", err);
+            console.error("Parse error in WS message:", err);
           }
         }
       });
-    });
-
-    return () => {
-      if (stompClient && stompClient.connected) {
-        stompClient.disconnect();
+    },
+    (error: any) => {
+      console.error("WebSocket connection failed:", error);
+      if (error.headers?.message?.includes("401")) {
+        console.error("401 Unauthorized – Token missing or invalid");
       }
-    };
-  }, [userId]);
+    }
+  );
+
+  return () => {
+    if (stompClient.connected) {
+      stompClient.disconnect(() => {
+        console.log("WebSocket Disconnected");
+      });
+    }
+  };
+}, [userId]);
 
  useEffect(() => {
   function handleClickOutside(event: MouseEvent) {

@@ -333,8 +333,8 @@ const InvoiceSummaryPage = () => {
                                                                                 <TableCell>{emp.employeeName}</TableCell>
                                                                                 <TableCell className="text-right">{emp.companyId}</TableCell>
                                                                                 <TableCell className="text-right">{emp.totalHours}h</TableCell>
-                                                                                <TableCell className="text-right">{emp.rateCard.toFixed(2)}</TableCell>
-                                                                                <TableCell className="text-right font-medium">{emp.totalAmount.toFixed(2)}</TableCell>
+                                                                                <TableCell className="text-right">{(emp.rateCard ?? 0).toFixed(2)}</TableCell>
+                                                                                <TableCell className="text-right font-medium">{(emp.totalAmount ?? 0).toFixed(2)}</TableCell>
                                                                             </>
                                                                         </TableRow>
                                                                     ))}

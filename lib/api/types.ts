@@ -1369,3 +1369,50 @@ export interface WebResponseDTOListClientInvoiceSummaryDTO {
 }
 // export const enumNamesFromMap = <T extends string>(map: Record<T, any>): T[] =>
 //   Object.keys(map) as T[];
+
+// ---------------- Holiday DTOs ----------------
+
+// Request body for creating or updating holiday
+export interface HolidaysModel {
+  holidayDate: string; // yyyy-MM-dd
+  holidayName: string;
+  comments: string;
+}
+
+// Response DTO when fetching one holiday or listing all
+export interface HolidaysDTO {
+  holidayId: string; // UUID
+  holidayDate: string;
+  holidayName: string;
+  comments: string;
+  updateAt: string; // ISO DateTime
+  createdAt: string; // ISO DateTime
+}
+
+// ---------- Generic WebResponse DTOs ----------
+
+// Single object response
+export interface WebResponseDTOHolidaysDTO {
+  flag: boolean;
+  message: string;
+  status?: number;
+  response: HolidaysDTO;
+  otherInfo?: any;
+}
+
+// List response
+export interface WebResponseDTOListHolidaysDTO {
+  flag: boolean;
+  message: string;
+  status?: number;
+  response: HolidaysDTO[];
+  totalRecords: number;
+  otherInfo?: any;
+}
+
+// Create / Update / Delete response (no response object)
+export interface WebResponseDTOGeneric {
+  flag: boolean;
+  message: string;
+  status: number;
+}

@@ -13,9 +13,9 @@ export const sidebarConfig = {
       { label: 'Notifications',href: '/dashboard/notifications', },
     ],
   
-    EMPLOYEE: [
-      { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },
-    ],
+    // EMPLOYEE: [
+    //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },
+    // ],
   
     MANAGER: [
       { permission: "MANAGE_TEAM", label: "Team", href: '/manager/employees' },

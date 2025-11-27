@@ -24,7 +24,7 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
         // Set current month (YYYY-MM)
         const now = new Date();
         const monthString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        setSelectedMonth(monthString);
+        // setSelectedMonth(monthString);
 
         // Fetch all salaries
         const allData = await salaryService.getAllSalaries(employeeId);
@@ -53,30 +53,40 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
   }, [employeeId]);
 
     // Fetch Date of Joining to restrict month picker
-  useEffect(() => {
-    const fetchDOJ = async () => {
-      try {
-        setDojLoading(true);
-        const employee = await employeeService.getEmployeeById();
-        if (employee.dateOfJoining) {
-          const doj = dayjs(employee.dateOfJoining);
-          const min = doj.format('YYYY-MM');
-          setMinMonth(min);
+  // FETCH DOJ + SET MIN MONTH (Replace your current DOJ useEffect)
+useEffect(() => {
+  const fetchDOJ = async () => {
+    if (!employeeId) return;
 
-         
-          if (selectedMonth && selectedMonth < min) {
-            setSelectedMonth(min);
-          }
+    try {
+      setDojLoading(true);
+      const employee = await employeeService.getEmployeeById();
+
+      if (employee?.dateOfJoining) {
+        const doj = dayjs(employee.dateOfJoining);
+        const min = doj.format('YYYY-MM'); // e.g., "2012-06"
+        setMinMonth(min);
+
+        // Auto-correct if current selection is before DOJ
+        if (selectedMonth && selectedMonth < min) {
+          setSelectedMonth(min);
         }
-      } catch (err) {
-        console.error('Failed to fetch DOJ:', err);
-      } finally {
-        setDojLoading(false);
-      }
-    };
 
-    fetchDOJ();
-  }, [selectedMonth]);
+        // If no month selected yet, default to current month (but not before DOJ)
+        if (!selectedMonth) {
+          const today = dayjs().format('YYYY-MM');
+          setSelectedMonth(today >= min ? today : min);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch DOJ:', err);
+    } finally {
+      setDojLoading(false);
+    }
+  };
+
+  fetchDOJ();
+}, [employeeId]);
 
   // ✅ Manual filter (same logic reused)
   const handleFilter = async () => {
@@ -107,11 +117,17 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
       <h2 className="text-2xl font-semibold text-gray-800">
         Salary Details
       </h2>
-        <button
+      <button
         onClick={() => salaryService.downloadPayslipPdf(employeeId, selectedMonth)}
-        disabled={!selectedMonth || loading}
-        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-lg text-sm transition-all"
-        >
+        disabled={!selectedMonth || loading || !salaryData || noData}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+          ${
+            !selectedMonth || loading || !salaryData || noData
+              ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+              : 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg'
+          }
+        `}
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
@@ -126,28 +142,45 @@ export default function SalaryDetails({ employeeId }: { employeeId: string }) {
             d="M12 16V4m0 12l-3.5-3.5M12 16l3.5-3.5M6 20h12"
           />
         </svg>
-        Download Payslip
-        </button>
+        {loading ? 'Loading...' : 'Download Payslip'}
+      </button>
     </div>
 
-    {/* Month Filter */}
-    <div className="flex gap-4 mb-6">
+    
+      {/* MONTH PICKER — NOW FULLY RESTRICTED TO DOJ ONWARDS */}
+    <div className="flex gap-4 mb-6 items-center">
+      <div>
         <input
           type="month"
-          className="border px-3 py-2 rounded w-48 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="border px-4 py-2 rounded-lg w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
           value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          min={minMonth}
-          disabled={dojLoading}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value >= minMonth || !minMonth) {
+              setSelectedMonth(value);
+            }
+            // If user tries to pick before DOJ → silently ignore
+          }}
+          min={minMonth || undefined}
+          disabled={dojLoading || !minMonth}
         />
+        {minMonth && (
+          <p className="text-xs text-gray-500 mt-1">
+            Available from: {dayjs(minMonth + '-01').format('MMM YYYY')}
+          </p>
+        )}
+      </div>
+
       <button
         onClick={handleFilter}
-        disabled={loading}
-        className={`${
-          loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-        } text-white px-5 py-2 rounded transition-all`}
+        disabled={loading || !selectedMonth}
+        className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+          loading || !selectedMonth
+            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
+        }`}
       >
-        {loading ? 'Loading...' : 'Filter'}
+        {loading ? 'Loading...' : 'View Payslip'}
       </button>
     </div>
 

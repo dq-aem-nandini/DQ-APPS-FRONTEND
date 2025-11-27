@@ -182,6 +182,30 @@ export default function InvoicesPage() {
     }
   };
 
+      /* -------------------------- Excel DOWNLOAD HANDLER -------------------------- */
+      const handleDownloadExcel = async (invoiceId: string) => {
+        try {
+          const blob = await invoiceService.downloadInvoiceExcel(invoiceId);
+      
+          const url = URL.createObjectURL(blob);
+      
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `invoice-${invoiceId}.xlsx`;   // file name
+          a.click();
+      
+          URL.revokeObjectURL(url);
+      
+        } catch (error: any) {
+          console.error("Excel download failed:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: error?.message || "Failed to download Excel. Please try again.",
+          });
+          }
+        };
+
   /* -------------------------- DELETE HANDLER -------------------------- */
   const handleDelete = async (invoiceId: string) => {
     const result = await Swal.fire({
@@ -466,6 +490,17 @@ export default function InvoicesPage() {
                               }}
                               className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                               title="Download PDF"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadExcel(inv.invoiceId);
+                              }}
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                              title="Download Excel"
                             >
                               <Download className="h-4 w-4" />
                             </button>

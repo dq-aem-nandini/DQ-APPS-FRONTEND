@@ -221,6 +221,42 @@ class InvoiceService {
       throw new Error(errorMessage);
     }
   }
+
+
+      /**
+  * Endpoint: GET /web/api/v1/invoice/{invoiceId}/excel
+  */
+      async downloadInvoiceExcel(invoiceId: string): Promise<Blob> {
+        try {
+          const response: AxiosResponse<Blob> = await api.get(
+            `/invoice/${invoiceId}/excel`,
+            {
+              responseType: 'blob', // Return binary Excel data
+            }
+          );
+      
+          console.log('Full download invoice Excel API response:', response);
+      
+          if (response.data instanceof Blob) {
+            return response.data;
+          }
+      
+          throw new Error('Invalid response: Expected Blob data');
+        } catch (error: unknown) {
+          console.error('Error downloading invoice Excel:', error);
+      
+          let errorMessage = 'Failed to download invoice Excel';
+          if (error instanceof AxiosError) {
+            errorMessage =
+              error.response?.data?.message ||
+              error.message ||
+              'Failed to download invoice Excel';
+          }
+      
+          throw new Error(errorMessage);
+          }
+        }
+        
   /**
    * ✅ Lock or Unlock an invoice
    * Endpoint: PATCH /web/api/v1/invoice/{invoiceId}/action/{action}

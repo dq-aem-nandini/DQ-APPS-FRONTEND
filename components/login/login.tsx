@@ -219,6 +219,7 @@ const Login: React.FC = () => {
           </span>
           . All rights reserved.
         </p>
+ 
       </div>
     </div>
   );

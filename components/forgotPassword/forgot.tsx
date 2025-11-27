@@ -384,6 +384,7 @@ const ForgotPassword: React.FC = () => {
           </span>
           . All rights reserved.
         </p>
+ 
       </div>
     </div>
   );
