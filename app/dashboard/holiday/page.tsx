@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
@@ -9,14 +8,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { holidayService } from '@/lib/api/holidayService';
 import type { HolidaysDTO } from '@/lib/api/types';
-
 export default function EmployeeHolidayDashboard() {
   const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [showAllHolidays, setShowAllHolidays] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
@@ -46,7 +43,6 @@ export default function EmployeeHolidayDashboard() {
       return isSameDay(holidayDate, date) && holidayDate.getFullYear() === year;
     });
   };
-
   const upcomingHolidays = holidays
     .filter(h => {
       if (!h.holidayDate) return false;
@@ -57,7 +53,6 @@ export default function EmployeeHolidayDashboard() {
       return hDate > today;
     })
     .slice(0, 6);
-
   const filteredAllHolidays = holidays.filter(h =>
     h.holidayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     h.holidayDate.includes(searchTerm)
@@ -72,7 +67,6 @@ export default function EmployeeHolidayDashboard() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Holiday Calendar</h1>
           <p className="text-gray-600 mt-1">Your upcoming company holidays</p>
         </div>
-
         {/* Upcoming Holidays */}
         <Card className="mb-8">
           <CardHeader className="pb-3">
@@ -129,7 +123,6 @@ export default function EmployeeHolidayDashboard() {
             )}
           </CardContent>
         </Card>
-
         {/* Calendar */}
         <Card>
           <CardHeader className="pb-3">
@@ -193,7 +186,6 @@ export default function EmployeeHolidayDashboard() {
             </div>
           </CardContent>
         </Card>
-
         {/* Total Holidays */}
         <div className="text-center mt-10">
           <p className="text-lg font-medium text-gray-700">
@@ -204,7 +196,6 @@ export default function EmployeeHolidayDashboard() {
           </p>
         </div>
       </div>
-
       {/* View All Holidays Modal - FIXED & BEAUTIFUL */}
       <Dialog open={showAllHolidays} onOpenChange={setShowAllHolidays}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
@@ -216,7 +207,6 @@ export default function EmployeeHolidayDashboard() {
               Complete list of company holidays for all years
             </DialogDescription>
           </DialogHeader>
-
           <div className="mt-6">
             {/* Search */}
             <div className="relative mb-6">
@@ -228,7 +218,6 @@ export default function EmployeeHolidayDashboard() {
                 className="pl-10 h-11"
               />
             </div>
-
             {/* Table */}
             <div className="border rounded-xl overflow-hidden shadow-sm">
               <table className="w-full">

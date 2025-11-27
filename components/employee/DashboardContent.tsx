@@ -1,5 +1,5 @@
 'use client';
-
+ 
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Clock } from 'lucide-react';
@@ -7,12 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { employeeService } from '@/lib/api/employeeService';
 import { holidayService } from '@/lib/api/holidayService';
 import type { EmployeeDTO, HolidaysDTO } from '@/lib/api/types';
-
 export default function EmployeeDashboard() {
   const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidaysDTO[]>([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -37,7 +35,6 @@ export default function EmployeeDashboard() {
             })
             .sort((a, b) => new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime())
             .slice(0, 5);
-
           setUpcomingHolidays(upcoming);
         }
       } catch (err) {
@@ -74,12 +71,10 @@ export default function EmployeeDashboard() {
               Welcome back,  {employee ? `${employee.firstName} ${employee.lastName}` : 'Employee'}!
             </span>
           </h1>
-
           <p className="mt-4 text-base sm:text-lg text-gray-600 font-medium">
             Here’s your quick overview for today
           </p>
         </div>
-
         {/* Compact Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
@@ -89,7 +84,6 @@ export default function EmployeeDashboard() {
               <p className="text-5xl font-bold text-indigo-600 mt-2">{availableLeaves}</p>
             </CardContent>
           </Card>
-
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
             <CardContent className="p-6 text-center">
               <Calendar className="w-10 h-10 text-purple-600 mx-auto mb-3" />
@@ -98,7 +92,6 @@ export default function EmployeeDashboard() {
             </CardContent>
           </Card>
         </div>
-
         {/* Upcoming Holidays List */}
         {upcomingHolidays.length > 0 && (
           <Card className="shadow-lg">
@@ -132,7 +125,6 @@ export default function EmployeeDashboard() {
             </CardContent>
           </Card>
         )}
-
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600">
           <p>

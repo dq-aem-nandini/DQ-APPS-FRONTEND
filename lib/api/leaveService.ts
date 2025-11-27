@@ -192,7 +192,7 @@ export const leaveService = {
       throw new Error(response.data.message || 'Failed to calculate working days');
     } catch (error) {
       console.error('❌ Error calculating working days:', error);
-      throw new Error(`Failed to calculate working days: ${error}`);
+      throw new Error(`From date cannot be after end date.`);
     }
   },
 

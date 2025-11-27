@@ -20,6 +20,7 @@ const ApplyLeavePage: React.FC = () => {
   const leaveId = searchParams.get('leaveId');
 
   // All hooks at top level (unconditional) to avoid order issues
+  const [hasCalculated, setHasCalculated] = useState(false);
   const [employeeId, setEmployeeId] = useState<string>('');
   const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
   const [loadingEmployee, setLoadingEmployee] = useState(true);
@@ -132,7 +133,7 @@ const ApplyLeavePage: React.FC = () => {
       const calculatedDuration = response.leaveDuration || 0;
 
       setFormData((prev) => ({ ...prev, leaveDuration: calculatedDuration }));
-
+      setHasCalculated(true);
       if (employeeId && calculatedDuration > 0) {
         const availability = await leaveService.checkLeaveAvailability(employeeId, calculatedDuration);
 
@@ -312,16 +313,19 @@ const ApplyLeavePage: React.FC = () => {
         </div>
 
         {/* Partial Day */}
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name="partialDay"
-            checked={formData.partialDay}
-            onChange={handleInputChange}
-            className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"
-          />
-          <label className="text-sm font-medium">Partial Day</label>
-        </div>
+        {hasCalculated && formData.leaveDuration === 1 && (
+  <div className="flex items-center space-x-2">
+    <input
+      type="checkbox"
+      name="partialDay"
+      checked={formData.partialDay}
+      onChange={handleInputChange}
+      className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"
+    />
+    <label className="text-sm font-medium">Partial Day</label>
+  </div>
+)}
+
 
         {/* Dates */}
         <div className="grid grid-cols-2 gap-4">
@@ -357,7 +361,13 @@ const ApplyLeavePage: React.FC = () => {
           <input
             type="number"
             name="leaveDuration"
-            value={formData.leaveDuration}
+            value={
+              !hasCalculated
+                ? '' // do not show zero before calculation
+                : calculating
+                ? '' // show placeholder while calculating
+                : formData.leaveDuration // show final value
+            }
             onChange={handleInputChange}
             min="0.5"
             step="0.5"
@@ -366,14 +376,12 @@ const ApplyLeavePage: React.FC = () => {
             required
             readOnly
           />
-          {calculating && (
-            <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
-          )}
-          {!calculating && formData.leaveDuration === 0 && (
-            <p className="text-xs text-amber-600 mt-1">
-              0 days — Check dates (weekend/holiday or same day)
-            </p>
-          )}
+            {calculating && (
+              <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
+            )}
+            {!calculating && hasCalculated && formData.leaveDuration === 0 && (
+              <p className="text-xs text-amber-600 mt-1">0 days — Check dates (weekend/holiday or same day)</p>
+            )}
         </div>
 
         {/* Financial Type */}
