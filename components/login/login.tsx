@@ -7,18 +7,41 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LoggedInUser } from '@/lib/api/types';
 import { Eye, EyeOff } from 'lucide-react';
+import { isPrivateMode } from '@/lib/deviceUtils';
 
 const Login: React.FC = () => {
   const [credentials, setCredentials] = useState({ inputKey: '', password: '' });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const { login, state } = useAuth();
   const router = useRouter();
   const hasRedirected = useRef(false);
 
-  // 🔥 HANDLE REDIRECT LOGIC
+  // Auto-fill username from preferred storage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const privateMode = isPrivateMode();
+      const storage = privateMode ? sessionStorage : localStorage;
+      const savedUsername =
+      localStorage.getItem('rememberedUsername') ??
+      sessionStorage.getItem('rememberedUsername');
+    
+    console.log('🔍 Auto-fill check:', {
+      privateMode,
+      savedUsername,
+    });
+      if (savedUsername) {
+        setCredentials(prev => ({ ...prev, inputKey: savedUsername }));
+        setRememberMe(true); // NEW: Re-check if username exists
+        console.log('✅ Auto-checked Remember Me'); // Debug
+      }
+    }
+  }, []);
+
+  // 🔥 HANDLE REDIRECT LOGIC (unchanged)
   useEffect(() => {
     if (state.isLoading) return;
     if (!state.isAuthenticated || !state.user) return;
@@ -59,17 +82,18 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
+    console.log('📤 Submit with rememberMe:', rememberMe, 'Username:', credentials.inputKey); // NEW: Confirm flag + input
     try {
-      await login(credentials);
+      await login(credentials, rememberMe);
     } catch (err: any) {
+      console.error('❌ Login error (no save):', err); // NEW: Log failures
       setError(err.message || "Invalid credentials");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // GLOBAL LOADING
+  // GLOBAL LOADING (unchanged)
   if (state.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-blue-50 px-4">
@@ -93,12 +117,12 @@ const Login: React.FC = () => {
     );
   }
 
-  // 🔥 FINAL UI (from version 1)
+  // 🔥 FINAL UI (unchanged, but checkbox now has onChange/checked)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-blue-50 px-4">
       <div className="w-full max-w-md bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-indigo-100 p-8 transition-all">
 
-        {/* Logo & Title */}
+        {/* Logo & Title (unchanged) */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <Image
@@ -106,6 +130,7 @@ const Login: React.FC = () => {
               alt="DigiQuad Logo"
               width={80}
               height={80}
+              style={{ width: 'auto', height: 'auto' }}
               className="rounded-full shadow-sm"
             />
           </div>
@@ -114,10 +139,10 @@ const Login: React.FC = () => {
           </h1>
         </div>
 
-        {/* FORM */}
+        {/* FORM (unchanged except checkbox props) */}
         <form className="space-y-6" onSubmit={handleSubmit}>
 
-          {/* USERNAME */}
+          {/* USERNAME (unchanged) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Username or Email
@@ -134,7 +159,7 @@ const Login: React.FC = () => {
             />
           </div>
 
-          {/* PASSWORD */}
+          {/* PASSWORD (unchanged) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
@@ -151,7 +176,7 @@ const Login: React.FC = () => {
                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 px-3"
               />
 
-              {/* Eye Button */}
+              {/* Eye Button (unchanged) */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -168,18 +193,23 @@ const Login: React.FC = () => {
             </div>
           </div>
 
-          {/* ERROR */}
+          {/* ERROR (unchanged) */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
               {error}
             </div>
           )}
 
-          {/* Remember + Forgot Password */}
+          {/* Remember + Forgot Password (checkbox now controlled) */}
           <div className="flex items-center justify-between">
             <label className="flex items-center space-x-2 text-sm text-gray-700">
               <input
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => {
+                  console.log('🔧 Checkbox toggled to:', e.target.checked); // NEW: Track clicks
+                  setRememberMe(e.target.checked);
+                }}
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                 disabled={isLoading}
               />
@@ -194,7 +224,7 @@ const Login: React.FC = () => {
             </Link>
           </div>
 
-          {/* SUBMIT BUTTON */}
+          {/* SUBMIT BUTTON (unchanged) */}
           <button
             type="submit"
             disabled={isLoading}
@@ -219,7 +249,7 @@ const Login: React.FC = () => {
           </span>
           . All rights reserved.
         </p>
- 
+
       </div>
     </div>
   );

@@ -350,7 +350,9 @@ const ForgotPassword: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-blue-50 px-4">
       <div className="w-full max-w-md bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-indigo-100 p-8">
         <div className="text-center mb-8">
-          <Image src="/digiquad logo.jpeg" alt="Logo" width={80} height={80} className="mx-auto rounded-full shadow-sm" />
+          <Image src="/digiquad logo.jpeg" alt="Logo" width={80} height={80}
+            style={{ width: 'auto', height: 'auto' }}
+            className="mx-auto rounded-full shadow-sm" />
           <h1 className="text-3xl font-extrabold text-gray-900 mt-4">
             {step === 'identifier' ? 'Forgot Password?' : step === 'otp' ? 'Verify OTP' : 'Create New Password'}
           </h1>
@@ -384,7 +386,7 @@ const ForgotPassword: React.FC = () => {
           </span>
           . All rights reserved.
         </p>
- 
+
       </div>
     </div>
   );

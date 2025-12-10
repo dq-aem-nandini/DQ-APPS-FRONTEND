@@ -71,6 +71,7 @@ export default function Sidebar() {
             alt="DigiQuad Logo"
             width={50}
             height={50}
+            style={{ width: 'auto', height: 'auto' }}
             className="rounded-full shadow-sm"
           />
           <div className="text-2xl font-bold text-indigo-600">DigiQuad</div>
