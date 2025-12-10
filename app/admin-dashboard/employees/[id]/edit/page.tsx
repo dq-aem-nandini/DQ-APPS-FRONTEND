@@ -9,19 +9,12 @@ import {
   Designation,
   DocumentType,
   EmploymentType,
-  EmployeeDocumentDTO,
   EmployeeEquipmentDTO,
-  AllowanceDTO, DeductionDTO,
-  EmployeeDTO,
+  AllowanceDTO,
+  DeductionDTO,
   Department,
-  NoticePeriodDuration,
-  ProbationDuration,
-  ProbationNoticePeriod,
-  BondDuration,
-  ShiftTiming,
   PayType,
   PayClass,
-  WorkingModel,
   PAY_CLASS_OPTIONS,
   WORKING_MODEL_OPTIONS,
   DEPARTMENT_OPTIONS,
@@ -31,7 +24,8 @@ import {
   BOND_DURATION_OPTIONS,
   SHIFT_TIMING_OPTIONS,
   PAY_TYPE_OPTIONS,
-  EmployeeDepartmentDTO
+  EmployeeDepartmentDTO,
+  EmployeeDTO,
 } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
@@ -47,19 +41,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, IndianRupee, Briefcase, FileText, Package, Upload, Shield, FileCheck } from 'lucide-react';
+import { Trash2, Plus, Briefcase, FileText, Package, Upload, Shield, FileCheck } from 'lucide-react';
 import BackButton from '@/components/ui/BackButton';
 import { employeeService } from '@/lib/api/employeeService';
 import { UniqueField, validationService } from '@/lib/api/validationService';
-interface Manager {
-  id: string;
-  name: string;
-}
-// Form-only document type (has `file`)
-interface FormDocument extends EmployeeDocumentDTO {
-  fileObj?: File | null;   // temporary field only in frontend
-}
-// ────── Custom File Input (Choose file / No file chosen) ──────
+
 type FileInputProps = {
   id: string;
   onChange: (file: File | null) => void;
@@ -67,8 +53,8 @@ type FileInputProps = {
   existingUrl?: string;
   onClear?: () => void;
 };
-const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existingUrl, onClear }) => {
 
+const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existingUrl, onClear }) => {
   const [fileName, setFileName] = useState<string>('');
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -94,206 +80,177 @@ const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existi
     </div>
   );
 };
+
 const EditEmployeePage = () => {
   const params = useParams();
   const router = useRouter();
   const { state } = useAuth();
-  const [formData, setFormData] = useState<EmployeeModel>({
-    firstName: '',
-    lastName: '',
-    personalEmail: '',
-    companyEmail: '',
-    contactNumber: '',
-    alternateContactNumber: '',
-    gender: '',
-    maritalStatus: '',
-    numberOfChildren: 0,
-    employeePhotoUrl: '',
-    nationality: '',
-    emergencyContactName: '',
-    emergencyContactNumber: '',
-    remarks: '',
-    skillsAndCertification: '',
-    clientId: '',
-    clientSelection: '',
-    reportingManagerId: '',
-    designation: '' as Designation,
-    dateOfBirth: '',
-    dateOfJoining: '',
-    rateCard: 0,
-    employmentType: 'FULLTIME' as EmploymentType,
-    panNumber: '',
-    aadharNumber: '',
-    accountNumber: '',
-    accountHolderName: '',
-    bankName: '',
-    ifscCode: '',
-    branchName: '',
-    addresses: [],
-    documents: [] as FormDocument[],
-    employeeSalaryDTO: {
-      employeeId: '',
-      ctc: 0,
-      payType: 'MONTHLY' as PayType,
-      standardHours: 40,
-      bankAccountNumber: '',
-      ifscCode: '',
-      payClass: 'A1' as PayClass,
-      allowances: [] as AllowanceDTO[],
-      deductions: [] as DeductionDTO[],
-    },
-    employeeAdditionalDetailsDTO: {
-      // offerLetterUrl: '',
-      // contractUrl: '',
-      // taxDeclarationFormUrl: '',
-      // workPermitUrl: '',
-      backgroundCheckStatus: '',
-      remarks: '',
-    },
-    employeeEmploymentDetailsDTO: {
-      employmentId: '',
-      employeeId: '',
-      noticePeriodDuration: undefined as NoticePeriodDuration | undefined,
-      noticePeriodDurationLabel: '',
-      probationApplicable: false,
-      probationDuration: undefined as ProbationDuration | undefined,
-      probationDurationLabel: '',
-      probationNoticePeriod: undefined as ProbationNoticePeriod | undefined,
-      probationNoticePeriodLabel: '',
-      bondApplicable: false,
-      bondDuration: undefined as BondDuration | undefined,
-      bondDurationLabel: '',
-      workingModel: undefined as WorkingModel | undefined,
-      shiftTiming: undefined as ShiftTiming | undefined,
-      shiftTimingLabel: '',
-      department: undefined as Department | undefined,
-      dateOfConfirmation: '',
-      location: '',
-    },
-    employeeInsuranceDetailsDTO: {
-      insuranceId: '',
-      employeeId: '',
-      policyNumber: '',
-      providerName: '',
-      coverageStart: '',
-      coverageEnd: '',
-      nomineeName: '',
-      nomineeRelation: '',
-      nomineeContact: '',
-      groupInsurance: false,
-    },
-    employeeStatutoryDetailsDTO: {
-      statutoryId: '',
-      employeeId: '',
-      passportNumber: '',
-      taxRegime: '',
-      pfUanNumber: '',
-      esiNumber: '',
-      ssnNumber: '',
-    },
-    employeeEquipmentDTO: [],
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  // const [documentFiles, setDocumentFiles] = useState({
-  //   offerLetter: null as File | null,
-  //   contract: null as File | null,
-  //   taxDeclarationForm: null as File | null,
-  //   workPermit: null as File | null,
-  // });
+  const [formData, setFormData] = useState<EmployeeModel | null>(null);
   const [clients, setClients] = useState<ClientDTO[]>([]);
-  const [managers, setManagers] = useState<Manager[]>([]);
+  const [documentFiles, setDocumentFiles] = useState<(File | null)[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>('');
   const today = new Date().toISOString().split('T')[0];
   const [departmentEmployees, setDepartmentEmployees] = useState<EmployeeDepartmentDTO[]>([]);
-  const [employeeImageFile, setEmployeeImageFile] = useState<File | null>(null);
+  const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(undefined);
   const [checking, setChecking] = useState<Set<string>>(new Set());
-
+  const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
   const designations: Designation[] = [
     'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
     'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
     'DIRECTOR', 'VP_ENGINEERING', 'CTO', 'HR', 'FINANCE', 'OPERATIONS'
   ];
-  // Update the constant
+
   const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
   const managerDesignations: Designation[] = [
     'REPORTING_MANAGER', 'DELIVERY_MANAGER', 'DIRECTOR', 'VP_ENGINEERING', 'CTO'
   ];
+
   const documentTypes: DocumentType[] = [
     'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
     'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
     'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
   ];
+
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
-  // ⭐ VALIDATION: Debounce timeouts per field
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
+
   const fetchDepartmentEmployees = async (dept: Department) => {
     if (!dept) {
       setDepartmentEmployees([]);
       return;
     }
-
     try {
       const result = await employeeService.getEmployeesByDepartment(dept);
-      setDepartmentEmployees(result); // result is EmployeeDepartmentDTO[]
-      console.log(`Employees in ${dept}:`, result);
+      setDepartmentEmployees(result);
     } catch (err: any) {
       console.error('Failed to load employees for department:', dept, err);
       setDepartmentEmployees([]);
     }
   };
-  // FINAL, BULLETPROOF checkUniqueness — NEVER SENDS EMPTY excludeId
+
   const checkUniqueness = async (
     field: UniqueField,
     value: string,
-    key: string,
-    fieldColumn?: string  // NEW: Optional param, default to field
+    errorKey: string,
+    fieldColumn: string,
+    excludeId?: string | null
   ) => {
-    const trimmedValue = value.trim();
-    if (!trimmedValue || trimmedValue.length < 3 || checking.has(key)) return;
-    setChecking(prev => new Set(prev).add(key));
-    try {
-      const payload: any = {
-        field,
-        value: trimmedValue,
-        mode: 'edit' as const,
-        fieldColumn: fieldColumn || field,  // ✅ Default to field if missing
-      };
-      if (params.id && typeof params.id === 'string' && params.id.trim() !== '') {
-        payload.currentRecordId = params.id.trim();
-      }
-      const result = await validationService.validateField(payload);
+    const val = value.trim();
+    if (!val || val.length < 3 || checking.has(errorKey)) return;
 
-      if (result.exists) {
-        setErrors(prev => ({ ...prev, [key]: 'Already exists in system' }));
-      } else {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[key];
-          return newErrors;
-        });
-      }
-    } catch (error) {
-      console.warn('Uniqueness check failed:', error);
-      // Silently fail — don't block user
+    setChecking(prev => new Set(prev).add(errorKey));
+
+    try {
+      // ONLY use edit mode if excludeId is a REAL, NON-EMPTY UUID
+      const isValidExcludeId = excludeId && excludeId.trim() !== "" && excludeId.length > 10;
+
+      const mode = isValidExcludeId ? "edit" : "create";
+
+      const result = await validationService.validateField({
+        field,
+        value: val,
+        mode,
+        excludeId: isValidExcludeId ? excludeId : undefined,
+        fieldColumn,
+      });
+
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (result.exists) {
+          newErrors[errorKey] = "Already exists in the system";
+        } else {
+          delete newErrors[errorKey];
+        }
+        return newErrors;
+      });
+    } catch (err) {
+      console.warn("Uniqueness check failed:", err);
     } finally {
       setChecking(prev => {
         const s = new Set(prev);
-        s.delete(key);
+        s.delete(errorKey);
         return s;
       });
     }
   };
-  useEffect(() => {
-    if (formData.employeeEmploymentDetailsDTO?.department) {
-      fetchDepartmentEmployees(formData.employeeEmploymentDetailsDTO.department);
-    } else {
-      setDepartmentEmployees([]); // Clear if no department
-    }
-  }, [formData.employeeEmploymentDetailsDTO?.department]);
 
-  // Validation functions
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!params.id || typeof params.id !== 'string') {
+        Swal.fire({ icon: 'error', title: 'Invalid ID' });
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [empRes, clientRes] = await Promise.all([
+          adminService.getEmployeeById(params.id),
+          adminService.getAllClients(),
+        ]);
+
+        if (!empRes.flag || !empRes.response) throw new Error('Employee not found');
+
+        const emp = empRes.response as EmployeeDTO;
+        setEmployeeData(emp);
+        let clientSelection = '';
+        if (emp.clientId) {
+          clientSelection = `CLIENT:${emp.clientId}`;
+        } else {
+          clientSelection = `STATUS:${emp.clientStatus || ''}`;
+        }
+
+        setFormData({
+          ...emp,
+          clientSelection,
+
+          // Clean: pure EmployeeDocumentDTO[] — no fileObj, no extensions
+          documents: emp.documents ?? [],
+
+          employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
+
+          employeeSalaryDTO: emp.employeeSalaryDTO
+            ? {
+              ...emp.employeeSalaryDTO,
+              employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
+            }
+            : undefined,
+        });
+
+        // Reset the separate file upload tracker
+        setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
+        if (emp.employeeEmploymentDetailsDTO?.department) {
+          employeeService.getEmployeesByDepartment(emp.employeeEmploymentDetailsDTO.department)
+            .then(setDepartmentEmployees)
+            .catch(() => setDepartmentEmployees([]));
+        }
+        setClients(clientRes.response);
+
+        // Load managers for current department on page load
+        if (emp.employeeEmploymentDetailsDTO?.department) {
+          try {
+            const deptManagers = await employeeService.getEmployeesByDepartment(
+              emp.employeeEmploymentDetailsDTO.department
+            );
+            setDepartmentEmployees(deptManagers);
+          } catch (err) {
+            console.warn('Could not load managers for department:', emp.employeeEmploymentDetailsDTO.department);
+            setDepartmentEmployees([]);
+          }
+        }
+
+      } catch (err: any) {
+        Swal.fire('Error', err.message || 'Failed to load data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [params.id]);
+
   const validateField = (name: string, value: string) => {
     let errorMsg = '';
     switch (name) {
@@ -313,221 +270,86 @@ const EditEmployeePage = () => {
         if (!value.trim()) errorMsg = 'Contact number is required.';
         else if (!/^[6-9]\d{9}$/.test(value)) errorMsg = 'Contact number must be a valid 10-digit number starting with 6-9.';
         break;
-      // Statutory fields validations
-      case 'employeeStatutoryDetailsDTO.passportNumber':
-        if (value && !/^[A-Z]{1}[0-9]{7}$/.test(value)) errorMsg = 'Passport number must be in format like A1234567.';
-        else if (value && value.length > 30) errorMsg = 'Passport number must not exceed 30 characters.';
-        break;
-      case 'employeeStatutoryDetailsDTO.pfUanNumber':
-        if (value && !/^\d{12}$/.test(value)) errorMsg = 'PF UAN number must be exactly 12 digits.';
-        else if (value && value.length > 30) errorMsg = 'PF UAN number must not exceed 30 characters.';
-        break;
-      case 'employeeStatutoryDetailsDTO.esiNumber':
-        if (value && !/^\d{17}$/.test(value)) errorMsg = 'ESI number must be exactly 17 digits.';
-        else if (value && value.length > 30) errorMsg = 'ESI number must not exceed 30 characters.';
-        break;
-      case 'employeeStatutoryDetailsDTO.ssnNumber':
-        if (value && !/^\d{3}-\d{2}-\d{4}$/.test(value) && !/^\d{9}$/.test(value)) errorMsg = 'SSN number must be in format XXX-XX-XXXX or 9 digits.';
-        else if (value && value.length > 30) errorMsg = 'SSN number must not exceed 30 characters.';
-        break;
-      case 'employeeStatutoryDetailsDTO.taxRegime':
-        if (value && !/^(Old|New|old|new)$/i.test(value)) errorMsg = 'Tax regime must be "Old" or "New".';
-        else if (value && value.length > 30) errorMsg = 'Tax regime must not exceed 30 characters.';
-        break;
-      // Insurance fields
-      case 'employeeInsuranceDetailsDTO.policyNumber':
-      case 'employeeInsuranceDetailsDTO.providerName':
-      case 'employeeInsuranceDetailsDTO.nomineeName':
-      case 'employeeInsuranceDetailsDTO.nomineeRelation':
-      case 'employeeInsuranceDetailsDTO.nomineeContact':
-        if (value && value.length > 30) errorMsg = `${name.split('.').pop()} must not exceed 30 characters.`;
-        break;
-      // Additional details
-      case 'employeeAdditionalDetailsDTO.backgroundCheckStatus':
-        if (value && value.length > 30) errorMsg = 'Background check status must not exceed 30 characters.';
-        break;
       default:
         break;
     }
     return errorMsg;
   };
-  // Fetch employee + clients + managers
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!params.id || typeof params.id !== 'string') {
-        Swal.fire({ icon: 'error', title: 'Invalid ID' });
-        setLoading(false);
-        return;
-      }
-      try {
-        const [empRes, clientRes, empListRes] = await Promise.all([
-          adminService.getEmployeeById(params.id),
-          adminService.getAllClients(),
-          adminService.getAllEmployees(),
-        ]);
-        if (!empRes.flag || !empRes.response) throw new Error('Employee not found');
-        if (!clientRes.flag || !clientRes.response) throw new Error('Failed to load clients');
-        const emp = empRes.response as EmployeeDTO;
-        // Compute clientSelection based on clientId and clientStatus
-        let clientSelection = '';
-        if (emp.clientId) {
-          clientSelection = `CLIENT:${emp.clientId}`;
-        } else {
-          clientSelection = `STATUS:${emp.clientStatus}`;
-        }
-        setFormData({
-          ...emp,
-          clientSelection, // Add the computed clientSelection
-          employeeSalaryDTO: emp.employeeSalaryDTO ?? {
-            employeeId: '',
-            ctc: 0,
-            payType: emp.rateCard && emp.rateCard > 0 ? 'HOURLY' : 'MONTHLY',
-            standardHours: 40,
-            bankAccountNumber: '',
-            ifscCode: '',
-            payClass: 'A1',
-            allowances: [],
-            deductions: [],
-          },
-          employeeAdditionalDetailsDTO: emp.employeeAdditionalDetailsDTO ?? {
-            // offerLetterUrl: '',
-            // contractUrl: '',
-            // taxDeclarationFormUrl: '',
-            // workPermitUrl: '',
-            backgroundCheckStatus: '',
-            remarks: '',
-          },
-          employeeEmploymentDetailsDTO: emp.employeeEmploymentDetailsDTO ?? {
-            employmentId: '',
-            employeeId: '',
-            noticePeriodDuration: undefined,
-            noticePeriodDurationLabel: '',
-            probationApplicable: false,
-            probationDuration: undefined,
-            probationDurationLabel: '',
-            probationNoticePeriod: undefined,
-            probationNoticePeriodLabel: '',
-            bondApplicable: false,
-            bondDuration: undefined,
-            bondDurationLabel: '',
-            workingModel: undefined,
-            shiftTiming: undefined,
-            shiftTimingLabel: '',
-            department: undefined,
-            dateOfConfirmation: '',
-            location: '',
-          },
-          employeeInsuranceDetailsDTO: emp.employeeInsuranceDetailsDTO ?? {
-            insuranceId: '',
-            employeeId: '',
-            policyNumber: '',
-            providerName: '',
-            coverageStart: '',
-            coverageEnd: '',
-            nomineeName: '',
-            nomineeRelation: '',
-            nomineeContact: '',
-            groupInsurance: false,
-          },
-          employeeStatutoryDetailsDTO: emp.employeeStatutoryDetailsDTO ?? {
-            statutoryId: '',
-            employeeId: '',
-            passportNumber: '',
-            taxRegime: '',
-            pfUanNumber: '',
-            esiNumber: '',
-            ssnNumber: '',
-          },
-          employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
-          documents: (emp.documents ?? []).map(doc => ({
-            ...doc,
-            fileObj: null   // keep original file (string URL), add fileObj for new upload
-          })) as FormDocument[],
-          // documents: (emp.documents ?? []).map(doc => ({ ...doc, file: null })) as FormDocument[],
-        } as EmployeeModel);
-        setClients(clientRes.response);
-        const allManagers = empListRes.response
-          .filter((e: any) => managerDesignations.includes(e.designation))
-          .map((e: any) => ({ id: e.employeeId, name: `${e.firstName} ${e.lastName}` }));
-        setManagers(allManagers);
-      } catch (err: any) {
-        Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Failed to load data' });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [params.id]);
-  // Generic change handler with real-time validation
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+
+  // FIXED: Safe handleChange — never wipes data
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value, type } = e.target;
     const isCheckbox = type === 'checkbox';
     const checked = (e.target as HTMLInputElement).checked;
 
-    // Update form data
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
+    setFormData((prev) => {
+      if (!prev) return prev;
+
+      // Handle nested fields like employeeEmploymentDetailsDTO.shiftTiming
+      if (name.includes('.')) {
+        const [parent, child] = name.split('.') as [keyof EmployeeModel, string];
+
+        // Special safety for undefined nested objects
+        const currentParent = prev[parent] as any;
+
+        return {
+          ...prev,
+          [parent]: {
+            ...(currentParent ?? {}),
+            [child]: isCheckbox ? checked : value,
+          },
+        };
+      }
+
+      // Top-level fields
+      return {
         ...prev,
-        [parent]: {
-          ...(prev[parent as keyof EmployeeModel] as any),
-          [child]: isCheckbox ? checked : value,
-        },
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
-    }
+        [name]: isCheckbox ? checked : value,
+      };
+    });
 
-    // Real-time validation
-    const error = validateField(name, value);
-    setErrors(prev => ({ ...prev, [name]: error }));
-
-    // Clear timeout if exists
-    if (timeouts.current[name]) {
-      clearTimeout(timeouts.current[name]);
+    // Validation (only run for simple fields — skip nested ones if you want)
+    if (!name.includes('.')) {
+      const error = validateField(name, value);
+      setErrors((prev) => ({ ...prev, [name]: error }));
     }
-    // Debounced full validation if needed
-    timeouts.current[name] = setTimeout(() => {
-      // Additional logic if needed
-    }, 500);
   };
-  // ────── DOCUMENTS ──────
+
+  // DOCUMENTS
   const addDocument = () => {
-    setFormData(prev => ({
-      ...prev,
-      documents: [
-        ...prev.documents,
-        {
-          documentId: "",
-          docType: 'OTHER' as DocumentType,
-          file: '',                    // URL field (string)
-          uploadedAt: new Date().toISOString(),
-          verified: false,
-          fileObj: null,               // new file upload
-        } as FormDocument,
-      ],
-    }));
+    setFormData((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        documents: [
+          ...prev.documents,
+          {
+            documentId: "",
+            docType: "OTHER" as DocumentType,
+            file: "",
+            uploadedAt: new Date().toISOString(),
+            verified: false,
+          },
+        ],
+      };
+    });
+
+    // Keep the separate file-upload tracker in sync
+    setDocumentFiles((prev) => [...prev, null]);
   };
-  // const handleDocumentChange = (index: number, field: 'docType' | 'file', value: DocumentType | File | null) => {
-  //   setFormData(prev => ({
-  //     ...prev,
-  //     documents: prev.documents.map((doc, i) =>
-  //       i === index
-  //         ? { ...doc, [field]: value, fileUrl: field === 'file' && value ? '' : doc.file || '' }
-  //         : doc
-  //     ),
-  //   }));
-  // };
+
   const handleDocumentChange = (index: number, field: 'docType' | 'fileObj', value: DocumentType | File | null) => {
-    setFormData(prev => ({
+    setFormData(prev => prev ? ({
       ...prev,
       documents: prev.documents.map((doc, i) =>
-        i === index
-          ? { ...doc, [field]: value }   // DO NOT touch `file` (the URL)
-          : doc
+        i === index ? { ...doc, [field]: value } : doc
       ),
-    }));
+    }) : prev);
   };
+
   const confirmAndRemoveDocument = async (index: number) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -543,7 +365,9 @@ const EditEmployeePage = () => {
       Swal.fire('Deleted!', 'Document has been removed.', 'success');
     }
   };
+
   const removeDocument = async (index: number) => {
+    if (!formData) return;
     const doc = formData.documents[index];
     if (doc.documentId) {
       const res = await adminService.deleteEmployeeDocument(params.id as string, doc.documentId);
@@ -552,38 +376,32 @@ const EditEmployeePage = () => {
         return;
       }
     }
-    setFormData(prev => ({
+    setFormData(prev => prev ? ({
       ...prev,
       documents: prev.documents.filter((_, i) => i !== index),
-    }));
+    }) : prev);
   };
-  // ────── EQUIPMENT ──────
+
+  // EQUIPMENT
   const addEquipment = () => {
-    setFormData(prev => ({
+    setFormData(prev => prev ? ({
       ...prev,
       employeeEquipmentDTO: [
         ...(prev.employeeEquipmentDTO ?? []),
         { equipmentId: "", equipmentType: '', serialNumber: '', issuedDate: '' },
       ],
-    }));
+    }) : prev);
   };
+
   const handleEquipmentChange = (index: number, field: keyof EmployeeEquipmentDTO, value: string) => {
-    setFormData(prev => ({
+    setFormData(prev => prev ? ({
       ...prev,
       employeeEquipmentDTO: prev.employeeEquipmentDTO?.map((eq, i) =>
         i === index ? { ...eq, [field]: value } : eq
       ) ?? [],
-    }));
-    // Real-time validation for equipment fields
-    let errorMsg = '';
-    const errorKey = `equipment${field}${index}`;
-    if (field === 'equipmentType' && value.length > 30) {
-      errorMsg = 'Equipment type must not exceed 30 characters.';
-    } else if (field === 'serialNumber' && value.length > 30) {
-      errorMsg = 'Serial number must not exceed 30 characters.';
-    }
-    setErrors(prev => ({ ...prev, [errorKey]: errorMsg }));
+    }) : prev);
   };
+
   const confirmAndRemoveEquipment = async (index: number) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -599,295 +417,389 @@ const EditEmployeePage = () => {
       Swal.fire('Deleted!', 'Equipment has been removed.', 'success');
     }
   };
+
   const removeEquipment = async (index: number) => {
+    if (!formData) return;
     const eq = formData.employeeEquipmentDTO?.[index];
     if (eq?.equipmentId) {
-      const res = await adminService.deleteEmployeeEquipmentInfo(eq.equipmentId); // Only 1 arg
+      const res = await adminService.deleteEmployeeEquipmentInfo(eq.equipmentId);
       if (!res.flag) {
         Swal.fire({ icon: 'error', title: 'Delete failed', text: res.message });
         return;
       }
     }
-    setFormData(prev => ({
+    setFormData(prev => prev ? ({
       ...prev,
       employeeEquipmentDTO: prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
-    }));
-    // Clear equipment errors
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[`equipmentType${index}`];
-      delete newErrors[`serialNumber${index}`];
-      return newErrors;
+    }) : prev);
+  };
+  const currentManagerName = formData?.reportingManagerId
+    ? departmentEmployees.find(e => e.employeeId === formData.reportingManagerId)?.fullName
+    : null;
+
+
+  // DELETE ALLOWANCE 
+  const confirmAndRemoveAllowance = async (index: number) => {
+    const result = await Swal.fire({
+      title: 'Remove Allowance?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!result.isConfirmed) return;
+
+    await removeAllowance(index);
+  };
+
+  const removeAllowance = async (index: number) => {
+    if (!formData || !params.id || !formData.employeeSalaryDTO) return;
+
+    const allowance = formData.employeeSalaryDTO.allowances?.[index];
+    let wasDeletedFromServer = false;
+
+    if (allowance?.allowanceId) {
+      try {
+        const res = await adminService.deleteEmployeeAllowance(
+          params.id as string,
+          allowance.allowanceId
+        );
+
+        // If HTTP 200 → success (even if flag is false – often means "already deleted")
+        if (res.status === 200 || res.flag === true) {
+          wasDeletedFromServer = true;
+        }
+        // Optional: you can log if flag false but still proceed
+        else if (!res.flag) {
+          console.warn('Backend returned flag: false but 200 OK – treating as success', res);
+          wasDeletedFromServer = true;
+        }
+      } catch (err: any) {
+        // Only real network errors or 4xx/5xx → show error
+        if (err.response?.status >= 400) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Failed',
+            text: 'Could not delete allowance from server',
+          });
+          return;
+        }
+        // If it's a network error but not 4xx/5xx, fall through
+        console.error('Unexpected delete error:', err);
+      }
+    } else {
+      wasDeletedFromServer = true; // never saved → safe to remove
+    }
+
+    // Always remove from UI if we think it succeeded
+    setFormData(prev => {
+      if (!prev?.employeeSalaryDTO) return prev;
+
+      return {
+        ...prev,
+        employeeSalaryDTO: {
+          ...prev.employeeSalaryDTO,
+          employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string),
+          allowances: prev.employeeSalaryDTO.allowances?.filter((_, i) => i !== index) || [],
+        },
+      };
+    });
+
+    // Always show success if we reached here
+    Swal.fire({
+      icon: 'success',
+      title: 'Deleted!',
+      text: 'Allowance removed successfully',
+      timer: 1500,
+      showConfirmButton: false,
     });
   };
-  // const handleFileChange = (field: keyof typeof documentFiles, file: File | null) => {
-  //   setDocumentFiles(prev => ({ ...prev, [field]: file }));
-  // };
-  // const clearAdditionalFile = (field: keyof typeof documentFiles) => {
-  //   setDocumentFiles(prev => ({ ...prev, [field]: null }));
-  // };
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!params.id) return;
+  // DELETE DEDUCTION 
+  const confirmAndRemoveDeduction = async (index: number) => {
+    const result = await Swal.fire({
+      title: 'Remove Deduction?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    });
 
-  //   setSubmitting(true);
-  //   setError('');
+    if (!result.isConfirmed) return;
 
-  //   // ────── Full validation (your existing code) ──────
-  //   const formErrors: Record<string, string> = {};
-  //   const required = [
-  //     'firstName', 'lastName', 'personalEmail', 'contactNumber',
-  //     'designation', 'dateOfBirth', 'dateOfJoining', 'gender', 'nationality'
-  //   ];
+    await removeDeduction(index);
+  };
 
-  //   if (!formData.clientSelection) {
-  //     formErrors.clientSelection = 'Client is required.';
-  //   }
+  const removeDeduction = async (index: number) => {
+    if (!formData || !params.id || !formData.employeeSalaryDTO) return;
 
-  //   required.forEach(f => {
-  //     const value = formData[f as keyof EmployeeModel] as string;
-  //     const error = validateField(f, value);
-  //     if (error) formErrors[f] = error;
-  //   });
+    const deduction = formData.employeeSalaryDTO.deductions?.[index];
+    let wasDeletedFromServer = false;
 
-  //   if (formData.personalEmail === formData.companyEmail && formData.personalEmail && formData.companyEmail) {
-  //     formErrors.companyEmail = 'Company email must be different from personal email.';
-  //   }
+    if (deduction?.deductionId) {
+      try {
+        const res = await adminService.deleteEmployeeDeduction(
+          params.id as string,
+          deduction.deductionId
+        );
 
-  //   // Validate allowances/deductions/equipment
-  //   formData.employeeSalaryDTO?.allowances?.forEach((a, i) => {
-  //     if (a.allowanceType.length > 30) formErrors[`allowanceType-${i}`] = 'Allowance type must not exceed 30 characters.';
-  //   });
-  //   formData.employeeSalaryDTO?.deductions?.forEach((d, i) => {
-  //     if (d.deductionType.length > 30) formErrors[`deductionType-${i}`] = 'Deduction type must not exceed 30 characters.';
-  //   });
-  //   formData.employeeEquipmentDTO?.forEach((eq, i) => {
-  //     if (eq.equipmentType.length > 30) formErrors[`equipmentType${i}`] = 'Equipment type must not exceed 30 characters.';
-  //     if (eq.serialNumber.length > 30) formErrors[`serialNumber${i}`] = 'Serial number must not exceed 30 characters.';
-  //   });
+        if (res.status === 200 || res.flag === true) {
+          wasDeletedFromServer = true;
+        } else if (!res.flag) {
+          console.warn('Deduction delete: flag false but 200 OK → treating as success');
+          wasDeletedFromServer = true;
+        }
+      } catch (err: any) {
+        if (err.response?.status >= 400) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Failed',
+            text: 'Could not delete deduction from server',
+          });
+          return;
+        }
+      }
+    } else {
+      wasDeletedFromServer = true;
+    }
 
-  //   setErrors(formErrors);
-  //   if (Object.keys(formErrors).length > 0) {
-  //     setSubmitting(false);
-  //     return;
-  //   }
+    setFormData(prev => {
+      if (!prev?.employeeSalaryDTO) return prev;
 
-  //   try {
-  //     const fd = new FormData();
+      return {
+        ...prev,
+        employeeSalaryDTO: {
+          ...prev.employeeSalaryDTO,
+          employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string),
+          deductions: prev.employeeSalaryDTO.deductions?.filter((_, i) => i !== index) || [],
+        },
+      };
+    });
 
-  //     // 1. Send all data except documents
-  //     const { documents, ...restData } = formData;
+    Swal.fire({
+      icon: 'success',
+      title: 'Deleted!',
+      text: 'Deduction removed successfully',
+      timer: 1500,
+      showConfirmButton: false,
+    });
+  };
 
-  //     fd.append('employeeModel', JSON.stringify({
-  //       ...restData,
-  //       documents: documents.map((doc: any) => {
-  //         const { fileObj, ...cleanDoc } = doc;
-  //         return cleanDoc; // Only send: documentId, docType, file (string URL), etc.
-  //       })
-  //     }));
 
-  //     // 2. Send new document files as: documents[0].file, documents[1].file, ...
-  //     documents.forEach((doc: any, index) => {
-  //       if (doc.fileObj instanceof File) {
-  //         fd.append(`documents[${index}].file`, doc.fileObj, doc.fileObj.name);
-  //       }
-  //     });
+  // const removeAllowance = async (index: number) => {
+  //   if (!formData || !params.id) return;
 
-  //     // 3. Employee photo
-  //     if (employeeImageFile) {
-  //       fd.append('employeePhoto', employeeImageFile, employeeImageFile.name);
+  //   const allowance = formData.employeeSalaryDTO?.allowances?.[index];
+
+  //   // Delete from backend if it has an ID (already saved)
+  //   if (allowance?.allowanceId) {
+  //     try {
+  //       const res = await adminService.deleteEmployeeAllowance(
+  //         params.id as string,
+  //         allowance.allowanceId
+  //       );
+  //       if (!res.flag) throw new Error(res.message || 'Failed to delete');
+  //     } catch (err: any) {
+  //       Swal.fire('Error', err.message || 'Could not delete allowance', 'error');
+  //       return; // ← Important: don't update UI if API failed
   //     }
-
-  //     // 4. Send request
-  //     const res = await adminService.updateEmployee(params.id as string, fd);
-
-  //     if (res.flag) {
-  //       await Swal.fire({
-  //         icon: 'success',
-  //         title: 'Success!',
-  //         text: res.message || 'Employee updated successfully',
-  //         timer: 2000,
-  //         showConfirmButton: false
-  //       });
-  //       router.push('/admin-dashboard/employees/list');
-  //     } else {
-  //       throw new Error(res.message || 'Update failed');
-  //     }
-  //   } catch (err: any) {
-  //     const message = err.message || 'Something went wrong while updating employee';
-  //     setError(message);
-  //     Swal.fire({
-  //       icon: 'error',
-  //       title: 'Error',
-  //       text: message,
-  //     });
-  //   } finally {
-  //     setSubmitting(false);
   //   }
+
+  //   // Safely update state while preserving required fields
+  //   setFormData(prev => {
+  //     if (!prev || !prev.employeeSalaryDTO) return prev;
+
+  //     const updatedAllowances = prev.employeeSalaryDTO.allowances?.filter((_, i) => i !== index) || [];
+
+  //     return {
+  //       ...prev,
+  //       employeeSalaryDTO: {
+  //         ...prev.employeeSalaryDTO,
+  //         employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string), // ← ENSURE it's always a string
+  //         allowances: updatedAllowances,
+  //       },
+  //     };
+  //   });
+
+  //   Swal.fire('Deleted!', 'Allowance removed successfully', 'success');
   // };
 
+  // const removeDeduction = async (index: number) => {
+  //   if (!formData || !params.id) return;
+
+  //   const deduction = formData.employeeSalaryDTO?.deductions?.[index];
+
+  //   if (deduction?.deductionId) {
+  //     try {
+  //       const res = await adminService.deleteEmployeeDeduction(
+  //         params.id as string,
+  //         deduction.deductionId
+  //       );
+  //       if (!res.flag) throw new Error(res.message || 'Failed to delete');
+  //     } catch (err: any) {
+  //       Swal.fire('Error', err.message || 'Could not delete deduction', 'error');
+  //       return;
+  //     }
+  //   }
+
+  //   setFormData(prev => {
+  //     if (!prev || !prev.employeeSalaryDTO) return prev;
+
+  //     const updatedDeductions = prev.employeeSalaryDTO.deductions?.filter((_, i) => i !== index) || [];
+
+  //     return {
+  //       ...prev,
+  //       employeeSalaryDTO: {
+  //         ...prev.employeeSalaryDTO,
+  //         employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string), // ← Critical fix
+  //         deductions: updatedDeductions,
+  //       },
+  //     };
+  //   });
+
+  //   Swal.fire('Deleted!', 'Deduction removed successfully', 'success');
+  // };
+
+  // In handleSubmit — CRITICAL CHANGE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!params.id) return;
+    if (!params.id || !formData) return;
 
     setSubmitting(true);
-    setError('');
-    setErrors({}); // Clear previous field errors
-
-    // ────── CLIENT-SIDE REQUIRED FIELDS WITH FOCUS & SCROLL ──────
-    const requiredFields = [
-      { value: formData.firstName, name: 'firstName', label: 'First Name' },
-      { value: formData.lastName, name: 'lastName', label: 'Last Name' },
-      { value: formData.personalEmail, name: 'personalEmail', label: 'Personal Email' },
-      { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
-      { value: formData.dateOfBirth, name: 'dateOfBirth', label: 'Date of Birth' },
-      { value: formData.dateOfJoining, name: 'dateOfJoining', label: 'Date of Joining' },
-      { value: formData.gender, name: 'gender', label: 'Gender' },
-      { value: formData.nationality, name: 'nationality', label: 'Nationality' },
-      { value: formData.designation, name: 'designation', label: 'Designation' },
-      { value: formData.clientSelection, name: 'clientSelection', label: 'Client' },
-      { value: formData.employeeEmploymentDetailsDTO?.department, name: 'employeeEmploymentDetailsDTO.department', label: 'Department' },
-    ];
-
-    const missingField = requiredFields.find(f => !f.value || f.value === '');
-    if (missingField) {
-      const errorMsg = `${missingField.label} is required`;
-      setErrors({ [missingField.name]: errorMsg });
-
-      // Auto scroll + focus + highlight
-      setTimeout(() => {
-        const selector = missingField.name.includes('.')
-          ? `[name="${missingField.name.split('.').pop()}"]`
-          : `[name="${missingField.name}"]`;
-
-        const input = document.querySelector(selector) as HTMLElement;
-        if (input) {
-          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          input.focus();
-          input.classList.add('error-field');
-        }
-      }, 100);
-
-      setSubmitting(false);
-      return;
-    }
-
-    // ────── Additional Validation (email conflict, length, etc.) ──────
-    const formErrors: Record<string, string> = {};
-
-    if (formData.personalEmail === formData.companyEmail && formData.personalEmail) {
-      formErrors.companyEmail = 'Company email must be different from personal email.';
-    }
-
-    // Length validations
-    formData.employeeSalaryDTO?.allowances?.forEach((a, i) => {
-      if (a.allowanceType.length > 30) formErrors[`allowanceType-${i}`] = 'Allowance type must not exceed 30 characters.';
-    });
-    formData.employeeSalaryDTO?.deductions?.forEach((d, i) => {
-      if (d.deductionType.length > 30) formErrors[`deductionType-${i}`] = 'Deduction type must not exceed 30 characters.';
-    });
-    formData.employeeEquipmentDTO?.forEach((eq, i) => {
-      if (eq.equipmentType.length > 30) formErrors[`equipmentType${i}`] = 'Equipment type must not exceed 30 characters.';
-      if (eq.serialNumber.length > 30) formErrors[`serialNumber${i}`] = 'Serial number must not exceed 30 characters.';
-    });
-
-    if (Object.keys(formErrors).length > 0) {
-      setErrors(formErrors);
-      setSubmitting(false);
-      return;
-    }
+    const fd = new FormData();
 
     try {
-      const fd = new FormData();
+      const cleanEmploymentDetails = (dto?: any) => {
+        if (!dto) return undefined;
+        const { shiftTimingLabel, workingModelLabel, noticePeriodDurationLabel,
+          probationDurationLabel, probationNoticePeriodLabel, bondDurationLabel,
+          departmentLabel, locationLabel, ...clean } = dto;
+        return clean;
+      };
 
-      // Send main model (without fileObj)
-      const { documents, ...restData } = formData;
+      const cleanPayload: any = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        personalEmail: formData.personalEmail,
+        companyEmail: formData.companyEmail,
+        contactNumber: formData.contactNumber,
+        alternateContactNumber: formData.alternateContactNumber,
+        gender: formData.gender,
+        maritalStatus: formData.maritalStatus,
+        numberOfChildren: formData.numberOfChildren,
+        nationality: formData.nationality,
+        emergencyContactName: formData.emergencyContactName,
+        emergencyContactNumber: formData.emergencyContactNumber,
+        remarks: formData.remarks,
+        skillsAndCertification: formData.skillsAndCertification,
 
-      fd.append('employeeModel', JSON.stringify({
-        ...restData,
-        documents: documents.map((doc: any) => {
-          const { fileObj, ...cleanDoc } = doc;
-          return cleanDoc;
-        })
-      }));
+        designation: formData.designation,
+        dateOfBirth: formData.dateOfBirth,
+        dateOfJoining: formData.dateOfJoining,
+        rateCard: formData.rateCard,
+        employmentType: formData.employmentType,
+        reportingManagerId: formData.reportingManagerId,
 
-      // Send new document files
-      documents.forEach((doc: any, index) => {
-        if (doc.fileObj instanceof File) {
-          fd.append(`documents[${index}].file`, doc.fileObj, doc.fileObj.name);
+        ...(formData.clientSelection?.startsWith('CLIENT:')
+          ? { clientId: formData.clientSelection.replace('CLIENT:', '') }
+          : { clientSelection: formData.clientSelection }),
+
+        panNumber: formData.panNumber,
+        aadharNumber: formData.aadharNumber,
+        accountNumber: formData.accountNumber,
+        accountHolderName: formData.accountHolderName,
+        bankName: formData.bankName,
+        ifscCode: formData.ifscCode,
+        branchName: formData.branchName,
+        employeeEmploymentDetailsDTO: cleanEmploymentDetails(formData.employeeEmploymentDetailsDTO),
+        employeeSalaryDTO: formData.employeeSalaryDTO,
+        employeeEquipmentDTO: formData.employeeEquipmentDTO,
+
+        // ONLY send document metadata — NO file field!
+        documents: formData.documents.map(doc => ({
+          documentId: doc.documentId || null,
+          docType: doc.docType,
+        })),
+
+        // ADDED: INSURANCE & STATUTORY — ONLY IF ANY FIELD IS FILLED
+        ...(formData.employeeInsuranceDetailsDTO && (
+          formData.employeeInsuranceDetailsDTO.policyNumber ||
+          formData.employeeInsuranceDetailsDTO.providerName ||
+          formData.employeeInsuranceDetailsDTO.coverageStart ||
+          formData.employeeInsuranceDetailsDTO.coverageEnd ||
+          formData.employeeInsuranceDetailsDTO.nomineeName ||
+          formData.employeeInsuranceDetailsDTO.nomineeRelation ||
+          formData.employeeInsuranceDetailsDTO.nomineeContact ||
+          formData.employeeInsuranceDetailsDTO.groupInsurance === true
+        ) ? {
+          employeeInsuranceDetailsDTO: {
+            policyNumber: formData.employeeInsuranceDetailsDTO.policyNumber || '',
+            providerName: formData.employeeInsuranceDetailsDTO.providerName || '',
+            coverageStart: formData.employeeInsuranceDetailsDTO.coverageStart || '',
+            coverageEnd: formData.employeeInsuranceDetailsDTO.coverageEnd || '',
+            nomineeName: formData.employeeInsuranceDetailsDTO.nomineeName || '',
+            nomineeRelation: formData.employeeInsuranceDetailsDTO.nomineeRelation || '',
+            nomineeContact: formData.employeeInsuranceDetailsDTO.nomineeContact || '',
+            groupInsurance: formData.employeeInsuranceDetailsDTO.groupInsurance || false,
+          }
+        } : {}),
+
+        ...(formData.employeeStatutoryDetailsDTO && (
+          formData.employeeStatutoryDetailsDTO.passportNumber ||
+          formData.employeeStatutoryDetailsDTO.taxRegime ||
+          formData.employeeStatutoryDetailsDTO.pfUanNumber ||
+          formData.employeeStatutoryDetailsDTO.esiNumber ||
+          formData.employeeStatutoryDetailsDTO.ssnNumber
+        ) ? {
+          employeeStatutoryDetailsDTO: {
+            passportNumber: formData.employeeStatutoryDetailsDTO.passportNumber || '',
+            taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || '',
+            pfUanNumber: formData.employeeStatutoryDetailsDTO.pfUanNumber || '',
+            esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || '',
+            ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || '',
+          }
+        } : {}),
+      };
+
+      fd.append("employee", JSON.stringify(cleanPayload));
+
+      if (employeeImageFile instanceof File) {
+        fd.append("employeePhotoUrl", employeeImageFile);
+      }
+      // documentFiles.forEach((file, index) => {
+      //   if (file instanceof File) {
+      //     fd.append(`documents[${index}]`, file);
+      //   }
+      // });
+      documentFiles.forEach((file) => {
+        if (file instanceof File) {
+          fd.append("documents", file); // MUST NOT use [0], [1]
         }
       });
-
-      // Employee photo
-      if (employeeImageFile) {
-        fd.append('employeePhoto', employeeImageFile, employeeImageFile.name);
-      }
-
-      // Send request
       const res = await adminService.updateEmployee(params.id as string, fd);
 
       if (res.flag) {
-        await Swal.fire({
-          icon: 'success',
-          title: 'Success!',
-          text: res.message || 'Employee updated successfully',
-          timer: 2000,
-          showConfirmButton: false
-        });
+        await Swal.fire('Success!', 'Employee updated successfully!', 'success');
         router.push('/admin-dashboard/employees/list');
       } else {
-        throw new Error(res.message || 'Update failed');
+        throw new Error(res.message || "Update failed");
       }
     } catch (err: any) {
-      let fieldErrors: Record<string, string> = {};
-
-      if (err.response?.data) {
-        const data = err.response.data;
-
-        if (data.fieldErrors) {
-          fieldErrors = Object.fromEntries(
-            Object.entries(data.fieldErrors).map(([field, msg]) => [
-              field,
-              Array.isArray(msg) ? msg[0] : msg
-            ])
-          );
-        }
-        else if (data.errors && typeof data.errors === 'object') {
-          fieldErrors = Object.fromEntries(
-            Object.entries(data.errors).map(([field, msg]) => [
-              field.toLowerCase(),
-              Array.isArray(msg) ? msg[0] : msg
-            ])
-          );
-        }
-      }
-
-      if (Object.keys(fieldErrors).length > 0) {
-        setErrors(fieldErrors);
-        setTimeout(() => {
-          const firstField = Object.keys(fieldErrors)[0];
-          const input = document.querySelector(`[name="${firstField}"]`) as HTMLElement;
-          if (input) {
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            input.focus();
-            input.classList.add('error-field');
-          }
-        }, 100);
-      } else {
-        const message = err.message || 'Something went wrong while updating employee';
-        setError(message);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: message,
-        });
-      }
+      console.error('Update failed:', err);
+      Swal.fire('Error', err.message || 'Update failed', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // LOADING STATES
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -900,13 +812,19 @@ const EditEmployeePage = () => {
       </ProtectedRoute>
     );
   }
-  const hasFile = (doc: EmployeeDocumentDTO): doc is FormDocument => {
-    return 'file' in doc;
-  };
+
+  if (!formData) {
+    return (
+      <ProtectedRoute allowedRoles={['ADMIN']}>
+        <div className="text-center py-20 text-gray-500 text-xl">Employee not found</div>
+      </ProtectedRoute>
+    );
+  }
 
   const selectValue = formData.clientSelection?.startsWith('STATUS:')
     ? formData.clientSelection.replace('STATUS:', '')
     : (formData.clientId ?? undefined);
+
   const getError = (key: string) => errors[key] || '';
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -986,7 +904,10 @@ const EditEmployeePage = () => {
                         value={formData.personalEmail}
                         required
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('EMAIL', formData.personalEmail, 'personalEmail', 'personal_email')}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val) checkUniqueness('EMAIL', val, 'personalEmail', 'personal_email', employeeData?.employeeId);
+                        }}
                         maxLength={30}
                         placeholder="you@gmail.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1021,7 +942,10 @@ const EditEmployeePage = () => {
                         value={formData.companyEmail}
                         required
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('EMAIL', formData.companyEmail, 'companyEmail', 'company_email')}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val) checkUniqueness('EMAIL', val, 'companyEmail', 'company_email', employeeData?.employeeId);
+                        }}
                         maxLength={30}
                         placeholder="you@company.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1054,7 +978,12 @@ const EditEmployeePage = () => {
                         value={formData.contactNumber}
                         required
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('CONTACT_NUMBER', formData.contactNumber, 'contactNumber', 'contact_number')}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val && val.length === 10) {
+                            checkUniqueness('CONTACT_NUMBER', val, 'contactNumber', 'contact_number', employeeData?.employeeId);
+                          }
+                        }}
                         maxLength={10}
                         placeholder="9876543210"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1125,18 +1054,15 @@ const EditEmployeePage = () => {
                       Gender <span className="text-red-500">*</span>
                     </Label>
 
-                    <Select required
-                      value={formData.gender}
-                      onValueChange={(v) => {
-                        setFormData((p) => ({ ...p, gender: v }));
-                        setErrors((prev) => ({ ...prev, gender: "" }));
-                      }}
+                    <Select
+                      required
+                      value={formData?.gender || ""}
+                      onValueChange={(v) =>
+                        setFormData((prev) => prev ? { ...prev, gender: v } : prev)
+                      }
                     >
-
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                        <SelectValue placeholder="Select Gender" />
+                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">    <SelectValue placeholder="Select Gender" />
                       </SelectTrigger>
-
                       <SelectContent>
                         <SelectItem value="MALE">Male</SelectItem>
                         <SelectItem value="FEMALE">Female</SelectItem>
@@ -1173,14 +1099,15 @@ const EditEmployeePage = () => {
                       Client <span className="text-red-500">*</span>
                     </Label>
 
-                    <Select required
+                    <Select
+                      required
                       value={selectValue}
                       onValueChange={(v) => {
-                        setFormData((p) => ({
-                          ...p,
+                        setFormData((prev) => prev ? {
+                          ...prev,
                           clientId: staticClients.has(v) ? null : v,
                           clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`,
-                        }));
+                        } : prev);
                         setErrors((prev) => ({ ...prev, clientSelection: "" }));
                       }}
                     >
@@ -1211,21 +1138,50 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Department<span className="text-red-500">*</span></Label>
 
-                    <Select required
-                      value={formData.employeeEmploymentDetailsDTO?.department || ''}
-                      onValueChange={(v) => {
+                    <Select
+                      required
+                      value={formData?.employeeEmploymentDetailsDTO?.department || ''}
+                      onValueChange={async (v) => {
                         const department = v as Department;
-                        // Clear reporting manager when department changes
-                        setFormData(prev => ({ ...prev, reportingManagerId: '' }));
-                        handleChange({
-                          target: { name: 'employeeEmploymentDetailsDTO.department', value: department }
-                        } as any);
-                        fetchDepartmentEmployees(department);
+
+                        setFormData((prev) => prev ? {
+                          ...prev,
+                          employeeEmploymentDetailsDTO: {
+                            ...(prev.employeeEmploymentDetailsDTO || {
+                              employmentId: "",
+                              employeeId: params.id as string,
+                              probationApplicable: false,
+                              bondApplicable: false,
+                            }),
+                            department,
+                          },
+                          reportingManagerId: '', // temporarily clear
+                        } : prev);
+
+                        // Fetch fresh list
+                        const employees = await employeeService.getEmployeesByDepartment(department);
+                        setDepartmentEmployees(employees);
+
+                        const validManagers = employees.filter(emp =>
+                          managerDesignations.includes(emp.designation as Designation)
+                        );
+
+                        // Auto-select if only one manager
+                        if (validManagers.length === 1) {
+                          setFormData(prev => prev ? { ...prev, reportingManagerId: validManagers[0].employeeId } : prev);
+                        }
                       }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                        <SelectValue placeholder="Select Department" />
-                      </SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            !formData?.employeeEmploymentDetailsDTO?.department
+                              ? "First select Department"
+                              : currentManagerName
+                                ? `${currentManagerName} (Selected)`
+                                : "Select Reporting Manager"
+                          }
+                        />                      </SelectTrigger>
                       <SelectContent>
                         {DEPARTMENT_OPTIONS.map(d => (
                           <SelectItem key={d} value={d}>{d}</SelectItem>
@@ -1238,28 +1194,30 @@ const EditEmployeePage = () => {
                   <div>
                     <Label className="mb-2 block text-sm font-medium">Reporting Manager</Label>
                     <Select
-                      value={formData.reportingManagerId}
-                      onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}
-                      disabled={!formData.employeeEmploymentDetailsDTO?.department}
+                      value={formData?.reportingManagerId || ""}
+                      onValueChange={(v) =>
+                        setFormData((prev) => prev ? { ...prev, reportingManagerId: v } : prev)
+                      }
+                      disabled={!formData?.employeeEmploymentDetailsDTO?.department}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-
-                        {/* <SelectTrigger className={`w-full min-w-[200px] !h-11 ${!formData.employeeEmploymentDetailsDTO?.department ? 'opacity-50 cursor-not-allowed' : ''}`}> */}
-                        <SelectValue placeholder={
-                          formData.employeeEmploymentDetailsDTO?.department
-                            ? "Select Reporting Manager"
-                            : "First select Department"
-                        } />
+                      <SelectTrigger className="w-full min-w-[200px] !h-12">
+                        <SelectValue
+                          placeholder={
+                            formData?.employeeEmploymentDetailsDTO?.department
+                              ? "Select Reporting Manager"
+                              : "First select Department"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {departmentEmployees.length === 0 ? (
                           <SelectItem value="none" disabled>
-                            {formData.employeeEmploymentDetailsDTO?.department
+                            {formData?.employeeEmploymentDetailsDTO?.department
                               ? "No managers in this department"
                               : "Select department first"}
                           </SelectItem>
                         ) : (
-                          departmentEmployees.map(emp => (
+                          departmentEmployees.map((emp) => (
                             <SelectItem key={emp.employeeId} value={emp.employeeId}>
                               {emp.fullName} ({emp.designation.replace(/_/g, ' ')})
                             </SelectItem>
@@ -1275,12 +1233,12 @@ const EditEmployeePage = () => {
                       Designation <span className="text-red-500">*</span>
                     </Label>
 
-                    <Select required
-                      value={formData.designation}
-                      onValueChange={(v) => {
-                        setFormData((p) => ({ ...p, designation: v as Designation }));
-                        setErrors((prev) => ({ ...prev, designation: "" }));
-                      }}
+                    <Select
+                      required
+                      value={formData?.designation || ""}
+                      onValueChange={(v) =>
+                        setFormData((prev) => prev ? { ...prev, designation: v as Designation } : prev)
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
 
@@ -1328,12 +1286,12 @@ const EditEmployeePage = () => {
                       Employment Type <span className="text-red-500">*</span>
                     </Label>
 
-                    <Select required
+                    <Select
+                      required
                       value={formData.employmentType}
-                      onValueChange={(v) => {
-                        setFormData((p) => ({ ...p, employmentType: v as EmploymentType }));
-                        setErrors((prev) => ({ ...prev, employmentType: "" }));
-                      }}
+                      onValueChange={(v) =>
+                        setFormData((prev) => prev ? { ...prev, employmentType: v as EmploymentType } : prev)
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
 
@@ -1370,14 +1328,25 @@ const EditEmployeePage = () => {
                   {/* Pay Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Pay Type</Label>
-
                     <Select
-                      value={formData.employeeSalaryDTO?.payType || ""}
+                      value={formData?.employeeSalaryDTO?.payType || ""}
                       onValueChange={(v) =>
-                        setFormData((prev) => ({
+                        setFormData((prev) => prev ? {
                           ...prev,
-                          employeeSalaryDTO: { ...prev.employeeSalaryDTO!, payType: v as PayType },
-                        }))
+                          employeeSalaryDTO: {
+                            ...(prev.employeeSalaryDTO ?? {
+                              employeeId: params.id as string,
+                              ctc: 0,
+                              standardHours: 160,
+                              payClass: "A1" as PayClass,
+                              bankAccountNumber: "",
+                              ifscCode: "",
+                              allowances: [],
+                              deductions: [],
+                            }),
+                            payType: v as PayType,
+                          },
+                        } : prev)
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
@@ -1652,8 +1621,8 @@ const EditEmployeePage = () => {
                     <div className="space-y-4">
                       {formData.employeeSalaryDTO?.allowances?.map((a, i) => (
                         <div
-                          key={a.allowanceId || i}
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200"
+                          key={a.allowanceId || `allowance-${i}`}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200"
                         >
                           {/* Allowance Type */}
                           <div className="space-y-2">
@@ -1665,11 +1634,24 @@ const EditEmployeePage = () => {
                               onChange={(e) => {
                                 const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
                                 updated[i].allowanceType = e.target.value;
-                                setFormData((p) => ({
-                                  ...p,
-                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated },
-                                }));
-                                validateField?.(`allowance_${i}_type`, e.target.value);
+
+                                setFormData((prev) => prev ? {
+                                  ...prev,
+                                  employeeSalaryDTO: {
+                                    ...(prev.employeeSalaryDTO || {
+                                      employeeId: params.id as string,
+                                      ctc: 0,
+                                      payType: "MONTHLY" as PayType,
+                                      standardHours: 160,
+                                      payClass: "A1" as PayClass,
+                                      bankAccountNumber: "",
+                                      ifscCode: "",
+                                      allowances: [],
+                                      deductions: [],
+                                    }),
+                                    allowances: updated,
+                                  },
+                                } : prev);
                               }}
                             />
 
@@ -1687,45 +1669,39 @@ const EditEmployeePage = () => {
                             onChange={(e) => {
                               const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
                               updated[i].amount = parseFloat(e.target.value) || 0;
-                              setFormData((p) => ({
-                                ...p,
-                                employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated },
-                              }));
+
+                              setFormData((prev) => prev ? {
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO || {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    payType: "MONTHLY" as PayType,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: [],
+                                  }),
+                                  allowances: updated,
+                                },
+                              } : prev);
                             }}
                           />
 
-                          {/* Effective Date */}
-                          <Input
-                            type="date"
-                            value={a.effectiveDate}
-                            className="h-12 text-base"
-                            onChange={(e) => {
-                              const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
-                              updated[i].effectiveDate = e.target.value;
-                              setFormData((p) => ({
-                                ...p,
-                                employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated },
-                              }));
-                            }}
-                          />
-
-                          {/* Remove Button */}
+                          {/*Remove Button */}
                           <div className="flex items-end">
+
                             <Button
+                              type="button"
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                const filtered = formData.employeeSalaryDTO?.allowances?.filter(
-                                  (_, idx) => idx !== i
-                                ) || [];
-                                setFormData((p) => ({
-                                  ...p,
-                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: filtered },
-                                }));
-                              }}
-                              className="h-12"
+                              onClick={() => confirmAndRemoveAllowance(i)}
+                              className="text-red-600 hover:bg-red-50"
+                              disabled={submitting}
                             >
-                              <Trash2 className="h-5 w-5 text-red-600" />
+                              <Trash2 className="h-5 w-5" />
                             </Button>
                           </div>
                         </div>
@@ -1739,24 +1715,35 @@ const EditEmployeePage = () => {
                         className="mt-4 h-12"
                         onClick={() => {
                           const newAllowance: AllowanceDTO = {
-                            allowanceId: crypto.randomUUID(),
+                            allowanceId: "",
                             allowanceType: "",
                             amount: 0,
-                            effectiveDate: "",
                           };
-                          setFormData((p) => ({
-                            ...p,
+
+                          setFormData((prev) => prev ? {
+                            ...prev,
                             employeeSalaryDTO: {
-                              ...p.employeeSalaryDTO!,
-                              allowances: [...(p.employeeSalaryDTO?.allowances || []), newAllowance],
+                              ...(prev.employeeSalaryDTO || {
+                                employeeId: params.id as string,
+                                ctc: 0,
+                                payType: "MONTHLY" as PayType,
+                                standardHours: 160,
+                                payClass: "A1" as PayClass,
+                                bankAccountNumber: "",
+                                ifscCode: "",
+                                allowances: [],
+                                deductions: [],
+                              }),
+                              allowances: [...(prev.employeeSalaryDTO?.allowances || []), newAllowance],
                             },
-                          }));
+                          } : prev);
                         }}
                       >
                         <Plus className="h-5 w-5 mr-2" /> Add Allowance
                       </Button>
                     </div>
                   </div>
+
 
                   {/* ================= DEDUCTIONS ================= */}
                   <div>
@@ -1765,8 +1752,8 @@ const EditEmployeePage = () => {
                     <div className="space-y-4">
                       {formData.employeeSalaryDTO?.deductions?.map((d, i) => (
                         <div
-                          key={d.deductionId || i}
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200"
+                          key={d.deductionId || `deduction-${i}`}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200"
                         >
                           {/* Deduction Type */}
                           <div className="space-y-2">
@@ -1778,14 +1765,26 @@ const EditEmployeePage = () => {
                               onChange={(e) => {
                                 const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
                                 updated[i].deductionType = e.target.value;
-                                setFormData((p) => ({
-                                  ...p,
-                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated },
-                                }));
-                                validateField?.(`deduction_${i}_type`, e.target.value);
+
+                                setFormData((prev) => prev ? {
+                                  ...prev,
+                                  employeeSalaryDTO: {
+                                    ...(prev.employeeSalaryDTO || {
+                                      employeeId: params.id as string,
+                                      ctc: 0,
+                                      payType: "MONTHLY" as PayType,
+                                      standardHours: 160,
+                                      payClass: "A1" as PayClass,
+                                      bankAccountNumber: "",
+                                      ifscCode: "",
+                                      allowances: [],
+                                      deductions: []
+                                    }),
+                                    deductions: updated,
+                                  }
+                                } : prev);
                               }}
                             />
-
                             {errors[`deduction_${i}_type`] && (
                               <p className="text-red-500 text-xs">{errors[`deduction_${i}_type`]}</p>
                             )}
@@ -1800,45 +1799,38 @@ const EditEmployeePage = () => {
                             onChange={(e) => {
                               const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
                               updated[i].amount = parseFloat(e.target.value) || 0;
-                              setFormData((p) => ({
-                                ...p,
-                                employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated },
-                              }));
-                            }}
-                          />
 
-                          {/* Effective Date */}
-                          <Input
-                            type="date"
-                            value={d.effectiveDate}
-                            className="h-12 text-base"
-                            onChange={(e) => {
-                              const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
-                              updated[i].effectiveDate = e.target.value;
-                              setFormData((p) => ({
-                                ...p,
-                                employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated },
-                              }));
+                              setFormData((prev) => prev ? {
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO || {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    payType: "MONTHLY" as PayType,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: []
+                                  }),
+                                  deductions: updated,
+                                }
+                              } : prev);
                             }}
                           />
 
                           {/* Remove Button */}
                           <div className="flex items-end">
                             <Button
+                              type="button"
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                const filtered = formData.employeeSalaryDTO?.deductions?.filter(
-                                  (_, idx) => idx !== i
-                                ) || [];
-                                setFormData((p) => ({
-                                  ...p,
-                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: filtered },
-                                }));
-                              }}
-                              className="h-12"
+                              onClick={() => confirmAndRemoveDeduction(i)}
+                              className="text-red-600 hover:bg-red-50"
+                              disabled={submitting}
                             >
-                              <Trash2 className="h-5 w-5 text-red-600" />
+                              <Trash2 className="h-5 w-5" />
                             </Button>
                           </div>
                         </div>
@@ -1852,24 +1844,35 @@ const EditEmployeePage = () => {
                         className="mt-4 h-12"
                         onClick={() => {
                           const newDeduction: DeductionDTO = {
-                            deductionId: crypto.randomUUID(),
+                            deductionId: "",
                             deductionType: "",
                             amount: 0,
-                            effectiveDate: "",
                           };
-                          setFormData((p) => ({
-                            ...p,
+
+                          setFormData((prev) => prev ? {
+                            ...prev,
                             employeeSalaryDTO: {
-                              ...p.employeeSalaryDTO!,
-                              deductions: [...(p.employeeSalaryDTO?.deductions || []), newDeduction],
-                            },
-                          }));
+                              ...(prev.employeeSalaryDTO || {
+                                employeeId: params.id as string,
+                                ctc: 0,
+                                payType: "MONTHLY" as PayType,
+                                standardHours: 160,
+                                payClass: "A1" as PayClass,
+                                bankAccountNumber: "",
+                                ifscCode: "",
+                                allowances: [],
+                                deductions: []
+                              }),
+                              deductions: [...(prev.employeeSalaryDTO?.deductions || []), newDeduction],
+                            }
+                          } : prev);
                         }}
                       >
                         <Plus className="h-5 w-5 mr-2" /> Add Deduction
                       </Button>
                     </div>
                   </div>
+
                 </div>
               </CardContent>
             </Card>
@@ -1925,10 +1928,18 @@ const EditEmployeePage = () => {
 
                           <FileInput
                             id={`doc-upload-${i}`}
-                            onChange={(file) => handleDocumentChange(i, "fileObj", file)}
-                            currentFile={(doc as FormDocument).fileObj ?? null}
-                            existingUrl={typeof doc.file === 'string' && doc.file ? doc.file : undefined}
-                            onClear={() => handleDocumentChange(i, "fileObj", null)}
+                            onChange={(file) => {
+                              const newFiles = [...documentFiles];
+                              newFiles[i] = file;
+                              setDocumentFiles(newFiles);
+                            }}
+                            currentFile={documentFiles[i] ?? null}
+                            existingUrl={doc.file || undefined}
+                            onClear={() => {
+                              const newFiles = [...documentFiles];
+                              newFiles[i] = null;
+                              setDocumentFiles(newFiles);
+                            }}
                           />
                         </div>
 
@@ -2073,62 +2084,6 @@ const EditEmployeePage = () => {
               <CardContent className="pt-8 pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-                  {/* OFFER LETTER
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Offer Letter</Label>
-                    <div className="h-12 flex items-center">
-                      <FileInput
-                        id="offerLetter"
-                        onChange={(file) => handleFileChange("offerLetter", file)}
-                        currentFile={documentFiles.offerLetter}
-                        existingUrl={formData.employeeAdditionalDetailsDTO?.offerLetterUrl}
-                        onClear={() => clearAdditionalFile("offerLetter")}
-                      />
-                    </div>
-                  </div>
-
-                  CONTRACT
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Contract</Label>
-                    <div className="h-12 flex items-center">
-                      <FileInput
-                        id="contract"
-                        onChange={(file) => handleFileChange("contract", file)}
-                        currentFile={documentFiles.contract}
-                        existingUrl={formData.employeeAdditionalDetailsDTO?.contractUrl}
-                        onClear={() => clearAdditionalFile("contract")}
-                      />
-                    </div>
-                  </div>
-
-                  TAX DECLARATION FORM
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Tax Declaration Form</Label>
-                    <div className="h-12 flex items-center">
-                      <FileInput
-                        id="taxDeclarationForm"
-                        onChange={(file) => handleFileChange("taxDeclarationForm", file)}
-                        currentFile={documentFiles.taxDeclarationForm}
-                        existingUrl={formData.employeeAdditionalDetailsDTO?.taxDeclarationFormUrl}
-                        onClear={() => clearAdditionalFile("taxDeclarationForm")}
-                      />
-                    </div>
-                  </div>
-
-                  WORK PERMIT
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Work Permit</Label>
-                    <div className="h-12 flex items-center">
-                      <FileInput
-                        id="workPermit"
-                        onChange={(file) => handleFileChange("workPermit", file)}
-                        currentFile={documentFiles.workPermit}
-                        existingUrl={formData.employeeAdditionalDetailsDTO?.workPermitUrl}
-                        onClear={() => clearAdditionalFile("workPermit")}
-                      />
-                    </div>
-                  </div> */}
-
                   {/* SKILLS & CERTIFICATION */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">Skills & Certification</Label>
@@ -2214,7 +2169,16 @@ const EditEmployeePage = () => {
                       value={formData.employeeInsuranceDetailsDTO?.policyNumber || ""}
                       onChange={handleChange}
                       placeholder="e.g., POL123456"
-                      onBlur={() => checkUniqueness('POLICY_NUMBER', formData.employeeInsuranceDetailsDTO?.policyNumber || '', 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          const insuranceId = employeeData?.employeeInsuranceDetailsDTO?.insuranceId;
+                          checkUniqueness('POLICY_NUMBER', val, 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number', insuranceId);
+                        }
+                        // if (val) {
+                        //   checkUniqueness('POLICY_NUMBER', val, 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number', employeeData?.employeeInsuranceDetailsDTO?.insuranceId);
+                        // }
+                      }}
                       className="h-12 text-base border-gray-300 focus:ring-amber-500"
                     />
                     {errors["employeeInsuranceDetailsDTO.policyNumber"] && (
@@ -2308,7 +2272,20 @@ const EditEmployeePage = () => {
                         name="employeeInsuranceDetailsDTO.nomineeContact"
                         value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ""}
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('CONTACT_NUMBER', formData.employeeInsuranceDetailsDTO?.nomineeContact || '', 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_Contact')}
+                        // onBlur={(e) => {
+                        //   const val = e.target.value.trim();
+                        //   if (val && val.length === 10) {
+                        //     checkUniqueness('CONTACT_NUMBER', val, 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_contact', employeeData?.employeeInsuranceDetailsDTO?.insuranceId);
+                        //   }
+                        // }}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val && val.length === 10) {
+                            const insuranceId = employeeData?.employeeInsuranceDetailsDTO?.insuranceId;
+                            checkUniqueness('CONTACT_NUMBER', val, 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_contact', insuranceId);
+                          }
+                        }}
+                        maxLength={10}
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
 
@@ -2327,12 +2304,16 @@ const EditEmployeePage = () => {
                     )}
                   </div>
 
-
                   {/* Group Insurance */}
                   <div className="flex items-center gap-3 h-12 sm:col-span-2 lg:col-span-3 xl:col-span-4 mt-4">
                     <Checkbox
                       id="groupInsurance"
-                      checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
+                      // checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
+                      checked={
+                        formData.employeeInsuranceDetailsDTO?.groupInsurance === null
+                          ? undefined
+                          : formData.employeeInsuranceDetailsDTO?.groupInsurance
+                      }
                       onCheckedChange={(v) =>
                         handleChange({
                           target: {
@@ -2371,7 +2352,19 @@ const EditEmployeePage = () => {
                         type="text"
                         value={formData.employeeStatutoryDetailsDTO?.passportNumber || ""}
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('PASSPORT_NUMBER', formData.employeeStatutoryDetailsDTO?.passportNumber || '', 'employeeStatutoryDetailsDTO.passportNumber', 'passport_number')}
+                        // onBlur={(e) => {
+                        //   const val = e.target.value.trim();
+                        //   if (val) {
+                        //     checkUniqueness('PASSPORT_NUMBER', val, 'employeeStatutoryDetailsDTO.passportNumber', 'passport_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
+                        //   }
+                        // }}     
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val) {
+                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
+                            checkUniqueness('PASSPORT_NUMBER', val, 'employeeStatutoryDetailsDTO.passportNumber', 'passport_number', statutoryId);
+                          }
+                        }}
                         placeholder="e.g., A1234567"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
 
@@ -2399,7 +2392,19 @@ const EditEmployeePage = () => {
                         type="text"
                         value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ""}
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('PF_UAN_NUMBER', formData.employeeStatutoryDetailsDTO?.pfUanNumber || '', 'employeeStatutoryDetailsDTO.pfUanNumber', 'pf_uan_number')}
+                        // onBlur={(e) => {
+                        //   const val = e.target.value.trim();
+                        //   if (val) {
+                        //     checkUniqueness('PF_UAN_NUMBER', val, 'employeeStatutoryDetailsDTO.pfUanNumber', 'pf_uan_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
+                        //   }
+                        // }}    
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val) {
+                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
+                            checkUniqueness('PF_UAN_NUMBER', val, 'employeeStatutoryDetailsDTO.pfUanNumber', 'pf_uan_number', statutoryId);
+                          }
+                        }}
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
 
@@ -2446,7 +2451,19 @@ const EditEmployeePage = () => {
                         type="text"
                         value={formData.employeeStatutoryDetailsDTO?.esiNumber || ""}
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('ESI_NUMBER', formData.employeeStatutoryDetailsDTO?.esiNumber || '', 'employeeStatutoryDetailsDTO.esiNumber', 'esi_number')}
+                        // onBlur={(e) => {
+                        //   const val = e.target.value.trim();
+                        //   if (val) {
+                        //     checkUniqueness('ESI_NUMBER', val, 'employeeStatutoryDetailsDTO.esiNumber', 'esi_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
+                        //   }
+                        // }}    
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val) {
+                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
+                            checkUniqueness('ESI_NUMBER', val, 'employeeStatutoryDetailsDTO.esiNumber', 'esi_number', statutoryId);
+                          }
+                        }}
                         placeholder="e.g., 1234567890"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
 
@@ -2474,7 +2491,19 @@ const EditEmployeePage = () => {
                         type="text"
                         value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ""}
                         onChange={handleChange}
-                        onBlur={() => checkUniqueness('SSN_NUMBER', formData.employeeStatutoryDetailsDTO?.ssnNumber || '', 'employeeStatutoryDetailsDTO.ssnNumber', 'ssn_number')}
+                        // onBlur={(e) => {
+                        //   const val = e.target.value.trim();
+                        //   if (val) {
+                        //     checkUniqueness('SSN_NUMBER', val, 'employeeStatutoryDetailsDTO.ssnNumber', 'ssn_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
+                        //   }
+                        // }}    
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val) {
+                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
+                            checkUniqueness('SSN_NUMBER', val, 'employeeStatutoryDetailsDTO.ssnNumber', 'ssn_number', statutoryId);
+                          }
+                        }}
                         placeholder="e.g., 123-45-6789"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
 

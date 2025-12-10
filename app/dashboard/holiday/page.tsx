@@ -75,7 +75,7 @@ export default function EmployeeHolidayDashboard() {
                 <Calendar className="w-5 h-5" />
                 Upcoming Holidays ({upcomingHolidays.length})
               </CardTitle>
-              {holidays.length > 6 && (
+              {holidays.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"

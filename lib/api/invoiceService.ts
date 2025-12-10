@@ -38,7 +38,7 @@ class InvoiceService {
       throw new Error(response.data?.message || 'Invalid response: No invoice data returned');
     } catch (error: unknown) {
       console.error('Error generating invoice:', error);
-      const errorMessage = this.getErrorMessage(error, 'Failed to generate invoice');
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
@@ -70,7 +70,7 @@ class InvoiceService {
       throw new Error(response.data?.message || 'Invalid response: Expected array of invoices');
     } catch (error: unknown) {
       console.error('Error fetching invoices by client:', error);
-      const errorMessage = this.getErrorMessage(error, 'Failed to fetch invoices by client');
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
@@ -94,7 +94,7 @@ class InvoiceService {
       throw new Error(response.data?.message || 'Invalid response: Expected array of invoices');
     } catch (error: unknown) {
       console.error('Error fetching all invoices:', error);
-      const errorMessage = this.getErrorMessage(error, 'Failed to fetch all invoices');
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
@@ -126,8 +126,7 @@ class InvoiceService {
     } catch (error: unknown) {
       console.error('Error fetching client invoice summary:', error);
       const errorMessage = this.getErrorMessage(
-        error,
-        'Failed to fetch client invoice summary'
+        error
       );
       throw new Error(errorMessage);
     }
@@ -151,8 +150,7 @@ class InvoiceService {
     } catch (error: unknown) {
       console.error('Error deleting invoice:', error);
       const errorMessage = this.getErrorMessage(
-        error,
-        'Failed to delete invoice'
+        error
       );
       throw new Error(errorMessage);
     }
@@ -180,8 +178,7 @@ class InvoiceService {
     } catch (error: unknown) {
       console.error('Error updating invoice status:', error);
       const errorMessage = this.getErrorMessage(
-        error,
-        'Failed to update invoice status'
+        error
       );
       throw new Error(errorMessage);
     }
@@ -277,7 +274,7 @@ class InvoiceService {
       throw new Error(response.data?.message || `Failed to ${action.toLowerCase()} invoice`);
     } catch (error: unknown) {
       console.error(`Error while trying to ${action.toLowerCase()} invoice:`, error);
-      const errorMessage = this.getErrorMessage(error, `Failed to ${action.toLowerCase()} invoice`);
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
@@ -286,16 +283,16 @@ class InvoiceService {
   /**
    * Helper: Extract readable error message
    */
-  private getErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof AxiosError) {
-      return (
-        error.response?.data?.message ||
-        error.message ||
-        fallback
-      );
-    }
-    return fallback;
+  private getErrorMessage(error: any): string {
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      JSON.stringify(error?.response?.data) ||
+      error?.message ||
+      "Something went wrong"
+    );
   }
+  
 }
 
 export const invoiceService = new InvoiceService();

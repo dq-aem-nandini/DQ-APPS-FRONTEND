@@ -12,7 +12,7 @@ import {
   PlusIcon,
   CogIcon,
 } from '@heroicons/react/24/outline';
-import { FileTextIcon, LogOut, User } from 'lucide-react';
+import { Building2, FileTextIcon, Landmark, LogOut, User } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminSidebar() {
@@ -26,6 +26,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard/employees', label: 'Employees', icon: <UserIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/clients', label: 'Clients', icon: <BuildingOfficeIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/salaries', label: 'Salaries', icon: <UserIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/organization', label: 'Organization', icon: <Building2 className="h-5 w-5" /> },
       ],
     },
     {
@@ -56,6 +57,7 @@ export default function AdminSidebar() {
             alt="DigiQuad Logo"
             width={50}
             height={50}
+            style={{ width: 'auto', height: 'auto' }}
             className="rounded-full shadow-sm"
           />
           <div className="text-2xl font-bold text-indigo-600">DigiQuad</div>

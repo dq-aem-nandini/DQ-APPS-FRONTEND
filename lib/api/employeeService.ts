@@ -18,6 +18,16 @@ import {
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
 
 class EmployeeService {
 
@@ -78,12 +88,8 @@ class EmployeeService {
         return response.data.response;
       }
       throw new Error(response.data.message || 'Failed to fetch employee');
-    } catch (error: unknown) {
-      console.error('❌ Error fetching employee by ID:', error);
-      const errorMessage = error instanceof AxiosError
-        ? error.response?.data?.message || error.message || 'Failed to fetch employee'
-        : 'Failed to fetch employee';
-      throw new Error(errorMessage);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   }
 
@@ -98,9 +104,8 @@ class EmployeeService {
         return response.data.response;
       }
       throw new Error(response.data.message || 'Failed to fetch employee');
-    } catch (error) {
-      console.error('❌ Error fetching employee by ID (admin):', error);
-      throw new Error(`Failed to fetch employee by ID: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   }
 
@@ -119,9 +124,8 @@ class EmployeeService {
         return response.data.response;
       }
       throw new Error(response.data.message || 'Failed to get employees by designation');
-    } catch (error) {
-      console.error('❌ Error fetching employees by designation:', error);
-      throw new Error(`Failed to get employees by designation: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   }
 
@@ -136,9 +140,8 @@ class EmployeeService {
         return response.data.response;
       }
       throw new Error(response.data.message || 'Failed to get designation list');
-    } catch (error) {
-      console.error('❌ Error fetching designation list:', error);
-      throw new Error(`Failed to get designation list: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   }
   // ✅ DELETE: Employee Address (New Global Endpoint)
@@ -160,12 +163,7 @@ class EmployeeService {
       console.log('Success:', response.data);
       return response.data;
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Failed to delete address';
-      console.error('Error:', msg);
-      throw new Error(msg);
+      throw new Error(getBackendError(error));
     }
   }
   // my update requests
@@ -178,11 +176,7 @@ class EmployeeService {
 
       return response.data;
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error.message ||
-        "Failed to fetch update requests";
-      throw new Error(msg);
+      throw new Error(getBackendError(error));
     }
   }
   // submit update
@@ -197,11 +191,7 @@ class EmployeeService {
 
       return response.data;
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error.message ||
-        "Failed to submit update request";
-      throw new Error(msg);
+      throw new Error(getBackendError(error));
     }
   }
   // =====================================================
@@ -342,11 +332,7 @@ class EmployeeService {
       );
       return response.data;
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error.message ||
-        "Failed to fetch IFSC details";
-      throw new Error(msg);
+      throw new Error(getBackendError(error));
     }
   }
 
@@ -376,11 +362,7 @@ class EmployeeService {
 
       return response.data;
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error.message ||
-        "Failed to fetch bank master";
-      throw new Error(msg);
+      throw new Error(getBackendError(error));
     }
   }
   async getEmployeesByDepartment(
@@ -399,8 +381,7 @@ class EmployeeService {
   
       throw new Error(response.data.message || "Failed to fetch employees");
     } catch (error: any) {
-      console.error("❌ Error fetching employees by department:", error);
-      throw new Error(error.response?.data?.message || "Failed to fetch employees");
+      throw new Error(getBackendError(error));
     }
   }
   

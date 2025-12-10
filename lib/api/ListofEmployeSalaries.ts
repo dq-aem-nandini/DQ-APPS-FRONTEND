@@ -3,9 +3,17 @@ import { AxiosError } from "axios";
 import api from "./axios";
 import { EmployeeDTO, WebResponseDTO } from "@/lib/api/types";
 
-/**
- * Service for fetching active employees and individual employee details.
- */
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
+
 export const ListofEmployeeSalaries = {
   /**
    * ✅ Get all active employees
@@ -15,10 +23,8 @@ export const ListofEmployeeSalaries = {
     try {
       const res = await api.get("/employee/activeemployees/list");
       return res.data;
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error(" Error fetching employees:", err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -30,10 +36,8 @@ export const ListofEmployeeSalaries = {
     try {
       const res = await api.get(`/admin/emp/${empId}`);
       return res.data;
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error(` Error fetching employee (${empId}):`, err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 };

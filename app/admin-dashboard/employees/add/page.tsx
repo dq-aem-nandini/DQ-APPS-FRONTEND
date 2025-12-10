@@ -8,7 +8,6 @@ import {
   EmployeeDTO,
   ClientDTO,
   Designation,
-  EmployeeDocumentDTO,
   EmployeeEquipmentDTO,
   DocumentType,
   EmploymentType,
@@ -92,10 +91,6 @@ const AddEmployeePage = () => {
       deductions: [],
     },
     employeeAdditionalDetailsDTO: {
-      offerLetterUrl: '',
-      contractUrl: '',
-      taxDeclarationFormUrl: '',
-      workPermitUrl: '',
       backgroundCheckStatus: '',
       remarks: '',
     },
@@ -142,12 +137,6 @@ const AddEmployeePage = () => {
     },
     employeeEquipmentDTO: [],
   });
-  // const [documentFiles, setDocumentFiles] = useState<Record<DocumentFileKey, File | null>>({
-  //   offerLetter: null,
-  //   contract: null,
-  //   taxDeclarationForm: null,
-  //   workPermit: null,
-  // });
   const [documentFilesList, setDocumentFilesList] = useState<(File | null)[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { state } = useAuth();
@@ -179,12 +168,14 @@ const AddEmployeePage = () => {
     }
     // Email
     if (['personalEmail', 'companyEmail'].includes(name)) {
-      if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) newErrors[name] = 'Invalid email format';
-      if (name === 'companyEmail' && val.toLowerCase() === formData.personalEmail.toLowerCase() && formData.personalEmail)
+      if (val && !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(val)) {
+        newErrors[name] = "Invalid email format (use only lowercase letters)";
+      }
+            if (name === 'companyEmail' && val.toLowerCase() === formData.personalEmail.toLowerCase() && formData.personalEmail)
         newErrors[name] = 'Cannot be same as personal email';
     }
     // Contact Numbers
-    if (['contactNumber', 'emergencyContactNumber', 'employeeInsuranceDetailsDTO.nomineeContact'].includes(name)) {
+    if (['contactNumber', 'emergencyContactNumber'].includes(name)) {
       if (val && !/^[6-9]\d{9}$/.test(val)) newErrors[name] = 'Invalid Indian mobile number';
     }
     // Max 30 Characters
@@ -207,22 +198,62 @@ const AddEmployeePage = () => {
       newErrors[name] = 'Invalid passport number';
     setErrors(newErrors);
   };
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    let parsedValue: any = value;
-    if (type === 'checkbox') parsedValue = (e.target as HTMLInputElement).checked;
-    if (['ctc', 'standardHours', 'rateCard'].some(f => name.includes(f))) parsedValue = parseFloat(value) || 0;
+
+  const handleChange = (e: any) => {
+    const { name } = e.target;
+
+    // Support manual values (very important)
+    let parsedValue =
+      e.target.value !== undefined ? e.target.value : e.target.checked;
+
+    // Convert checkbox values: true / null
+    if (typeof parsedValue === "boolean") {
+      parsedValue = parsedValue === true ? true : null;
+    }
+
+    // Convert numeric fields
+    if (['ctc', 'standardHours', 'rateCard'].some(f => name.includes(f))) {
+      parsedValue = parseFloat(parsedValue) || 0;
+    }
+
+    // Handle nested dto fields
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
+
       setFormData(prev => ({
         ...prev,
-        [parent]: { ...(prev[parent as keyof EmployeeModel] as any), [child]: parsedValue },
+        [parent]: {
+          ...(typeof prev[parent as keyof EmployeeModel] === "object" && prev[parent as keyof EmployeeModel] !== null
+            ? (prev[parent as keyof EmployeeModel] as any)
+            : {}), // safe fallback object
+          [child]: parsedValue,
+        },
       }));
-    } else {
+    }
+    else {
       setFormData(prev => ({ ...prev, [name]: parsedValue }));
     }
+
     validateField(name, parsedValue);
   };
+
+
+  // const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  //   const { name, value, type } = e.target;
+  //   let parsedValue: any = value;
+  //   if (type === 'checkbox') parsedValue = (e.target as HTMLInputElement).checked;
+  //   if (['ctc', 'standardHours', 'rateCard'].some(f => name.includes(f))) parsedValue = parseFloat(value) || 0;
+  //   if (name.includes('.')) {
+  //     const [parent, child] = name.split('.');
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       [parent]: { ...(prev[parent as keyof EmployeeModel] as any), [child]: parsedValue },
+  //     }));
+  //   } else {
+  //     setFormData(prev => ({ ...prev, [name]: parsedValue }));
+  //   }
+  //   validateField(name, parsedValue);
+  // };
   const fetchDepartmentEmployees = async (dept: Department) => {
     if (!dept) {
       setDepartmentEmployees([]);
@@ -235,40 +266,47 @@ const AddEmployeePage = () => {
       setDepartmentEmployees([]);
     }
   };
-  const checkUniqueness = async (field: any, value: string, key: string) => {
-    if (!value || value.length < 3 || checking.has(key)) return;
-    setChecking(prev => new Set(prev).add(key));
+  const checkUniqueness = async (
+    field: UniqueField,
+    value: string,
+    errorKey: string,
+    fieldColumn: string  // ← ADD THIS
+  ) => {
+    const val = value.trim();
+    if (!val || val.length < 3 || checking.has(errorKey)) return;
+
+    setChecking(prev => new Set(prev).add(errorKey));
+
     try {
       const result = await validationService.validateField({
         field,
-        value,
-        mode: 'create',
+        value: val,
+        mode: "create",
+        fieldColumn,  // ← SEND THIS
       });
-      if (result.exists) {
-        setErrors(prev => ({ ...prev, [key]: 'Already exists in system' }));
-      } else {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[key];
-          return newErrors;
-        });
-      }
-    } catch (e) {
-      console.warn('Uniqueness check failed', e);
+
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (result.exists) {
+          newErrors[errorKey] = "Already exists in the system";
+        } else {
+          delete newErrors[errorKey];
+        }
+        return newErrors;
+      });
+    } catch (err) {
+      console.warn("Uniqueness check failed:", err);
     } finally {
       setChecking(prev => {
         const s = new Set(prev);
-        s.delete(key);
+        s.delete(errorKey);
         return s;
       });
     }
   };
   // ⭐ VALIDATION: State for real-time results
   const [validationResults, setValidationResults] = useState<Record<string, { exists: boolean; message: string }>>({});
-  // const today = new Date().toISOString().split('T')[0];
-  // const maxJoiningDate = new Date();
-  // maxJoiningDate.setMonth(maxJoiningDate.getMonth() + 3);
-  // const maxJoiningDateStr = maxJoiningDate.toISOString().split('T')[0];
+
   const designations: Designation[] = [
     'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
     'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
@@ -284,31 +322,43 @@ const AddEmployeePage = () => {
   ];
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
   const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
-  // const [clients, setClients] = useState<Client[]>([]);
-  // const [managers, setManagers] = useState<EmployeeDTO[]>([]);
+
   // ⭐ VALIDATION: Debounce timeouts per field
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
-  // const fetchDepartmentEmployees = async (dept: Department) => {
-  // if (!dept) {
-  // setDepartmentEmployees([]);
-  // return;
-  // }
-  // try {
-  // const result = await employeeService.getEmployeesByDepartment(dept);
-  // setDepartmentEmployees(result); // result is EmployeeDepartmentDTO[]
-  // console.log(`Employees in ${dept}:`, result);
-  // } catch (err: any) {
-  // console.error('Failed to load employees for department:', dept, err);
-  // setDepartmentEmployees([]);
-  // }
-  // };
+
   // ⭐ VALIDATION: Debounced validation function
+  // const debouncedValidate = useCallback(async (key: string, value: string, field: UniqueField) => {
+  //   if (timeouts.current[key]) clearTimeout(timeouts.current[key]);
+  //   timeouts.current[key] = setTimeout(async () => {
+  //     const trimmedValue = value.trim();
+  //     if (!trimmedValue) {
+  //       // Clear on empty
+  //       setValidationResults(prev => {
+  //         const newResults = { ...prev };
+  //         delete newResults[key];
+  //         return newResults;
+  //       });
+  //       return;
+  //     }
+  //     try {
+  //       const result = await validationService.validateField({
+  //         field,
+  //         value: trimmedValue,
+  //         mode: 'create' as const,
+  //       });
+  //       setValidationResults(prev => ({ ...prev, [key]: result }));
+  //     } catch (error) {
+  //       console.warn('Validation failed:', error);
+  //       // Fallback: Assume available on error (non-blocking)
+  //       setValidationResults(prev => ({ ...prev, [key]: { exists: false, message: 'Validation unavailable' } }));
+  //     }
+  //   }, 500);
+  // }, []);
   const debouncedValidate = useCallback(async (key: string, value: string, field: UniqueField) => {
     if (timeouts.current[key]) clearTimeout(timeouts.current[key]);
     timeouts.current[key] = setTimeout(async () => {
       const trimmedValue = value.trim();
       if (!trimmedValue) {
-        // Clear on empty
         setValidationResults(prev => {
           const newResults = { ...prev };
           delete newResults[key];
@@ -322,11 +372,21 @@ const AddEmployeePage = () => {
           value: trimmedValue,
           mode: 'create' as const,
         });
-        setValidationResults(prev => ({ ...prev, [key]: result }));
+
+        // ← THIS LINE WAS THE PROBLEM — result.message can be undefined
+        setValidationResults(prev => ({
+          ...prev,
+          [key]: {
+            exists: result.exists,
+            message: result.message ?? "Validation unavailable", // ← ALWAYS provide string
+          },
+        }));
       } catch (error) {
         console.warn('Validation failed:', error);
-        // Fallback: Assume available on error (non-blocking)
-        setValidationResults(prev => ({ ...prev, [key]: { exists: false, message: 'Validation unavailable' } }));
+        setValidationResults(prev => ({
+          ...prev,
+          [key]: { exists: false, message: "Validation unavailable" },
+        }));
       }
     }, 500);
   }, []);
@@ -465,7 +525,7 @@ const AddEmployeePage = () => {
       documents: [
         ...prev.documents,
         {
-          documentId: crypto.randomUUID(),
+          documentId: null,
           docType: 'OTHER' as DocumentType,
           file: '',
           uploadedAt: new Date().toISOString(),
@@ -499,7 +559,7 @@ const AddEmployeePage = () => {
       ...prev,
       employeeEquipmentDTO: [
         ...(prev.employeeEquipmentDTO ?? []),
-        { equipmentId: crypto.randomUUID(), equipmentType: '', serialNumber: '' },
+        { equipmentId: null, equipmentType: '', serialNumber: '' },
       ],
     }));
   };
@@ -517,10 +577,7 @@ const AddEmployeePage = () => {
       return newResults;
     });
   };
-  // // === FIXED: Type-safe handleFileChange ===
-  // const handleFileChange = (field: DocumentFileKey, file: File | null) => {
-  //   setDocumentFiles(prev => ({ ...prev, [field]: file }));
-  // };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -559,8 +616,7 @@ const AddEmployeePage = () => {
       // === CALL BACKEND ===
       const response = await adminService.addEmployee(
         formData,
-        // documentFiles.offerLetter,
-        // documentFilesList.filter((f): f is File => f !== null)
+        documentFilesList.filter((f): f is File => f !== null)
       );
       if (!response.flag) {
         throw new Error(response.message || 'Validation failed');
@@ -697,7 +753,7 @@ const AddEmployeePage = () => {
                       value={formData.personalEmail}
                       required
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'personalEmail')}
+                      onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'personalEmail', 'personal_email')}
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       placeholder="you@gmail.com"
                     />
@@ -714,7 +770,7 @@ const AddEmployeePage = () => {
                       value={formData.companyEmail}
                       required
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'companyEmail')}
+                      onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'companyEmail', 'company_email')}
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       placeholder="you@company.com"
                     />
@@ -731,7 +787,7 @@ const AddEmployeePage = () => {
                       required
                       maxLength={10}
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('CONTACT_NUMBER', e.target.value, 'contactNumber')}
+                      onBlur={(e) => checkUniqueness('CONTACT_NUMBER', e.target.value, 'contactNumber', 'contact_number')}
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       placeholder="9876543210"
                     />
@@ -825,7 +881,7 @@ const AddEmployeePage = () => {
                   {/* Department */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Department<span className="text-red-500">*</span></Label>
-                    <Select required 
+                    <Select required
                       value={formData.employeeEmploymentDetailsDTO?.department || ''}
                       onValueChange={(v) => {
                         const dept = v as Department;
@@ -844,7 +900,7 @@ const AddEmployeePage = () => {
                   {/* Reporting Manager */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Reporting Manager</Label>
-                    <Select required 
+                    <Select required
                       value={formData.reportingManagerId}
                       onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}
                       disabled={!formData.employeeEmploymentDetailsDTO?.department}
@@ -888,7 +944,7 @@ const AddEmployeePage = () => {
                       type="date"
                       name="dateOfJoining"
                       value={formData.dateOfJoining}
-                      required 
+                      required
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}
@@ -899,7 +955,7 @@ const AddEmployeePage = () => {
                     <Label className="text-sm font-semibold text-gray-700">
                       Employment Type <span className="text-red-500">*</span>
                     </Label>
-                    <Select required 
+                    <Select required
                       value={formData.employmentType}
                       onValueChange={(v) => setFormData(p => ({ ...p, employmentType: v as EmploymentType }))}
                     >
@@ -1179,9 +1235,15 @@ const AddEmployeePage = () => {
                   {/* Allowances */}
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">Allowances</Label>
+
                     <div className="space-y-4">
                       {formData.employeeSalaryDTO?.allowances?.map((a, i) => (
-                        <div key={a.allowanceId} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200">
+                        <div
+                          // key={a.allowanceId}
+                          key={a.allowanceId ?? `temp-${i}`}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200"
+                        >
+                          {/* Allowance Type */}
                           <div className="space-y-2">
                             <Input
                               placeholder="Type (e.g., HRA)"
@@ -1189,51 +1251,97 @@ const AddEmployeePage = () => {
                               onChange={e => {
                                 const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
                                 updated[i].allowanceType = e.target.value;
-                                setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated } }));
+                                setFormData(p => ({
+                                  ...p,
+                                  employeeSalaryDTO: {
+                                    ...p.employeeSalaryDTO!,
+                                    allowances: updated,
+                                  },
+                                }));
                                 validateField(`allowance_${i}_type`, e.target.value);
                               }}
                               maxLength={30}
                               className="h-12 text-base"
                             />
-                            {errors[`allowance_${i}_type`] && <p className="text-red-500 text-xs">{errors[`allowance_${i}_type`]}</p>}
+                            {errors[`allowance_${i}_type`] && (
+                              <p className="text-red-500 text-xs">{errors[`allowance_${i}_type`]}</p>
+                            )}
                           </div>
-                          <Input type="number" placeholder="Amount" value={a.amount} onChange={e => {
-                            const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
-                            updated[i].amount = parseFloat(e.target.value) || 0;
-                            setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated } }));
-                          }} className="h-12 text-base" />
-                          <Input type="date" value={a.effectiveDate} onChange={e => {
-                            const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
-                            updated[i].effectiveDate = e.target.value;
-                            setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated } }));
-                          }} className="h-12 text-base" />
+
+                          {/* Amount */}
+                          <Input
+                            type="number"
+                            placeholder="Amount"
+                            value={a.amount}
+                            onChange={e => {
+                              const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
+                              updated[i].amount = parseFloat(e.target.value) || 0;
+                              setFormData(p => ({
+                                ...p,
+                                employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated },
+                              }));
+                            }}
+                            className="h-12 text-base"
+                          />
+
+                          {/* Remove Button */}
                           <div className="flex items-end">
-                            <Button size="sm" variant="ghost" onClick={() => {
-                              const filtered = formData.employeeSalaryDTO?.allowances?.filter((_, idx) => idx !== i) || [];
-                              setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: filtered } }));
-                            }} className="h-12">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                const filtered = formData.employeeSalaryDTO?.allowances?.filter((_, idx) => idx !== i) || [];
+                                setFormData(p => ({
+                                  ...p,
+                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: filtered },
+                                }));
+                              }}
+                              className="h-12"
+                            >
                               <Trash2 className="h-5 w-5 text-red-600" />
                             </Button>
                           </div>
                         </div>
                       ))}
-                      <Button type="button" size="sm" variant="outline" className="mt-4 h-12" onClick={() => {
-                        const newAllowance: AllowanceDTO = { allowanceId: crypto.randomUUID(), allowanceType: '', amount: 0, effectiveDate: '' };
-                        setFormData(p => ({
-                          ...p,
-                          employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: [...(p.employeeSalaryDTO?.allowances || []), newAllowance] },
-                        }));
-                      }}>
+
+                      {/* Add Allowance */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-4 h-12"
+                        onClick={() => {
+                          const newAllowance: AllowanceDTO = {
+                            allowanceId: null,
+                            allowanceType: "",
+                            amount: 0,
+                          };
+                          setFormData(p => ({
+                            ...p,
+                            employeeSalaryDTO: {
+                              ...p.employeeSalaryDTO!,
+                              allowances: [...(p.employeeSalaryDTO?.allowances || []), newAllowance],
+                            },
+                          }));
+                        }}
+                      >
                         <Plus className="h-5 w-5 mr-2" /> Add Allowance
                       </Button>
                     </div>
                   </div>
+
+                  {/* Deductions */}
                   {/* Deductions */}
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">Deductions</Label>
+
                     <div className="space-y-4">
                       {formData.employeeSalaryDTO?.deductions?.map((d, i) => (
-                        <div key={d.deductionId} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200">
+                        <div
+                          key={d.deductionId ?? `temp-${i}`}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200"
+                        >
+                          {/* Deduction Type */}
                           <div className="space-y-2">
                             <Input
                               placeholder="Type (e.g., PF)"
@@ -1241,45 +1349,82 @@ const AddEmployeePage = () => {
                               onChange={e => {
                                 const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
                                 updated[i].deductionType = e.target.value;
-                                setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated } }));
+                                setFormData(p => ({
+                                  ...p,
+                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated },
+                                }));
                                 validateField(`deduction_${i}_type`, e.target.value);
                               }}
                               maxLength={30}
                               className="h-12 text-base"
                             />
-                            {errors[`deduction_${i}_type`] && <p className="text-red-500 text-xs">{errors[`deduction_${i}_type`]}</p>}
+                            {errors[`deduction_${i}_type`] && (
+                              <p className="text-red-500 text-xs">{errors[`deduction_${i}_type`]}</p>
+                            )}
                           </div>
-                          <Input type="number" placeholder="Amount" value={d.amount} onChange={e => {
-                            const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
-                            updated[i].amount = parseFloat(e.target.value) || 0;
-                            setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated } }));
-                          }} className="h-12 text-base" />
-                          <Input type="date" value={d.effectiveDate} onChange={e => {
-                            const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
-                            updated[i].effectiveDate = e.target.value;
-                            setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated } }));
-                          }} className="h-12 text-base" />
+
+                          {/* Amount */}
+                          <Input
+                            type="number"
+                            placeholder="Amount"
+                            value={d.amount}
+                            onChange={e => {
+                              const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
+                              updated[i].amount = parseFloat(e.target.value) || 0;
+                              setFormData(p => ({
+                                ...p,
+                                employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated },
+                              }));
+                            }}
+                            className="h-12 text-base"
+                          />
+
+                          {/* Remove */}
                           <div className="flex items-end">
-                            <Button size="sm" variant="ghost" onClick={() => {
-                              const filtered = formData.employeeSalaryDTO?.deductions?.filter((_, idx) => idx !== i) || [];
-                              setFormData(p => ({ ...p, employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: filtered } }));
-                            }} className="h-12">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                const filtered = formData.employeeSalaryDTO?.deductions?.filter((_, idx) => idx !== i) || [];
+                                setFormData(p => ({
+                                  ...p,
+                                  employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: filtered },
+                                }));
+                              }}
+                              className="h-12"
+                            >
                               <Trash2 className="h-5 w-5 text-red-600" />
                             </Button>
                           </div>
                         </div>
                       ))}
-                      <Button type="button" size="sm" variant="outline" className="mt-4 h-12" onClick={() => {
-                        const newDeduction: DeductionDTO = { deductionId: crypto.randomUUID(), deductionType: '', amount: 0, effectiveDate: '' };
-                        setFormData(p => ({
-                          ...p,
-                          employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: [...(p.employeeSalaryDTO?.deductions || []), newDeduction] },
-                        }));
-                      }}>
+
+                      {/* Add Deduction */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-4 h-12"
+                        onClick={() => {
+                          const newDeduction: DeductionDTO = {
+                            deductionId: null,
+                            deductionType: "",
+                            amount: 0,
+                          };
+                          setFormData(p => ({
+                            ...p,
+                            employeeSalaryDTO: {
+                              ...p.employeeSalaryDTO!,
+                              deductions: [...(p.employeeSalaryDTO?.deductions || []), newDeduction],
+                            },
+                          }));
+                        }}
+                      >
                         <Plus className="h-5 w-5 mr-2" /> Add Deduction
                       </Button>
                     </div>
                   </div>
+
                 </div>
               </CardContent>
             </Card>
@@ -1445,27 +1590,6 @@ const AddEmployeePage = () => {
               </CardHeader>
               <CardContent className="pt-8 pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {/* Offer Letter
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Offer Letter</Label>
-                    <FileUpload label="Upload PDF/DOC" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('offerLetter', f)} />
-                  </div>
-                  Contract
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Contract</Label>
-                    <FileUpload label="Upload PDF/DOC" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('contract', f)} />
-                  </div>
-                  Tax Declaration
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Tax Declaration</Label>
-                    <FileUpload label="Upload PDF/DOC" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('taxDeclarationForm', f)} />
-                  </div>
-                  Work Permit
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Work Permit</Label>
-                    <FileUpload label="Upload PDF/DOC" accept=".pdf,.doc,.docx" onFileChange={f => handleFileChange('workPermit', f)} />
-                  </div> */}
-
                   {/* Skills & Certifications */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">Skills & Certifications</Label>
@@ -1525,7 +1649,13 @@ const AddEmployeePage = () => {
                       onChange={handleChange}
                       maxLength={30}
                       placeholder="e.g., POL123456"
-                      onBlur={(e) => checkUniqueness('POLICY_NUMBER', e.target.value, 'employeeInsuranceDetailsDTO.policyNumber')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          checkUniqueness('POLICY_NUMBER', val, 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number');
+                        }
+                      }}
+                      // onBlur={(e) => checkUniqueness('POLICY_NUMBER', e.target.value, 'employeeInsuranceDetailsDTO.policyNumber')}
                       className="h-12 text-base border-gray-300 focus:border-amber-500 focus:ring-amber-500"
                     />
                     {errors['employeeInsuranceDetailsDTO.policyNumber'] && (
@@ -1607,7 +1737,13 @@ const AddEmployeePage = () => {
                       name="employeeInsuranceDetailsDTO.nomineeContact"
                       value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ''}
                       maxLength={10}
-                      onBlur={(e) => checkUniqueness('CONTACT_NUMBER', e.target.value, 'employeeInsuranceDetailsDTO.nomineeContact')}
+                      type="tel"
+                      // onBlur={(e) => {
+                      //   const val = e.target.value.trim();
+                      //   if (val && val.length === 10) {
+                      //     checkUniqueness('CONTACT_NUMBER', val, 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_contact');
+                      //   }
+                      // }}
                       onChange={handleChange}
                       placeholder="9876543210"
                       className="h-12 text-base border-gray-300 focus:border-amber-500 focus:ring-amber-500"
@@ -1618,15 +1754,33 @@ const AddEmployeePage = () => {
                   </div>
                   {/* Group Insurance Checkbox */}
                   <div className="flex items-center space-x-3 h-12 mt-6 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                    <Checkbox
+                    {/* <Checkbox
                       id="groupInsurance"
-                      checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
+                      // checked={formData.employeeInsuranceDetailsDTO?.groupInsurance }
+                      checked={
+                        formData.employeeInsuranceDetailsDTO?.groupInsurance === null
+                          ? undefined
+                          : formData.employeeInsuranceDetailsDTO?.groupInsurance
+                      }
                       onCheckedChange={(v) =>
                         handleChange({
                           target: { name: 'employeeInsuranceDetailsDTO.groupInsurance', checked: v },
                         } as any)
                       }
+                    /> */}
+                    <Checkbox
+                      id="groupInsurance"
+                      checked={formData.employeeInsuranceDetailsDTO?.groupInsurance === true}
+                      onCheckedChange={(v) =>
+                        handleChange({
+                          target: {
+                            name: "employeeInsuranceDetailsDTO.groupInsurance",
+                            value: v === true ? true : null   // ✅ NEVER undefined
+                          },
+                        } as any)
+                      }
                     />
+
                     <Label htmlFor="groupInsurance" className="text-base font-medium cursor-pointer">
                       Group Insurance
                     </Label>
@@ -1651,8 +1805,12 @@ const AddEmployeePage = () => {
                       name="employeeStatutoryDetailsDTO.passportNumber"
                       value={formData.employeeStatutoryDetailsDTO?.passportNumber || ''}
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('PASSPORT_NUMBER', e.target.value, 'employeeStatutoryDetailsDTO.passportNumber')}
-                      maxLength={30}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          checkUniqueness('PASSPORT_NUMBER', val, 'employeeStatutoryDetailsDTO.passportNumber', 'passport_number');
+                        }
+                      }} maxLength={30}
                       placeholder="e.g., A1234567"
                       className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500 uppercase"
                     />
@@ -1667,8 +1825,12 @@ const AddEmployeePage = () => {
                       name="employeeStatutoryDetailsDTO.pfUanNumber"
                       value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ''}
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('PF_UAN_NUMBER', e.target.value, 'employeeStatutoryDetailsDTO.pfUanNumber')}
-                      maxLength={30}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          checkUniqueness('PF_UAN_NUMBER', val, 'employeeStatutoryDetailsDTO.pfUanNumber', 'pf_uan_number');
+                        }
+                      }} maxLength={30}
                       placeholder="e.g., 123456789012"
                       className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"
                     />
@@ -1698,7 +1860,12 @@ const AddEmployeePage = () => {
                       name="employeeStatutoryDetailsDTO.esiNumber"
                       value={formData.employeeStatutoryDetailsDTO?.esiNumber || ''}
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('ESI_NUMBER', e.target.value, 'employeeStatutoryDetailsDTO.esiNumber')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          checkUniqueness('ESI_NUMBER', val, 'employeeStatutoryDetailsDTO.esiNumber', 'esi_number');
+                        }
+                      }}
                       maxLength={30}
                       placeholder="e.g., 1234567890"
                       className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"
@@ -1714,7 +1881,12 @@ const AddEmployeePage = () => {
                       name="employeeStatutoryDetailsDTO.ssnNumber"
                       value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ''}
                       onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('SSN_NUMBER', e.target.value, 'employeeStatutoryDetailsDTO.ssnNumber')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          checkUniqueness('SSN_NUMBER', val, 'employeeStatutoryDetailsDTO.ssnNumber', 'ssn_number');
+                        }
+                      }}
                       maxLength={30}
                       placeholder="e.g., 123-45-6789"
                       className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"

@@ -1,6 +1,16 @@
 // lib/api/validationService.ts
 import api from "./axios";
 
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
 export type UniqueField =
   | "COMPANY_NAME"
   | "CONTACT_NUMBER"
@@ -16,59 +26,57 @@ export type UniqueField =
   | "ESI_NUMBER"
   | "SSN_NUMBER"
   | "POLICY_NUMBER"
-  | "SERIAL_NUMBER";
+  | "SERIAL_NUMBER"
+  |"REGISTRATION_NUMBER"
+  |"CIN_NUMBER";
 
 export const validationService = {
   async validateField({
     field,
     value,
     mode,
-    currentRecordId,
+    excludeId,
     fieldColumn,
   }: {
     field: UniqueField;
     value: string;
     mode: "create" | "edit";
-    currentRecordId?: string;
+    excludeId?: string;
     fieldColumn?: string;
-  }): Promise<{ exists: boolean; message: string }> {
+  }): Promise<{ exists: boolean; message?: string }> {
     try {
-      let endpoint = "";
-      const params: Record<string, string> = { field, value };
+      const endpoint =
+        mode === "create"
+          ? "/validation/create/mode"
+          : "/validation/edit/mode";
 
-      if (mode === "create") {
-        endpoint = "/validation/create/mode";
-      }
+      const params: Record<string, string> = {
+        field,
+        value: value.trim(),
+      };
 
+      // Only send fieldColumn & excludeId in edit mode
       if (mode === "edit") {
-        endpoint = "/validation/edit/mode";
-        params.excludeId = currentRecordId ?? "";
-        if (fieldColumn) params.fieldColumn = fieldColumn;
+        if (fieldColumn) {
+          params.fieldColumn = fieldColumn; 
+        }
+        if (excludeId) {
+          params.excludeId = excludeId;
+        }
       }
 
-      const res = await api.get(endpoint, { params });
+      const response = await api.get(endpoint, { params });
 
-      const backendResult: boolean = res.data; // true/false
-
-      // -----------------------
-      // ⭐ FIXED INTERPRETATION
-      // -----------------------
-      const exists = backendResult; 
-      // backend true  → exists:true
-      // backend false → exists:false
+      const exists = response.data === true;
 
       return {
         exists,
-        message: exists ? "Already exists" : "Available",
+        message: exists
+          ? "Already exists in the system"
+          : "Available",
       };
     } catch (error: any) {
-      console.warn("Validation Error:", error.message);
-
-      return {
-        exists: false,
-        message: "Validation unavailable. Try again.",
-      };
+      throw new Error(getBackendError(error));
     }
   },
 };
-

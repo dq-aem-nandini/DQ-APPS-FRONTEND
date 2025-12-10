@@ -29,11 +29,31 @@ const SetupPassword: React.FC = () => {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    // Inline validation errors
+    const [newPasswordError, setNewPasswordError] = useState('');
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
     const { state, updateUser } = useAuth();
     const router = useRouter();
     const user = state.user as LoggedInUser | null;
 
     const passwordService = new PasswordService();
+
+    // ----------------------------------------------------
+    // PASSWORD VALIDATION HELPER
+    // ----------------------------------------------------
+    const validateNewPassword = (pwd: string, currentPwd: string): string => {
+        if (pwd === currentPwd && currentPwd !== '') {
+            return 'New password cannot be the same as your current password.';
+        }
+        if (pwd.length < 8) return 'Password must be at least 8 characters long.';
+        if (!/[A-Z]/.test(pwd)) return 'Password must contain at least one uppercase letter.';
+        if (!/[a-z]/.test(pwd)) return 'Password must contain at least one lowercase letter.';
+        if (!/[0-9]/.test(pwd)) return 'Password must contain at least one digit.';
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) return 'Password must contain at least one special character.';
+        if (/\s/.test(pwd)) return 'Password cannot contain spaces.';
+        return '';
+    };
 
     // ----------------------------------------------------
     // AUTO-FILL OLD PASSWORD (from login tempPassword)
@@ -47,6 +67,16 @@ const SetupPassword: React.FC = () => {
             }
         }
     }, [user]);
+
+    // ----------------------------------------------------
+    // RE-VALIDATE NEW PASSWORD WHEN CURRENT CHANGES
+    // ----------------------------------------------------
+    useEffect(() => {
+        if (form.newPassword) {
+            const error = validateNewPassword(form.newPassword, form.currentPassword);
+            setNewPasswordError(error);
+        }
+    }, [form.currentPassword, form.newPassword]);
 
     // ----------------------------------------------------
     // GUARD: If NOT first login → redirect to correct dashboard
@@ -72,6 +102,28 @@ const SetupPassword: React.FC = () => {
     }
 
     // ----------------------------------------------------
+    // ON CHANGE HANDLERS FOR INLINE VALIDATION
+    // ----------------------------------------------------
+    const handleNewPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newPwd = e.target.value;
+        setForm({ ...form, newPassword: newPwd });
+        const error = validateNewPassword(newPwd, form.currentPassword);
+        setNewPasswordError(error);
+        // Clear confirm error if new password changes
+        if (confirmPasswordError) setConfirmPasswordError('');
+    };
+
+    const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const confirmPwd = e.target.value;
+        setForm({ ...form, confirmNewPassword: confirmPwd });
+        if (confirmPwd !== form.newPassword) {
+            setConfirmPasswordError("Passwords do not match.");
+        } else {
+            setConfirmPasswordError('');
+        }
+    };
+
+    // ----------------------------------------------------
     // SUBMIT HANDLER
     // ----------------------------------------------------
     const handleSubmit = async (e: React.FormEvent) => {
@@ -79,13 +131,15 @@ const SetupPassword: React.FC = () => {
         setError('');
         setSuccess('');
 
-        if (form.newPassword !== form.confirmNewPassword) {
-            setError("New password and confirm password do not match.");
+        // Inline errors already handle most cases, but double-check
+        const newPwdError = validateNewPassword(form.newPassword, form.currentPassword);
+        if (newPwdError) {
+            setNewPasswordError(newPwdError);
             return;
         }
 
-        if (form.newPassword.length < 6) {
-            setError("Password must be at least 6 characters long.");
+        if (form.newPassword !== form.confirmNewPassword) {
+            setConfirmPasswordError("Passwords do not match.");
             return;
         }
 
@@ -156,6 +210,15 @@ const SetupPassword: React.FC = () => {
 
                 <CardContent className="p-6">
                     <form onSubmit={handleSubmit} className="space-y-4">
+                         {/* Hidden username for accessibility + browser autofill */}
+    <input
+        type="text"
+        name="username"
+        autoComplete="username"
+        value={user?.companyEmail|| ""}
+        readOnly
+        hidden
+    />
                         
                         {/* CURRENT PASSWORD */}
                         <div className="space-y-2">
@@ -169,6 +232,7 @@ const SetupPassword: React.FC = () => {
                                         setForm({ ...form, currentPassword: e.target.value })
                                     }
                                     required
+                                    autoComplete="current-password"
                                     disabled={isLoading}
                                 />
                                 <Button
@@ -191,10 +255,10 @@ const SetupPassword: React.FC = () => {
                                     name="newPassword"
                                     type={showNewPassword ? "text" : "password"}
                                     value={form.newPassword}
-                                    onChange={(e) =>
-                                        setForm({ ...form, newPassword: e.target.value })
-                                    }
+                                    onChange={handleNewPasswordChange}
+                                    autoComplete="new-password"
                                     required
+                                    disabled={isLoading}
                                 />
                                 <Button
                                     type="button"
@@ -203,9 +267,12 @@ const SetupPassword: React.FC = () => {
                                     className="absolute right-0 top-0 h-full"
                                     onClick={() => togglePasswordVisibility("new")}
                                 >
-                                    {showNewPassword ? <EyeOff /> : <Eye />}
+                                    {showNewPassword ? <EyeOff  /> : <Eye/>}
                                 </Button>
                             </div>
+                            {newPasswordError && (
+                                <p className="text-red-500 text-sm mt-1">{newPasswordError}</p>
+                            )}
                         </div>
 
                         {/* CONFIRM PASSWORD */}
@@ -216,10 +283,10 @@ const SetupPassword: React.FC = () => {
                                     name="confirmNewPassword"
                                     type={showConfirmPassword ? "text" : "password"}
                                     value={form.confirmNewPassword}
-                                    onChange={(e) =>
-                                        setForm({ ...form, confirmNewPassword: e.target.value })
-                                    }
+                                    onChange={handleConfirmPasswordChange}
                                     required
+                                     autoComplete="new-password"
+                                    disabled={isLoading}
                                 />
                                 <Button
                                     type="button"
@@ -231,6 +298,9 @@ const SetupPassword: React.FC = () => {
                                     {showConfirmPassword ? <EyeOff /> : <Eye />}
                                 </Button>
                             </div>
+                            {confirmPasswordError && (
+                                <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>
+                            )}
                         </div>
 
                         {error && (
@@ -250,7 +320,7 @@ const SetupPassword: React.FC = () => {
                         <Button
                             type="submit"
                             className="w-full bg-indigo-600 text-white py-3 rounded-lg"
-                            disabled={isLoading}
+                            disabled={isLoading || !!newPasswordError || !!confirmPasswordError}
                         >
                             {isLoading ? "Updating..." : "Set New Password"}
                         </Button>
