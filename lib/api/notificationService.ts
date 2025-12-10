@@ -2,7 +2,16 @@
 import { AxiosError, AxiosResponse } from "axios";
 import api from "./axios";
 import { NotificationDTO, WebResponseDTOListNotificationDTO } from "./types";
-
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
 export const notificationService = {
   /**
    * Get all notifications for the logged-in user
@@ -12,10 +21,8 @@ export const notificationService = {
       const response: AxiosResponse<WebResponseDTOListNotificationDTO> =
         await api.get("/notification/getAllNotifications");
       return response.data;
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error("Error fetching notifications:", err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -27,10 +34,8 @@ export const notificationService = {
     const params = new URLSearchParams();
     notificationIds.forEach((id) => params.append("notificationIds", id));
     await api.patch(`/notification/read?${params.toString()}`);
-  } catch (error) {
-    const err = error as AxiosError;
-    console.error("Error marking notifications as read:", err.message);
-    throw err;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
   }
 },
 
@@ -43,10 +48,8 @@ export const notificationService = {
       await api.delete("/notification/clear", {
         data: { notificationIds },
       });
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error("Error clearing notifications:", err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -56,10 +59,8 @@ export const notificationService = {
   async clearAll(): Promise<void> {
     try {
       await api.delete("/notification/clearAll");
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error("Error clearing all notifications:", err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 };

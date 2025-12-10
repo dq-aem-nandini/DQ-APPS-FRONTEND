@@ -24,6 +24,16 @@ import {
   WebResponseDTOLeaveStatusCount,
 } from './types';
 import axios, { AxiosResponse, AxiosError } from 'axios';
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
 
 export const leaveService = {
   /**
@@ -56,9 +66,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to apply for leave');
-    } catch (error) {
-      console.error('❌ Error applying for leave:', error);
-      throw new Error(`Failed to apply for leave: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -92,9 +101,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to update leave');
-    } catch (error) {
-      console.error('❌ Error updating leave:', error);
-      throw new Error(`Failed to update leave: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -119,9 +127,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to update leave status');
-    } catch (error) {
-      console.error('❌ Error updating leave status:', error);
-      throw new Error(`Failed to update leave status: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -145,9 +152,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to withdraw leave');
-    } catch (error) {
-      console.error('❌ Error withdrawing leave:', error);
-      throw new Error(`Failed to withdraw leave: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -167,9 +173,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to fetch leave');
-    } catch (error) {
-      console.error('❌ Error fetching leave by ID:', error);
-      throw new Error(`Failed to fetch leave by ID: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -190,9 +195,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to calculate working days');
-    } catch (error) {
-      console.error('❌ Error calculating working days:', error);
-      throw new Error(`From date cannot be after end date.`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -228,11 +232,7 @@ export const leaveService = {
 
       throw new Error(response.data.message || 'Failed to check leave availability');
     } catch (error: any) {
-      console.error('❌ Error checking leave availability:', error);
-      if (axios.isAxiosError(error) && error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      }
-      throw new Error(`Failed to check leave availability: ${error.message || error}`);
+      throw new Error(getBackendError(error));
     }
   },
   /**
@@ -278,39 +278,8 @@ export const leaveService = {
         }
 
         throw new Error(response.data.message || 'Failed to fetch leave summary');
-      } catch (error: unknown) {
-        retryCount++;
-        console.error(`❌ Error fetching leave summary (Attempt ${retryCount}/${maxRetries}):`, error);
-        if (retryCount > maxRetries) {
-          let errorMessage = 'Failed to fetch leave summary';
-          let errorStatus = 500;
-          if (error instanceof AxiosError) {
-            errorMessage = error.response?.data?.message || error.message || 'Failed to fetch leave summary';
-            errorStatus = error.response?.status || 500;
-          }
-          return {
-            flag: false,
-            message: errorMessage,
-            status: errorStatus,
-            response: {
-              content: [],
-              totalPages: 0,
-              totalElements: 0,
-              first: true,
-              last: true,
-              numberOfElements: 0,
-              pageable: { paged: true, unpaged: false, pageNumber: 0, pageSize: 10, offset: 0, sort: { sorted: true, unsorted: false, empty: false } },
-              size: 0,
-              number: 0,
-              sort: { sorted: true, unsorted: false, empty: false },
-              empty: true,
-            },
-            totalRecords: 0,
-            otherInfo: {},
-          };
-        }
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
+      } catch (error: any) {
+        throw new Error(getBackendError(error));
       }
     }
     return {
@@ -353,14 +322,8 @@ export const leaveService = {
         }
 
         throw new Error(response.data.message || 'Failed to fetch pending leaves');
-      } catch (error) {
-        retryCount++;
-        console.error(`❌ Error fetching pending leaves (Attempt ${retryCount}/${maxRetries}):`, error);
-        if (retryCount > maxRetries) {
-          return [];
-        }
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
+      } catch (error: any) {
+        throw new Error(getBackendError(error));
       }
     }
     return [];
@@ -379,8 +342,7 @@ export const leaveService = {
 
       throw new Error(response.data.message || "Failed to fetch leave status count");
     } catch (error: any) {
-      console.error("❌ Error fetching leave status count:", error);
-      throw new Error(error.response?.data?.message || "Failed to fetch leave status count");
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -417,9 +379,8 @@ export const leaveService = {
       }
 
       throw new Error(response.data.message || 'Failed to fetch approved leaves');
-    } catch (error) {
-      console.error('❌ Error fetching approved leaves:', error);
-      throw new Error(`Failed to fetch approved leaves: ${error}`);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   }
 

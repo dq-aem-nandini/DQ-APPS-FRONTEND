@@ -323,7 +323,7 @@ const DashboardContent: React.FC = () => {
                 ))}
                 <div className="text-center mt-6">
                   <button
-                    onClick={() => router.push('/manager/holiday')}
+                    onClick={() => router.push('/dashboard/holiday')}
                     className="text-indigo-600 hover:text-indigo-800 font-medium text-sm hover:underline"
                   >
                     View Full Holiday Calendar

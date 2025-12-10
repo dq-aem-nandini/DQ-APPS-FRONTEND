@@ -25,7 +25,40 @@ export type Designation =
   | "HR"
   | "FINANCE"
   | "OPERATIONS";
-
+  export type IndustryType =
+  | "IT"
+  | "FINANCE"
+  | "HEALTHCARE"
+  | "EDUCATION"
+  | "ECOMMERCE"
+  | "MANUFACTURING"
+  | "CONSULTING"
+  | "REAL_ESTATE"
+  | "HOSPITALITY"
+  | "TRANSPORT"
+  | "ENERGY"
+  | "AGRICULTURE"
+  | "PHARMACEUTICAL"
+  | "MEDIA"
+  | "OTHER";
+  export const INDUSTRY_TYPE_LABELS: Record<IndustryType, string> = {
+    IT: "Information Technology",
+    FINANCE: "Finance",
+    HEALTHCARE: "Healthcare",
+    EDUCATION: "Education",
+    ECOMMERCE: "E-Commerce",
+    MANUFACTURING: "Manufacturing",
+    CONSULTING: "Consulting",
+    REAL_ESTATE: "Real Estate",
+    HOSPITALITY: "Hospitality",
+    TRANSPORT: "Transport & Logistics",
+    ENERGY: "Energy & Utilities",
+    AGRICULTURE: "Agriculture",
+    PHARMACEUTICAL: "Pharmaceuticals",
+    MEDIA: "Media & Advertising",
+    OTHER: "Other",
+  };
+  
 export type LeaveCategoryType = "SICK" | "CASUAL" | "PLANNED" | "UNPLANNED";
 export type FinancialType = "PAID" | "UNPAID";
 export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
@@ -51,7 +84,28 @@ export const WORKING_MODEL_OPTIONS = [
   "NA",
 ] as const;
 export type PayClass = "A1" | "A2" | "B1" | "B2" | "CONTRACT" | "INTERN" | "NA";
+export type Domain =
+  | "IT_SERVICES"
+  | "FINANCE"
+  | "HEALTHCARE"
+  | "EDUCATION"
+  | "ECOMMERCE"
+  | "CONSULTING"
+  | "MANUFACTURING"
+  | "REAL_ESTATE"
+  | "MEDIA"
+  | "TELECOM"
+  | "OTHER";
 
+  export type CurrencyCode =
+  | "INR"
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "AUD"
+  | "CAD"
+  | "SGD"
+  | "JPY";
 
 export type InvoiceStatus =
   | 'DRAFT'
@@ -194,6 +248,45 @@ export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
   "POST_GRADUATION_CERTIFICATE",
   "OTHER",
 ] as const;
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  OFFER_LETTER: "Offer Letter",
+  CONTRACT: "Employment Contract",
+  TAX_DECLARATION_FORM: "Tax Declaration Form",
+  WORK_PERMIT: "Work Permit / Visa",
+  PAN_CARD: "PAN Card",
+  AADHAR_CARD: "Aadhaar Card",
+  BANK_PASSBOOK: "Bank Passbook / Cancelled Cheque",
+  TENTH_CERTIFICATE: "10th Marksheet",
+  TWELFTH_CERTIFICATE: "12th Marksheet",
+  DEGREE_CERTIFICATE: "Degree Certificate",
+  POST_GRADUATION_CERTIFICATE: "Post Graduation Certificate",
+  OTHER: "Other Document",
+} as const;
+
+export const DOMAIN_LABELS: Record<Domain, string> = {
+  IT_SERVICES: "IT Services",
+  FINANCE: "Finance",
+  HEALTHCARE: "Healthcare",
+  EDUCATION: "Education",
+  ECOMMERCE: "E-Commerce",
+  CONSULTING: "Consulting",
+  MANUFACTURING: "Manufacturing",
+  REAL_ESTATE: "Real Estate",
+  MEDIA: "Media & Entertainment",
+  TELECOM: "Telecommunication",
+  OTHER: "Other",
+} as const;
+
+export const CURRENCY_CODE_LABELS: Record<CurrencyCode, string> = {
+  INR: "Indian Rupee (₹)",
+  USD: "US Dollar ($)",
+  EUR: "Euro (€)",
+  GBP: "British Pound (£)",
+  AUD: "Australian Dollar (A$)",
+  CAD: "Canadian Dollar (C$)",
+  SGD: "Singapore Dollar (S$)",
+  JPY: "Japanese Yen (¥)",
+} as const;
 
 export interface EmployeeDepartmentDTO {
   employeeId: string;
@@ -213,7 +306,7 @@ export interface WebResponseDTOEmployeeDepartmentList {
 
 // Core Models
 export interface AddressModel {
-  addressId?: string; // uuid
+  addressId?: string| null;   // uuid
   houseNo?: string;
   streetName?: string;
   city?: string;
@@ -284,19 +377,6 @@ export interface LoginResponseDTO {
 
   firstLogin: boolean;
 }
-
-// export interface LoginResponseInner {
-//   loginResponseDTO: LoginResponseDTO;
-//   userId: string; // uuid
-//   userName: string;
-//   companyEmail: string;
-//   profileName:string;
-//   roleName:Role;
-//   entityId:string;
-//   token:string;
-//   createdAt: string; // date-time
-//   updatedAt: string; // date-time
-// }
 export interface LoginResponseInner {
   userId: string;
   userName: string;
@@ -411,7 +491,7 @@ export interface WebResponseDTOLeaveStatusCount {
 
 // Additional Schemas
 export interface EmployeeDocumentDTO {
-  documentId: string; // uuid
+  documentId: string | null; // uuid
   docType: DocumentType;
   file: string;
   uploadedAt: string; // date-time
@@ -419,24 +499,22 @@ export interface EmployeeDocumentDTO {
 }
 
 export interface AllowanceDTO {
-  allowanceId: string; // uuid
+  allowanceId: string | null; // uuid
   allowanceType: string;
   amount: number;
-  effectiveDate: string; // date
 }
 
 export interface DeductionDTO {
-  deductionId: string; // uuid
+  deductionId: string | null; // uuid
   deductionType: string;
   amount: number;
-  effectiveDate: string; // date
 }
 
 export interface EmployeeAdditionalDetailsDTO {
-  offerLetterUrl?: string;
-  contractUrl?: string;
-  taxDeclarationFormUrl?: string;
-  workPermitUrl?: string;
+  // offerLetterUrl?: string;
+  // contractUrl?: string;
+  // taxDeclarationFormUrl?: string;
+  // workPermitUrl?: string;
   backgroundCheckStatus?: string;
   remarks?: string;
 }
@@ -463,7 +541,7 @@ export interface EmployeeEmploymentDetailsDTO {
 }
 
 export interface EmployeeEquipmentDTO {
-  equipmentId: string; // uuid
+  equipmentId: string | null; // uuid
   equipmentType: string; // e.g., "LAPTOP", "MONITOR"
   serialNumber: string;
   issuedDate?: string; // date
@@ -632,14 +710,14 @@ export interface ClientModel {
   clientTaxDetails: ClientTaxDetail[]; // Array of tax detail objects
 }
 export interface ClientTaxDetail {
-  taxId: string;         // UUID
+  taxId: string | null;       // UUID
   taxName: string;
   taxPercentage: number;
-  createdAt: string;     // ISO Date-Time format
-  updatedAt: string;     // ISO Date-Time format
+  // createdAt: string;     // ISO Date-Time format
+  // updatedAt: string;     // ISO Date-Time format
 }
 export interface ClientPocModel {
-  pocId: string; // uuid
+  pocId: string| null;  // uuid
   name: string;
   email: string;
   contactNumber: string;
@@ -752,6 +830,7 @@ export interface EmployeeDTO {
   availableLeaves: number;
   employmentType: EmploymentType;
   companyId: string;
+  bankAccountId: string;
   accountNumber: string;
   accountHolderName: string;
   bankName: string;
@@ -1003,7 +1082,40 @@ export interface WebResponseDTOString {
   totalRecords: number; // int64
   otherInfo: Record<string, any>;
 }
+export interface AdminDTO {
+  adminId: string;
+  fullName: string;
+  email: string;
+  contactNumber: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface AdminUpdatePayload {
+  fullName?: string;
+  email?: string;
+  contactNumber?: string;
+}
+export type TokenInfo = {
+  token: string;
+  expiry: string; // ISO date-time string
+};
+
+export type DeviceSessionDTO = {
+  deviceId: string;                    // UUID as string (e.g., "a1b2c3d4-...")
+  deviceName: string;                  // e.g., "Chrome-Win" or "Unknown Device"
+  ipAddress: string;                   // e.g., "192.168.1.1" or "Unknown IP"
+  userAgent: string;                   // full UA string
+  loginTime: string;                   // ISO string: "2025-04-05T10:30:45"
+  logoutTime: string | null;           // null if active
+  status: "Active" | "De-Activate";    // exactly as in your DTO
+  token: TokenInfo | null;             // currently null from backend
+};
+
+export type MySessionsResponseDTO = {
+  activeSessions: DeviceSessionDTO[];
+  loggedOutSessions: DeviceSessionDTO[];
+};
 export interface WebResponseDTOVoid {
   flag: boolean;
   message: string;
@@ -1012,6 +1124,83 @@ export interface WebResponseDTOVoid {
   totalRecords: number; // int64
   otherInfo: any;
 }
+
+export interface OrganizationRequestDTO {
+  organizationName: string;
+  organizationLegalName: string;
+  registrationNumber: string;
+
+  gstNumber: string;
+  panNumber: string;
+  cinNumber: string;
+
+  website: string;
+  email: string;
+  contactNumber: string;
+
+  logo: File | null; // binary
+
+  industryType: IndustryType;
+
+  domain:Domain;
+
+
+  establishedDate: string; // yyyy-mm-dd
+
+  timezone: string;
+
+  currencyCode:CurrencyCode;
+
+  accountNumber: string;
+  accountHolderName: string;
+  bankName: string;
+  ifscCode: string;
+  branchName: string;
+
+  digitalSignature: File | null; // binary
+
+  addresses: AddressModel[];
+}
+
+
+export interface OrganizationResponseDTO {
+  organizationId: string;
+  organizationName: string;
+  organizationLegalName: string;
+  registrationNumber: string;
+  gstNumber: string;
+  panNumber: string;
+  cinNumber: string;
+  website: string;
+  email: string;
+  contactNumber: string;
+  logoUrl: string;
+  industryType: IndustryType;
+  domain:Domain;
+  establishedDate: string;
+  timezone: string;
+  currencyCode:CurrencyCode;
+  accountNumber: string;
+  accountHolderName: string;
+  bankName: string;
+  ifscCode: string;
+  branchName: string;
+  digitalSignatureUrl: string;
+  addresses: AddressModel[];
+  createdAt: string;
+  updatedAt: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+export interface WebResponseDTOListOrganizationResponseDTO {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: OrganizationResponseDTO[];
+  totalRecords: number;
+  otherInfo: any;
+}
+
 
 export interface WebResponseDTOEmployeeDTO {
   flag: boolean;

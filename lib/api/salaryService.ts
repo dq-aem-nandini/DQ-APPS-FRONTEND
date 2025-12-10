@@ -3,6 +3,16 @@ import { AxiosError, AxiosResponse } from "axios";
 import api from "./axios";
 import { SalarySummaryDTO, WebResponseDTO } from "./types";
 
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
 export const salaryService = {
   /**
    * Fetch salary summary for an employee (by employeeId)
@@ -11,10 +21,8 @@ export const salaryService = {
     try {
       const response: AxiosResponse<WebResponseDTO<SalarySummaryDTO>> = await api.get(`/salary/${employeeId}`);
       return response.data;
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error("Error fetching salary summary:", err.response?.data || err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -25,10 +33,8 @@ export const salaryService = {
     try {
       const response: AxiosResponse<WebResponseDTO<SalarySummaryDTO>> = await api.get(`/salary/${employeeId}/${month}`);
       return response.data;
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error("Error fetching payslip:", err.response?.data || err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 
@@ -58,10 +64,8 @@ export const salaryService = {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error("Error downloading payslip PDF:", err.response?.data || err.message);
-      throw err;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
   },
 };

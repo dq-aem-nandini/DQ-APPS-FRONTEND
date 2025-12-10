@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminService } from '@/lib/api/adminService';
-import { validationService } from '@/lib/api/validationService';
+import { UniqueField, validationService } from '@/lib/api/validationService';
 import { v4 as uuidv4 } from 'uuid';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BackButton from '@/components/ui/BackButton';
 import Spinner from '@/components/ui/Spinner';
 import useLoading from '@/hooks/useLoading';
 import { Loader2 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 type Address = {
   addressId: string;
@@ -125,30 +126,68 @@ export default function AddClientPage() {
   };
 
   // Global uniqueness check on blur
-  const checkUniqueness = async (field: any, value: string, key: string) => {
-    if (!value || value.length < 3 || checking.has(key)) return;
+  // const checkUniqueness = async (field: any, value: string, key: string) => {
+  //   if (!value || value.length < 3 || checking.has(key)) return;
 
-    setChecking(prev => new Set(prev).add(key));
+  //   setChecking(prev => new Set(prev).add(key));
+  //   try {
+  //     const result = await validationService.validateField({
+  //       field,
+  //       value,
+  //       mode: 'create',
+  //     });
+  //     if (result.exists) {
+  //       setErrors(prev => ({ ...prev, [key]: 'Already exists in system' }));
+  //     }
+  //   } catch (e) {
+  //     console.warn('Uniqueness check failed', e);
+  //   } finally {
+  //     setChecking(prev => {
+  //       const s = new Set(prev);
+  //       s.delete(key);
+  //       return s;
+  //     });
+  //   }
+  // };
+
+  const checkUniqueness = async (
+    field: UniqueField,
+    value: string,
+    errorKey: string,
+    fieldColumn: string  // ← ADD THIS
+  ) => {
+    const val = value.trim();
+    if (!val || val.length < 3 || checking.has(errorKey)) return;
+
+    setChecking(prev => new Set(prev).add(errorKey));
+
     try {
       const result = await validationService.validateField({
         field,
-        value,
-        mode: 'create',
+        value: val,
+        mode: "create",
+        fieldColumn,  // ← SEND THIS
       });
-      if (result.exists) {
-        setErrors(prev => ({ ...prev, [key]: 'Already exists in system' }));
-      }
-    } catch (e) {
-      console.warn('Uniqueness check failed', e);
+
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (result.exists) {
+          newErrors[errorKey] = "Already exists in the system";
+        } else {
+          delete newErrors[errorKey];
+        }
+        return newErrors;
+      });
+    } catch (err) {
+      console.warn("Uniqueness check failed:", err);
     } finally {
       setChecking(prev => {
         const s = new Set(prev);
-        s.delete(key);
+        s.delete(errorKey);
         return s;
       });
     }
   };
-
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
     index?: number,
@@ -188,48 +227,48 @@ export default function AddClientPage() {
     // Trigger validation
     validateField(name, parsedValue, section && index !== undefined ? index : undefined);
   };
-// Real-time duplicate detection between main fields and POCs
-const checkDuplicateInForm = () => {
-  const mainEmail = formData.email.toLowerCase().trim();
-  const mainContact = formData.contactNumber;
+  // Real-time duplicate detection between main fields and POCs
+  const checkDuplicateInForm = () => {
+    const mainEmail = formData.email.toLowerCase().trim();
+    const mainContact = formData.contactNumber;
 
-  const newErrors: Record<string, string> = {};
+    const newErrors: Record<string, string> = {};
 
-  formData.clientPocs.forEach((poc, i) => {
-    const pocEmail = poc.email.toLowerCase().trim();
-    const pocContact = poc.contactNumber;
+    formData.clientPocs.forEach((poc, i) => {
+      const pocEmail = poc.email.toLowerCase().trim();
+      const pocContact = poc.contactNumber;
 
-    // Main email = POC email
-    if (pocEmail && pocEmail === mainEmail) {
-      newErrors[`clientPocs.${i}.email`] = 'Same as company email';
-      newErrors.email = 'Same as POC email';
-    }
-
-    // Main contact = POC contact
-    if (pocContact && pocContact === mainContact) {
-      newErrors[`clientPocs.${i}.contactNumber`] = 'Same as company contact';
-      newErrors.contactNumber = 'Same as POC contact';
-    }
-
-    // POC vs POC duplicates
-    formData.clientPocs.forEach((otherPoc, j) => {
-      if (i !== j) {
-        if (poc.email && poc.email === otherPoc.email) {
-          newErrors[`clientPocs.${i}.email`] = 'Duplicate POC email';
-        }
-        if (poc.contactNumber && poc.contactNumber === otherPoc.contactNumber) {
-          newErrors[`clientPocs.${i}.contactNumber`] = 'Duplicate POC contact';
-        }
+      // Main email = POC email
+      if (pocEmail && pocEmail === mainEmail) {
+        newErrors[`clientPocs.${i}.email`] = 'Same as company email';
+        newErrors.email = 'Same as POC email';
       }
-    });
-  });
 
-  setErrors(prev => ({ ...prev, ...newErrors }));
-};
-// Run duplicate check whenever email, contact, or POCs change
-useEffect(() => {
-  checkDuplicateInForm();
-}, [formData.email, formData.contactNumber, formData.clientPocs]);
+      // Main contact = POC contact
+      if (pocContact && pocContact === mainContact) {
+        newErrors[`clientPocs.${i}.contactNumber`] = 'Same as company contact';
+        newErrors.contactNumber = 'Same as POC contact';
+      }
+
+      // POC vs POC duplicates
+      formData.clientPocs.forEach((otherPoc, j) => {
+        if (i !== j) {
+          if (poc.email && poc.email === otherPoc.email) {
+            newErrors[`clientPocs.${i}.email`] = 'Duplicate POC email';
+          }
+          if (poc.contactNumber && poc.contactNumber === otherPoc.contactNumber) {
+            newErrors[`clientPocs.${i}.contactNumber`] = 'Duplicate POC contact';
+          }
+        }
+      });
+    });
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
+  };
+  // Run duplicate check whenever email, contact, or POCs change
+  useEffect(() => {
+    checkDuplicateInForm();
+  }, [formData.email, formData.contactNumber, formData.clientPocs]);
 
   const addItem = (section: 'addresses' | 'clientPocs' | 'clientTaxDetails') => {
     if (section === 'addresses') {
@@ -284,7 +323,7 @@ useEffect(() => {
     setSuccess('');
     setErrors({}); // Clear previous errors
     setIsSubmitting(true);
-  
+
     // ────── REQUIRED FIELDS WITH AUTO-FOCUS & SCROLL ──────
     const requiredFields = [
       { value: formData.companyName, name: 'companyName', label: 'Company Name' },
@@ -304,12 +343,12 @@ useEffect(() => {
       { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
       { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
     ];
-  
+
     const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
     if (missingField) {
       const errorMsg = `${missingField.label} is required`;
       setErrors({ [missingField.name]: errorMsg });
-  
+
       setTimeout(() => {
         const input = document.querySelector(
           `[name="${missingField.name.split('.').pop()}"]`
@@ -320,11 +359,11 @@ useEffect(() => {
           input.classList.add('error-field');
         }
       }, 100);
-  
+
       setIsSubmitting(false);
       return;
     }
-  
+
     try {
       await withLoading(async () => {
         const payload = {
@@ -335,7 +374,7 @@ useEffect(() => {
           panNumber: formData.panNumber.toUpperCase(),
           tanNumber: formData.tanNumber.toUpperCase(),
           currency: formData.currency,
-  
+
           addresses: formData.addresses.map(a => ({
             addressId: a.addressId,
             houseNo: a.houseNo?.trim() || '',
@@ -346,7 +385,7 @@ useEffect(() => {
             country: a.country.trim(),
             addressType: a.addressType,
           })),
-  
+
           clientPocs: formData.clientPocs.map(p => ({
             pocId: uuidv4(),
             name: p.name.trim(),
@@ -354,7 +393,7 @@ useEffect(() => {
             contactNumber: p.contactNumber,
             designation: p.designation?.trim() || '',
           })),
-  
+
           clientTaxDetails: formData.clientTaxDetails.map(t => ({
             taxId: t.taxId || uuidv4(),
             taxName: t.taxName?.trim() || '',
@@ -363,48 +402,57 @@ useEffect(() => {
             updatedAt: new Date().toISOString(),
           })),
         };
-  
+
         await adminService.addClient(payload);
-        setSuccess('Client added successfully!');
-        setTimeout(() => router.push('/admin-dashboard/clients/list'), 1500);
+
+        // SUCCESS SWEETALERT — FROM BACKEND (IF AVAILABLE) OR DEFAULT
+        await Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Client added successfully!',
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+          background: '#10b981',
+          color: 'white',
+          iconColor: 'white',
+        });
+
+        router.push('/admin-dashboard/clients/list');
       });
     } catch (err: any) {
-      let fieldErrors: Record<string, string> = {};
-  
+      let backendMessage = 'Failed to add client';
+
       if (err.response?.data) {
         const data = err.response.data;
-  
-        if (data.fieldErrors) {
-          fieldErrors = Object.fromEntries(
-            Object.entries(data.fieldErrors).map(([field, msg]) => [
-              field,
-              Array.isArray(msg) ? msg[0] : msg
-            ])
-          );
-        } else if (data.errors && typeof data.errors === 'object') {
-          fieldErrors = Object.fromEntries(
-            Object.entries(data.errors).map(([field, msg]) => [
-              field.toLowerCase(),
-              Array.isArray(msg) ? msg[0] : msg
-            ])
-          );
+
+        if (data.message) {
+          backendMessage = data.message;
         }
+        else if (data.errors && typeof data.errors === 'object') {
+          const firstError = Object.values(data.errors)[0];
+          backendMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
+        }
+        else if (data.fieldErrors) {
+          const firstError = Object.values(data.fieldErrors)[0];
+          backendMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
+        }
+      } else if (err.message) {
+        backendMessage = err.message;
       }
-  
-      if (Object.keys(fieldErrors).length > 0) {
-        setErrors(fieldErrors);
-        setTimeout(() => {
-          const firstField = Object.keys(fieldErrors)[0];
-          const input = document.querySelector(`[name="${firstField.split('.').pop()}"]`) as HTMLElement;
-          if (input) {
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            input.focus();
-            input.classList.add('error-field');
-          }
-        }, 100);
-      } else {
-        setError(err.message || 'Failed to add client');
-      }
+
+      // ERROR SWEETALERT — SHOWS EXACT BACKEND MESSAGE
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: backendMessage,
+        confirmButtonColor: '#ef4444',
+        background: '#fef2f2',
+        customClass: {
+          popup: 'animate__animated animate__shakeX',
+        },
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -414,55 +462,134 @@ useEffect(() => {
   //   e.preventDefault();
   //   setError('');
   //   setSuccess('');
+  //   setErrors({}); // Clear previous errors
   //   setIsSubmitting(true);
 
-  //   await withLoading(async () => {
-  //     const payload = {
-  //       companyName: formData.companyName,
-  //       contactNumber: formData.contactNumber,
-  //       email: formData.email,
-  //       gst: formData.gst,
-  //       panNumber: formData.panNumber,
-  //       tanNumber: formData.tanNumber,
-  //       currency: formData.currency,
+  //   // ────── REQUIRED FIELDS WITH AUTO-FOCUS & SCROLL ──────
+  //   const requiredFields = [
+  //     { value: formData.companyName, name: 'companyName', label: 'Company Name' },
+  //     { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
+  //     { value: formData.email, name: 'email', label: 'Email' },
+  //     { value: formData.gst, name: 'gst', label: 'GST' },
+  //     { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
+  //     { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
+  //     { value: formData.currency, name: 'currency', label: 'Currency' },
+  //     // Address (first one only)
+  //     { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
+  //     { value: formData.addresses[0]?.state, name: 'addresses.0.state', label: 'State (Address)' },
+  //     { value: formData.addresses[0]?.pincode, name: 'addresses.0.pincode', label: 'Pincode (Address)' },
+  //     { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
+  //     // POC (first one only)
+  //     { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
+  //     { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
+  //     { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
+  //   ];
 
-  //       addresses: formData.addresses.map(a => ({
-  //         addressId: a.addressId,
-  //         houseNo: a.houseNo || '',
-  //         streetName: a.streetName || '',
-  //         city: a.city,
-  //         state: a.state,
-  //         pincode: a.pincode,
-  //         country: a.country,
-  //         addressType: a.addressType,
-  //       })),
+  //   const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
+  //   if (missingField) {
+  //     const errorMsg = `${missingField.label} is required`;
+  //     setErrors({ [missingField.name]: errorMsg });
 
-  //       clientPocs: formData.clientPocs.map(p => ({
-  //         pocId: uuidv4(),
-  //         name: p.name,
-  //         email: p.email,
-  //         contactNumber: p.contactNumber,
-  //         designation: p.designation || '',
-  //       })),
+  //     setTimeout(() => {
+  //       const input = document.querySelector(
+  //         `[name="${missingField.name.split('.').pop()}"]`
+  //       ) as HTMLElement;
+  //       if (input) {
+  //         input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  //         input.focus();
+  //         input.classList.add('error-field');
+  //       }
+  //     }, 100);
 
-  //       clientTaxDetails: formData.clientTaxDetails.map(t => ({
-  //         taxId: t.taxId,
-  //         taxName: t.taxName || '',
-  //         taxPercentage: t.taxPercentage ?? 0,
-  //         createdAt: new Date().toISOString(),
-  //         updatedAt: new Date().toISOString(),
-  //       })),
-  //     };
-
-  //     await adminService.addClient(payload);
-  //     setSuccess('Client added successfully!');
-  //     setTimeout(() => router.push('/admin-dashboard/clients/list'), 1500);
-  //   }).catch((err: any) => {
-  //     setError(err.message || 'Failed to add client');
-  //   }).finally(() => {
   //     setIsSubmitting(false);
-  //   });
+  //     return;
+  //   }
+
+  //   try {
+  //     await withLoading(async () => {
+  //       const payload = {
+  //         companyName: formData.companyName.trim(),
+  //         contactNumber: formData.contactNumber,
+  //         email: formData.email.toLowerCase().trim(),
+  //         gst: formData.gst.toUpperCase(),
+  //         panNumber: formData.panNumber.toUpperCase(),
+  //         tanNumber: formData.tanNumber.toUpperCase(),
+  //         currency: formData.currency,
+
+  //         addresses: formData.addresses.map(a => ({
+  //           addressId: a.addressId,
+  //           houseNo: a.houseNo?.trim() || '',
+  //           streetName: a.streetName?.trim() || '',
+  //           city: a.city.trim(),
+  //           state: a.state.trim(),
+  //           pincode: a.pincode,
+  //           country: a.country.trim(),
+  //           addressType: a.addressType,
+  //         })),
+
+  //         clientPocs: formData.clientPocs.map(p => ({
+  //           pocId: uuidv4(),
+  //           name: p.name.trim(),
+  //           email: p.email.toLowerCase().trim(),
+  //           contactNumber: p.contactNumber,
+  //           designation: p.designation?.trim() || '',
+  //         })),
+
+  //         clientTaxDetails: formData.clientTaxDetails.map(t => ({
+  //           taxId: t.taxId || uuidv4(),
+  //           taxName: t.taxName?.trim() || '',
+  //           taxPercentage: t.taxPercentage ?? 0,
+  //           createdAt: new Date().toISOString(),
+  //           updatedAt: new Date().toISOString(),
+  //         })),
+  //       };
+
+  //       await adminService.addClient(payload);
+  //       setSuccess('Client added successfully!');
+  //       setTimeout(() => router.push('/admin-dashboard/clients/list'), 1500);
+  //     });
+  //   } catch (err: any) {
+  //     let fieldErrors: Record<string, string> = {};
+
+  //     if (err.response?.data) {
+  //       const data = err.response.data;
+
+  //       if (data.fieldErrors) {
+  //         fieldErrors = Object.fromEntries(
+  //           Object.entries(data.fieldErrors).map(([field, msg]) => [
+  //             field,
+  //             Array.isArray(msg) ? msg[0] : msg
+  //           ])
+  //         );
+  //       } else if (data.errors && typeof data.errors === 'object') {
+  //         fieldErrors = Object.fromEntries(
+  //           Object.entries(data.errors).map(([field, msg]) => [
+  //             field.toLowerCase(),
+  //             Array.isArray(msg) ? msg[0] : msg
+  //           ])
+  //         );
+  //       }
+  //     }
+
+  //     if (Object.keys(fieldErrors).length > 0) {
+  //       setErrors(fieldErrors);
+  //       setTimeout(() => {
+  //         const firstField = Object.keys(fieldErrors)[0];
+  //         const input = document.querySelector(`[name="${firstField.split('.').pop()}"]`) as HTMLElement;
+  //         if (input) {
+  //           input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  //           input.focus();
+  //           input.classList.add('error-field');
+  //         }
+  //       }, 100);
+  //     } else {
+  //       setError(err.message || 'Failed to add client');
+  //     }
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
   // };
+
 
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -498,8 +625,7 @@ useEffect(() => {
                     value={formData.companyName}
                     onChange={handleChange}
                     required
-                    onBlur={() => checkUniqueness('COMPANY_NAME', formData.companyName, 'companyName')}
-                    placeholder="e.g. Digiquads Pvt Ltd"
+                    onBlur={(e) => checkUniqueness('COMPANY_NAME', e.target.value, 'companyName', 'company_name')} placeholder="e.g. Digiquads Pvt Ltd"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
@@ -514,7 +640,7 @@ useEffect(() => {
                     value={formData.contactNumber}
                     onChange={handleChange}
                     required
-                    onBlur={() => checkUniqueness('CONTACT_NUMBER', formData.contactNumber, 'contactNumber')}
+                    onBlur={(e) => checkUniqueness('CONTACT_NUMBER', e.target.value, 'contactNumber', 'contact_number')}
                     maxLength={10}
                     placeholder="e.g. 9876543210"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -530,7 +656,8 @@ useEffect(() => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    onBlur={() => checkUniqueness('EMAIL', formData.email, 'email')}
+                    onBlur={(e) => checkUniqueness('EMAIL', e.target.value.trim(), 'email', 'email')}
+                    // onBlur={() => checkUniqueness('EMAIL', formData.email, 'email')}
                     placeholder="e.g. info@company.com"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
@@ -549,7 +676,8 @@ useEffect(() => {
                       name="gst"
                       value={formData.gst}
                       onChange={handleChange}
-                      onBlur={() => checkUniqueness('GST', formData.gst, 'gst')}
+                      onBlur={(e) => checkUniqueness('GST', e.target.value.trim(), 'gst', 'gst')}
+                      // onBlur={() => checkUniqueness('GST', formData.gst, 'gst')}
                       maxLength={15}
                       required
                       placeholder="e.g. 27ABCDE1234F1Z5"
@@ -574,7 +702,8 @@ useEffect(() => {
                       name="panNumber"
                       value={formData.panNumber}
                       onChange={handleChange}
-                      onBlur={() => checkUniqueness('PAN_NUMBER', formData.panNumber, 'panNumber')}
+                      onBlur={(e) => checkUniqueness('PAN_NUMBER', e.target.value.trim(), 'panNumber', 'pan_number')}
+                      // onBlur={() => checkUniqueness('PAN_NUMBER', formData.panNumber, 'panNumber')}
                       maxLength={10}
                       required
                       placeholder="e.g. ABCDE1234F"
@@ -599,7 +728,8 @@ useEffect(() => {
                       name="tanNumber"
                       value={formData.tanNumber}
                       onChange={handleChange}
-                      onBlur={() => checkUniqueness('TAN_NUMBER', formData.tanNumber, 'tanNumber')}
+                      // onBlur={() => checkUniqueness('TAN_NUMBER', formData.tanNumber, 'tanNumber')}
+                      onBlur={(e) => checkUniqueness('TAN_NUMBER', e.target.value.trim(), 'tanNumber', 'tan_number')}
                       maxLength={10}
                       required
                       placeholder="e.g. MUMA12345B"
@@ -838,9 +968,16 @@ useEffect(() => {
                             name={`clientPocs.${i}.email`}
                             value={poc.email || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
+                            // onBlur={(e) => {
+                            //   validateField(`clientPocs.${i}.email`, e.target.value, i);
+                            //   checkUniqueness('EMAIL', e.target.value, `clientPocs.${i}.email`);
+                            // }}
                             onBlur={(e) => {
-                              validateField(`clientPocs.${i}.email`, e.target.value, i);
-                              checkUniqueness('EMAIL', e.target.value, `clientPocs.${i}.email`);
+                              const val = e.target.value.trim();
+                              if (val) {
+                                validateField(`clientPocs.${i}.email`, val, i);
+                                checkUniqueness('EMAIL', val, `clientPocs.${i}.email`, 'email');
+                              }
                             }}
                             placeholder="anita.sharma@company.com"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -864,9 +1001,16 @@ useEffect(() => {
                             name={`clientPocs.${i}.contactNumber`}
                             value={poc.contactNumber || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
+                            // onBlur={(e) => {
+                            //   validateField(`clientPocs.${i}.contactNumber`, e.target.value, i);
+                            //   checkUniqueness('CONTACT_NUMBER', e.target.value, `clientPocs.${i}.contactNumber`);
+                            // }}
                             onBlur={(e) => {
-                              validateField(`clientPocs.${i}.contactNumber`, e.target.value, i);
-                              checkUniqueness('CONTACT_NUMBER', e.target.value, `clientPocs.${i}.contactNumber`);
+                              const val = e.target.value.trim();
+                              if (val && val.length === 10) {
+                                validateField(`clientPocs.${i}.contactNumber`, val, i);
+                                checkUniqueness('CONTACT_NUMBER', val, `clientPocs.${i}.contactNumber`, 'contact_number');
+                              }
                             }}
                             maxLength={10}
                             placeholder="9876543210"

@@ -201,14 +201,14 @@ export default function UpdateRequestPage() {
                                                 {/* Old Value */}
                                                 <div className="sm:text-center">
                                                     <span className="text-red-600 font-semibold text-xs sm:text-sm block sm:inline">
-                                                        Previous: {String(oldValue)}
+                                                      {String(oldValue)}
                                                     </span>
                                                 </div>
 
                                                 {/* New Value */}
                                                 <div className="text-right sm:text-right">
                                                     <span className="text-green-700 font-semibold text-xs sm:text-sm block sm:inline">
-                                                        Updated: {String(newValue)}
+                                                        {String(newValue)}
                                                     </span>
                                                 </div>
                                             </div>

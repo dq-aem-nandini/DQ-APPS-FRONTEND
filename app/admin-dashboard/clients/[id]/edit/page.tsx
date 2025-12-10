@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { adminService } from '@/lib/api/adminService';
-import { validationService } from '@/lib/api/validationService';
-import { v4 as uuidv4 } from 'uuid';
+import { UniqueField, validationService } from '@/lib/api/validationService';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BackButton from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Trash2, Plus } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 type FormDataType = {
   clientId: string;
@@ -23,7 +23,7 @@ type FormDataType = {
   tanNumber: string;
   currency: string;
   addresses: Array<{
-    addressId: string;
+    addressId: string | null;
     houseNo?: string;
     streetName?: string;
     city: string;
@@ -33,14 +33,14 @@ type FormDataType = {
     addressType: 'CURRENT' | 'PERMANENT' | 'OFFICE';
   }>;
   clientPocs: Array<{
-    pocId: string;
+    pocId: string | null;
     name: string;
     email: string;
     contactNumber: string;
     designation: string;
   }>;
   clientTaxDetails: Array<{
-    taxId: string;
+    taxId: string | null;
     taxName?: string;
     taxPercentage?: number;
   }>;
@@ -96,7 +96,7 @@ export default function EditClientPage() {
 
           addresses: Array.isArray(dto.addresses) && dto.addresses.length > 0
             ? dto.addresses.map((a: any) => ({
-              addressId: a.addressId || uuidv4(),
+              addressId: a.addressId || null,
               houseNo: a.houseNo || '',
               streetName: a.streetName || '',
               city: a.city || '',
@@ -105,35 +105,26 @@ export default function EditClientPage() {
               country: a.country || '',
               addressType: (a.addressType as 'CURRENT' | 'PERMANENT' | 'OFFICE') || 'OFFICE',
             }))
-            : [{
-              addressId: uuidv4(),
-              houseNo: '', streetName: '', city: '', state: '', pincode: '', country: 'India', addressType: 'OFFICE'
-            }],
+            : [],
 
           clientPocs: Array.isArray(dto.pocs) && dto.pocs.length > 0
             ? dto.pocs.map((p: any) => ({
-              pocId: p.pocId || uuidv4(),
+              pocId: p.pocId || null,
               name: p.name || '',
               email: p.email || '',
               contactNumber: p.contactNumber || '',
               designation: p.designation || '',
             }))
-            : [{
-              pocId: uuidv4(),
-              name: '', email: '', contactNumber: '', designation: ''
-            }],
+            : [],
 
           clientTaxDetails: Array.isArray(dto.clientTaxDetails) && dto.clientTaxDetails.length > 0
             ? dto.clientTaxDetails.map((t: any) => ({
-              taxId: t.taxId || uuidv4(),
+              taxId: t.taxId || null,
               taxName: t.taxName || '',
               taxPercentage: t.taxPercentage || 0,
             }))
-            : [{
-              taxId: uuidv4(),
-              taxName: '',
-              taxPercentage: 0,
-            }],
+            : []
+          ,
         });
       } catch (err) {
         setErrors({ root: 'Failed to load client' });
@@ -179,44 +170,51 @@ export default function EditClientPage() {
 
   // Uniqueness check with fieldColumn
   const checkUniqueness = async (
-    field: any,
+    field: UniqueField,
     value: string,
-    key: string,
-    pocId?: string,
-    fieldColumn?: string
+    errorKey: string,
+    fieldColumn: string,
+    excludeId?: string | null
   ) => {
-    if (!value || value.length < 3 || checking.has(key)) return;
+    const val = value.trim();
+    if (!val || val.length < 3 || checking.has(errorKey)) return;
 
-    setChecking(prev => new Set(prev).add(key));
+    setChecking(prev => new Set(prev).add(errorKey));
 
     try {
+      // ONLY use edit mode if excludeId is a REAL, NON-EMPTY UUID
+      const isValidExcludeId = excludeId && excludeId.trim() !== "" && excludeId.length > 10;
+
+      const mode = isValidExcludeId ? "edit" : "create";
+
       const result = await validationService.validateField({
         field,
-        value,
-        mode: 'edit',
-        currentRecordId: pocId || id,
+        value: val,
+        mode,
+        excludeId: isValidExcludeId ? excludeId : undefined,
         fieldColumn,
       });
 
-      if (result.exists) {
-        setErrors(prev => ({ ...prev, [key]: 'Already exists in system' }));
-      } else {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[key];
-          return newErrors;
-        });
-      }
-    } catch (e) {
-      console.warn('Uniqueness check failed', e);
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (result.exists) {
+          newErrors[errorKey] = "Already exists in the system";
+        } else {
+          delete newErrors[errorKey];
+        }
+        return newErrors;
+      });
+    } catch (err) {
+      console.warn("Uniqueness check failed:", err);
     } finally {
       setChecking(prev => {
         const s = new Set(prev);
-        s.delete(key);
+        s.delete(errorKey);
         return s;
       });
     }
   };
+
 
   // Duplicate detection in form (main vs POC, POC vs POC)
   const checkDuplicateInForm = () => {
@@ -289,7 +287,7 @@ export default function EditClientPage() {
       setFormData(prev => ({
         ...prev,
         addresses: [...prev.addresses, {
-          addressId: uuidv4(),
+          addressId: null,
           houseNo: '', streetName: '', city: '', state: '', pincode: '', country: 'India', addressType: 'OFFICE'
         }],
       }));
@@ -297,7 +295,7 @@ export default function EditClientPage() {
       setFormData(prev => ({
         ...prev,
         clientPocs: [...prev.clientPocs, {
-          pocId: uuidv4(),
+          pocId: null,
           name: '',
           email: '',
           contactNumber: '',
@@ -308,7 +306,7 @@ export default function EditClientPage() {
       setFormData(prev => ({
         ...prev,
         clientTaxDetails: [...prev.clientTaxDetails, {
-          taxId: uuidv4(),
+          taxId: null,
           taxName: '',
           taxPercentage: 0,
         }],
@@ -323,11 +321,10 @@ export default function EditClientPage() {
     }));
   };
 
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({}); // Clear previous errors
-  
-    // ────── REQUIRED FIELDS IN VISUAL ORDER (Top → Bottom, Left → Right) ──────
     const requiredFields = [
       { value: formData.companyName, name: 'companyName', label: 'Company Name' },
       { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
@@ -336,25 +333,20 @@ export default function EditClientPage() {
       { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
       { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
       { value: formData.currency, name: 'currency', label: 'Currency' },
-  
-      // First Address (required)
       { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
       { value: formData.addresses[0]?.state, name: 'addresses.0.state', label: 'State (Address)' },
       { value: formData.addresses[0]?.pincode, name: 'addresses.0.pincode', label: 'Pincode (Address)' },
       { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
-  
-      // First POC (required)
       { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
       { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
       { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
     ];
-  
+
     const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
     if (missingField) {
       const errorMsg = `${missingField.label} is required`;
       setErrors({ [missingField.name]: errorMsg });
-  
-      // Auto-scroll & focus to the first missing field
+
       setTimeout(() => {
         const input = document.querySelector(`[name="${missingField.name}"]`) as HTMLElement;
         if (input) {
@@ -363,11 +355,11 @@ export default function EditClientPage() {
           input.classList.add('error-field');
         }
       }, 100);
-  
+
       return;
     }
-  
-    // ────── If all required fields are filled, proceed ──────
+
+    // If all required fields are filled, proceed
     try {
       const payload = {
         companyName: formData.companyName.trim(),
@@ -377,9 +369,13 @@ export default function EditClientPage() {
         panNumber: formData.panNumber.toUpperCase(),
         tanNumber: formData.tanNumber.toUpperCase(),
         currency: formData.currency,
-  
+
         addresses: formData.addresses.map(a => ({
-          addressId: a.addressId,
+          // addressId: a.addressId,
+          addressId:
+            a.addressId && typeof a.addressId === "string" && a.addressId.length > 10
+              ? a.addressId
+              : null,
           houseNo: a.houseNo?.trim() || '',
           streetName: a.streetName?.trim() || '',
           city: a.city.trim(),
@@ -388,82 +384,62 @@ export default function EditClientPage() {
           country: a.country.trim(),
           addressType: a.addressType,
         })),
-  
+
         clientPocs: formData.clientPocs.map(p => ({
-          pocId: p.pocId,
+          // pocId: p.pocId,
+          pocId:
+            p.pocId && typeof p.pocId === "string" && p.pocId.length > 10
+              ? p.pocId
+              : null,
           name: p.name.trim(),
           email: p.email.toLowerCase().trim(),
           contactNumber: p.contactNumber,
           designation: p.designation?.trim() || '',
         })),
-  
-        clientTaxDetails: formData.clientTaxDetails.map(t => ({
-          taxId: t.taxId,
-          taxName: t.taxName?.trim() || '',
-          taxPercentage: t.taxPercentage ?? 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })),
+
+        clientTaxDetails: formData.clientTaxDetails
+          .filter(t => t.taxName?.trim())  // ← Only include if taxName exists
+          .map(t => ({
+            taxId:
+              t.taxId && typeof t.taxId === "string" && t.taxId.length > 10
+                ? t.taxId
+                : null, taxName: t.taxName!.trim(),
+            taxPercentage: Number(t.taxPercentage) || 0,
+          })),
       };
-  
+
       await adminService.updateClient(id, payload);
+      await Swal.fire('Success!', `${formData.companyName} has been updated Successfully.`, 'success');
+
       router.push('/admin-dashboard/clients/list');
+
     } catch (err: any) {
-      setErrors({ root: err.message || 'Update failed' });
+      let backendMessage = 'Failed to update client';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (data.message) {
+          backendMessage = data.message;
+        }
+        else if (data.errors && typeof data.errors === 'object') {
+          const firstError = Object.values(data.errors)[0];
+          backendMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
+        }
+      } else if (err.message) {
+        backendMessage = err.message;
+      }
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: backendMessage,
+        confirmButtonColor: '#ef4444',
+        background: '#fef2f2',
+        customClass: {
+          popup: 'animate__animated animate__shakeX',
+        },
+      });
     }
   };
-
-  // const onSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (Object.values(errors).some(e => e)) {
-  //     setErrors(prev => ({ ...prev, root: 'Please fix all errors' }));
-  //     return;
-  //   }
-
-  //   try {
-  //     const payload = {
-  //       companyName: formData.companyName,
-  //       contactNumber: formData.contactNumber,
-  //       email: formData.email,
-  //       gst: formData.gst,
-  //       panNumber: formData.panNumber,
-  //       tanNumber: formData.tanNumber,
-  //       currency: formData.currency,
-
-  //       addresses: formData.addresses.map(a => ({
-  //         addressId: a.addressId,
-  //         houseNo: a.houseNo || '',
-  //         streetName: a.streetName || '',
-  //         city: a.city,
-  //         state: a.state,
-  //         pincode: a.pincode,
-  //         country: a.country,
-  //         addressType: a.addressType,
-  //       })),
-
-  //       clientPocs: formData.clientPocs.map(p => ({
-  //         pocId: p.pocId,
-  //         name: p.name,
-  //         email: p.email,
-  //         contactNumber: p.contactNumber,
-  //         designation: p.designation || '',
-  //       })),
-
-  //       clientTaxDetails: formData.clientTaxDetails.map(t => ({
-  //         taxId: t.taxId,
-  //         taxName: t.taxName || '',
-  //         taxPercentage: t.taxPercentage ?? 0,
-  //         createdAt: new Date().toISOString(),
-  //         updatedAt: new Date().toISOString(),
-  //       })),
-  //     };
-
-  //     await adminService.updateClient(id, payload);
-  //     router.push('/admin-dashboard/clients/list');
-  //   } catch (err: any) {
-  //     setErrors({ root: err.message || 'Update failed' });
-  //   }
-  // };
 
   if (loading) {
     return (
@@ -500,7 +476,10 @@ export default function EditClientPage() {
                     value={formData.companyName}
                     onChange={handleChange}
                     required
-                    onBlur={() => checkUniqueness('COMPANY_NAME', formData.companyName, 'companyName', undefined, 'company_name')}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) checkUniqueness('COMPANY_NAME', val, 'companyName', 'company_name', formData.clientId);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
@@ -515,7 +494,12 @@ export default function EditClientPage() {
                     required
                     value={formData.contactNumber}
                     onChange={handleChange}
-                    onBlur={() => checkUniqueness('CONTACT_NUMBER', formData.contactNumber, 'contactNumber', undefined, 'contact_number')} maxLength={10}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val && val.length === 10) {
+                        checkUniqueness('CONTACT_NUMBER', val, 'contactNumber', 'contact_number', formData.clientId);
+                      }
+                    }} maxLength={10}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
@@ -529,7 +513,11 @@ export default function EditClientPage() {
                     value={formData.email}
                     required
                     onChange={handleChange}
-                    onBlur={() => checkUniqueness('EMAIL', formData.email, 'email', undefined, 'email')} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) checkUniqueness('EMAIL', val, 'email', 'email', formData.clientId);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
@@ -542,7 +530,11 @@ export default function EditClientPage() {
                     value={formData.gst}
                     onChange={handleChange}
                     required
-                    onBlur={() => checkUniqueness('GST', formData.gst, 'gst', undefined, 'gst')} maxLength={15}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) checkUniqueness('GST', val, 'gst', 'gst', formData.clientId);
+                    }}
+                    maxLength={15}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.gst && <p className="text-red-500 text-xs mt-1">{errors.gst}</p>}
@@ -556,7 +548,11 @@ export default function EditClientPage() {
                     required
                     value={formData.panNumber}
                     onChange={handleChange}
-                    onBlur={() => checkUniqueness('PAN_NUMBER', formData.panNumber, 'panNumber', undefined, 'pan_number')} maxLength={10}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) checkUniqueness('PAN_NUMBER', val, 'panNumber', 'pan_number', formData.clientId);
+                    }}
+                    maxLength={10}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
@@ -570,7 +566,11 @@ export default function EditClientPage() {
                     value={formData.tanNumber}
                     required
                     onChange={handleChange}
-                    onBlur={() => checkUniqueness('TAN_NUMBER', formData.tanNumber, 'tanNumber', undefined, 'tan_number')} maxLength={10}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) checkUniqueness('TAN_NUMBER', val, 'tanNumber', 'tan_number', formData.clientId);
+                    }}
+                    maxLength={10}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.tanNumber && <p className="text-red-500 text-xs mt-1">{errors.tanNumber}</p>}
@@ -578,7 +578,7 @@ export default function EditClientPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1" >Currency <span className="text-red-500">*</span></label>
-                  <Select required  value={formData.currency} onValueChange={(v) => setFormData(prev => ({ ...prev, currency: v }))}>
+                  <Select required value={formData.currency} onValueChange={(v) => setFormData(prev => ({ ...prev, currency: v }))}>
                     <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue /></SelectTrigger>
                     <SelectContent >
                       <SelectItem value="INR">INR</SelectItem>
@@ -610,7 +610,7 @@ export default function EditClientPage() {
               )}
 
               {(formData.addresses || []).map((addr, i) => (
-                <div key={addr.addressId || i} className="mb-6 p-4 border rounded bg-gray-50">
+                <div key={i} className="mb-6 p-4 border rounded bg-gray-50">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
                     {/* House No */}
@@ -767,7 +767,7 @@ export default function EditClientPage() {
               {formData.clientPocs.length > 0 && (
                 <div className="space-y-6">
                   {formData.clientPocs.map((poc, i) => (
-                    <div key={poc.pocId || i} className="p-6 border rounded-lg bg-gray-50 space-y-6">
+                    <div key={i} className="p-6 border rounded-lg bg-gray-50 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                         {/* Name */}
@@ -801,9 +801,11 @@ export default function EditClientPage() {
                             value={poc.email || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
                             onBlur={(e) => {
-                              validateField(`clientPocs.${i}.email`, e.target.value, i);
-                              // checkUniqueness('EMAIL', e.target.value, `clientPocs.${i}.email`, poc.pocId);
-                              checkUniqueness('EMAIL', e.target.value, `clientPocs.${i}.email`, poc.pocId, 'email');
+                              const val = e.target.value.trim();
+                              if (val) {
+                                const pocId = formData.clientPocs[i]?.pocId;
+                                checkUniqueness('EMAIL', val, `clientPocs.${i}.email`, 'email', pocId);
+                              }
                             }}
                             placeholder="anita.sharma@company.com"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -828,9 +830,11 @@ export default function EditClientPage() {
                             value={poc.contactNumber || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
                             onBlur={(e) => {
-                              validateField(`clientPocs.${i}.contactNumber`, e.target.value, i);
-                              // checkUniqueness('CONTACT_NUMBER', e.target.value, `clientPocs.${i}.contactNumber`, poc.pocId);
-                              checkUniqueness('CONTACT_NUMBER', e.target.value, `clientPocs.${i}.contactNumber`, poc.pocId, 'contact_number');
+                              const val = e.target.value.trim();
+                              if (val && val.length === 10) {
+                                const pocId = formData.clientPocs[i]?.pocId;
+                                checkUniqueness('CONTACT_NUMBER', val, `clientPocs.${i}.contactNumber`, 'contact_number', pocId);
+                              }
                             }}
                             maxLength={10}
                             placeholder="9876543210"
@@ -895,7 +899,7 @@ export default function EditClientPage() {
               )}
 
               {(formData.clientTaxDetails || []).map((tax, i) => (
-                <div key={tax.taxId} className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end">
+                <div key={i} className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tax Name</label>
                     <input

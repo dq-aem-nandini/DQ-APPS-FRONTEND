@@ -315,7 +315,7 @@ const ViewEmployee = () => {
                   <div className="space-y-2">
                     {employee.employeeSalaryDTO.allowances.map((a, i) => (
                       <div key={i} className="bg-green-50 p-3 rounded-lg text-sm">
-                        <strong>{a.allowanceType}:</strong> ₹{a.amount} (from {a.effectiveDate})
+                        <strong>{a.allowanceType}:</strong> ₹{a.amount}
                       </div>
                     ))}
                   </div>
@@ -328,7 +328,7 @@ const ViewEmployee = () => {
                   <div className="space-y-2">
                     {employee.employeeSalaryDTO.deductions.map((d, i) => (
                       <div key={i} className="bg-red-50 p-3 rounded-lg text-sm">
-                        <strong>{d.deductionType}:</strong> ₹{d.amount} (from {d.effectiveDate})
+                        <strong>{d.deductionType}:</strong> ₹{d.amount}
                       </div>
                     ))}
                   </div>

@@ -5,10 +5,11 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthState, AuthAction, LoggedInUser } from '@/lib/api/types';
 import { authService } from '@/lib/api/authService';
+import { isPrivateMode } from '@/lib/deviceUtils';
 
 const AuthContext = createContext<{
   state: AuthState;
-  login: (credentials: { inputKey: string; password: string }) => Promise<void>;
+  login: (credentials: { inputKey: string; password: string }, rememberMe?: boolean) => Promise<void>;
   logout: () => void;
   updateUser: (updatedUser: Partial<LoggedInUser>) => void;
 } | null>(null);
@@ -89,6 +90,47 @@ const handlePostAuthRedirect = (user: LoggedInUser, currentPath: string, router:
   }
 };
 
+// Helper to get preferred storage for auth (local if rememberMe and not private, else session)
+const getAuthStorage = (rememberMe?: boolean): Storage => {
+  if (typeof window === 'undefined') throw new Error('No storage available');
+  
+  const privateMode = isPrivateMode();
+  if (privateMode || !rememberMe) {
+    return sessionStorage;
+  }
+  // Test localStorage writability
+  try {
+    localStorage.setItem('_test_auth', '1');
+    localStorage.removeItem('_test_auth');
+    return localStorage;
+  } catch {
+    return sessionStorage;
+  }
+};
+
+// Helper to load from storage (check local first, then session)
+const loadFromStorage = (key: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  let value = localStorage.getItem(key);
+  if (value !== null) return value;
+  return sessionStorage.getItem(key);
+};
+
+// Helper to clear auth storage (both)
+const clearAuthStorage = () => {
+  if (typeof window === 'undefined') return;
+  const authKeys = [
+    'user',
+    'accessToken',
+    'refreshToken',
+    'tempPassword'
+  ];
+    authKeys.forEach(key => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const router = useRouter();
@@ -101,9 +143,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      const token = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
-      const userStr = localStorage.getItem('user');
+      const token = loadFromStorage('accessToken');
+      const refreshToken = loadFromStorage('refreshToken');
+      const userStr = loadFromStorage('user');
       const currentPath = window.location.pathname;
 
       if (userStr && userStr !== 'null' && userStr !== 'undefined') {
@@ -128,56 +170,125 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      clearAuthStorage();
       dispatch({ type: 'SET_LOADING', payload: false });
     };
 
     initAuth();
   }, [router]);
 
-  // Login Handler
-  const login = async (credentials: { inputKey: string; password: string }) => {
-    try {
-      // 💥 1. Clear old data (important!)
-      // localStorage.removeItem("user");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-  
-      // 2. Do login
-      const { user, accessToken, refreshToken } = await authService.login(credentials);
-  
-      // 3. Save new user
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("accessToken", accessToken ?? "");
-      localStorage.setItem("refreshToken", refreshToken ?? "");
-  
-      if (user.firstLogin) {
-        localStorage.setItem("tempPassword", credentials.password);
-      }
-  
-      // 4. Update state
-      dispatch({
-        type: "LOGIN_SUCCESS",
-        payload: {
-          user,
-          accessToken: accessToken ?? null,
-          refreshToken: refreshToken ?? null,
-        },
-      });
-  
-      // 5. Redirect (delay ensures new role loads)
-      setTimeout(() => {
-        handlePostAuthRedirect(user, "/auth/login", router);
-      }, 10);
-  
-    } catch (error: any) {
-      console.error("Login failed:", error);
-      throw new Error("Invalid username/email or password.");
+// In login function: ADD PRE-SAVE LOG
+// const login = async (
+//   credentials: { inputKey: string; password: string },
+//   rememberMe = false
+// ) => {
+//   try {
+//     clearAuthStorage();
+
+//     console.log('🚀 Login start - rememberMe flag:', rememberMe);
+
+//     const { user, accessToken, refreshToken } =
+//       await authService.login(credentials);
+
+//     const storage = getAuthStorage(rememberMe);
+
+//     storage.setItem('user', JSON.stringify(user));
+//     storage.setItem('accessToken', accessToken ?? '');
+//     storage.setItem('refreshToken', refreshToken ?? '');
+
+//     // ✅ REMEMBER USERNAME
+//     if (rememberMe) {
+//       console.log('💾 Saving remembered username');
+    
+//       try {
+//         localStorage.setItem(
+//           'rememberedUsername',
+//           credentials.inputKey
+//         );
+//       } catch (e) {
+//         console.warn('Fallback to sessionStorage');
+//         sessionStorage.setItem(
+//           'rememberedUsername',
+//           credentials.inputKey
+//         );
+//       }
+//     } else {
+//       localStorage.removeItem('rememberedUsername');
+//       sessionStorage.removeItem('rememberedUsername');
+//     }
+    
+
+//     // ✅✅✅ THIS WAS MISSING
+//     dispatch({
+//       type: 'LOGIN_SUCCESS',
+//       payload: {
+//         user,
+//         accessToken: accessToken ?? null,
+//         refreshToken:refreshToken ?? null,
+//       },
+//     });
+
+//   } catch (error: any) {
+//     console.error('Login failed:', error);
+//     throw new Error('Invalid username/email or password.');
+//   }
+// };
+
+
+const login = async (
+  credentials: { inputKey: string; password: string },
+  rememberMe = false
+) => {
+  try {
+    console.log('🚀 Login start - rememberMe flag:', rememberMe);
+
+    const { user, accessToken, refreshToken } =
+      await authService.login(credentials);
+
+    const storage = getAuthStorage(rememberMe);
+
+    storage.setItem('user', JSON.stringify(user));
+    storage.setItem('accessToken', accessToken ?? '');
+    storage.setItem('refreshToken', refreshToken ?? '');
+
+    // ✅✅✅ THIS IS MANDATORY
+    if (rememberMe) {
+      console.log('💾 Saving remembered username');
+      localStorage.setItem(
+        'rememberedUsername',
+        credentials.inputKey
+      );
+    } else {
+      localStorage.removeItem('rememberedUsername');
+      sessionStorage.removeItem('rememberedUsername');
     }
-  };
-  
+
+    dispatch({
+      type: 'LOGIN_SUCCESS',
+      payload: {
+        user,
+        accessToken: accessToken ?? null,
+        refreshToken: refreshToken ?? null,
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+
+// In logout: ADD CONFIRM CLEAR
+const logout = () => {
+  clearAuthStorage();
+  try {
+    const hadUsername = localStorage.getItem("rememberedUsername") || sessionStorage.getItem("rememberedUsername");
+   
+    console.log('🚪 Username cleared on logout - had value?', !!hadUsername); // NEW: Was there anything?
+  } catch {}
+  dispatch({ type: 'LOGOUT' });
+  router.push('/auth/login');
+};
   
   
 
@@ -191,17 +302,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (state.user) {
       const merged = { ...state.user, ...clean } as LoggedInUser;
-      localStorage.setItem('user', JSON.stringify(merged));
+      
+      // Update in both storages for safety
+      const userStr = JSON.stringify(merged);
+      localStorage.setItem('user', userStr);
+      sessionStorage.setItem('user', userStr);
 
       handlePostAuthRedirect(merged, window.location.pathname, router);
     }
   };
 
-  const logout = () => {
-    localStorage.clear();
-    dispatch({ type: 'LOGOUT' });
-    router.push('/auth/login');
-  };
+  // const logout = () => {
+  //   clearAuthStorage();
+  //   localStorage.removeItem("rememberedUsername");
+  //   dispatch({ type: 'LOGOUT' });
+  //   router.push('/auth/login');
+  // };
 
   return (
     <AuthContext.Provider value={{ state, login, logout, updateUser }}>
