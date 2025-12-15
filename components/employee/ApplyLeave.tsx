@@ -26,8 +26,8 @@ const ApplyLeavePage: React.FC = () => {
   const [loadingEmployee, setLoadingEmployee] = useState(true);
   const [formData, setFormData] = useState<LeaveRequestDTO>({
     leaveId: leaveId || undefined,
-    categoryType: 'CASUAL' as LeaveCategoryType,
-    financialType: 'PAID' as FinancialType,
+    categoryType: '' as LeaveCategoryType,
+    financialType: '' as FinancialType,
     partialDay: false,
     leaveDuration: 0,
     fromDate: '',
@@ -43,6 +43,28 @@ const ApplyLeavePage: React.FC = () => {
 
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
   const financialTypes: FinancialType[] = ['PAID', 'UNPAID'];
+
+  const today = new Date();
+
+  // Get start of current ISO week (Monday)
+  const currentWeekStart = new Date(today);
+  const day = today.getDay();
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+  currentWeekStart.setDate(diff);
+
+  // Allowed minimum = 1 week before current week
+  const minAllowedDate = new Date(currentWeekStart);
+  minAllowedDate.setDate(minAllowedDate.getDate() - 3);
+
+  // Allowed maximum = end of current week (Sunday)
+  const maxAllowedDate = new Date(currentWeekStart);
+  maxAllowedDate.setDate(maxAllowedDate.getDate() + 6);
+
+  // Format YYYY-MM-DD
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  const minDate = formatDate(minAllowedDate);
+  const maxDate = formatDate(maxAllowedDate);
 
   // Fetch current employee's details on mount (no params needed for authenticated user)
   useEffect(() => {
@@ -314,17 +336,17 @@ const ApplyLeavePage: React.FC = () => {
 
         {/* Partial Day */}
         {hasCalculated && formData.leaveDuration === 1 && (
-  <div className="flex items-center space-x-2">
-    <input
-      type="checkbox"
-      name="partialDay"
-      checked={formData.partialDay}
-      onChange={handleInputChange}
-      className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"
-    />
-    <label className="text-sm font-medium">Partial Day</label>
-  </div>
-)}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              name="partialDay"
+              checked={formData.partialDay}
+              onChange={handleInputChange}
+              className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"
+            />
+            <label className="text-sm font-medium">Partial Day</label>
+          </div>
+        )}
 
 
         {/* Dates */}
@@ -338,6 +360,7 @@ const ApplyLeavePage: React.FC = () => {
               onChange={handleInputChange}
               className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
               required
+              min={minDate}   
             />
           </div>
           <div>
@@ -380,7 +403,7 @@ const ApplyLeavePage: React.FC = () => {
               <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
             )}
             {!calculating && hasCalculated && formData.leaveDuration === 0 && (
-              <p className="text-xs text-amber-600 mt-1">0 days — Check dates (weekend/holiday or same day)</p>
+              <p className="text-xs text-amber-600 mt-1">Selected dates are weekends/holiday </p>
             )}
         </div>
 
@@ -448,6 +471,7 @@ const ApplyLeavePage: React.FC = () => {
             loading ||
             calculating ||
             checkingAvailability ||
+            formData.leaveDuration === 0 ||
             (insufficientLeave && formData.financialType === 'PAID')
           }
           className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50 transition duration-300 flex items-center justify-center gap-2"

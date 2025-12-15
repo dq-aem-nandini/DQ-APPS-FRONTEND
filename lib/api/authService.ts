@@ -22,7 +22,7 @@ export const authService = {
       }
     );
 
-    console.log("🔵 Login API Response:", response.data);
+    console.log("Login API Response:", response.data);
 
     // BACKEND FAILURE
     if (!response.data.flag) {
@@ -66,7 +66,7 @@ export const authService = {
       permissions: loginResp.permissions ?? [],
     };
 
-    console.log("🟢 LOGIN PARSED USER:", {
+    console.log("LOGIN PARSED USER:", {
       userId: user.userId,
       profileName: user.profileName,
       role: user.role.roleName,

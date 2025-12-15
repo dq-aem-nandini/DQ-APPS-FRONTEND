@@ -41,7 +41,7 @@ const Login: React.FC = () => {
     }
   }, []);
 
-  // 🔥 HANDLE REDIRECT LOGIC (unchanged)
+  // HANDLE REDIRECT LOGIC (unchanged)
   useEffect(() => {
     if (state.isLoading) return;
     if (!state.isAuthenticated || !state.user) return;

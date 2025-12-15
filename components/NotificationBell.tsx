@@ -10,6 +10,10 @@ import { timesheetService } from "@/lib/api/timeSheetService";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
 
+import { leaveService } from "@/lib/api/leaveService";
+import { LeaveResponseDTO, PendingLeavesResponseDTO, LeaveStatus } from '@/lib/api/types';
+import Swal from "sweetalert2";
+
 interface NotificationBellProps {
   className?: string;
 }
@@ -42,10 +46,8 @@ console.log("User ID in NotificationBell (from context):", userId);
     console.log("No userId, skipping WebSocket connection");
     return;
   }
-
-  const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL
-    ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/ws`
-    : "http://192.168.1.12:8080/ws";
+  const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL+"/ws"
+  // const SOCKET_URL = "https://emptimehub-pre-production.up.railway.app/ws";
 
   const socket = new SockJS(SOCKET_URL);
 
@@ -88,7 +90,8 @@ console.log("User ID in NotificationBell (from context):", userId);
     },
     (error: any) => {
       console.error("WebSocket connection failed:", error);
-      if (error.headers?.message?.includes("401")) {
+      const stompError = error as { headers?: { message?: string } };
+      if (stompError.headers?.message?.includes("401")) {
         console.error("401 Unauthorized – Token missing or invalid");
       }
     }
@@ -111,6 +114,7 @@ console.log("User ID in NotificationBell (from context):", userId);
     ) {
       setDropdownOpen(false); // CLOSE THE DROPDOWN
       setOpenMenuId(null);    // also close 3-dot menus
+      setShowModal(false);
     }
   }
 
@@ -146,6 +150,77 @@ console.log("User ID in NotificationBell (from context):", userId);
     } catch (error) {
       console.error("Delete error:", error);
     }
+  };
+
+  const handleReviewLeaveFromNotification = (
+    leave: LeaveResponseDTO | PendingLeavesResponseDTO
+  ) => {
+    const getLabel = (value: string): string => {
+      return value
+        .toLowerCase()
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    };
+  
+    Swal.fire({
+      title: 'Review Leave Request',
+      width: 600,
+      html: `
+        <div class="text-left text-sm text-gray-600 space-y-3">
+          <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
+          <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
+          <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
+          <p><strong>From:</strong> ${new Date(leave.fromDate!).toLocaleDateString()}</p>
+          <p><strong>To:</strong> ${new Date(leave.toDate!).toLocaleDateString()}</p>
+          <p><strong>Reason:</strong> ${leave.context || 'No reason provided'}</p>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Comment (optional)</label>
+            <textarea id="review-reason" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="3" placeholder="Add a comment..."></textarea>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Approve",
+      denyButtonText: "Reject",
+      cancelButtonText: "Cancel",
+      buttonsStyling: false,
+      customClass: {
+        confirmButton: "mx-2 px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700",
+        denyButton: "mx-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700",
+        cancelButton: "mx-2 px-5 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+      },
+      preConfirm: () => ({
+        action: "APPROVED" as const,
+        reason: (document.getElementById("review-reason") as HTMLTextAreaElement)?.value?.trim() || ""
+      }),
+      preDeny: () => ({
+        action: "REJECTED" as const,
+        reason: (document.getElementById("review-reason") as HTMLTextAreaElement)?.value?.trim() || ""
+      })
+    }).then(async (result) => {
+      if (!result.isConfirmed && !result.isDenied) return;
+  
+      const { action, reason } = result.value!;
+  
+      Swal.fire({ title: "Processing...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  
+      try {
+        await leaveService.updateLeaveStatus(leave.leaveId!, action, reason);
+  
+        Swal.fire({
+          icon: "success",
+          title: action === "APPROVED" ? "Leave Approved" : "Leave Rejected",
+          text: reason || undefined,
+          timer: 2000,
+          showConfirmButton: false
+        });
+  
+      } catch (err: any) {
+        Swal.fire("Error", err.message || "Failed to update leave", "error");
+      }
+    });
   };
 
   // ------------------------------------------------------------
@@ -194,9 +269,53 @@ console.log("User ID in NotificationBell (from context):", userId);
           return;
         }
 
+        // if (notification.notificationType === "LEAVE") {
+        //   window.location.href = `/manager/leaves`;
+        //   return;
+        // }
+
         if (notification.notificationType === "LEAVE") {
-          window.location.href = `/manager/leaves`;
-          return;
+          // Show loading immediately
+          Swal.fire({
+            title: "Loading leave request...",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            },
+          });
+        
+          try {
+            // Try to get full leave details by ID
+            const res = await leaveService.getLeaveById(notification.referenceId);
+            const leave = res;
+        
+            if (!leave) {
+              throw new Error("Leave request not found");
+            }
+        
+            Swal.close();
+        
+            // Now open the review modal directly
+            handleReviewLeaveFromNotification(leave);
+        
+            // Mark notification as read (optional, since action was taken)
+            if (!notification.read) {
+              await notificationService.markAsRead([notification.id]);
+              setNotifications(prev =>
+                prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+              );
+            }
+        
+          } catch (err: any) {
+            Swal.close();
+            Swal.fire({
+              icon: "error",
+              title: "Failed to load leave",
+              text: err.message || "Could not fetch leave details",
+            });
+          }
+        
+          return; // Prevent default modal
         }
       }
 
@@ -309,11 +428,11 @@ console.log("User ID in NotificationBell (from context):", userId);
 
       {showModal && selectedNotification && (
         <div
-          className="fixed inset-0 bg-opacity-50 flex items-start pt-54 justify-center z-50"
+          className="fixed inset-0 bg-opacity-50 pt-54 flex items-start justify-center z-50"
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-lg p-6 w-[450px] relative"
+            className="bg-white rounded-lg shadow-lg p-6 w-[450px] max-w-[90vw] relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button

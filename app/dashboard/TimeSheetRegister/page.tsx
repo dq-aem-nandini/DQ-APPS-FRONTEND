@@ -707,7 +707,7 @@ order?: number;
           <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Calendar size={20} className="text-gray-500" />
+                {/* <Calendar size={20} className="text-gray-500" /> */}
                 <input
                   type="date"
                   value={displayDate}

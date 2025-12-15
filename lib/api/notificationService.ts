@@ -46,7 +46,7 @@ export const notificationService = {
   async clearNotifications(notificationIds: string[]): Promise<void> {
     try {
       await api.delete("/notification/clear", {
-        data: { notificationIds },
+        data: notificationIds ,
       });
     } catch (error: any) {
       throw new Error(getBackendError(error));
