@@ -1521,19 +1521,6 @@ export interface EmployeeWorkSummaryDTO {
   totalHours: number;
   totalAmount: number;
 }
-
-// ClientInvoiceSummaryDTO
-// export interface ClientInvoiceSummaryDTO {
-//   clientId: string;
-//   invoiceStatus: InvoiceStatus;
-//   invoiceId: string;
-//   invoiceNumber: string;
-//   invoiceDate: string; // ISO date string
-//   totalAmount: number;
-//   fromDate: string; // ISO date string
-//   toDate: string; // ISO date string
-//   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
-// }
 export interface ClientInvoiceSummaryDTO {
   invoiceId: string;
   clientId: string;

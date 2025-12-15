@@ -78,16 +78,34 @@ const Login: React.FC = () => {
   }, [state.isAuthenticated, state.user, state.isLoading]);
 
   // 🔥 SUBMIT LOGIN
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setError('');
+  //   setIsLoading(true);
+  //   console.log('📤 Submit with rememberMe:', rememberMe, 'Username:', credentials.inputKey); // NEW: Confirm flag + input
+  //   try {
+  //     await login(credentials, rememberMe);
+  //   } catch (err: any) {
+  //     console.error('❌ Login error (no save):', err); // NEW: Log failures
+  //     setError(err.message || "Invalid credentials");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    console.log('📤 Submit with rememberMe:', rememberMe, 'Username:', credentials.inputKey); // NEW: Confirm flag + input
+
     try {
       await login(credentials, rememberMe);
+      // Success → redirect handled by useEffect above
     } catch (err: any) {
-      console.error('❌ Login error (no save):', err); // NEW: Log failures
-      setError(err.message || "Invalid credentials");
+      // Show ONLY the backend message
+      const backendMessage = err.message || "Login failed. Please try again.";
+      setError(backendMessage);
+      console.error('Login failed:', err);
     } finally {
       setIsLoading(false);
     }

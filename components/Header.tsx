@@ -147,7 +147,7 @@ const Header = () => {
               {/* Simple, Clean Dropdown */}
               {showDropdown && (
                 <Card className="absolute right-0 top-full mt-3 w-72 shadow-2xl border-0 ring-1 ring-black/5 rounded-2xl overflow-hidden z-50">
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+                  <div >
                     {/* Profile */}
                     <div
                       className="cursor-pointer hover:opacity-90 transition text-center"
@@ -177,11 +177,11 @@ const Header = () => {
                     </div>
 
                     {/* Logout Only */}
-                    <div className="mt-6 pt-5 border-t border-white/30">
+                    <div className="mt-0 pt-0 border-t border-white/30">
                       <Button
                         variant="ghost"
                         size="lg"
-                        className="w-full justify-center text-red-600 hover:bg-red-50 hover:text-red-700 font-medium"
+                        className="w-full justify-center text-red-600   font-medium"
                         onClick={handleLogout}
                         disabled={isLoggingOut}
                       >

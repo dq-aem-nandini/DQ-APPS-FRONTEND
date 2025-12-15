@@ -120,8 +120,9 @@ export default function SettingsPage() {
 
         {/* Header */}
         <div className="text-center space-y-3">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
-            Account Settings
+
+           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight">
+           Account Settings
           </h1>
           <p className="text-gray-600 text-base sm:text-lg">
             Manage your security and device sessions
