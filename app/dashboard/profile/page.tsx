@@ -404,45 +404,54 @@ const ProfilePage = () => {
 
     setUpdating(true);
     setError(null);
-
     try {
       const payload = new FormData();
-      // ADD THESE 2 LINES HERE
+
+      // Helper to append only if value actually changed
+      const appendIfChanged = (key: string, newVal: any, oldVal: any) => {
+        const normalizedNew = String(newVal ?? "").trim();
+        const normalizedOld = String(oldVal ?? "").trim();
+        // Only append if different AND new value is not empty (except for required fields we allow same value)
+        if (normalizedNew !== normalizedOld) {
+          payload.append(key, normalizedNew);
+        }
+      };
+      // Profile Photo - always send if selected (it's a file upload)
       if (profilePhotoFile) {
         payload.append("employeePhotoUrl", profilePhotoFile);
       }
-      // Required & basic fields
-      payload.append("firstName", formData.firstName);
-      payload.append("lastName", formData.lastName);
-      payload.append("dateOfBirth", formData.dateOfBirth);
-      payload.append("gender", formData.gender);
-      payload.append("maritalStatus", formData.maritalStatus);
-      payload.append("nationality", formData.nationality);
+      // === Only send changed fields ===
+      // Required fields - send only if changed
+      appendIfChanged("firstName", formData.firstName, profile.firstName);
+      appendIfChanged("lastName", formData.lastName, profile.lastName);
+      appendIfChanged("dateOfBirth", formData.dateOfBirth, profile.dateOfBirth);
+      appendIfChanged("gender", formData.gender, profile.gender);           // ← Fixed
+      appendIfChanged("maritalStatus", formData.maritalStatus, profile.maritalStatus); // ← Fixed
+      appendIfChanged("nationality", formData.nationality, profile.nationality);
 
-      // Optional fields
-      payload.append("personalEmail", formData.personalEmail || "");
-      payload.append("contactNumber", formData.contactNumber || "");
-      payload.append(
-        "alternateContactNumber",
-        formData.alternateContactNumber || ""
-      );
-      payload.append(
-        "emergencyContactName",
-        formData.emergencyContactName || ""
-      );
-      payload.append(
-        "emergencyContactNumber",
-        formData.emergencyContactNumber || ""
-      );
-      payload.append("panNumber", formData.panNumber || "");
-      payload.append("aadharNumber", formData.aadharNumber || "");
-      payload.append("accountNumber", formData.accountNumber || "");
-      payload.append("accountHolderName", formData.accountHolderName || "");
-      payload.append("bankName", formData.bankName || "");
-      payload.append("ifscCode", localIfsc);
-      payload.append("branchName", formData.branchName || "");
+      // Optional personal fields
+      appendIfChanged("personalEmail", formData.personalEmail, profile.personalEmail);
+      appendIfChanged("contactNumber", formData.contactNumber, profile.contactNumber);
+      appendIfChanged("alternateContactNumber", formData.alternateContactNumber, profile.alternateContactNumber);
+      appendIfChanged("emergencyContactName", formData.emergencyContactName, profile.emergencyContactName);
+      appendIfChanged("emergencyContactNumber", formData.emergencyContactNumber, profile.emergencyContactNumber);
+      appendIfChanged("numberOfChildren", formData.numberOfChildren, profile.numberOfChildren);
 
-      // Addresses
+      // Identity & Bank Details
+      appendIfChanged("panNumber", formData.panNumber, profile.panNumber);
+      appendIfChanged("aadharNumber", formData.aadharNumber, profile.aadharNumber);
+      appendIfChanged("accountNumber", formData.accountNumber, profile.accountNumber);
+      appendIfChanged("accountHolderName", formData.accountHolderName, profile.accountHolderName);
+      appendIfChanged("bankName", formData.bankName, profile.bankName);
+      appendIfChanged("branchName", formData.branchName, profile.branchName);
+
+      // IFSC Code - uses localIfsc state
+      if (localIfsc.trim() !== (profile.ifscCode || "").trim()) {
+        payload.append("ifscCode", localIfsc.trim());
+      }
+
+      // === Addresses ===
+      // Always send full list (backend handles upsert based on addressId)
       addresses.forEach((addr, i) => {
         if (addr.addressId && !addr.addressId.startsWith("temp-")) {
           payload.append(`addresses[${i}].addressId`, addr.addressId);
@@ -456,74 +465,99 @@ const ProfilePage = () => {
         payload.append(`addresses[${i}].addressType`, addr.addressType || "");
       });
 
-      // Documents - only new uploads
+      // === Documents - only new file uploads ===
       documents
         .filter((d) => d.fileObj instanceof File)
         .forEach((doc, i) => {
-          if (doc.documentId)
+          if (doc.documentId) {
             payload.append(`documents[${i}].documentId`, doc.documentId);
+          }
           payload.append(`documents[${i}].docType`, doc.docType);
           payload.append(`documents[${i}].file`, doc.fileObj!);
         });
 
+      // If no changes at all (except possibly photo/documents), prevent submission
+      if (payload.entries().next().done && !profilePhotoFile && documents.every(d => !(d.fileObj instanceof File))) {
+        Swal.fire({
+          icon: "info",
+          title: "No Changes",
+          text: "You haven't made any changes to submit.",
+          confirmButtonColor: "#4F46E5",
+        });
+        return;
+      }
+
       const res = await employeeService.submitUpdateRequest(payload);
       if (!res.flag) throw new Error(res.message || "Update failed");
+
       setProfilePhotoFile(null);
+
       await Swal.fire({
         icon: "success",
         title: "Success!",
-        text: "Your update request has been sent to admin.",
+        text: "Your update request has been sent to admin for approval.",
         confirmButtonColor: "#4F46E5",
       });
 
       await fetchProfile();
       setEditing(false);
     } catch (err: any) {
-      setError(err.message || "Failed");
+      setError(err.message || "Failed to submit update request");
     } finally {
       setUpdating(false);
     }
   };
-  const onChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
-    const { name, value: rawValue } = e.target;
+// Inside your onChange function — replace the existing onChange with this enhanced version
 
-    let normalizedValue = rawValue.trimStart(); // Prevent leading spaces
+const onChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+) => {
+  const { name, value: rawValue } = e.target;
+  let normalizedValue = rawValue;
 
-    // Preserve exact numeric input (no spaces, no symbols)
-    if (
-      [
-        "accountNumber",
-        "aadharNumber",
-        "contactNumber",
-        "alternateContactNumber",
-        "emergencyContactNumber",
-        "panNumber",
-      ].includes(name)
-    ) {
-      normalizedValue = rawValue.replace(/\s+/g, ""); // Remove ALL spaces
+  // === Special field transformations ===
+  if (name === "personalEmail") {
+    // Force lowercase for email
+    normalizedValue = rawValue.toLowerCase();
+  }
 
-      // Purely digits for account & aadhar
-      if (["accountNumber", "aadharNumber"].includes(name)) {
-        normalizedValue = normalizedValue.replace(/\D/g, ""); // Strip non-digits
-      }
-    }
+  if (name === "panNumber") {
+    // Force uppercase for PAN
+    normalizedValue = rawValue.toUpperCase();
+    // Optional: Allow only alphanumeric (PAN format)
+    normalizedValue = normalizedValue.replace(/[^A-Z0-9]/g, "");
+  }
 
-    // Normalize enums (only gender & maritalStatus)
-    if (name === "gender" || name === "maritalStatus") {
-      normalizedValue =
-        rawValue.charAt(0).toUpperCase() + rawValue.slice(1).toLowerCase();
-    }
+  // Prevent leading spaces for most fields
+  if (!["personalEmail", "panNumber"].includes(name)) {
+    normalizedValue = rawValue.trimStart();
+  }
 
-    // Update form data immediately
-    setFormData((prev) => (prev ? { ...prev, [name]: normalizedValue } : null));
+  // Numeric-only fields (keep existing logic)
+  if (
+    [
+      "accountNumber",
+      "aadharNumber",
+      "contactNumber",
+      "alternateContactNumber",
+      "emergencyContactNumber",
+    ].includes(name)
+  ) {
+    normalizedValue = rawValue.replace(/\D/g, ""); // Only digits
+  }
 
-    // Real-time validation on NORMALIZED value (fixes mismatch)
-    validateField(name, normalizedValue);
-  };
+  // Normalize gender & maritalStatus
+  if (name === "gender" || name === "maritalStatus") {
+    normalizedValue =
+      rawValue.charAt(0).toUpperCase() + rawValue.slice(1).toLowerCase();
+  }
+
+  // Update form data
+  setFormData((prev) => (prev ? { ...prev, [name]: normalizedValue } : null));
+
+  // Real-time validation
+  validateField(name, normalizedValue);
+};
   const addAddress = () => {
     const newAddr: AddressModel = {
       addressId: `temp-${uuidv4()}`,
@@ -950,24 +984,19 @@ const ProfilePage = () => {
 
                     {/* UNIQUENESS CHECKED FIELDS */}
                     <div className="space-y-2">
-                      <Input
-                        label="Personal Email Address"
-                        name="personalEmail"
-                        type="email"
-                        value={formData.personalEmail || ""}
-                        onChange={onChange}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "EMAIL",
-                              val,
-                              "personalEmail",
-                              "personal_email",
-                              profile?.employeeId
-                            );
-                        }}
-                      />
+                      {/* Personal Email */}
+<Input
+  label="Personal Email Address"
+  name="personalEmail"
+  type="email"
+  value={formData.personalEmail || ""}
+  onChange={onChange}
+  onBlur={(e) => {
+    const val = e.target.value.trim();
+    if (val)
+      checkUniqueness("EMAIL", val, "personalEmail", "personal_email", profile?.employeeId);
+  }}
+/>
                       {errors.personalEmail && (
                         <p className="text-red-600 text-sm font-medium">
                           {errors.personalEmail}
@@ -1111,24 +1140,24 @@ const ProfilePage = () => {
                     className="grid grid-cols-1 lg:grid-cols-2 gap-4"
                   >
                     <div className="space-y-2">
-                      <Input
-                        label="PAN Number"
-                        name="panNumber"
-                        value={formData.panNumber || ""}
-                        onChange={onChange}
-                        pattern="[A-Z0-9]{10}"
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "PAN_NUMBER",
-                              val,
-                              "panNumber",
-                              "pan_number",
-                              profile?.employeeId
-                            );
-                        }}
-                      />
+                    <Input
+  label="PAN Number"
+  name="panNumber"
+  value={formData.panNumber || ""}
+  onChange={onChange}
+  pattern="[A-Z0-9]{10}"
+  onBlur={(e) => {
+    const val = e.target.value.trim();
+    if (val)
+      checkUniqueness(
+        "PAN_NUMBER",
+        val,
+        "panNumber",
+        "pan_number",
+        profile?.employeeId
+      );
+  }}
+/>
                       {errors.panNumber && (
                         <p className="text-red-600 text-sm font-medium">
                           {errors.panNumber}

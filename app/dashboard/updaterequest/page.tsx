@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { employeeService } from '@/lib/api/employeeService';
 import {
     WebResponseDTOListEmployeeUpdateRequestDTO,
-    EmployeeDTO
+    EmployeeDTO,
+    AddressModel
 } from '@/lib/api/types';
 import Swal from 'sweetalert2';
-import { Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, FileText, Camera, MapPin } from 'lucide-react';
 
 // Format date
 const formatDate = (d: string) =>
@@ -25,7 +26,6 @@ export default function UpdateRequestPage() {
     const [profile, setProfile] = useState<EmployeeDTO | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Load OLD values from /employee/view
     const loadOldProfile = async () => {
         try {
             const res = await employeeService.getEmployeeById();
@@ -35,7 +35,6 @@ export default function UpdateRequestPage() {
         }
     };
 
-    // Load update requests
     const loadRequests = async () => {
         try {
             const res: WebResponseDTOListEmployeeUpdateRequestDTO =
@@ -70,8 +69,7 @@ export default function UpdateRequestPage() {
 
     return (
         <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4 sm:mb-6 flex items-center justify-center text-center">
-                <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 flex-shrink-0" />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight flex items-center justify-center">
                 My Update Requests
             </h1>
 
@@ -82,49 +80,15 @@ export default function UpdateRequestPage() {
             )}
 
             {requests.map((req) => {
-                let updatedData = req.updatedData;
-
-                // If backend sends JSON string
-                if (typeof updatedData === "string") {
-                    try {
-                        updatedData = JSON.parse(updatedData);
-                    } catch {
-                        updatedData = {};
-                    }
-                }
-
-                // ✅ Show ONLY modified fields: oldValue !== newValue
-                const modifiedFields = Object.entries(updatedData).filter(([key, newValue]) => {
-                    const oldValue = profile[key as keyof EmployeeDTO];
-
-                    // Ignore null/empty new values
-                    if (
-                        newValue === null ||
-                        newValue === "" ||
-                        newValue === undefined ||
-                        newValue === "null" ||
-                        newValue === "undefined"
-                    ) {
-                        return false;
-                    }
-
-                    // Ignore when both are same
-                    if (String(oldValue) === String(newValue)) {
-                        return false;
-                    }
-
-                    return true; // KEEP ONLY CHANGES
-                });
-
                 return (
                     <div
                         key={req.requestId}
-                        className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow border space-y-4 sm:space-y-6"
+                        className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow border space-y-4 sm:space-y-6 overflow-hidden"
                     >
                         {/* Header */}
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                             <div className="space-y-1">
-                                <p className="text-base sm:text-lg font-semibold text-gray-800 line-clamp-1">
+                                <p className="text-base sm:text-lg font-semibold text-gray-800">
                                     Request ID: {req.requestId.slice(0, 8)}...
                                 </p>
                                 <p className="text-xs sm:text-sm text-gray-600">
@@ -135,18 +99,18 @@ export default function UpdateRequestPage() {
                             {/* Status Badge */}
                             <div>
                                 {req.status === "PENDING" && (
-                                    <span className="flex items-center gap-1.5 sm:gap-2 bg-yellow-100 text-yellow-700 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium">
-                                        <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" /> Pending
+                                    <span className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-lg text-sm font-medium">
+                                        <Clock className="w-4 h-4" /> Pending
                                     </span>
                                 )}
                                 {req.status === "APPROVED" && (
-                                    <span className="flex items-center gap-1.5 sm:gap-2 bg-green-100 text-green-700 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium">
-                                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" /> Approved
+                                    <span className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-lg text-sm font-medium">
+                                        <CheckCircle className="w-4 h-4" /> Approved
                                     </span>
                                 )}
                                 {req.status === "REJECTED" && (
-                                    <span className="flex items-center gap-1.5 sm:gap-2 bg-red-100 text-red-700 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium">
-                                        <XCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" /> Rejected
+                                    <span className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-1.5 rounded-lg text-sm font-medium">
+                                        <XCircle className="w-4 h-4" /> Rejected
                                     </span>
                                 )}
                             </div>
@@ -154,68 +118,262 @@ export default function UpdateRequestPage() {
 
                         {/* Admin Comment */}
                         {req.adminComment && (
-                            <div className="bg-gray-50 border rounded-lg sm:rounded-xl p-3 sm:p-4">
-                                <p className="text-xs sm:text-sm font-semibold text-gray-700">Admin Comment:</p>
-                                <p className="text-gray-700 mt-1 text-xs sm:text-sm line-clamp-3">{req.adminComment}</p>
+                            <div className="bg-gray-50 border rounded-xl p-4">
+                                <p className="text-sm font-semibold text-gray-700">Admin Comment:</p>
+                                <p className="text-gray-700 mt-1 text-sm">{req.adminComment}</p>
                             </div>
                         )}
 
-                        {/* OLD vs NEW */}
+                        {/* Changes Section */}
+                        {/* Changes Section */}
                         <div>
-                            <p className="text-green-700 font-semibold mb-2 sm:mb-3 text-base sm:text-lg">
-                                Modified Fields
+                            <p className="text-green-700 font-semibold mb-3 text-base sm:text-lg">
+                                Modified Fields & Files
                             </p>
 
-                            {modifiedFields.length === 0 ? (
-                                <p className="text-gray-500 text-xs sm:text-sm">No modified fields.</p>
-                            ) : (
-                                <div className="space-y-2 sm:space-y-3">
-                                    {/* Header Row */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 font-semibold text-xs sm:text-sm text-gray-800 border-b pb-2 hidden sm:grid">
-                                        <span>Field Name</span>
-                                        <span className="text-center">Previous</span>
-                                        <span className="text-right">Updated</span>
-                                    </div>
+                            {(() => {
+                                if (!profile) {
+                                    return <p className="text-gray-500 text-sm italic">Profile not loaded</p>;
+                                }
 
-                                    {/* Mobile: Stacked Header */}
-                                    <div className="sm:hidden grid grid-cols-1 gap-1 text-xs font-semibold text-gray-800 border-b pb-2">
-                                        <span>Field Name</span>
-                                        <span>Previous Value</span>
-                                        <span>Updated Value</span>
-                                    </div>
+                                let updatedData = req.updatedData;
+                                if (typeof updatedData === "string") {
+                                    try {
+                                        updatedData = JSON.parse(updatedData);
+                                    } catch {
+                                        updatedData = {};
+                                    }
+                                }
 
-                                    {/* Data Rows */}
-                                    {modifiedFields.map(([key, newValue]) => {
-                                        const oldValue = profile[key as keyof EmployeeDTO] ?? "—";
+                                // 1. Scalar field changes
+                                const scalarChanges = Object.entries(updatedData)
+                                    .filter(([key]) => !['documents', 'addresses', 'employeePhotoUrl', 'employeePhotoUrlString'].includes(key))
+                                    .filter(([_, newValue]) => newValue != null && newValue !== '' && newValue !== 'null')
+                                    .filter(([key, newValue]) => {
+                                        const oldValue = profile[key as keyof EmployeeDTO];
+                                        return String(oldValue ?? '') !== String(newValue);
+                                    });
 
-                                        return (
-                                            <div
-                                                key={key}
-                                                className="grid grid-cols-1 sm:grid-cols-3 items-start p-2 sm:p-3 border rounded-lg sm:rounded-xl bg-gray-50 shadow-sm gap-1 sm:gap-0"
-                                            >
-                                                {/* Label */}
-                                                <div className="font-medium text-gray-800 text-xs sm:text-sm">
-                                                    {formatKey(key)}
-                                                </div>
+                                // 2. Address changes
+                                const addressChanges: { field: string; old: string; new: string; type: string }[] = [];
+                                if (Array.isArray(updatedData.addresses) && updatedData.addresses.length > 0) {
+                                    const newAddr = updatedData.addresses[0];
+                                    const oldAddr = profile.addresses?.find(a => a.addressType === newAddr.addressType) || {};
 
-                                                {/* Old Value */}
-                                                <div className="sm:text-center">
-                                                    <span className="text-red-600 font-semibold text-xs sm:text-sm block sm:inline">
-                                                      {String(oldValue)}
-                                                    </span>
-                                                </div>
+                                    const addrFields: (keyof AddressModel)[] = [
+                                        'houseNo', 'streetName', 'city', 'state', 'country', 'pincode', 'addressType'
+                                    ];
 
-                                                {/* New Value */}
-                                                <div className="text-right sm:text-right">
-                                                    <span className="text-green-700 font-semibold text-xs sm:text-sm block sm:inline">
-                                                        {String(newValue)}
-                                                    </span>
+                                    addrFields.forEach((field) => {
+                                        const oldVal = (oldAddr as Partial<AddressModel>)[field] ?? '—';
+                                        const newVal = newAddr[field] ?? '—';
+                                        if (String(oldVal) !== String(newVal)) {
+                                            addressChanges.push({
+                                                field: formatKey(field),
+                                                old: String(oldVal),
+                                                new: String(newVal),
+                                                type: newAddr.addressType || 'Address'
+                                            });
+                                        }
+                                    });
+                                }
+
+                                // 3. Documents
+                                const newDocuments = Array.isArray(updatedData.documents) && updatedData.documents.length > 0
+                                    ? updatedData.documents.filter((d: any) => d.fileUrl || d.documentId)
+                                    : [];
+
+                                // 4. Profile Photo
+                                const oldPhotoUrl = profile.employeePhotoUrl || '';
+                                const photoUrl = updatedData.employeePhotoUrl || updatedData.employeePhotoUrlString || null;
+                                const hasNewPhoto = !!photoUrl && photoUrl !== oldPhotoUrl;
+
+                                const hasAnyChange = scalarChanges.length > 0 || addressChanges.length > 0 || newDocuments.length > 0 || hasNewPhoto;
+
+                                if (!hasAnyChange) {
+                                    return (
+                                        <p className="text-gray-500 text-sm italic">
+                                            No changes detected in this request.
+                                        </p>
+                                    );
+                                }
+
+                                return (
+                                    <div className="space-y-6">
+                                        {/* Table Header - Only shown if there are grid changes */}
+                                        {(scalarChanges.length > 0 || addressChanges.length > 0 || hasNewPhoto) && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 font-semibold text-gray-700 text-sm border-b border-gray-300 pb-2 mb-4">
+                                                <div>Field</div>
+                                                <div className="sm:text-center text-red-600">Previous</div>
+                                                <div className="text-right text-green-700">Updated</div>
+                                            </div>
+                                        )}
+
+                                        {/* Scalar Changes */}
+                                        {scalarChanges.length > 0 && (
+                                            <div className="space-y-3">
+                                                {scalarChanges.map(([key, newValue]) => {
+                                                    const oldValue = profile[key as keyof EmployeeDTO] ?? "—";
+                                                    return (
+                                                        <div
+                                                            key={key}
+                                                            className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-gray-50 gap-2"
+                                                        >
+                                                            <div className="font-medium text-gray-800 text-sm">
+                                                                {formatKey(key)}
+                                                            </div>
+                                                            <div className="sm:text-center">
+                                                                <span className="text-red-600 font-medium text-sm">
+                                                                    {String(oldValue)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="text-green-700 font-medium text-sm">
+                                                                    {String(newValue)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* Address Changes */}
+                                        {addressChanges.length > 0 && (
+                                            <div className="space-y-3">
+                                                <p className="font-semibold text-purple-700 text-sm flex items-center gap-2 mb-3">
+                                                    <MapPin className="w-5 h-5" />
+                                                    {addressChanges[0].type} Address Changes:
+                                                </p>
+                                                {addressChanges.map((change, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-purple-50 gap-2"
+                                                    >
+                                                        <div className="font-medium text-gray-800 text-sm">
+                                                            {change.field}
+                                                        </div>
+                                                        <div className="sm:text-center">
+                                                            <span className="text-red-600 font-medium text-sm">
+                                                                {change.old}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className="text-green-700 font-medium text-sm">
+                                                                {change.new}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Profile Photo Changes */}
+                                        {hasNewPhoto && (
+                                            <div className="space-y-3">
+                                                <p className="font-semibold text-purple-700 text-sm flex items-center gap-2 mb-3">
+                                                    <Camera className="w-5 h-5" />
+                                                    Profile Photo Changes:
+                                                </p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-purple-50 gap-2">
+                                                    <div className="font-medium text-gray-800 text-sm">
+                                                        Profile Photo
+                                                    </div>
+                                                    <div className="sm:text-center">
+                                                        {oldPhotoUrl ? (
+                                                            <a
+                                                                href={oldPhotoUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-red-600 hover:underline text-sm break-all block"
+                                                                title={oldPhotoUrl}
+                                                            >
+                                                                View Old Photo →
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-red-600 italic text-sm">No previous photo</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <a
+                                                            href={photoUrl!}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-green-700 font-medium hover:underline text-sm break-all block"
+                                                            title={photoUrl!}
+                                                        >
+                                                            View New Photo →
+                                                        </a>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                        )}
+
+                                        {/* Documents - Aligned Like Other Changes */}
+                                        {newDocuments.length > 0 && (
+                                            <div className="space-y-4">
+                                                <p className="font-semibold text-indigo-700 text-sm">
+                                                    Document Updates:
+                                                </p>
+
+                                                {newDocuments.map((newDoc: any, i: number) => {
+                                                    // Find old document with same docType
+                                                    const oldDoc = profile.documents?.find((d: any) => d.docType === newDoc.docType);
+
+                                                    return (
+                                                        <div key={i} className="space-y-3">
+                                                            {/* Document Type Header */}
+                                                            <p className="font-medium text-sm flex items-center gap-2">
+                                                                <FileText className="w-5 h-5 text-indigo-600" />
+                                                                {newDoc.docType.replace(/_/g, " ")}
+                                                            </p>
+
+                                                            {/* Grid: Previous vs New */}
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-blue-50 gap-2">
+                                                                {/* Label */}
+                                                                <div className="font-medium text-gray-800 text-sm">
+                                                                    Document File
+                                                                </div>
+
+                                                                {/* Previous File */}
+                                                                <div className="sm:text-center">
+                                                                    {oldDoc?.file ? (
+                                                                        <a
+                                                                            href={oldDoc.file}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-red-600 hover:underline text-sm break-all block"
+                                                                            title={oldDoc.file}
+                                                                        >
+                                                                            View Old File →
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-red-600 italic text-sm">No previous file</span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* New File */}
+                                                                <div className="text-right">
+                                                                    <a
+                                                                        href={newDoc.fileUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-green-700 font-medium hover:underline text-sm break-all block"
+                                                                        title={newDoc.fileUrl}
+                                                                    >
+                                                                        View New File →
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {req.approvedAt && (
