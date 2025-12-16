@@ -507,57 +507,57 @@ const ProfilePage = () => {
       setUpdating(false);
     }
   };
-// Inside your onChange function — replace the existing onChange with this enhanced version
+  // Inside your onChange function — replace the existing onChange with this enhanced version
 
-const onChange = (
-  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-) => {
-  const { name, value: rawValue } = e.target;
-  let normalizedValue = rawValue;
+  const onChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value: rawValue } = e.target;
+    let normalizedValue = rawValue;
 
-  // === Special field transformations ===
-  if (name === "personalEmail") {
-    // Force lowercase for email
-    normalizedValue = rawValue.toLowerCase();
-  }
+    // === Special field transformations ===
+    if (name === "personalEmail") {
+      // Force lowercase for email
+      normalizedValue = rawValue.toLowerCase();
+    }
 
-  if (name === "panNumber") {
-    // Force uppercase for PAN
-    normalizedValue = rawValue.toUpperCase();
-    // Optional: Allow only alphanumeric (PAN format)
-    normalizedValue = normalizedValue.replace(/[^A-Z0-9]/g, "");
-  }
+    if (name === "panNumber") {
+      // Force uppercase for PAN
+      normalizedValue = rawValue.toUpperCase();
+      // Optional: Allow only alphanumeric (PAN format)
+      normalizedValue = normalizedValue.replace(/[^A-Z0-9]/g, "");
+    }
 
-  // Prevent leading spaces for most fields
-  if (!["personalEmail", "panNumber"].includes(name)) {
-    normalizedValue = rawValue.trimStart();
-  }
+    // Prevent leading spaces for most fields
+    if (!["personalEmail", "panNumber"].includes(name)) {
+      normalizedValue = rawValue.trimStart();
+    }
 
-  // Numeric-only fields (keep existing logic)
-  if (
-    [
-      "accountNumber",
-      "aadharNumber",
-      "contactNumber",
-      "alternateContactNumber",
-      "emergencyContactNumber",
-    ].includes(name)
-  ) {
-    normalizedValue = rawValue.replace(/\D/g, ""); // Only digits
-  }
+    // Numeric-only fields (keep existing logic)
+    if (
+      [
+        "accountNumber",
+        "aadharNumber",
+        "contactNumber",
+        "alternateContactNumber",
+        "emergencyContactNumber",
+      ].includes(name)
+    ) {
+      normalizedValue = rawValue.replace(/\D/g, ""); // Only digits
+    }
 
-  // Normalize gender & maritalStatus
-  if (name === "gender" || name === "maritalStatus") {
-    normalizedValue =
-      rawValue.charAt(0).toUpperCase() + rawValue.slice(1).toLowerCase();
-  }
+    // Normalize gender & maritalStatus
+    if (name === "gender" || name === "maritalStatus") {
+      normalizedValue =
+        rawValue.charAt(0).toUpperCase() + rawValue.slice(1).toLowerCase();
+    }
 
-  // Update form data
-  setFormData((prev) => (prev ? { ...prev, [name]: normalizedValue } : null));
+    // Update form data
+    setFormData((prev) => (prev ? { ...prev, [name]: normalizedValue } : null));
 
-  // Real-time validation
-  validateField(name, normalizedValue);
-};
+    // Real-time validation
+    validateField(name, normalizedValue);
+  };
   const addAddress = () => {
     const newAddr: AddressModel = {
       addressId: `temp-${uuidv4()}`,
@@ -985,18 +985,18 @@ const onChange = (
                     {/* UNIQUENESS CHECKED FIELDS */}
                     <div className="space-y-2">
                       {/* Personal Email */}
-<Input
-  label="Personal Email Address"
-  name="personalEmail"
-  type="email"
-  value={formData.personalEmail || ""}
-  onChange={onChange}
-  onBlur={(e) => {
-    const val = e.target.value.trim();
-    if (val)
-      checkUniqueness("EMAIL", val, "personalEmail", "personal_email", profile?.employeeId);
-  }}
-/>
+                      <Input
+                        label="Personal Email Address"
+                        name="personalEmail"
+                        type="email"
+                        value={formData.personalEmail || ""}
+                        onChange={onChange}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val)
+                            checkUniqueness("EMAIL", val, "personalEmail", "personal_email", profile?.employeeId);
+                        }}
+                      />
                       {errors.personalEmail && (
                         <p className="text-red-600 text-sm font-medium">
                           {errors.personalEmail}
@@ -1140,24 +1140,24 @@ const onChange = (
                     className="grid grid-cols-1 lg:grid-cols-2 gap-4"
                   >
                     <div className="space-y-2">
-                    <Input
-  label="PAN Number"
-  name="panNumber"
-  value={formData.panNumber || ""}
-  onChange={onChange}
-  pattern="[A-Z0-9]{10}"
-  onBlur={(e) => {
-    const val = e.target.value.trim();
-    if (val)
-      checkUniqueness(
-        "PAN_NUMBER",
-        val,
-        "panNumber",
-        "pan_number",
-        profile?.employeeId
-      );
-  }}
-/>
+                      <Input
+                        label="PAN Number"
+                        name="panNumber"
+                        value={formData.panNumber || ""}
+                        onChange={onChange}
+                        pattern="[A-Z0-9]{10}"
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val)
+                            checkUniqueness(
+                              "PAN_NUMBER",
+                              val,
+                              "panNumber",
+                              "pan_number",
+                              profile?.employeeId
+                            );
+                        }}
+                      />
                       {errors.panNumber && (
                         <p className="text-red-600 text-sm font-medium">
                           {errors.panNumber}
@@ -1982,13 +1982,34 @@ const onChange = (
                     />
                     <ShowIfFilled
                       label="Shift Timing"
-                      value={profile.employeeEmploymentDetailsDTO.shiftTiming}
+                      value={profile.employeeEmploymentDetailsDTO.shiftTimingLabel}
                     />
                     <ShowIfFilled
                       label="Notice Period Duration"
                       value={
                         profile.employeeEmploymentDetailsDTO
-                          .noticePeriodDuration
+                          .noticePeriodDurationLabel
+                      }
+                    />
+                     <ShowIfFilled
+                      label="Bond Duration"
+                      value={
+                        profile.employeeEmploymentDetailsDTO
+                          .bondDurationLabel
+                      }
+                    />
+                    <ShowIfFilled
+                      label="Probation Duration"
+                      value={
+                        profile.employeeEmploymentDetailsDTO
+                          .probationDurationLabel
+                      }
+                    />
+                     <ShowIfFilled
+                      label="Probation Notice Period"
+                      value={
+                        profile.employeeEmploymentDetailsDTO
+                          .probationNoticePeriodLabel
                       }
                     />
                   </InfoCard>

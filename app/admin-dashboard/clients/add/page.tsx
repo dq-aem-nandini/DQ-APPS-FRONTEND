@@ -11,6 +11,7 @@ import Spinner from '@/components/ui/Spinner';
 import useLoading from '@/hooks/useLoading';
 import { Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import TooltipHint from '@/components/ui/TooltipHint';
 
 type Address = {
   addressId: string;
@@ -125,31 +126,6 @@ export default function AddClientPage() {
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  // Global uniqueness check on blur
-  // const checkUniqueness = async (field: any, value: string, key: string) => {
-  //   if (!value || value.length < 3 || checking.has(key)) return;
-
-  //   setChecking(prev => new Set(prev).add(key));
-  //   try {
-  //     const result = await validationService.validateField({
-  //       field,
-  //       value,
-  //       mode: 'create',
-  //     });
-  //     if (result.exists) {
-  //       setErrors(prev => ({ ...prev, [key]: 'Already exists in system' }));
-  //     }
-  //   } catch (e) {
-  //     console.warn('Uniqueness check failed', e);
-  //   } finally {
-  //     setChecking(prev => {
-  //       const s = new Set(prev);
-  //       s.delete(key);
-  //       return s;
-  //     });
-  //   }
-  // };
-
   const checkUniqueness = async (
     field: UniqueField,
     value: string,
@@ -166,7 +142,7 @@ export default function AddClientPage() {
         field,
         value: val,
         mode: "create",
-        fieldColumn,  // ← SEND THIS
+        fieldColumn,
       });
 
       setErrors(prev => {
@@ -412,11 +388,6 @@ export default function AddClientPage() {
           text: 'Client added successfully!',
           timer: 2000,
           showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-          background: '#10b981',
-          color: 'white',
-          iconColor: 'white',
         });
 
         router.push('/admin-dashboard/clients/list');
@@ -443,152 +414,22 @@ export default function AddClientPage() {
       }
 
       // ERROR SWEETALERT — SHOWS EXACT BACKEND MESSAGE
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: backendMessage,
-        confirmButtonColor: '#ef4444',
-        background: '#fef2f2',
-        customClass: {
-          popup: 'animate__animated animate__shakeX',
-        },
-      });
+      await Swal.fire('Error', err.message || 'Something went wrong', 'error');
+      
+      // await Swal.fire({
+      //   icon: 'error',
+      //   title: 'Error',
+      //   text: backendMessage,
+      //   confirmButtonColor: '#ef4444',
+      //   background: '#fef2f2',
+      //   customClass: {
+      //     popup: 'animate__animated animate__shakeX',
+      //   },
+      // });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setError('');
-  //   setSuccess('');
-  //   setErrors({}); // Clear previous errors
-  //   setIsSubmitting(true);
-
-  //   // ────── REQUIRED FIELDS WITH AUTO-FOCUS & SCROLL ──────
-  //   const requiredFields = [
-  //     { value: formData.companyName, name: 'companyName', label: 'Company Name' },
-  //     { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
-  //     { value: formData.email, name: 'email', label: 'Email' },
-  //     { value: formData.gst, name: 'gst', label: 'GST' },
-  //     { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
-  //     { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
-  //     { value: formData.currency, name: 'currency', label: 'Currency' },
-  //     // Address (first one only)
-  //     { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
-  //     { value: formData.addresses[0]?.state, name: 'addresses.0.state', label: 'State (Address)' },
-  //     { value: formData.addresses[0]?.pincode, name: 'addresses.0.pincode', label: 'Pincode (Address)' },
-  //     { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
-  //     // POC (first one only)
-  //     { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
-  //     { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
-  //     { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
-  //   ];
-
-  //   const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
-  //   if (missingField) {
-  //     const errorMsg = `${missingField.label} is required`;
-  //     setErrors({ [missingField.name]: errorMsg });
-
-  //     setTimeout(() => {
-  //       const input = document.querySelector(
-  //         `[name="${missingField.name.split('.').pop()}"]`
-  //       ) as HTMLElement;
-  //       if (input) {
-  //         input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  //         input.focus();
-  //         input.classList.add('error-field');
-  //       }
-  //     }, 100);
-
-  //     setIsSubmitting(false);
-  //     return;
-  //   }
-
-  //   try {
-  //     await withLoading(async () => {
-  //       const payload = {
-  //         companyName: formData.companyName.trim(),
-  //         contactNumber: formData.contactNumber,
-  //         email: formData.email.toLowerCase().trim(),
-  //         gst: formData.gst.toUpperCase(),
-  //         panNumber: formData.panNumber.toUpperCase(),
-  //         tanNumber: formData.tanNumber.toUpperCase(),
-  //         currency: formData.currency,
-
-  //         addresses: formData.addresses.map(a => ({
-  //           addressId: a.addressId,
-  //           houseNo: a.houseNo?.trim() || '',
-  //           streetName: a.streetName?.trim() || '',
-  //           city: a.city.trim(),
-  //           state: a.state.trim(),
-  //           pincode: a.pincode,
-  //           country: a.country.trim(),
-  //           addressType: a.addressType,
-  //         })),
-
-  //         clientPocs: formData.clientPocs.map(p => ({
-  //           pocId: uuidv4(),
-  //           name: p.name.trim(),
-  //           email: p.email.toLowerCase().trim(),
-  //           contactNumber: p.contactNumber,
-  //           designation: p.designation?.trim() || '',
-  //         })),
-
-  //         clientTaxDetails: formData.clientTaxDetails.map(t => ({
-  //           taxId: t.taxId || uuidv4(),
-  //           taxName: t.taxName?.trim() || '',
-  //           taxPercentage: t.taxPercentage ?? 0,
-  //           createdAt: new Date().toISOString(),
-  //           updatedAt: new Date().toISOString(),
-  //         })),
-  //       };
-
-  //       await adminService.addClient(payload);
-  //       setSuccess('Client added successfully!');
-  //       setTimeout(() => router.push('/admin-dashboard/clients/list'), 1500);
-  //     });
-  //   } catch (err: any) {
-  //     let fieldErrors: Record<string, string> = {};
-
-  //     if (err.response?.data) {
-  //       const data = err.response.data;
-
-  //       if (data.fieldErrors) {
-  //         fieldErrors = Object.fromEntries(
-  //           Object.entries(data.fieldErrors).map(([field, msg]) => [
-  //             field,
-  //             Array.isArray(msg) ? msg[0] : msg
-  //           ])
-  //         );
-  //       } else if (data.errors && typeof data.errors === 'object') {
-  //         fieldErrors = Object.fromEntries(
-  //           Object.entries(data.errors).map(([field, msg]) => [
-  //             field.toLowerCase(),
-  //             Array.isArray(msg) ? msg[0] : msg
-  //           ])
-  //         );
-  //       }
-  //     }
-
-  //     if (Object.keys(fieldErrors).length > 0) {
-  //       setErrors(fieldErrors);
-  //       setTimeout(() => {
-  //         const firstField = Object.keys(fieldErrors)[0];
-  //         const input = document.querySelector(`[name="${firstField.split('.').pop()}"]`) as HTMLElement;
-  //         if (input) {
-  //           input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  //           input.focus();
-  //           input.classList.add('error-field');
-  //         }
-  //       }, 100);
-  //     } else {
-  //       setError(err.message || 'Failed to add client');
-  //     }
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
 
 
   return (
@@ -618,7 +459,7 @@ export default function AddClientPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name <span className="text-red-500">*</span><TooltipHint hint="Full legal name of the company. Example: DigiQuad Technologies Private Limited" /></label>
                   <input
                     type="text"
                     name="companyName"
@@ -633,13 +474,23 @@ export default function AddClientPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number <span className="text-red-500">*</span>
+                    <TooltipHint hint="10-digit Indian mobile number. Must start with 6-9." />
+                  </label>
                   <input
                     type="tel"
                     name="contactNumber"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={formData.contactNumber}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      if (/^\d*$/.test(e.target.value)) {
+                        handleChange(e);
+                      }
+                    }}
                     required
+
                     onBlur={(e) => checkUniqueness('CONTACT_NUMBER', e.target.value, 'contactNumber', 'contact_number')}
                     maxLength={10}
                     placeholder="e.g. 9876543210"
@@ -649,16 +500,16 @@ export default function AddClientPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span>
+                    <TooltipHint hint="Official company email. Example: info@digiquad.com" />
+                  </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    onBlur={(e) => checkUniqueness('EMAIL', e.target.value.trim(), 'email', 'email')}
-                    // onBlur={() => checkUniqueness('EMAIL', formData.email, 'email')}
-                    placeholder="e.g. info@company.com"
+                    onBlur={(e) => checkUniqueness('EMAIL', e.target.value.trim(), 'email', 'email')} placeholder="e.g. info@company.com"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
@@ -668,7 +519,7 @@ export default function AddClientPage() {
                 <div>
                   <label htmlFor="gst" className="block text-sm font-medium text-gray-700 mb-1">
                     GST <span className="text-red-500">*</span>
-                  </label>
+                    <TooltipHint hint="15-character GSTIN. Format: 27AABCU9603R1ZX (2 digits state code + PAN + entity code + Z + checksum)" />                  </label>
                   <div className="relative">
                     <input
                       type="text"
@@ -677,7 +528,6 @@ export default function AddClientPage() {
                       value={formData.gst}
                       onChange={handleChange}
                       onBlur={(e) => checkUniqueness('GST', e.target.value.trim(), 'gst', 'gst')}
-                      // onBlur={() => checkUniqueness('GST', formData.gst, 'gst')}
                       maxLength={15}
                       required
                       placeholder="e.g. 27ABCDE1234F1Z5"
@@ -694,6 +544,7 @@ export default function AddClientPage() {
                 <div>
                   <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700 mb-1">
                     PAN <span className="text-red-500">*</span>
+                    <TooltipHint hint="10-character PAN number. Format: ABCDE1234F (5 letters + 4 digits + 1 letter)" />
                   </label>
                   <div className="relative">
                     <input
@@ -703,7 +554,6 @@ export default function AddClientPage() {
                       value={formData.panNumber}
                       onChange={handleChange}
                       onBlur={(e) => checkUniqueness('PAN_NUMBER', e.target.value.trim(), 'panNumber', 'pan_number')}
-                      // onBlur={() => checkUniqueness('PAN_NUMBER', formData.panNumber, 'panNumber')}
                       maxLength={10}
                       required
                       placeholder="e.g. ABCDE1234F"
@@ -720,6 +570,7 @@ export default function AddClientPage() {
                 <div>
                   <label htmlFor="tanNumber" className="block text-sm font-medium text-gray-700 mb-1">
                     TAN <span className="text-red-500">*</span>
+                    <TooltipHint hint="10-character Tax Deduction Account Number. Format: MUMA12345B" />
                   </label>
                   <div className="relative">
                     <input
@@ -728,7 +579,6 @@ export default function AddClientPage() {
                       name="tanNumber"
                       value={formData.tanNumber}
                       onChange={handleChange}
-                      // onBlur={() => checkUniqueness('TAN_NUMBER', formData.tanNumber, 'tanNumber')}
                       onBlur={(e) => checkUniqueness('TAN_NUMBER', e.target.value.trim(), 'tanNumber', 'tan_number')}
                       maxLength={10}
                       required
@@ -742,7 +592,7 @@ export default function AddClientPage() {
                   {errors.tanNumber && <p className="text-red-500 text-xs mt-1">{errors.tanNumber}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency <span className="text-red-500">*</span><TooltipHint hint="Primary billing currency for this client" /></label>
                   <select
                     name="currency"
                     value={formData.currency}
@@ -809,7 +659,7 @@ export default function AddClientPage() {
 
                     {/* City */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">City {i === 0}<span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">City {i === 0}<span className="text-red-500">*</span>{i === 0 && <TooltipHint hint="City name as per official records" />}</label>
                       <input
                         type="text"
                         name={`addresses.${i}.city`}
@@ -827,7 +677,8 @@ export default function AddClientPage() {
 
                     {/* State */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">State {i === 0}<span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">State {i === 0}<span className="text-red-500">*</span>
+                        {i === 0 && <TooltipHint hint="State name as per official records" />}</label>
                       <input
                         type="text"
                         name={`addresses.${i}.state`}
@@ -845,7 +696,8 @@ export default function AddClientPage() {
 
                     {/* Pincode */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pincode {i === 0}<span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pincode {i === 0}<span className="text-red-500">*</span>
+                        {i === 0 && <TooltipHint hint="Pincode as per official records" />}</label>
                       <input
                         type="text"
                         name={`addresses.${i}.pincode`}
@@ -864,7 +716,8 @@ export default function AddClientPage() {
 
                     {/* Country */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Country {i === 0}<span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Country {i === 0}<span className="text-red-500">*</span>
+                        {i === 0 && <TooltipHint hint="Country name as per official records" />}</label>
                       <input
                         type="text"
                         name={`addresses.${i}.country`}
@@ -942,6 +795,7 @@ export default function AddClientPage() {
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Name {i === 0 && <span className="text-red-500">*</span>}
+                            {i === 0 && <TooltipHint hint="Full name of the point of contact" />}
                           </label>
                           <input
                             type="text"
@@ -962,16 +816,13 @@ export default function AddClientPage() {
                         <div className="relative">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Email {i === 0 && <span className="text-red-500">*</span>}
+                            {i === 0 && <TooltipHint hint="Official email of the contact person" />}
                           </label>
                           <input
                             type="email"
                             name={`clientPocs.${i}.email`}
                             value={poc.email || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
-                            // onBlur={(e) => {
-                            //   validateField(`clientPocs.${i}.email`, e.target.value, i);
-                            //   checkUniqueness('EMAIL', e.target.value, `clientPocs.${i}.email`);
-                            // }}
                             onBlur={(e) => {
                               const val = e.target.value.trim();
                               if (val) {
@@ -995,16 +846,13 @@ export default function AddClientPage() {
                         <div className="relative">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Contact Number {i === 0 && <span className="text-red-500">*</span>}
+                            {i === 0 && <TooltipHint hint="10-digit mobile number of the contact" />}
                           </label>
                           <input
                             type="tel"
                             name={`clientPocs.${i}.contactNumber`}
                             value={poc.contactNumber || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
-                            // onBlur={(e) => {
-                            //   validateField(`clientPocs.${i}.contactNumber`, e.target.value, i);
-                            //   checkUniqueness('CONTACT_NUMBER', e.target.value, `clientPocs.${i}.contactNumber`);
-                            // }}
                             onBlur={(e) => {
                               const val = e.target.value.trim();
                               if (val && val.length === 10) {

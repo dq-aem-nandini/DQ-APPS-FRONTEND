@@ -321,7 +321,6 @@ export default function EditClientPage() {
     }));
   };
 
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({}); // Clear previous errors

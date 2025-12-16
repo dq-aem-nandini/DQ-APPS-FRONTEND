@@ -101,10 +101,9 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-20">
           {/* Dashboard Title */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 tracking-tight">
-            {dashboardTitle}
-          </h1>
-
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-5xl font-extrabold text-gray-800 tracking-tight mt-8 mb-8">
+          {dashboardTitle}
+            </h1>
           <div className="flex items-center gap-6">
             <NotificationBell className="h-8 w-8 text-yellow-600 hover:scale-110 transition" />
 
