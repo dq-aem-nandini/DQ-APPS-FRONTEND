@@ -21,12 +21,14 @@ export const sidebarConfig = {
       { permission: "MANAGE_TEAM", label: "Team", href: '/manager/employees' },
       { permission: "APPROVE_LEAVE", label: "Approve Leave", href: '/manager/leaves' },
       { permission: "MANAGE_TIMESHEET", label: "Review Timesheets", href: '/manager/timesheets' },
+      { permission: "LEAVE_CALENDAR", label: "Leave Calendar", href: '/manager/leaveCalendar' },
     ],
   
     HR: [
       { permission: "VIEW_EMP_DASHBOARD", label: "Employee Records", href: "/hr/employees" },
       { permission: "VIEW_PAYROLL", label: "Payroll", href: "/hr/payroll" },
       { permission: "VIEW_INVOICE", label: "Invoices", href: "/hr/invoices" },
+      { permission: "LEAVE_CALENDAR", label: "Leave Calendar", href: '/hr/leaveCalendar' },
     ],
   
     FINANCE: [
