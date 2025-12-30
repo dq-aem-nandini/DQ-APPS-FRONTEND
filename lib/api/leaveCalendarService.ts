@@ -40,6 +40,32 @@ export const LeaveCalendarService = {
       } catch (error: any) {
         throw new Error(getBackendError(error));
       }
-    }   
+    }   ,
+
+     // ---------------------------------------
+  // Export Leave Calendar
+  // ---------------------------------------
+  async exportLeaveCalendar(month: number, year: number): Promise<string> {
+    try {
+      const response = await api.get(
+        "/employee/leave/calendar/export",
+        {
+          params: { month, year },
+        }
+      );
+  
+      /**
+       * Backend returns PLAIN STRING
+       * Example:
+       *  - file URL
+       *  - CSV text
+       */
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+  
+  
 
 }
