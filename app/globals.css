@@ -1,11 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
+/* --------------------------------
+   Background grid utility
+-------------------------------- */
 .bg-grid-pattern {
   background-image: 
     linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
   background-size: 20px 20px;
 }
+
+/* --------------------------------
+   Error field animation
+-------------------------------- */
 .error-field {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
@@ -17,12 +25,20 @@
   10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
   20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
+
+/* --------------------------------
+   Global layout fixes
+-------------------------------- */
 html, body {
   height: 100%;
   overflow: hidden !important;
 }
+
 @custom-variant dark (&:is(.dark *));
 
+/* --------------------------------
+   Theme tokens (shadcn / tailwind)
+-------------------------------- */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -63,6 +79,9 @@ html, body {
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* --------------------------------
+   Light theme
+-------------------------------- */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -98,6 +117,9 @@ html, body {
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* --------------------------------
+   Dark theme
+-------------------------------- */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -131,6 +153,10 @@ html, body {
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* --------------------------------
+   Autofill fix
+-------------------------------- */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -140,6 +166,10 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--foreground) !important;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* --------------------------------
+   Base layer
+-------------------------------- */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -148,3 +178,55 @@ input:-webkit-autofill:active {
     @apply bg-background text-foreground;
   }
 }
+/* ======================================================
+   ✅ LEAVE CALENDAR – RESPONSIVE (NO JSX CHANGES)
+   👉 ONLY hide FULL / HALF badges on mobile
+====================================================== */
+
+/* Mobile adjustments */
+@media (max-width: 960px) {
+
+  /* Calendar cells (keep layout same) */
+  .grid.grid-cols-7 > div {
+    min-height: 70px;
+    padding: 6px;
+  }
+
+  .grid.grid-cols-7 {
+    gap: 6px;
+  }
+
+  /* Date number */
+  .grid.grid-cols-7 .text-sm {
+    font-size: 12px;
+  }
+
+  /* Employee names */
+  .grid.grid-cols-7 .text-xs {
+    font-size: 10px;
+  }
+
+  /* --------------------------------
+     ❌ ONLY REMOVE FULL / HALF BADGES
+     (do NOT affect columns or layout)
+  -------------------------------- */
+
+  .grid.grid-cols-7 > div > div.flex {
+    display: none !important;
+  }
+
+  /* Header title */
+  h1 {
+    font-size: 20px;
+  }
+}
+
+/* Dialog responsiveness */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    width: 92vw !important;
+    max-width: 92vw !important;
+  }
+}
+
+

@@ -442,60 +442,6 @@ const AddEmployeePage = () => {
     };
     fetchInitialData();
   }, []);
-  // const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-  // const { name, value } = e.target;
-  // let parsedValue: any = value;
-  // if (name === 'personalEmail' || name === 'companyEmail') {
-  // parsedValue = value.toLowerCase();
-  // } else if (
-  // name === 'employeeSalaryDTO.ctc' ||
-  // name === 'employeeSalaryDTO.standardHours'
-  // ) {
-  // parsedValue = parseFloat(value) || 0;
-  // } else if (
-  // name.includes('employeeEmploymentDetailsDTO.probationApplicable') ||
-  // name.includes('employeeEmploymentDetailsDTO.bondApplicable') ||
-  // name.includes('employeeInsuranceDetailsDTO.groupInsurance')
-  // ) {
-  // parsedValue = (e.target as HTMLInputElement).checked;
-  // }
-  // if (name.includes('.')) {
-  // const [parent, child] = name.split('.');
-  // const objectFields: (keyof EmployeeModel)[] = [
-  // 'employeeSalaryDTO',
-  // 'employeeAdditionalDetailsDTO',
-  // 'employeeEmploymentDetailsDTO',
-  // 'employeeInsuranceDetailsDTO',
-  // 'employeeStatutoryDetailsDTO',
-  // ];
-  // if (objectFields.includes(parent as keyof EmployeeModel)) {
-  // setFormData(prev => ({
-  // ...prev,
-  // [parent]: {
-  // ...(prev[parent as keyof EmployeeModel] as Record<string, any> | undefined) ?? {},
-  // [child]: parsedValue,
-  // },
-  // }));
-  // } else {
-  // console.warn(`Attempted to update nested field on non-object: ${parent}.${child}`);
-  // }
-  // } else {
-  // setFormData(prev => ({ ...prev, [name]: parsedValue }));
-  // }
-  // // ⭐ VALIDATION: Trigger debounce for unique fields
-  // const uniqueFields: Record<string, UniqueField> = {
-  // personalEmail: 'EMAIL',
-  // companyEmail: 'EMAIL',
-  // contactNumber: 'CONTACT_NUMBER',
-  // 'employeeStatutoryDetailsDTO.pfUanNumber': 'PF_UAN_NUMBER',
-  // 'employeeStatutoryDetailsDTO.esiNumber': 'ESI_NUMBER',
-  // 'employeeStatutoryDetailsDTO.ssnNumber': 'SSN_NUMBER',
-  // };
-  // const fieldKey = name; // Use name as key (handles nested like 'employeeStatutoryDetailsDTO.pfUanNumber')
-  // if (uniqueFields[fieldKey]) {
-  // debouncedValidate(fieldKey, parsedValue, uniqueFields[fieldKey]);
-  // }
-  // };
   const handleDocumentChange = (index: number, field: 'docType' | 'file', value: DocumentType | File | null) => {
     setFormData(prev => ({
       ...prev,
