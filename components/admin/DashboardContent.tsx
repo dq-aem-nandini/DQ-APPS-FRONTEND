@@ -83,8 +83,8 @@ const DashboardContent = () => {
 
   return (
     <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen space-y-6 md:space-y-8">
-      {/* Key Metrics - Centered with 3 cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 max-w-5xl mx-auto">
+      {/* Key Metrics - 1 per row on mobile & tablet, 3 per row only on desktop (lg+) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-5xl mx-auto">
         <ResponsiveMetricCard
           icon={<Users className="w-5 h-5 md:w-6 md:h-6 text-sky-600" />}
           title="Employees"
@@ -108,8 +108,9 @@ const DashboardContent = () => {
           badge={pendingLeaves.length > 0}
         />
       </div>
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+
+      {/* Quick Actions - 1 per row on mobile & tablet, 3 per row only on desktop (lg+) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <ResponsiveActionCard
           icon={<Users className="w-5 h-5 md:w-6 md:h-6" />}
           title="Manage Employees"
@@ -138,7 +139,8 @@ const DashboardContent = () => {
           border="border-purple-200"
         />
       </div>
-      {/* Pending Leaves Section */}
+
+      {/* Pending Leaves Section - unchanged */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-3 bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4 md:mb-6">
@@ -170,7 +172,7 @@ const DashboardContent = () => {
                       </p>
                       <p className="text-sm text-gray-600 mt-1">
                         {format(new Date(leave.fromDate), 'MMM dd, yyyy')} –{' '}
-                        {format(new Date(leave.toDate), 'MMM dd, yyyy')} 
+                        {format(new Date(leave.toDate), 'MMM dd, yyyy')}
                       </p>
                     </div>
                   </div>
@@ -185,25 +187,23 @@ const DashboardContent = () => {
           </div>
         </div>
       </div>
-
-
     </div>
   );
 };
 
 const ResponsiveMetricCard = ({ icon, title, value, bg, border, badge }: any) => (
   <div
-    className={`bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm ${border} hover:shadow-md transition-all`}
+    className={`bg-white p-5 sm:p-6 md:p-6 rounded-2xl shadow-sm ${border} hover:shadow-md transition-all`}
   >
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className="text-2xl md:text-3xl font-bold text-gray-800 mt-2">{value}</p>
+        <p className="text-sm sm:text-base font-medium text-gray-600">{title}</p>
+        <p className="text-3xl sm:text-4xl md:text-3xl font-bold text-gray-800 mt-2">{value}</p>
       </div>
-      <div className={`p-3 md:p-4 rounded-xl ${bg}`}>{icon}</div>
+      <div className={`p-4 sm:p-5 md:p-4 rounded-xl ${bg}`}>{icon}</div>
     </div>
     {badge && (
-      <span className="inline-block mt-3 bg-amber-100 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">
+      <span className="inline-block mt-3 bg-amber-100 text-amber-700 text-xs sm:text-sm font-medium px-3 py-1 rounded-full">
         Requires attention
       </span>
     )}
@@ -213,16 +213,22 @@ const ResponsiveMetricCard = ({ icon, title, value, bg, border, badge }: any) =>
 const ResponsiveActionCard = ({ icon, title, description, href, bg, hover, border }: any) => (
   <a
     href={href}
-    className={`block p-5 md:p-6 rounded-2xl ${border} ${bg} ${hover} transition-all hover:shadow-md hover:-translate-y-1`}
+    className={`block p-5 md:p-6 rounded-2xl ${border} ${bg} ${hover} transition-all hover:shadow-md hover:-translate-y-1 overflow-hidden`}
   >
     <div className="flex items-start gap-4">
-      <div className="p-3 rounded-xl bg-white shadow-sm">{icon}</div>
-      <div>
-        <h3 className="font-semibold text-gray-800">{title}</h3>
-        <p className="text-sm text-gray-600 mt-1">{description}</p>
+      <div className="p-3 rounded-xl bg-white shadow-sm flex-shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1"> {/* This prevents overflow */}
+        <h3 className="font-semibold text-gray-800 line-clamp-2 break-words">
+          {title}
+        </h3>
+        <p className="text-sm text-gray-600 mt-1 line-clamp-3 break-words">
+          {description}
+        </p>
       </div>
     </div>
   </a>
 );
-
+   
 export default DashboardContent;
