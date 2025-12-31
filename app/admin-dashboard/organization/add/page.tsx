@@ -18,6 +18,7 @@ import Spinner from '@/components/ui/Spinner';
 import BackButton from '@/components/ui/BackButton';
 import { maxLength } from 'zod';
 import Swal from 'sweetalert2';
+import TooltipHint from '@/components/ui/TooltipHint';
 
 // Assume AddressType enum: 'PERMANENT' | 'CURRENT' | 'OFFICE' | etc.
 const ADDRESS_TYPES: AddressType[] = ['PERMANENT', 'CURRENT', 'OFFICE']; // Adjust as per actual enum
@@ -515,6 +516,7 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   Organization Name <span className="text-red-500">*</span>
+                  <TooltipHint hint="Display name of the organization. Must be unique." />
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.organizationName = el; }}
@@ -533,6 +535,7 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   Legal Name <span className="text-red-500">*</span>
+                  <TooltipHint hint="Full legal name as registered with government authorities." />
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.organizationLegalName = el; }}
@@ -548,14 +551,22 @@ export default function AddOrganizationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Registration Number<span className="text-red-500">*</span></Label>
+                <Label className="text-sm font-semibold text-gray-700">Registration Number<span className="text-red-500">*
+                  <TooltipHint hint="Company registration number (e.g., UDYAM-AB-12-0001234, ROC number). Alphanumeric only, converted to uppercase." /></span></Label>
                 <Input
                   name="registrationNumber"
                   value={formData.registrationNumber}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    // Allow only letters, numbers, and hyphen; convert to uppercase
+                    const value = e.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
+                    e.target.value = value;
+                    handleChange(e);
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Enter registration number"
+                  placeholder="e.g., UDYAM-AB-12-0001234"
+                  maxLength={50}
                 />
                 {errors.registrationNumber && <p className="text-red-500 text-xs mt-1">{errors.registrationNumber}</p>}
               </div>
@@ -563,14 +574,20 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   GST Number <span className="text-red-500">*</span>
+                  <TooltipHint hint="15-digit GSTIN (e.g., 22AAAAA0000A1Z5). Automatically converted to uppercase." />
                 </Label>
                 <Input
                   name="gstNumber"
                   value={formData.gstNumber}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                    handleChange(e);
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter GST number"
+                  maxLength={15}
                 />
                 {errors.gstNumber && <p className="text-red-500 text-xs mt-1">{errors.gstNumber}</p>}
                 {checking.has('gstNumber') && <Loader2 className="h-4 w-4 animate-spin inline ml-2" />}
@@ -579,12 +596,18 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   PAN Number <span className="text-red-500">*</span>
+                  <TooltipHint hint="10-character PAN (e.g., ABCDE1234F). Automatically converted to uppercase." />
                 </Label>
                 <Input
                   name="panNumber"
                   value={formData.panNumber}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                    handleChange(e);
+                  }}
                   onBlur={handleBlur}
+                  maxLength={10}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter PAN number"
                 />
@@ -595,21 +618,30 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   CIN Number <span className="text-red-500">*</span>
+                  <TooltipHint hint="21-character Corporate Identity Number (e.g., L12345MH2020PLC123456). Automatically uppercase." />
                 </Label>
                 <Input
                   name="cinNumber"
                   value={formData.cinNumber}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                    handleChange(e);
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter CIN number"
+                  maxLength={21}
                 />
                 {errors.cinNumber && <p className="text-red-500 text-xs mt-1">{errors.cinNumber}</p>}
                 {checking.has('cinNumber') && <Loader2 className="h-4 w-4 animate-spin inline ml-2" />}
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">Website</Label>
+                <Label className="text-sm font-semibold text-gray-700">Website
+                  <TooltipHint hint="Official website URL (include https://). Example: https://company.com" />
+
+                </Label>
                 <Input
                   name="website"
                   value={formData.website}
@@ -624,13 +656,18 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   Email <span className="text-red-500">*</span>
+                  <TooltipHint hint="Official organization email. Must be unique and in lowercase only." />
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.email = el; }}
                   name="email"
                   type="email"
                   value={formData.email}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    e.target.value = e.target.value.toLowerCase();
+                    handleChange(e);
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter email"
@@ -642,13 +679,19 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   Contact Number <span className="text-red-500">*</span>
+                  <TooltipHint hint="10-digit Indian mobile number starting with 6-9." />
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.contactNumber = el; }}
                   name="contactNumber"
                   value={formData.contactNumber}
                   maxLength={10}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter 10-digit mobile"
@@ -715,7 +758,9 @@ export default function AddOrganizationPage() {
 
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
-                  Established Date <span className="text-red-500">*</span>
+                  Established Date <span className="text-red-500">*
+                    <TooltipHint hint="Date when the organization was officially incorporated." />
+                  </span>
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.establishedDate = el; }}
@@ -764,7 +809,8 @@ export default function AddOrganizationPage() {
 
             {/* Logo Upload */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Logo</Label>
+              <Label className="text-sm font-semibold text-gray-700">Logo
+              </Label>
               <div className="flex items-center space-x-2">
                 <Input
                   type="file"
@@ -783,12 +829,18 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   Account Number <span className="text-red-500">*</span>
+                  <TooltipHint hint="Bank account number (9-18 digits only)." />
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.accountNumber = el; }}
                   name="accountNumber"
                   value={formData.accountNumber}
-                  onChange={handleChange}
+                  // onChange={handleChange}
+                  onChange={(e) => {
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter account number"
@@ -800,22 +852,27 @@ export default function AddOrganizationPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   Account Holder Name <span className="text-red-500">*</span>
+                  <TooltipHint hint="Full name as per bank records. Only letters and spaces allowed." />
                 </Label>
                 <Input
                   ref={el => { inputRefs.current.accountHolderName = el; }}
                   name="accountHolderName"
                   value={formData.accountHolderName}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    if (/^[A-Za-z\s]*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
                   onBlur={handleBlur}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Enter account holder name"
-                />
+                  placeholder="ABC Company Private Limited" />
                 {errors.accountHolderName && <p className="text-red-500 text-xs mt-1">{errors.accountHolderName}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
                   IFSC Code <span className="text-red-500">*</span>
+                  <TooltipHint hint="11-character IFSC code. Auto-fills bank & branch name on blur." />
                 </Label>
                 <div className="relative">
                   <Input
@@ -849,7 +906,6 @@ export default function AddOrganizationPage() {
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="auto-filled"
                   readOnly
-                  // disabled={!!formData.bankName}
                 />
                 {errors.bankName && <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>}
               </div>
@@ -867,7 +923,6 @@ export default function AddOrganizationPage() {
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="auto-filled"
                   readOnly
-                  // disabled={!!formData.branchName}
                 />
                 {errors.branchName && <p className="text-red-500 text-xs mt-1">{errors.branchName}</p>}
               </div>
@@ -1019,7 +1074,7 @@ export default function AddOrganizationPage() {
                           value={address.addressType || ""}
                           onValueChange={(val) => handleAddressChange(index, "addressType", val as AddressType)}
                         >
-                          <SelectTrigger className="h-12">
+                          <SelectTrigger className="w-full min-w-[200px] !h-12">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>

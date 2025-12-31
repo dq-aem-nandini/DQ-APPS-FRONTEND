@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { sessionService } from '@/lib/api/sessionService'; 
 import toast from 'react-hot-toast';
+import { getDeviceIdSync } from "@/lib/deviceUtils";
 
 const Header = () => {
   const { state, logout } = useAuth();
@@ -42,39 +43,59 @@ const Header = () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
   
-    let hasCalledBackend = false;
-  
     try {
-      const deviceId = typeof window !== "undefined" ? localStorage.getItem("deviceId") : null;
-  
-      if (deviceId && !hasCalledBackend) {
-        hasCalledBackend = true;
-  
-        // Direct axios call — no import issue
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/logout?deviceId=${deviceId}`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
-            "Content-Type": "application/json",
-            "X-Device-Id": deviceId,
-            "X-Device-Name": typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
-          },
-        });
-      }
-  
+      await sessionService.logoutCurrent(); // ✅ correct deviceId inside
       toast.success("Logged out securely");
-    } catch (err: any) {
-      // Silently ignore all logout errors — they are safe
-      console.info("Logout request failed (safe to ignore):", err.message);
+    } catch (err) {
+      console.info("Logout failed (safe to ignore)");
     } finally {
-      // Always run exactly once
-      await logout();
-      router.push("/auth/login");
+      await logout();               // clears tokens, auth state
+      router.push("/auth/login");   // redirect
       setIsLoggingOut(false);
       setShowDropdown(false);
     }
   };
+  
+
+  // const handleLogout = async () => {
+  //   if (isLoggingOut) return;
+  //   setIsLoggingOut(true);
+  
+  //   let hasCalledBackend = false;
+  
+  //   try {
+  //     // const deviceId = typeof window !== "undefined" ? localStorage.getItem("deviceId") : null;
+  //     const deviceId = getDeviceIdSync();
+
+  
+  //     if (deviceId && !hasCalledBackend) {
+  //       hasCalledBackend = true;
+  
+  //       // Direct axios call — no import issue
+  //       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/logout?deviceId=${deviceId}`, {
+  //         method: "POST",
+  //         credentials: "include",
+  //         headers: {
+  //           "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+  //           "Content-Type": "application/json",
+  //           "X-Device-Id": deviceId,
+  //           "X-Device-Name": typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
+  //         },
+  //       });
+  //     }
+  
+  //     toast.success("Logged out securely");
+  //   } catch (err: any) {
+  //     // Silently ignore all logout errors — they are safe
+  //     console.info("Logout request failed (safe to ignore):", err.message);
+  //   } finally {
+  //     // Always run exactly once
+  //     await logout();
+  //     router.push("/auth/login");
+  //     setIsLoggingOut(false);
+  //     setShowDropdown(false);
+  //   }
+  // };
 
   const handleProfile = () => {
     router.push('/admin-dashboard/profile');

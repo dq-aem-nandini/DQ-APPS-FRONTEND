@@ -903,7 +903,11 @@ const EditEmployeePage = () => {
                         type="email"
                         value={formData.personalEmail}
                         required
-                        onChange={handleChange}
+                        // onChange={handleChange}
+                        onChange={(e) => {
+                          e.target.value = e.target.value.toLowerCase();
+                          handleChange(e);
+                        }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) checkUniqueness('EMAIL', val, 'personalEmail', 'personal_email', employeeData?.employeeId);
@@ -941,7 +945,11 @@ const EditEmployeePage = () => {
                         type="email"
                         value={formData.companyEmail}
                         required
-                        onChange={handleChange}
+                        // onChange={handleChange}
+                        onChange={(e) => {
+                          e.target.value = e.target.value.toLowerCase();
+                          handleChange(e);
+                        }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) checkUniqueness('EMAIL', val, 'companyEmail', 'company_email', employeeData?.employeeId);
@@ -975,9 +983,16 @@ const EditEmployeePage = () => {
                       <Input
                         name="contactNumber"
                         type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={formData.contactNumber}
                         required
-                        onChange={handleChange}
+                        onChange={(e) => {
+                          if (/^\d*$/.test(e.target.value)) {
+                            handleChange(e);
+                          }
+                        }}
+                        // onChange={handleChange}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val && val.length === 10) {
@@ -2269,15 +2284,18 @@ const EditEmployeePage = () => {
                     <Label className="text-sm font-semibold text-gray-700">Nominee Contact</Label>
                     <div className="relative">
                       <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         name="employeeInsuranceDetailsDTO.nomineeContact"
                         value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ""}
-                        onChange={handleChange}
-                        // onBlur={(e) => {
-                        //   const val = e.target.value.trim();
-                        //   if (val && val.length === 10) {
-                        //     checkUniqueness('CONTACT_NUMBER', val, 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_contact', employeeData?.employeeInsuranceDetailsDTO?.insuranceId);
-                        //   }
-                        // }}
+                        // onChange={handleChange}
+                        maxLength={10}
+                        onChange={(e) => {
+                          if (/^\d*$/.test(e.target.value)) {
+                            handleChange(e);
+                          }
+                        }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val && val.length === 10) {
@@ -2285,7 +2303,6 @@ const EditEmployeePage = () => {
                             checkUniqueness('CONTACT_NUMBER', val, 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_contact', insuranceId);
                           }
                         }}
-                        maxLength={10}
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
 
@@ -2352,12 +2369,6 @@ const EditEmployeePage = () => {
                         type="text"
                         value={formData.employeeStatutoryDetailsDTO?.passportNumber || ""}
                         onChange={handleChange}
-                        // onBlur={(e) => {
-                        //   const val = e.target.value.trim();
-                        //   if (val) {
-                        //     checkUniqueness('PASSPORT_NUMBER', val, 'employeeStatutoryDetailsDTO.passportNumber', 'passport_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
-                        //   }
-                        // }}     
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
@@ -2390,14 +2401,15 @@ const EditEmployeePage = () => {
                       <Input
                         name="employeeStatutoryDetailsDTO.pfUanNumber"
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ""}
-                        onChange={handleChange}
-                        // onBlur={(e) => {
-                        //   const val = e.target.value.trim();
-                        //   if (val) {
-                        //     checkUniqueness('PF_UAN_NUMBER', val, 'employeeStatutoryDetailsDTO.pfUanNumber', 'pf_uan_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
-                        //   }
-                        // }}    
+                        // onChange={handleChange}  
+                        onChange={(e) => {
+                          if (/^\d{0,12}$/.test(e.target.value)) {
+                            handleChange(e);
+                          }
+                        }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
@@ -2449,14 +2461,15 @@ const EditEmployeePage = () => {
                       <Input
                         name="employeeStatutoryDetailsDTO.esiNumber"
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={formData.employeeStatutoryDetailsDTO?.esiNumber || ""}
-                        onChange={handleChange}
-                        // onBlur={(e) => {
-                        //   const val = e.target.value.trim();
-                        //   if (val) {
-                        //     checkUniqueness('ESI_NUMBER', val, 'employeeStatutoryDetailsDTO.esiNumber', 'esi_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
-                        //   }
-                        // }}    
+                        // onChange={handleChange} 
+                        onChange={(e) => {
+                          if (/^\d*$/.test(e.target.value)) {
+                            handleChange(e);
+                          }
+                        }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
@@ -2487,16 +2500,18 @@ const EditEmployeePage = () => {
                     <Label className="text-sm font-semibold text-gray-700">SSN Number</Label>
                     <div className="relative">
                       <Input
-                        name="employeeStatutoryDetailsDTO.ssnNumber"
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        name="employeeStatutoryDetailsDTO.ssnNumber"
                         value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ""}
-                        onChange={handleChange}
-                        // onBlur={(e) => {
-                        //   const val = e.target.value.trim();
-                        //   if (val) {
-                        //     checkUniqueness('SSN_NUMBER', val, 'employeeStatutoryDetailsDTO.ssnNumber', 'ssn_number', employeeData?.employeeStatutoryDetailsDTO?.statutoryId);
-                        //   }
-                        // }}    
+                        // onChange={handleChange}
+                        onChange={(e) => {
+                          // Allow only digits (you can later format as 123-45-6789 if needed)
+                          if (/^\d*$/.test(e.target.value)) {
+                            handleChange(e);
+                          }
+                        }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {

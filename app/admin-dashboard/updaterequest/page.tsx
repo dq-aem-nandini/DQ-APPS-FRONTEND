@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { employeeService } from '@/lib/api/employeeService';
-import { EmployeeUpdateRequestDTO, EmployeeDTO } from '@/lib/api/types';
+import { EmployeeUpdateRequestDTO, EmployeeDTO, AddressModel } from '@/lib/api/types';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 
@@ -35,11 +35,11 @@ import {
   XCircle,
   User,
   MessageSquare,
+  FileText,
+  Camera,
+  MapPin,
 } from 'lucide-react';
 
-// ------------------------
-// Format Field Name
-// ------------------------
 const formatKey = (key: string) =>
   key
     .replace(/([A-Z])/g, ' $1')
@@ -55,13 +55,9 @@ export default function UpdateRequestAdminPage() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  // ⭐ View All changes dialog
-  const [viewAllData, setViewAllData] = useState<any[]>([]);
+  const [viewAllChanges, setViewAllChanges] = useState<any>(null);
   const [isViewAllOpen, setIsViewAllOpen] = useState(false);
 
-  // ------------------------
-  // Load Previous Profile
-  // ------------------------
   const loadOldProfile = async (employeeId: string) => {
     if (oldProfiles[employeeId]) return oldProfiles[employeeId];
     try {
@@ -74,16 +70,12 @@ export default function UpdateRequestAdminPage() {
     }
   };
 
-  // ------------------------
-  // Fetch Requests
-  // ------------------------
   const fetchRequests = async () => {
     try {
       setLoading(true);
       const res = await employeeService.getAllUpdateRequestsAdmin();
       if (res.flag && res.response) {
         setRequests(res.response);
-
         const uniqueIds = [...new Set(res.response.map(r => r.employeeId))];
         await Promise.all(uniqueIds.map(id => loadOldProfile(id)));
       }
@@ -98,13 +90,9 @@ export default function UpdateRequestAdminPage() {
     fetchRequests();
   }, []);
 
-  // ------------------------
-  // Approve
-  // ------------------------
   const handleApprove = async (requestId: string) => {
     if (processing) return;
     setProcessing(true);
-
     Swal.fire({ title: 'Approving...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
@@ -120,9 +108,6 @@ export default function UpdateRequestAdminPage() {
     }
   };
 
-  // ------------------------
-  // Reject
-  // ------------------------
   const openRejectDialog = (req: EmployeeUpdateRequestDTO) => {
     setSelectedRequest(req);
     setRejectComment('');
@@ -131,7 +116,6 @@ export default function UpdateRequestAdminPage() {
 
   const handleReject = async () => {
     if (!selectedRequest || processing) return;
-
     setProcessing(true);
     setIsRejectDialogOpen(false);
 
@@ -150,21 +134,67 @@ export default function UpdateRequestAdminPage() {
     }
   };
 
-  // ------------------------
-  // Status Badge
-  // ------------------------
   const getStatusBadge = (status: string) => {
     if (status === 'APPROVED')
       return <Badge className="bg-green-100 text-green-700 text-xs"><CheckCircle2 className="w-3 h-3 mr-1" />Approved</Badge>;
     if (status === 'REJECTED')
       return <Badge className="bg-red-100 text-red-700 text-xs"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
-
     return <Badge className="bg-yellow-100 text-yellow-700 text-xs"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
   };
 
-  // ------------------------
-  // Loading screen
-  // ------------------------
+  // Extract all meaningful changes
+  const extractChanges = (req: EmployeeUpdateRequestDTO, oldProfile: EmployeeDTO | undefined) => {
+    let updatedData = req.updatedData;
+    if (typeof updatedData === 'string') {
+      try { updatedData = JSON.parse(updatedData); } catch { updatedData = {}; }
+    }
+
+    // Scalar field changes (exclude complex objects)
+    const scalarChanges = Object.entries(updatedData)
+      .filter(([key]) => !['documents', 'addresses', 'employeePhotoUrl', 'employeePhotoUrlString'].includes(key))
+      .filter(([_, newValue]) => newValue != null && newValue !== '')
+      .filter(([key, newValue]) => {
+        const oldValue = oldProfile?.[key as keyof EmployeeDTO];
+        return String(oldValue ?? '') !== String(newValue);
+      });
+
+    // Address changes - only modified fields
+    const addressChanges: { field: string; old: string; new: string; type: string }[] = [];
+    if (Array.isArray(updatedData.addresses) && updatedData.addresses.length > 0) {
+      const newAddr = updatedData.addresses[0];
+      const oldAddr = oldProfile?.addresses?.find(a => a.addressType === newAddr.addressType) || {};
+
+      const addrFields: (keyof AddressModel)[] = [
+        'houseNo', 'streetName', 'city', 'state', 'country', 'pincode', 'addressType'
+      ];
+
+      addrFields.forEach((field) => {
+        const oldVal = oldAddr[field as keyof AddressModel] ?? '—';
+        const newVal = newAddr[field] ?? '—';
+        if (String(oldVal) !== String(newVal)) {
+          addressChanges.push({
+            field: formatKey(field),
+            old: String(oldVal),
+            new: String(newVal),
+            type: newAddr.addressType || 'Address'
+          });
+        }
+      });
+    }
+
+    // New documents
+    const newDocuments = Array.isArray(updatedData.documents) && updatedData.documents.length > 0
+      ? updatedData.documents.filter((d: any) => d.fileUrl || d.documentId)
+      : [];
+
+    // Profile photo - check both possible keys
+    const photoUrl = updatedData.employeePhotoUrl || updatedData.employeePhotoUrlString;
+    const oldPhotoUrl = oldProfile?.employeePhotoUrl || '';
+    const hasNewPhoto = !!photoUrl && photoUrl !== oldPhotoUrl;
+
+    return { scalarChanges, addressChanges, newDocuments, hasNewPhoto, photoUrl, oldPhotoUrl };
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -176,14 +206,12 @@ export default function UpdateRequestAdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-
-        {/* Page Title */}
         <div className="text-center mb-10">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
             Update Requests
           </h1>
         </div>
-        {/* No Requests */}
+
         {requests.length === 0 ? (
           <Card className="text-center py-20">
             <CardContent>
@@ -196,17 +224,8 @@ export default function UpdateRequestAdminPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {requests.map((req) => {
               const profile = oldProfiles[req.employeeId];
-              let updatedData = req.updatedData;
-
-              if (typeof updatedData === 'string') {
-                try { updatedData = JSON.parse(updatedData); } catch { updatedData = {}; }
-              }
-
-              const modifiedFields = Object.entries(updatedData || {}).filter(([key, newValue]) => {
-                const oldValue = profile?.[key as keyof EmployeeDTO];
-                if (newValue == null || newValue === '') return false;
-                return String(oldValue) !== String(newValue);
-              });
+              const { scalarChanges, addressChanges, newDocuments, hasNewPhoto } = extractChanges(req, profile);
+              const hasAnyChange = scalarChanges.length > 0 || addressChanges.length > 0 || newDocuments.length > 0 || hasNewPhoto;
 
               return (
                 <Card key={req.requestId} className="h-full flex flex-col hover:shadow-xl transition-shadow">
@@ -233,23 +252,13 @@ export default function UpdateRequestAdminPage() {
                     <div className="space-y-4 flex-1">
                       <p className="text-sm font-semibold text-gray-700">Changes</p>
 
-                      {/* When no changed fields */}
-                      {modifiedFields.length === 0 ? (
+                      {!hasAnyChange ? (
                         <p className="text-xs text-gray-500">No changes detected</p>
                       ) : (
-
-                        // Changes Grid
-                        <div className="text-xs space-y-2">
-                          <div className="grid grid-cols-3 font-medium text-gray-600 border-b pb-1">
-                            <span>Field</span>
-                            <span className="text-center text-red-600">From</span>
-                            <span className="text-right text-green-700">To</span>
-                          </div>
-
-                          {/* Show first 4 fields */}
-                          {modifiedFields.slice(0, 4).map(([key, newValue]) => {
+                        <div className="text-xs space-y-3">
+                          {/* Scalar Fields */}
+                          {scalarChanges.slice(0, 3).map(([key, newValue]) => {
                             const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
-
                             return (
                               <div key={key} className="grid grid-cols-3 py-1">
                                 <span className="font-medium truncate">{formatKey(key)}</span>
@@ -259,24 +268,76 @@ export default function UpdateRequestAdminPage() {
                             );
                           })}
 
+                          {/* Address Changes - Only Modified Fields */}
+                          {addressChanges.length > 0 && (
+                            <div className="space-y-3">
+                              <p className="font-semibold text-purple-700 text-sm flex items-center gap-2">
+                                <MapPin className="w-5 h-5" />
+                                {addressChanges[0].type} Address Changes:
+                              </p>
+                              {addressChanges.map((change, i) => (
+                                <div
+                                  key={i}
+                                  className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-purple-50 gap-2"
+                                >
+                                  <div className="font-medium text-gray-800 text-sm">
+                                    {change.field}
+                                  </div>
+                                  <div className="sm:text-center">
+                                    <span className="text-red-600 font-medium text-sm">
+                                      {change.old}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-green-700 font-medium text-sm">
+                                      {change.new}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Documents */}
+                          {newDocuments.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t">
+                              <p className="font-medium text-indigo-700">New Documents:</p>
+                              {newDocuments.slice(0, 2).map((doc: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-xs">
+                                  <FileText className="w-4 h-4 text-blue-600" />
+                                  <span className="truncate">{doc.docType.replace(/_/g, ' ')}</span>
+                                  <span className="text-green-600 text-xs">[New]</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Profile Photo */}
+                          {hasNewPhoto && (
+                            <div className="flex items-center gap-2 text-xs pt-2 border-t">
+                              <Camera className="w-4 h-4 text-purple-600" />
+                              <span>Profile Photo</span>
+                              <span className="text-green-600 text-xs">[New]</span>
+                            </div>
+                          )}
+
                           {/* View All Button */}
-                          {modifiedFields.length > 4 && (
+                          {(scalarChanges.length > 3 || addressChanges.length > 0 || newDocuments.length > 2 || hasNewPhoto) && (
                             <button
-                              className="text-center text-xs text-blue-600 underline pt-2"
+                              className="text-center text-xs text-blue-600 underline pt-2 block w-full"
                               onClick={() => {
+                                setViewAllChanges({ req, profile });
                                 setSelectedRequest(req);
-                                setViewAllData(modifiedFields);
                                 setIsViewAllOpen(true);
                               }}
                             >
-                              +{modifiedFields.length - 4} more (View all)
+                              View all changes
                             </button>
                           )}
                         </div>
                       )}
                     </div>
 
-                    {/* Admin Comment (Rejection Reason) */}
                     {req.adminComment && (
                       <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-xs text-red-800 font-medium flex items-center gap-1">
@@ -287,28 +348,13 @@ export default function UpdateRequestAdminPage() {
                       </div>
                     )}
 
-                    {/* APPROVE + REJECT */}
                     {req.status === 'PENDING' && (
                       <div className="flex gap-2 mt-6">
-                        <Button
-                          size="sm"
-                          className="flex-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700"
-                          onClick={() => handleApprove(req.requestId)}
-                          disabled={processing}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Approve
+                        <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleApprove(req.requestId)} disabled={processing}>
+                          <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
                         </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-xs sm:text-sm border-red-300 text-red-700 hover:bg-red-50"
-                          onClick={() => openRejectDialog(req)}
-                          disabled={processing}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Reject
+                        <Button size="sm" variant="outline" className="flex-1 border-red-300 text-red-700 hover:bg-red-50" onClick={() => openRejectDialog(req)} disabled={processing}>
+                          <XCircle className="w-4 h-4 mr-1" /> Reject
                         </Button>
                       </div>
                     )}
@@ -320,10 +366,7 @@ export default function UpdateRequestAdminPage() {
         )}
       </div>
 
-      {/* ================================================================== */}
-      {/* Reject Request Dialog                                              */}
-      {/* ================================================================== */}
-
+      {/* Reject Dialog */}
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-xl">
           <DialogHeader>
@@ -332,132 +375,181 @@ export default function UpdateRequestAdminPage() {
           </DialogHeader>
 
           <div className="space-y-5 py-4">
-
             <div>
               <Label className="font-semibold">Employee:</Label>
               <p className="text-sm text-gray-700 mt-1">{selectedRequest?.employeeName}</p>
             </div>
 
-            {/* Changed fields list */}
             <div className="max-h-64 overflow-y-auto border rounded-lg bg-gray-50 p-4 text-xs">
-              <div className="grid grid-cols-3 font-bold text-gray-700 border-b pb-2 mb-3">
-                <span>Field</span>
-                <span className="text-center text-red-600">From</span>
-                <span className="text-right text-green-700">To</span>
-              </div>
+              {(() => {
+                if (!selectedRequest || !oldProfiles[selectedRequest.employeeId]) return <p className="text-center text-gray-500">Loading...</p>;
 
-              {selectedRequest && oldProfiles[selectedRequest.employeeId] && (
-                Object.entries(
-                  typeof selectedRequest.updatedData === 'string'
-                    ? JSON.parse(selectedRequest.updatedData)
-                    : selectedRequest.updatedData || {}
-                )
-                  .filter(([_, v]) => v != null && v !== '')
-                  .slice(0, 10)
-                  .map(([key, newValue]) => {
-                    const oldValue =
-                      oldProfiles[selectedRequest.employeeId]?.[key as keyof EmployeeDTO] ?? '—';
+                const { scalarChanges, addressChanges, newDocuments, hasNewPhoto, photoUrl, oldPhotoUrl } = extractChanges(selectedRequest, oldProfiles[selectedRequest.employeeId]);
+                const hasAny = scalarChanges.length > 0 || addressChanges.length > 0 || newDocuments.length > 0 || hasNewPhoto;
 
-                    return (
-                      <div
-                        key={key}
-                        className="grid grid-cols-3 py-2 border-b last:border-0"
-                      >
-                        <span className="font-medium truncate">{formatKey(key)}</span>
-                        <span className="text-center text-red-600 truncate">{String(oldValue)}</span>
-                        <span className="text-right text-green-700 font-medium truncate">
-                          {String(newValue)}
-                        </span>
+                if (!hasAny) return <p className="text-center text-gray-500 py-4">No changes detected</p>;
+
+                return (
+                  <div className="space-y-4">
+                    {scalarChanges.map(([key, newValue]) => {
+                      const oldValue = oldProfiles[selectedRequest.employeeId]?.[key as keyof EmployeeDTO] ?? '—';
+                      return (
+                        <div key={key} className="grid grid-cols-3 py-2 border-b">
+                          <span className="font-medium">{formatKey(key)}</span>
+                          <span className="text-center text-red-600">{String(oldValue)}</span>
+                          <span className="text-right text-green-700">{String(newValue)}</span>
+                        </div>
+                      );
+                    })}
+
+                    {addressChanges.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="font-semibold text-purple-700">{addressChanges[0].type} Address Changes:</p>
+                        {addressChanges.map((change, i) => (
+                          <div key={i} className="grid grid-cols-3 py-2 border-b">
+                            <span className="font-medium">{change.field}</span>
+                            <span className="text-center text-red-600">{change.old}</span>
+                            <span className="text-right text-green-700">{change.new}</span>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })
-              )}
+                    )}
+
+                    {newDocuments.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="font-semibold text-indigo-700">Uploaded Documents:</p>
+                        {newDocuments.map((doc: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between py-2 border rounded bg-blue-50 p-3">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-5 h-5 text-blue-600" />
+                              <div>
+                                <p className="font-medium">{doc.docType.replace(/_/g, ' ')}</p>
+                                {doc.fileUrl && <a href={doc.fileUrl} target="_blank" className="text-blue-600 text-xs underline">Open File →</a>}
+                              </div>
+                            </div>
+                            <Badge className="bg-green-100 text-green-700">New</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {hasNewPhoto && (
+                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <Camera className="w-6 h-6 text-purple-700" />
+                          <div>
+                            <p className="font-medium">Profile Photo Updated</p>
+                            <a href={photoUrl} target="_blank" className="text-blue-600 text-xs underline">View New Photo →</a>
+                            {oldPhotoUrl && <p className="text-xs text-gray-600 mt-1">Old: <a href={oldPhotoUrl} target="_blank" className="text-gray-500 underline">View Old</a></p>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
               <Label htmlFor="comment">Comment <span className="text-red-600">*</span></Label>
-              <Textarea
-                id="comment"
-                placeholder="Reason for rejection..."
-                value={rejectComment}
-                onChange={(e) => setRejectComment(e.target.value)}
-                className="mt-2 resize-none"
-                rows={4}
-              />
+              <Textarea id="comment" placeholder="Reason for rejection..." value={rejectComment} onChange={(e) => setRejectComment(e.target.value)} className="mt-2 resize-none" rows={4} />
             </div>
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setIsRejectDialogOpen(false)}
-              disabled={processing}
-              className="w-full sm:w-auto"
-            >
-              Cancel
-            </Button>
-
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={processing || !rejectComment.trim()}
-              className="w-full sm:w-auto"
-            >
-              Reject Request
-            </Button>
+            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)} disabled={processing}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={processing || !rejectComment.trim()}>Reject Request</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-
-      {/* ================================================================== */}
-      {/* View All Changes Dialog                                            */}
-      {/* ================================================================== */}
-
+      {/* View All Changes Dialog */}
       <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}>
         <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-xl">
           <DialogHeader>
             <DialogTitle>All Changes</DialogTitle>
-            <DialogDescription>Complete list of modified fields</DialogDescription>
+            <DialogDescription>Complete list for {selectedRequest?.employeeName}</DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[65vh] overflow-y-auto border bg-gray-50 p-4 rounded-lg text-xs sm:text-sm">
-
-            <div className="grid grid-cols-3 font-bold text-gray-700 border-b pb-2 mb-3">
-              <span>Field</span>
-              <span className="text-center text-red-600">From</span>
-              <span className="text-right text-green-700">To</span>
-            </div>
-
-            {viewAllData.map(([key, newValue]) => {
-              const oldValue =
-                oldProfiles[selectedRequest?.employeeId ?? '']?.[key as keyof EmployeeDTO] ??
-                '—';
+          <div className="max-h-[65vh] overflow-y-auto border bg-gray-50 p-4 rounded-lg text-xs">
+            {viewAllChanges && (() => {
+              const { req, profile } = viewAllChanges;
+              const { scalarChanges, addressChanges, newDocuments, hasNewPhoto, photoUrl, oldPhotoUrl } = extractChanges(req, profile);
 
               return (
-                <div
-                  key={key}
-                  className="grid grid-cols-3 py-2 border-b last:border-0"
-                >
-                  <span className="font-medium truncate">{formatKey(key)}</span>
-                  <span className="text-center text-red-600 truncate">{String(oldValue)}</span>
-                  <span className="text-right text-green-700 font-medium truncate">
-                    {String(newValue)}
-                  </span>
+                <div className="space-y-5">
+                  {scalarChanges.length > 0 && (
+                    <>
+                      <p className="font-bold text-gray-700">Field Changes:</p>
+                      {scalarChanges.map(([key, newValue]: [string, any]) => {
+                        const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
+                        return (
+                          <div key={key} className="grid grid-cols-3 py-2 border-b">
+                            <span className="font-medium">{formatKey(key)}</span>
+                            <span className="text-center text-red-600">{String(oldValue)}</span>
+                            <span className="text-right text-green-700">{String(newValue)}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {addressChanges.length > 0 && (
+                    <>
+                      <p className="font-bold text-purple-700 mt-4">{addressChanges[0].type} Address Changes:</p>
+                      {addressChanges.map((change, i) => (
+                        <div key={i} className="grid grid-cols-3 py-2 border-b">
+                          <span className="font-medium">{change.field}</span>
+                          <span className="text-center text-red-600">{change.old}</span>
+                          <span className="text-right text-green-700">{change.new}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {newDocuments.length > 0 && (
+                    <>
+                      <p className="font-bold text-indigo-700 mt-4">Uploaded Documents:</p>
+                      {newDocuments.map((doc: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between py-3 border rounded bg-blue-50 p-4">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <p className="font-medium">{doc.docType.replace(/_/g, ' ')}</p>
+                              {doc.fileUrl && <a href={doc.fileUrl} target="_blank" className="text-blue-600 text-xs underline">Open File →</a>}
+                            </div>
+                          </div>
+                          <Badge className="bg-green-100 text-green-700">New</Badge>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {hasNewPhoto && (
+                    <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                      <div className="flex items-center gap-4">
+                        <Camera className="w-8 h-8 text-purple-700" />
+                        <div className="flex-1">
+                          <p className="font-medium">Profile Photo Updated</p>
+                          <div className="mt-2 space-y-1 text-xs">
+                            <a href={photoUrl} target="_blank" className="text-blue-600 underline block">→ View New Photo</a>
+                            {oldPhotoUrl && <a href={oldPhotoUrl} target="_blank" className="text-gray-600 underline block">→ View Current Photo</a>}
+                          </div>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">New</Badge>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })}
+            })()}
           </div>
 
           <DialogFooter>
-            <Button className="w-full sm:w-auto" onClick={() => setIsViewAllOpen(false)}>
-              Close
-            </Button>
+            <Button onClick={() => setIsViewAllOpen(false)}>Close</Button>
           </DialogFooter>
-
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

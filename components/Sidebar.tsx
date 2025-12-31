@@ -22,7 +22,8 @@ import {
   CheckCircle,
   ClipboardList,
   BarChart2,
-  Receipt, // Replacement for FileInvoice
+  Receipt,
+  CalendarDays, 
 } from "lucide-react";
 
 // icon mapping
@@ -38,6 +39,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Team: <Users size={18} />,
   "Approve Leave": <CheckCircle size={18} />,
   "Review Timesheets": <ClipboardList size={18} />,
+  "Leave Calendar": <CalendarDays size={18} />,
   Payroll: <BarChart2 size={18} />,
   Invoices: <Receipt size={18} />,
 };

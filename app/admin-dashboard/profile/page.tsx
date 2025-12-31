@@ -247,8 +247,8 @@ export default function AdminProfilePage() {
 
   // ⭐ REGEX RULES
 
-  // const adminEmailRegex = /^[a-zA-Z0-9._%+-]+@digiquadsolutions\.com$/;
-  const adminEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const adminEmailRegex = /^[a-zA-Z0-9._%+-]+@digiquadsolutions\.com$/;
+  // const adminEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
   const adminPhoneRegex = /^[6-9]\d{9}$/;
 

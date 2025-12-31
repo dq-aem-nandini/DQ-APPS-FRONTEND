@@ -101,10 +101,9 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-20">
           {/* Dashboard Title */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 tracking-tight">
-            {dashboardTitle}
-          </h1>
-
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-5xl font-extrabold text-gray-800 tracking-tight mt-8 mb-8">
+          {dashboardTitle}
+            </h1>
           <div className="flex items-center gap-6">
             <NotificationBell className="h-8 w-8 text-yellow-600 hover:scale-110 transition" />
 
@@ -147,7 +146,7 @@ const Header = () => {
               {/* Simple, Clean Dropdown */}
               {showDropdown && (
                 <Card className="absolute right-0 top-full mt-3 w-72 shadow-2xl border-0 ring-1 ring-black/5 rounded-2xl overflow-hidden z-50">
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+                  <div >
                     {/* Profile */}
                     <div
                       className="cursor-pointer hover:opacity-90 transition text-center"
@@ -177,11 +176,11 @@ const Header = () => {
                     </div>
 
                     {/* Logout Only */}
-                    <div className="mt-6 pt-5 border-t border-white/30">
+                    <div className="mt-0 pt-0 border-t border-white/30">
                       <Button
                         variant="ghost"
                         size="lg"
-                        className="w-full justify-center text-red-600 hover:bg-red-50 hover:text-red-700 font-medium"
+                        className="w-full justify-center text-red-600   font-medium"
                         onClick={handleLogout}
                         disabled={isLoggingOut}
                       >

@@ -1,12 +1,15 @@
 // src/lib/deviceUtils.ts
 "use client";
+
+import { generateUUID } from "./utils";
+
 const DEVICE_ID_KEY = "device_id_v3";
 const PRIVATE_DEVICE_KEY = "device_id_private_v1";
 
 let cachedId: string | null = null;
 let cachedDeviceName: string | null = null;
 
-const generateUUID = () => crypto.randomUUID();
+const generatedUUID = () => generateUUID();
 
 export const isPrivateMode = () => {
   try {
@@ -28,7 +31,7 @@ export const getDeviceIdSync = (): string => {
   if (privateMode) {
     let id = sessionStorage.getItem(PRIVATE_DEVICE_KEY);
     if (!id) {
-      id = generateUUID();
+      id = generatedUUID();
       sessionStorage.setItem(PRIVATE_DEVICE_KEY, id);
     }
     console.log(`Device ID: ${id} (Private: ${privateMode})`); // Temp debug
@@ -38,7 +41,7 @@ export const getDeviceIdSync = (): string => {
 
   let id = localStorage.getItem(DEVICE_ID_KEY);
   if (!id) {
-    id = generateUUID();
+    id = generatedUUID();
     localStorage.setItem(DEVICE_ID_KEY, id);
   }
 

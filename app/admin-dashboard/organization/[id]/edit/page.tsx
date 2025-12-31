@@ -27,6 +27,7 @@ import {
 } from '@/lib/api/types';
 import BackButton from '@/components/ui/BackButton';
 import Swal from 'sweetalert2';
+import TooltipHint from '@/components/ui/TooltipHint';
 
 const ADDRESS_TYPES: AddressType[] = ['PERMANENT', 'CURRENT', 'OFFICE'];
 const TIMEZONES = ['Asia/Kolkata', 'America/New_York', 'Europe/London', 'Australia/Sydney', 'Asia/Singapore'];
@@ -606,6 +607,8 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Organization Name <span className="text-red-500">*</span>
+                    <TooltipHint hint="Display name of the organization. Must be unique." />
+
                   </Label>
                   <Input
                     ref={el => { inputRefs.current.organizationName = el; }}
@@ -623,6 +626,8 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Legal Name <span className="text-red-500">*</span>
+                    <TooltipHint hint="Full legal name as registered with government authorities." />
+
                   </Label>
                   <Input
                     ref={el => { inputRefs.current.organizationLegalName = el; }}
@@ -638,29 +643,47 @@ export default function EditOrganizationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">Registration Number<span className="text-red-500">*</span></Label>
+                  <Label className="text-sm font-semibold text-gray-700">Registration Number<span className="text-red-500">*</span>
+                    <TooltipHint hint="Company registration number (e.g., UDYAM-AB-12-0001234, ROC number). Alphanumeric only, converted to uppercase." />
+                  </Label>
+
+
                   <Input
                     name="registrationNumber"
                     value={formData.registrationNumber}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      // Allow only letters, numbers, and hyphen; convert to uppercase
+                      const value = e.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
+                      e.target.value = value;
+                      handleChange(e);
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter registration number"
-                  />
+                    placeholder="e.g., UDYAM-AB-12-0001234"
+                    maxLength={50} />
                   {errors.registrationNumber && <p className="text-red-500 text-xs mt-1">{errors.registrationNumber}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     GST Number<span className="text-red-500">*</span>
+                    <TooltipHint hint="15-digit GSTIN (e.g., 22AAAAA0000A1Z5). Automatically converted to uppercase." />
+
                   </Label>
                   <Input
                     name="gstNumber"
                     value={formData.gstNumber}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase();
+                      handleChange(e);
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter GST number"
+                    maxLength={15}
+
                   />
                   {errors.gstNumber && <p className="text-red-500 text-xs mt-1">{errors.gstNumber}</p>}
                 </div>
@@ -668,12 +691,19 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     PAN Number<span className="text-red-500">*</span>
+                    <TooltipHint hint="10-character PAN (e.g., ABCDE1234F). Automatically converted to uppercase." />
+
                   </Label>
                   <Input
                     name="panNumber"
                     value={formData.panNumber}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase();
+                      handleChange(e);
+                    }}
                     onBlur={handleBlur}
+                    maxLength={10}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter PAN number"
                   />
@@ -683,20 +713,31 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     CIN Number<span className="text-red-500">*</span>
+                    <TooltipHint hint="21-character Corporate Identity Number (e.g., L12345MH2020PLC123456). Automatically uppercase." />
+
                   </Label>
                   <Input
                     name="cinNumber"
                     value={formData.cinNumber}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase();
+                      handleChange(e);
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter CIN number"
+                    maxLength={21}
+
                   />
                   {errors.cinNumber && <p className="text-red-500 text-xs mt-1">{errors.cinNumber}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">Website</Label>
+                  <Label className="text-sm font-semibold text-gray-700">Website
+                    <TooltipHint hint="Official website URL (include https://). Example: https://company.com" />
+
+                  </Label>
                   <Input
                     name="website"
                     value={formData.website}
@@ -711,13 +752,19 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Email <span className="text-red-500">*</span>
+                    <TooltipHint hint="Official organization email. Must be unique and in lowercase only." />
+
                   </Label>
                   <Input
                     ref={el => { inputRefs.current.email = el; }}
                     name="email"
                     type="email"
                     value={formData.email}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toLowerCase();
+                      handleChange(e);
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter email"
@@ -728,13 +775,20 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Contact Number <span className="text-red-500">*</span>
+                    <TooltipHint hint="10-digit Indian mobile number starting with 6-9." />
+
                   </Label>
                   <Input
                     ref={el => { inputRefs.current.contactNumber = el; }}
                     name="contactNumber"
                     value={formData.contactNumber}
                     maxLength={10}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      if (/^\d*$/.test(e.target.value)) {
+                        handleChange(e);
+                      }
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter 10-digit mobile"
@@ -801,6 +855,8 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Established Date<span className="text-red-500">*</span>
+                    <TooltipHint hint="Date when the organization was officially incorporated." />
+
                   </Label>
                   <Input
                     ref={el => { inputRefs.current.establishedDate = el; }}
@@ -894,12 +950,19 @@ export default function EditOrganizationPage() {
               {/* Bank Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Account Number<span className="text-red-500">*</span></Label>
+                  <Label>Account Number<span className="text-red-500">*</span>
+                    <TooltipHint hint="Bank account number (9-18 digits only)." />
+                  </Label>
                   <Input
                     ref={el => { inputRefs.current.accountNumber = el; }}
                     name="accountNumber"
                     value={formData.accountNumber}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      if (/^\d*$/.test(e.target.value)) {
+                        handleChange(e);
+                      }
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300"
                     placeholder="Enter account number"
@@ -908,12 +971,19 @@ export default function EditOrganizationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Account Holder Name<span className="text-red-500">*</span></Label>
+                  <Label>Account Holder Name<span className="text-red-500">*</span>
+                    <TooltipHint hint="Full name as per bank records. Only letters and spaces allowed." />
+                  </Label>
                   <Input
                     ref={el => { inputRefs.current.accountHolderName = el; }}
                     name="accountHolderName"
                     value={formData.accountHolderName}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      if (/^[A-Za-z\s]*$/.test(e.target.value)) {
+                        handleChange(e);
+                      }
+                    }}
                     onBlur={handleBlur}
                     className="h-12 text-base border-gray-300"
                     placeholder="Enter account holder name"
@@ -922,13 +992,19 @@ export default function EditOrganizationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>IFSC Code<span className="text-red-500">*</span></Label>
+                  <Label>IFSC Code<span className="text-red-500">*</span>
+                    <TooltipHint hint="11-character IFSC code. Auto-fills bank & branch name on blur." />
+                  </Label>
                   <div className="relative">
                     <Input
                       ref={el => { inputRefs.current.ifscCode = el; }}
                       name="ifscCode"
                       value={formData.ifscCode}
-                      onChange={handleChange}
+                      // onChange={handleChange}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setFormData(prev => ({ ...prev, ifscCode: val }));
+                      }}
                       onBlur={async () => {
                         validateField('ifscCode', formData.ifscCode);
                         await handleIfscLookup();

@@ -12,7 +12,7 @@ import {
   PlusIcon,
   CogIcon,
 } from '@heroicons/react/24/outline';
-import { Building2, FileTextIcon, Landmark, LogOut, User } from 'lucide-react';
+import { Building2, Clock, FileTextIcon, Landmark, LogOut, TimerIcon, User } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminSidebar() {
@@ -27,6 +27,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard/clients', label: 'Clients', icon: <BuildingOfficeIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/salaries', label: 'Salaries', icon: <UserIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/organization', label: 'Organization', icon: <Building2 className="h-5 w-5" /> },
+        { href: '/admin-dashboard/leaveCalendar', label: 'LeaveCalendar', icon: <CalendarIcon className="h-5 w-5" /> },
       ],
     },
     {

@@ -426,7 +426,21 @@ export interface ApiResponseObject<T = unknown> {
   data: T;
   message: string;
 }
+export interface LeaveCalendarEmployeeDTO {
+  employeeId: string;
+  employeeName: string;
+  leaveType: "FULL_DAY" | "HALF_DAY" | "FIRST_HALF" | "SECOND_HALF";
+}
 
+export interface LeaveCalendarDTO {
+  date: string; // YYYY-MM-DD
+  employees: LeaveCalendarEmployeeDTO[];
+}
+
+export type WebResponseDTOLeaveCalendarDTO =
+  WebResponseDTO<LeaveCalendarDTO[]>;
+
+  
 export interface WebResponseDTO<T> {
   flag: boolean;
   message: string;
@@ -1521,19 +1535,6 @@ export interface EmployeeWorkSummaryDTO {
   totalHours: number;
   totalAmount: number;
 }
-
-// ClientInvoiceSummaryDTO
-// export interface ClientInvoiceSummaryDTO {
-//   clientId: string;
-//   invoiceStatus: InvoiceStatus;
-//   invoiceId: string;
-//   invoiceNumber: string;
-//   invoiceDate: string; // ISO date string
-//   totalAmount: number;
-//   fromDate: string; // ISO date string
-//   toDate: string; // ISO date string
-//   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
-// }
 export interface ClientInvoiceSummaryDTO {
   invoiceId: string;
   clientId: string;
