@@ -115,7 +115,7 @@ const ViewClientPage = () => {
 
       setShowGenerateModal(false);
       setTimeout(() => {
-        window.open(`/admin-dashboard/invoice/${invoice.clientId}`, '_blank');
+        window.open(`/admin-dashboard/invoice/${invoice.invoiceId}`, '_blank');
       }, 1000);
     } catch (err: any) {
       const errorMessage = err.response?.status === 409

@@ -1726,39 +1726,52 @@ const ProfilePage = () => {
                   title="Emergency Contact"
                   icon={<Phone className="w-6 h-6 text-red-600" />}
                 >
-                  <ShowIfFilled
-                    label="Emergency Contact Name"
-                    value={profile.emergencyContactName}
-                  />
-                  <ShowIfFilled
-                    label="Emergency Contact Number"
-                    value={profile.emergencyContactNumber}
-                  />
+                  {profile.emergencyContactName || profile.emergencyContactNumber ? (
+                    <>
+                      <ShowIfFilled
+                        label="Emergency Contact Name"
+                        value={profile.emergencyContactName}
+                      />
+                      <ShowIfFilled
+                        label="Emergency Contact Number"
+                        value={profile.emergencyContactNumber}
+                      />
+                    </>
+                  ) : (
+                    <p className="text-gray-500">
+                      No emergency contact added .
+                    </p>
+                  )}
                 </InfoCard>
 
                 <InfoCard
                   title="Bank Details"
                   icon={<DollarSign className="w-6 h-6 text-green-600" />}
                 >
-                  <ShowIfFilled label="PAN Number" value={profile.panNumber} />
-                  <ShowIfFilled
-                    label="Aadhaar Number"
-                    value={profile.aadharNumber}
-                  />
-                  <ShowIfFilled label="Bank Name" value={profile.bankName} />
-                  <ShowIfFilled
-                    label="Account Number"
-                    value={profile.accountNumber}
-                  />
-                  <ShowIfFilled
-                    label="Account Holder Name"
-                    value={profile.accountHolderName}
-                  />
-                  <ShowIfFilled label="IFSC Code" value={profile.ifscCode} />
-                  <ShowIfFilled
-                    label="Branch Name"
-                    value={profile.branchName}
-                  />
+                  {profile.panNumber ||
+                    profile.aadharNumber ||
+                    profile.bankName ||
+                    profile.accountNumber ||
+                    profile.accountHolderName ||
+                    profile.ifscCode ||
+                    profile.branchName ? (
+                    <>
+                      <ShowIfFilled label="PAN Number" value={profile.panNumber} />
+                      <ShowIfFilled label="Aadhaar Number" value={profile.aadharNumber} />
+                      <ShowIfFilled label="Bank Name" value={profile.bankName} />
+                      <ShowIfFilled label="Account Number" value={profile.accountNumber} />
+                      <ShowIfFilled
+                        label="Account Holder Name"
+                        value={profile.accountHolderName}
+                      />
+                      <ShowIfFilled label="IFSC Code" value={profile.ifscCode} />
+                      <ShowIfFilled label="Branch Name" value={profile.branchName} />
+                    </>
+                  ) : (
+                    <p className="text-gray-500 ">
+                      No bank details added .
+                    </p>
+                  )}
                 </InfoCard>
 
                 <InfoCard
@@ -1781,15 +1794,15 @@ const ProfilePage = () => {
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500">No addresses added</p>
+                    <p className="text-gray-500">No addresses added .</p>
                   )}
                 </InfoCard>
 
-                {profile.documents && profile.documents.length > 0 && (
-                  <InfoCard
-                    title="Documents"
-                    icon={<FileText className="w-6 h-6 text-indigo-600" />}
-                  >
+                <InfoCard
+                  title="Documents"
+                  icon={<FileText className="w-6 h-6 text-indigo-600" />}
+                >
+                  {profile.documents && profile.documents.length > 0 ? (
                     <div className="space-y-3">
                       {profile.documents.map((doc, i) => (
                         <div
@@ -1814,206 +1827,260 @@ const ProfilePage = () => {
                             </a>
                           ) : (
                             <span className="text-gray-400 text-sm italic">
-                              No file
+                              No file uploaded
                             </span>
                           )}
                         </div>
                       ))}
                     </div>
-                  </InfoCard>
-                )}
+                  ) : (
+                    <p className="text-gray-500">
+                      No documents uploaded .
+                    </p>
+                  )}
+                </InfoCard>
 
-                {profile.employeeSalaryDTO && (
-                  <InfoCard
-                    title="Salary"
-                    icon={<DollarSign className="w-6 h-6 text-green-600" />}
-                  >
-                    <ShowIfFilled
-                      label="CTC"
-                      value={`₹${profile.employeeSalaryDTO.ctc}`}
-                    />
-                    <ShowIfFilled
-                      label="Pay Type"
-                      value={profile.employeeSalaryDTO.payType}
-                    />
-                    <ShowIfFilled
-                      label="Standard Working Hours"
-                      value={profile.employeeSalaryDTO.standardHours}
-                    />
-                    <ShowIfFilled
-                      label="Pay Class"
-                      value={profile.employeeSalaryDTO.payClass}
-                    />
+                <InfoCard
+                  title="Salary"
+                  icon={<DollarSign className="w-6 h-6 text-green-600" />}
+                >
+                  {profile.employeeSalaryDTO &&
+                    (profile.employeeSalaryDTO.ctc ||
+                      profile.employeeSalaryDTO.payType ||
+                      profile.employeeSalaryDTO.standardHours ||
+                      profile.employeeSalaryDTO.payClass ||
+                      !!profile.employeeSalaryDTO.allowances?.length ||
+                      !!profile.employeeSalaryDTO.deductions?.length) ? (
+                    <>
+                      <ShowIfFilled
+                        label="CTC"
+                        value={profile.employeeSalaryDTO.ctc ? `₹${profile.employeeSalaryDTO.ctc}` : undefined}
+                      />
+                      <ShowIfFilled
+                        label="Pay Type"
+                        value={profile.employeeSalaryDTO.payType}
+                      />
+                      <ShowIfFilled
+                        label="Standard Working Hours"
+                        value={profile.employeeSalaryDTO.standardHours}
+                      />
+                      <ShowIfFilled
+                        label="Pay Class"
+                        value={profile.employeeSalaryDTO.payClass}
+                      />
 
-                    {profile.employeeSalaryDTO.allowances &&
-                      profile.employeeSalaryDTO.allowances.length > 0 && (
+                      {/* Allowances - safe rendering */}
+                      {!!profile.employeeSalaryDTO.allowances?.length && (
                         <div className="md:col-span-2">
-                          <p className="font-medium text-green-700 mb-2">
-                            Allowances
-                          </p>
-                          {profile.employeeSalaryDTO.allowances.map((a, i) => (
+                          <p className="font-medium text-green-700 mb-2">Allowances</p>
+                          {profile.employeeSalaryDTO.allowances!.map((a, i) => (
                             <p key={i} className="text-sm">
                               • {a.allowanceType}: ₹{a.amount}
                             </p>
                           ))}
                         </div>
                       )}
-                    {profile.employeeSalaryDTO.deductions &&
-                      profile.employeeSalaryDTO.deductions.length > 0 && (
+
+                      {/* Deductions - safe rendering */}
+                      {!!profile.employeeSalaryDTO.deductions?.length && (
                         <div className="md:col-span-2">
-                          <p className="font-medium text-red-700 mb-2">
-                            Deductions
-                          </p>
-                          {profile.employeeSalaryDTO.deductions.map((d, i) => (
+                          <p className="font-medium text-red-700 mb-2">Deductions</p>
+                          {profile.employeeSalaryDTO.deductions!.map((d, i) => (
                             <p key={i} className="text-sm">
                               • {d.deductionType}: ₹{d.amount}
                             </p>
                           ))}
                         </div>
                       )}
-                  </InfoCard>
-                )}
+                    </>
+                  ) : (
+                    <p className="text-gray-500">
+                      No salary details added .
+                    </p>
+                  )}
+                </InfoCard>
 
-                {profile.employeeInsuranceDetailsDTO && (
-                  <InfoCard
-                    title="Insurance"
-                    icon={<Shield className="w-6 h-6 text-teal-600" />}
-                  >
-                    <ShowIfFilled
-                      label="Policy Number"
-                      value={profile.employeeInsuranceDetailsDTO.policyNumber}
-                    />
-                    <ShowIfFilled
-                      label="Insurance Provider"
-                      value={profile.employeeInsuranceDetailsDTO.providerName}
-                    />
-                    <ShowIfFilled
-                      label="Coverage Period"
-                      value={`${formatDate(
-                        profile.employeeInsuranceDetailsDTO.coverageStart
-                      )} to ${formatDate(
-                        profile.employeeInsuranceDetailsDTO.coverageEnd
-                      )}`}
-                    />
-                    <ShowIfFilled
-                      label="Nominee Details"
-                      value={`${profile.employeeInsuranceDetailsDTO.nomineeName} (${profile.employeeInsuranceDetailsDTO.nomineeRelation})`}
-                    />
-                    <ShowIfFilled
-                      label="Nominee Contact Number"
-                      value={profile.employeeInsuranceDetailsDTO.nomineeContact}
-                    />
-                    <ShowIfFilled
-                      label="Group Insurance"
-                      value={
-                        profile.employeeInsuranceDetailsDTO.groupInsurance
-                          ? "Yes"
-                          : "No"
-                      }
-                    />
-                  </InfoCard>
-                )}
+                <InfoCard
+                  title="Insurance"
+                  icon={<Shield className="w-6 h-6 text-teal-600" />}
+                >
+                  {profile.employeeInsuranceDetailsDTO &&
+                    (profile.employeeInsuranceDetailsDTO.policyNumber ||
+                      profile.employeeInsuranceDetailsDTO.providerName ||
+                      profile.employeeInsuranceDetailsDTO.coverageStart ||
+                      profile.employeeInsuranceDetailsDTO.coverageEnd ||
+                      profile.employeeInsuranceDetailsDTO.nomineeName ||
+                      profile.employeeInsuranceDetailsDTO.nomineeRelation ||
+                      profile.employeeInsuranceDetailsDTO.nomineeContact ||
+                      profile.employeeInsuranceDetailsDTO.groupInsurance !== undefined) ? (
+                    <>
+                      <ShowIfFilled
+                        label="Policy Number"
+                        value={profile.employeeInsuranceDetailsDTO.policyNumber}
+                      />
+                      <ShowIfFilled
+                        label="Insurance Provider"
+                        value={profile.employeeInsuranceDetailsDTO.providerName}
+                      />
+                      <ShowIfFilled
+                        label="Coverage Period"
+                        value={
+                          profile.employeeInsuranceDetailsDTO.coverageStart &&
+                            profile.employeeInsuranceDetailsDTO.coverageEnd
+                            ? `${formatDate(profile.employeeInsuranceDetailsDTO.coverageStart)} to ${formatDate(profile.employeeInsuranceDetailsDTO.coverageEnd)}`
+                            : undefined
+                        }
+                      />
+                      <ShowIfFilled
+                        label="Nominee Details"
+                        value={
+                          profile.employeeInsuranceDetailsDTO.nomineeName &&
+                            profile.employeeInsuranceDetailsDTO.nomineeRelation
+                            ? `${profile.employeeInsuranceDetailsDTO.nomineeName} (${profile.employeeInsuranceDetailsDTO.nomineeRelation})`
+                            : undefined
+                        }
+                      />
+                      <ShowIfFilled
+                        label="Nominee Contact Number"
+                        value={profile.employeeInsuranceDetailsDTO.nomineeContact}
+                      />
+                      <ShowIfFilled
+                        label="Group Insurance"
+                        value={
+                          profile.employeeInsuranceDetailsDTO.groupInsurance !== undefined
+                            ? profile.employeeInsuranceDetailsDTO.groupInsurance
+                              ? "Yes"
+                              : "No"
+                            : undefined
+                        }
+                      />
+                    </>
+                  ) : (
+                    <p className="text-gray-500 ">
+                      No insurance details added .
+                    </p>
+                  )}
+                </InfoCard>
 
-                {profile.employeeEquipmentDTO &&
-                  profile.employeeEquipmentDTO.length > 0 && (
-                    <InfoCard
-                      title="Equipment"
-                      icon={<Building className="w-6 h-6 text-orange-600" />}
-                    >
+                <InfoCard
+                  title="Equipment"
+                  icon={<Building className="w-6 h-6 text-orange-600" />}
+                >
+                  {profile.employeeEquipmentDTO &&
+                    profile.employeeEquipmentDTO.length > 0 ? (
+                    <>
                       {profile.employeeEquipmentDTO.map((eq, i) => (
                         <div
                           key={i}
-                          className="bg-orange-50 p-4 rounded-xl text-sm"
+                          className="bg-orange-50 p-4 rounded-xl text-sm mb-3 last:mb-0"
                         >
-                          <strong>{eq.equipmentType}</strong>: {eq.serialNumber}{" "}
+                          <strong>{eq.equipmentType}</strong>: {eq.serialNumber}
                           <br />
                           <span className="text-gray-600">
                             Issued: {formatDate(eq.issuedDate || "")}
                           </span>
                         </div>
                       ))}
-                    </InfoCard>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 t">
+                      No equipment assigned .
+                    </p>
                   )}
+                </InfoCard>
 
-                {profile.employeeStatutoryDetailsDTO && (
-                  <InfoCard
-                    title="Statutory"
-                    icon={<FileText className="w-6 h-6 text-gray-600" />}
-                  >
-                    <ShowIfFilled
-                      label="Passport Number"
-                      value={profile.employeeStatutoryDetailsDTO.passportNumber}
-                    />
-                    <ShowIfFilled
-                      label="Tax Regime"
-                      value={profile.employeeStatutoryDetailsDTO.taxRegime}
-                    />
-                    <ShowIfFilled
-                      label="PF UAN Number"
-                      value={profile.employeeStatutoryDetailsDTO.pfUanNumber}
-                    />
-                    <ShowIfFilled
-                      label="ESI Number"
-                      value={profile.employeeStatutoryDetailsDTO.esiNumber}
-                    />
-                    <ShowIfFilled
-                      label="SSN Number"
-                      value={profile.employeeStatutoryDetailsDTO.ssnNumber}
-                    />
-                  </InfoCard>
-                )}
+                <InfoCard
+                  title="Statutory"
+                  icon={<FileText className="w-6 h-6 text-gray-600" />}
+                >
+                  {profile.employeeStatutoryDetailsDTO &&
+                    (profile.employeeStatutoryDetailsDTO.passportNumber ||
+                      profile.employeeStatutoryDetailsDTO.taxRegime ||
+                      profile.employeeStatutoryDetailsDTO.pfUanNumber ||
+                      profile.employeeStatutoryDetailsDTO.esiNumber ||
+                      profile.employeeStatutoryDetailsDTO.ssnNumber) ? (
+                    <>
+                      <ShowIfFilled
+                        label="Passport Number"
+                        value={profile.employeeStatutoryDetailsDTO.passportNumber}
+                      />
+                      <ShowIfFilled
+                        label="Tax Regime"
+                        value={profile.employeeStatutoryDetailsDTO.taxRegime}
+                      />
+                      <ShowIfFilled
+                        label="PF UAN Number"
+                        value={profile.employeeStatutoryDetailsDTO.pfUanNumber}
+                      />
+                      <ShowIfFilled
+                        label="ESI Number"
+                        value={profile.employeeStatutoryDetailsDTO.esiNumber}
+                      />
+                      <ShowIfFilled
+                        label="SSN Number"
+                        value={profile.employeeStatutoryDetailsDTO.ssnNumber}
+                      />
+                    </>
+                  ) : (
+                    <p className="text-gray-500">
+                      No statutory details added .
+                    </p>
+                  )}
+                </InfoCard>
 
-                {profile.employeeEmploymentDetailsDTO && (
-                  <InfoCard
-                    title="Employment Details"
-                    icon={<Briefcase className="w-6 h-6 text-purple-600" />}
-                  >
-                    <ShowIfFilled
-                      label="Department"
-                      value={profile.employeeEmploymentDetailsDTO.department}
-                    />
-                    <ShowIfFilled
-                      label="Work Location"
-                      value={profile.employeeEmploymentDetailsDTO.location}
-                    />
-                    <ShowIfFilled
-                      label="Working Model"
-                      value={profile.employeeEmploymentDetailsDTO.workingModel}
-                    />
-                    <ShowIfFilled
-                      label="Shift Timing"
-                      value={profile.employeeEmploymentDetailsDTO.shiftTimingLabel}
-                    />
-                    <ShowIfFilled
-                      label="Notice Period Duration"
-                      value={
-                        profile.employeeEmploymentDetailsDTO
-                          .noticePeriodDurationLabel
-                      }
-                    />
-                     <ShowIfFilled
-                      label="Bond Duration"
-                      value={
-                        profile.employeeEmploymentDetailsDTO
-                          .bondDurationLabel
-                      }
-                    />
-                    <ShowIfFilled
-                      label="Probation Duration"
-                      value={
-                        profile.employeeEmploymentDetailsDTO
-                          .probationDurationLabel
-                      }
-                    />
-                     <ShowIfFilled
-                      label="Probation Notice Period"
-                      value={
-                        profile.employeeEmploymentDetailsDTO
-                          .probationNoticePeriodLabel
-                      }
-                    />
-                  </InfoCard>
-                )}
+                <InfoCard
+                  title="Employment Details"
+                  icon={<Briefcase className="w-6 h-6 text-purple-600" />}
+                >
+                  {profile.employeeEmploymentDetailsDTO &&
+                    (profile.employeeEmploymentDetailsDTO.department ||
+                      profile.employeeEmploymentDetailsDTO.location ||
+                      profile.employeeEmploymentDetailsDTO.workingModel ||
+                      profile.employeeEmploymentDetailsDTO.shiftTimingLabel ||
+                      profile.employeeEmploymentDetailsDTO.noticePeriodDurationLabel ||
+                      profile.employeeEmploymentDetailsDTO.bondDurationLabel ||
+                      profile.employeeEmploymentDetailsDTO.probationDurationLabel ||
+                      profile.employeeEmploymentDetailsDTO.probationNoticePeriodLabel) ? (
+                    <>
+                      <ShowIfFilled
+                        label="Department"
+                        value={profile.employeeEmploymentDetailsDTO.department}
+                      />
+                      <ShowIfFilled
+                        label="Work Location"
+                        value={profile.employeeEmploymentDetailsDTO.location}
+                      />
+                      <ShowIfFilled
+                        label="Working Model"
+                        value={profile.employeeEmploymentDetailsDTO.workingModel}
+                      />
+                      <ShowIfFilled
+                        label="Shift Timing"
+                        value={profile.employeeEmploymentDetailsDTO.shiftTimingLabel}
+                      />
+                      <ShowIfFilled
+                        label="Notice Period Duration"
+                        value={profile.employeeEmploymentDetailsDTO.noticePeriodDurationLabel}
+                      />
+                      <ShowIfFilled
+                        label="Bond Duration"
+                        value={profile.employeeEmploymentDetailsDTO.bondDurationLabel}
+                      />
+                      <ShowIfFilled
+                        label="Probation Duration"
+                        value={profile.employeeEmploymentDetailsDTO.probationDurationLabel}
+                      />
+                      <ShowIfFilled
+                        label="Probation Notice Period"
+                        value={profile.employeeEmploymentDetailsDTO.probationNoticePeriodLabel}
+                      />
+                    </>
+                  ) : (
+                    <p className="text-gray-500 ">
+                      No employment details added .
+                    </p>
+                  )}
+                </InfoCard>
               </div>
             )}
           </div>

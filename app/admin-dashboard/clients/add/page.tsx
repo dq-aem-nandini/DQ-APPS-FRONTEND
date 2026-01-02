@@ -467,7 +467,7 @@ export default function AddClientPage() {
                     onChange={handleChange}
                     required
                     onBlur={(e) => checkUniqueness('COMPANY_NAME', e.target.value, 'companyName', 'company_name')} placeholder="e.g. Digiquads Pvt Ltd"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                   />
                   {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
                   {checking.has('companyName') && <Loader2 className="h-4 w-4 animate-spin inline ml-2" />}
@@ -494,7 +494,7 @@ export default function AddClientPage() {
                     onBlur={(e) => checkUniqueness('CONTACT_NUMBER', e.target.value, 'contactNumber', 'contact_number')}
                     maxLength={10}
                     placeholder="e.g. 9876543210"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                   />
                   {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
                 </div>
@@ -507,10 +507,32 @@ export default function AddClientPage() {
                     type="email"
                     name="email"
                     value={formData.email}
-                    onChange={handleChange}
+                    // onChange={handleChange}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toLowerCase().trim();
+                      handleChange(e);
+                      // Clear error while typing
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.email;
+                        return newErrors;
+                      });
+                    }}
                     required
-                    onBlur={(e) => checkUniqueness('EMAIL', e.target.value.trim(), 'email', 'email')} placeholder="e.g. info@company.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) {
+                        // Now validate format
+                        if (!emailRegex.test(val)) {
+                          setErrors(prev => ({ ...prev, email: 'Invalid email format' }));
+                        }
+                        // Then check uniqueness
+                        checkUniqueness('EMAIL', val, 'email', 'email');
+                      }
+                    }}
+                    // onBlur={(e) => checkUniqueness('EMAIL', e.target.value.trim(), 'email', 'email')} 
+                    placeholder="e.g. info@company.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                   />
                   {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
@@ -526,12 +548,33 @@ export default function AddClientPage() {
                       id="gst"
                       name="gst"
                       value={formData.gst}
-                      onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('GST', e.target.value.trim(), 'gst', 'gst')}
+                      // onChange={handleChange}
+                      onChange={(e) => {
+                        e.target.value = e.target.value.toUpperCase();
+                        handleChange(e);
+                        // Clear error while typing
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.gst;
+                          return newErrors;
+                        });
+                      }}
+                      // onBlur={(e) => checkUniqueness('GST', e.target.value.trim(), 'gst', 'gst')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          // Now validate format
+                          if (!gstRegex.test(val)) {
+                            setErrors(prev => ({ ...prev, gst: 'Invalid GSTIN format' }));
+                          }
+                          // Then check uniqueness
+                          checkUniqueness('GST', val, 'gst', 'gst');
+                        }
+                      }}
                       maxLength={15}
                       required
                       placeholder="e.g. 27ABCDE1234F1Z5"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                     />
                     {checking.has('gst') && (
                       <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-500" />
@@ -552,12 +595,30 @@ export default function AddClientPage() {
                       id="panNumber"
                       name="panNumber"
                       value={formData.panNumber}
-                      onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('PAN_NUMBER', e.target.value.trim(), 'panNumber', 'pan_number')}
+                      // onChange={handleChange}
+                      // onBlur={(e) => checkUniqueness('PAN_NUMBER', e.target.value.trim(), 'panNumber', 'pan_number')}
+                      onChange={(e) => {
+                        e.target.value = e.target.value.toUpperCase();
+                        handleChange(e);
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.panNumber;
+                          return newErrors;
+                        });
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          if (!panRegex.test(val)) {
+                            setErrors(prev => ({ ...prev, panNumber: 'Invalid PAN format' }));
+                          }
+                          checkUniqueness('PAN_NUMBER', val, 'panNumber', 'pan_number');
+                        }
+                      }}
                       maxLength={10}
                       required
                       placeholder="e.g. ABCDE1234F"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                     />
                     {checking.has('panNumber') && (
                       <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-500" />
@@ -578,12 +639,30 @@ export default function AddClientPage() {
                       id="tanNumber"
                       name="tanNumber"
                       value={formData.tanNumber}
-                      onChange={handleChange}
-                      onBlur={(e) => checkUniqueness('TAN_NUMBER', e.target.value.trim(), 'tanNumber', 'tan_number')}
+                      // onChange={handleChange}
+                      // onBlur={(e) => checkUniqueness('TAN_NUMBER', e.target.value.trim(), 'tanNumber', 'tan_number')}
+                      onChange={(e) => {
+                        e.target.value = e.target.value.toUpperCase();
+                        handleChange(e);
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.tanNumber;
+                          return newErrors;
+                        });
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) {
+                          if (!tanRegex.test(val)) {
+                            setErrors(prev => ({ ...prev, tanNumber: 'Invalid TAN format' }));
+                          }
+                          checkUniqueness('TAN_NUMBER', val, 'tanNumber', 'tan_number');
+                        }
+                      }}
                       maxLength={10}
                       required
                       placeholder="e.g. MUMA12345B"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                     />
                     {checking.has('tanNumber') && (
                       <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-500" />
@@ -598,7 +677,7 @@ export default function AddClientPage() {
                     value={formData.currency}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                   >
                     <option value="">Select currency</option>
                     <option value="INR">INR</option>
@@ -640,7 +719,7 @@ export default function AddClientPage() {
                         value={addr.houseNo || ''}
                         onChange={(e) => handleChange(e, i, 'addresses')}
                         placeholder="e.g. 221B"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                     </div>
 
@@ -653,7 +732,7 @@ export default function AddClientPage() {
                         value={addr.streetName || ''}
                         onChange={(e) => handleChange(e, i, 'addresses')}
                         placeholder="e.g. Baker Street"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                     </div>
 
@@ -668,7 +747,7 @@ export default function AddClientPage() {
                         onBlur={(e) => validateField(`addresses.${i}.city`, e.target.value, i)}
                         required={i === 0}
                         placeholder="e.g. Mumbai"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.city`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.city`]}</p>
@@ -687,7 +766,7 @@ export default function AddClientPage() {
                         onBlur={(e) => validateField(`addresses.${i}.state`, e.target.value, i)}
                         required={i === 0}
                         placeholder="e.g. Maharashtra"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.state`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.state`]}</p>
@@ -707,7 +786,7 @@ export default function AddClientPage() {
                         maxLength={6}
                         required={i === 0}
                         placeholder="e.g. 400001"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.pincode`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.pincode`]}</p>
@@ -726,7 +805,7 @@ export default function AddClientPage() {
                         onBlur={(e) => validateField(`addresses.${i}.country`, e.target.value, i)}
                         required={i === 0}
                         placeholder="e.g. India"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.country`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.country`]}</p>
@@ -740,7 +819,7 @@ export default function AddClientPage() {
                         name={`addresses.${i}.addressType`}
                         value={addr.addressType || ''}
                         onChange={(e) => handleChange(e, i, 'addresses')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                         required={i === 0}
                       >
                         <option value="" disabled>Select type</option>
@@ -804,7 +883,7 @@ export default function AddClientPage() {
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
                             onBlur={(e) => validateField(`clientPocs.${i}.name`, e.target.value, i)}
                             placeholder="e.g. Anita Sharma"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                             required={i === 0}
                           />
                           {errors[`clientPocs.${i}.name`] && (
@@ -822,16 +901,37 @@ export default function AddClientPage() {
                             type="email"
                             name={`clientPocs.${i}.email`}
                             value={poc.email || ''}
-                            onChange={(e) => handleChange(e, i, 'clientPocs')}
+                            // onChange={(e) => handleChange(e, i, 'clientPocs')}
+                            onChange={(e) => {
+                              e.target.value = e.target.value.toLowerCase().trim();
+                              handleChange(e, i, 'clientPocs');
+                              // Clear error while typing
+                              setErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors[`clientPocs.${i}.email`];
+                                return newErrors;
+                              });
+                            }}
+                            // onBlur={(e) => {
+                            //   const val = e.target.value.trim();
+                            //   if (val) {
+                            //     validateField(`clientPocs.${i}.email`, val, i);
+                            //     checkUniqueness('EMAIL', val, `clientPocs.${i}.email`, 'email');
+                            //   }
+                            // }}
                             onBlur={(e) => {
                               const val = e.target.value.trim();
                               if (val) {
-                                validateField(`clientPocs.${i}.email`, val, i);
+                                // Validate format
+                                if (!emailRegex.test(val)) {
+                                  setErrors(prev => ({ ...prev, [`clientPocs.${i}.email`]: 'Invalid email format' }));
+                                }
+                                // Then uniqueness
                                 checkUniqueness('EMAIL', val, `clientPocs.${i}.email`, 'email');
                               }
                             }}
                             placeholder="anita.sharma@company.com"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                             required={i === 0}
                           />
                           {checking.has(`clientPocs.${i}.email`) && (
@@ -862,7 +962,7 @@ export default function AddClientPage() {
                             }}
                             maxLength={10}
                             placeholder="9876543210"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                             required={i === 0}
                           />
                           {checking.has(`clientPocs.${i}.contactNumber`) && (
@@ -882,7 +982,7 @@ export default function AddClientPage() {
                             value={poc.designation || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
                             placeholder="e.g. Procurement Manager"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                           />
                         </div>
                       </div>
