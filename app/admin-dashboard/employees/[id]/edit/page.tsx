@@ -201,23 +201,45 @@ const EditEmployeePage = () => {
         } else {
           clientSelection = `STATUS:${emp.clientStatus || ''}`;
         }
-
         setFormData({
           ...emp,
           clientSelection,
+          // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
+          rateCard: emp.rateCard === 0 || emp.rateCard == null ? null : emp.rateCard,
 
-          // Clean: pure EmployeeDocumentDTO[] — no fileObj, no extensions
           documents: emp.documents ?? [],
-
           employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
 
           employeeSalaryDTO: emp.employeeSalaryDTO
             ? {
               ...emp.employeeSalaryDTO,
               employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
+              // Clean CTC and Standard Hours to show blank if 0/undefined
+              ctc: emp.employeeSalaryDTO.ctc === 0 || emp.employeeSalaryDTO.ctc == null ? null : emp.employeeSalaryDTO.ctc,
+              standardHours: emp.employeeSalaryDTO.standardHours === 0 ||
+                emp.employeeSalaryDTO.standardHours == null ||
+                emp.employeeSalaryDTO.standardHours === 40
+                ? null : emp.employeeSalaryDTO.standardHours,
             }
             : undefined,
         });
+
+        // setFormData({
+        //   ...emp,
+        //   clientSelection,
+
+        //   // Clean: pure EmployeeDocumentDTO[] — no fileObj, no extensions
+        //   documents: emp.documents ?? [],
+
+        //   employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
+
+        //   employeeSalaryDTO: emp.employeeSalaryDTO
+        //     ? {
+        //       ...emp.employeeSalaryDTO,
+        //       employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
+        //     }
+        //     : undefined,
+        // });
 
         // Reset the separate file upload tracker
         setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
@@ -311,9 +333,23 @@ const EditEmployeePage = () => {
     });
 
     // Validation (only run for simple fields — skip nested ones if you want)
-    if (!name.includes('.')) {
+    // if (!name.includes('.')) {
+    //   const error = validateField(name, value);
+    //   setErrors((prev) => ({ ...prev, [name]: error }));
+    // }
+    // Only validate non-email fields on change
+    if (!name.includes('.') && !['personalEmail', 'companyEmail'].includes(name)) {
       const error = validateField(name, value);
       setErrors((prev) => ({ ...prev, [name]: error }));
+    }
+
+    // Clear email errors while typing (will re-validate on blur)
+    if (['personalEmail', 'companyEmail'].includes(name)) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name]; // remove error while typing
+        return newErrors;
+      });
     }
   };
 
@@ -1333,13 +1369,31 @@ const EditEmployeePage = () => {
                     <Input
                       type="number"
                       name="rateCard"
-                      value={formData.rateCard ?? ""}
+                      value={formData.rateCard ?? ''}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       placeholder="45.00"
                     />
                   </div>
+                  {/* CTC - Mandatory */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      CTC <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      className="h-12 text-base w-full"
+                      type="number"
+                      placeholder="e.g. 1200000"
+                      name="employeeSalaryDTO.ctc"
+                      value={formData.employeeSalaryDTO?.ctc ?? ''}
+                      onChange={handleChange}
+                      required
+                    />
+                    {getError("ctc") && (
+                      <p className="text-xs text-red-600">{getError("ctc")}</p>
+                    )}
 
+                  </div>
                   {/* Pay Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Pay Type</Label>
@@ -1382,11 +1436,10 @@ const EditEmployeePage = () => {
                   {/* Standard Hours */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Standard Hours</Label>
-
                     <Input
                       type="number"
                       name="employeeSalaryDTO.standardHours"
-                      value={formData.employeeSalaryDTO?.standardHours ?? 40}
+                      value={formData.employeeSalaryDTO?.standardHours ?? ''}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                     />
@@ -1679,11 +1732,12 @@ const EditEmployeePage = () => {
                           <Input
                             type="number"
                             placeholder="Amount"
-                            value={a.amount}
+                            value={a.amount ?? ''}
                             className="h-12 text-base"
                             onChange={(e) => {
                               const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
-                              updated[i].amount = parseFloat(e.target.value) || 0;
+                              // updated[i].amount = parseFloat(e.target.value) || 0;
+                              updated[i].amount = e.target.value === '' ? null : (parseFloat(e.target.value) || null);
 
                               setFormData((prev) => prev ? {
                                 ...prev,
@@ -1732,7 +1786,7 @@ const EditEmployeePage = () => {
                           const newAllowance: AllowanceDTO = {
                             allowanceId: "",
                             allowanceType: "",
-                            amount: 0,
+                            amount: null,
                           };
 
                           setFormData((prev) => prev ? {
@@ -1809,11 +1863,12 @@ const EditEmployeePage = () => {
                           <Input
                             type="number"
                             placeholder="Amount"
-                            value={d.amount}
+                            value={d.amount ?? ''}
                             className="h-12 text-base"
                             onChange={(e) => {
                               const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
-                              updated[i].amount = parseFloat(e.target.value) || 0;
+                              // updated[i].amount = parseFloat(e.target.value) || 0;
+                              updated[i].amount = e.target.value === '' ? null : (parseFloat(e.target.value) || null);
 
                               setFormData((prev) => prev ? {
                                 ...prev,
@@ -1861,7 +1916,7 @@ const EditEmployeePage = () => {
                           const newDeduction: DeductionDTO = {
                             deductionId: "",
                             deductionType: "",
-                            amount: 0,
+                            amount: null,
                           };
 
                           setFormData((prev) => prev ? {

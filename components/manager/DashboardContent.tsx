@@ -28,6 +28,7 @@ const DashboardContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
@@ -35,75 +36,155 @@ const DashboardContent: React.FC = () => {
         setLoading(false);
         return;
       }
-
+   
       try {
         setLoading(true);
         setError(null);
-
+   
+        // Fetch critical data that MUST succeed
         const [
           pendingLeavesRes,
           leaveSummaryRes,
           employeesRes,
-          holidaysRes,
         ] = await Promise.all([
           leaveService.getPendingLeaves(),
-          // CORRECT CALL — matches your backend method exactly
           leaveService.getLeaveSummary(
-            undefined, // employeeId
-            undefined, // month
-            undefined, // type
-            undefined, // status
-            undefined, // financialType
-            undefined, // futureApproved
-            undefined, // date
-            0,         // page
-            1000,      // size
-            'fromDate,desc' // sort
+            undefined, undefined, undefined, undefined,
+            undefined, undefined, undefined,
+            0, 1000, 'fromDate,desc'
           ),
-
           adminService.getAllEmployees(),
-          holidayService.getAllHolidays(),
         ]);
-
-        // Pending Leaves
+   
+        // Process critical data (same as before)
         setPendingLeavesCount(pendingLeavesRes.length);
         setRecentPendingLeaves(pendingLeavesRes.slice(0, 5));
-
-        // Approved Leaves
+   
         const approved = leaveSummaryRes.response?.content?.filter(l => l.status === 'APPROVED') || [];
         setApprovedLeavesCount(approved.length);
-
-        // Team Stats
+   
         const managerId = user.userId;
         const teamMembers = employeesRes.response?.filter(emp => emp.reportingManagerId === managerId) || [];
         setTeamCount(teamMembers.length);
         const totalLeaves = teamMembers.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
         setAverageLeaves(teamMembers.length > 0 ? Math.round(totalLeaves / teamMembers.length) : 0);
-        // Upcoming Holidays
-        if (holidaysRes.flag && Array.isArray(holidaysRes.response)) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const upcoming = holidaysRes.response
-            .filter(h => {
-              const hDate = new Date(h.holidayDate);
-              hDate.setHours(0, 0, 0, 0);
-              return hDate >= today;
-            })
-            .sort((a, b) => new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime())
-            .slice(0, 5);
-
-          setUpcomingHolidays(upcoming);
+   
+        // Fetch holidays SEPARATELY — so it can't crash the whole dashboard
+        let upcoming: HolidaysDTO[] = [];
+        try {
+          const holidaysRes = await holidayService.getAllHolidays();
+   
+          if (holidaysRes.flag && Array.isArray(holidaysRes.response)) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+   
+            upcoming = holidaysRes.response
+              .filter((h: HolidaysDTO) => {
+                const hDate = new Date(h.holidayDate);
+                hDate.setHours(0, 0, 0, 0);
+                return hDate >= today;
+              })
+              .sort((a: HolidaysDTO, b: HolidaysDTO) =>
+                new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime()
+              )
+              .slice(0, 5);
+          }
+          // If flag === false → we just treat as empty list (no error)
+        } catch (holidayErr: any) {
+          console.warn('Holidays not available or empty:', holidayErr.message);
+          // Intentionally NOT re-throwing → we want empty list, not crash
+          upcoming = [];
         }
-
+   
+        setUpcomingHolidays(upcoming);
+   
       } catch (err: any) {
+        // Only critical failures reach here (leaves, employees, etc.)
         setError(err.message || 'Failed to load dashboard data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
- 
+   
     fetchData();
   }, [accessToken, user]);
+
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
+  //       setError('Unauthorized access. Please log in as a manager.');
+  //       setLoading(false);
+  //       return;
+  //     }
+
+  //     try {
+  //       setLoading(true);
+  //       setError(null);
+
+  //       const [
+  //         pendingLeavesRes,
+  //         leaveSummaryRes,
+  //         employeesRes,
+  //         holidaysRes,
+  //       ] = await Promise.all([
+  //         leaveService.getPendingLeaves(),
+  //         // CORRECT CALL — matches your backend method exactly
+  //         leaveService.getLeaveSummary(
+  //           undefined, // employeeId
+  //           undefined, // month
+  //           undefined, // type
+  //           undefined, // status
+  //           undefined, // financialType
+  //           undefined, // futureApproved
+  //           undefined, // date
+  //           0,         // page
+  //           1000,      // size
+  //           'fromDate,desc' // sort
+  //         ),
+
+  //         adminService.getAllEmployees(),
+  //         holidayService.getAllHolidays(),
+  //       ]);
+
+  //       // Pending Leaves
+  //       setPendingLeavesCount(pendingLeavesRes.length);
+  //       setRecentPendingLeaves(pendingLeavesRes.slice(0, 5));
+
+  //       // Approved Leaves
+  //       const approved = leaveSummaryRes.response?.content?.filter(l => l.status === 'APPROVED') || [];
+  //       setApprovedLeavesCount(approved.length);
+
+  //       // Team Stats
+  //       const managerId = user.userId;
+  //       const teamMembers = employeesRes.response?.filter(emp => emp.reportingManagerId === managerId) || [];
+  //       setTeamCount(teamMembers.length);
+  //       const totalLeaves = teamMembers.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
+  //       setAverageLeaves(teamMembers.length > 0 ? Math.round(totalLeaves / teamMembers.length) : 0);
+  //       // Upcoming Holidays
+  //       if (holidaysRes.flag && Array.isArray(holidaysRes.response)) {
+  //         const today = new Date();
+  //         today.setHours(0, 0, 0, 0);
+  //         const upcoming = holidaysRes.response
+  //           .filter(h => {
+  //             const hDate = new Date(h.holidayDate);
+  //             hDate.setHours(0, 0, 0, 0);
+  //             return hDate >= today;
+  //           })
+  //           .sort((a, b) => new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime())
+  //           .slice(0, 5);
+
+  //         setUpcomingHolidays(upcoming);
+  //       }
+
+  //     } catch (err: any) {
+  //       setError(err.message || 'Failed to load dashboard data. Please try again.');
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+ 
+  //   fetchData();
+  // }, [accessToken, user]);
   const handleReviewLeave = (leave: PendingLeavesResponseDTO) => {
     Swal.fire({
       title: 'Review Leave Request',
@@ -288,7 +369,59 @@ const DashboardContent: React.FC = () => {
             </div>
           )}
           {/* Upcoming Holidays */}
-          {upcomingHolidays.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
+  <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+    <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+      <Calendar className="w-7 h-7 text-purple-600" />
+      Upcoming Holidays
+    </h3>
+  </div>
+  <div className="p-6">
+    {upcomingHolidays.length > 0 ? (
+      <div className="space-y-4">
+        {upcomingHolidays.map((holiday) => (
+          <div
+            key={holiday.holidayId}
+            className="flex items-center justify-between p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300 border border-purple-100"
+          >
+            <div className="flex-1">
+              <h4 className="font-bold text-gray-800 text-lg">{holiday.holidayName}</h4>
+              <p className="text-sm text-gray-600 mt-1">
+                {format(new Date(holiday.holidayDate), 'EEEE, MMMM d, yyyy')}
+              </p>
+              {holiday.comments && (
+                <p className="text-xs text-gray-500 mt-2 italic">"{holiday.comments}"</p>
+              )}
+            </div>
+            <div className="text-right ml-4">
+              <div className="text-4xl font-bold text-purple-600">
+                {format(new Date(holiday.holidayDate), 'dd')}
+              </div>
+              <div className="text-sm font-medium text-purple-600 uppercase tracking-wider">
+                {format(new Date(holiday.holidayDate), 'MMM')}
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="text-center mt-6">
+          <button
+            onClick={() => router.push('/dashboard/holiday')}
+            className="text-indigo-600 hover:text-indigo-800 font-medium text-sm hover:underline"
+          >
+            View Full Holiday Calendar →
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div className="text-center py-12">
+        <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <p className="text-lg font-medium text-gray-600">No upcoming holidays :(</p>
+        <p className="text-sm text-gray-500 mt-2">Time to focus on work!</p>
+      </div>
+    )}
+  </div>
+</div>
+          {/* {upcomingHolidays.length > 0 && (
             <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
               <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
                 <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
@@ -331,7 +464,7 @@ const DashboardContent: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>

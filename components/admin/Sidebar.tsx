@@ -36,6 +36,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard/leaves', label: 'Leaves', icon: <CalendarIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/holiday', label: 'Holiday', icon: <PlusIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/invoice', label: 'Invoices', icon: <FileTextIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/timesheet', label: 'Timesheets', icon: <ClockIcon className="h-5 w-5" /> },
       ],
     },
     {
