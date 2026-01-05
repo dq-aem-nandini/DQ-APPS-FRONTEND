@@ -507,7 +507,7 @@ const ProfilePage = () => {
       setUpdating(false);
     }
   };
-  // Inside your onChange function — replace the existing onChange with this enhanced version
+
 
   const onChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -592,6 +592,10 @@ const ProfilePage = () => {
       )
     ) {
       newErrors[`addresses[${i}].${field}`] = "This field is required";
+    }
+    if (field === "houseNo" && value.length > 19) {
+      newErrors[`addresses[${i}].${field}`] =
+        "Maximum 20 characters allowed";
     }
     if (field === "pincode" && value && !/^\d{6}$/.test(value)) {
       newErrors[`addresses[${i}].${field}`] = "PIN code must be 6 digits";
@@ -1350,12 +1354,11 @@ const ProfilePage = () => {
                         className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4"
                       >
                         <div>
-                          <Input
+                        <Input
                             label="House Number"
                             value={addr.houseNo || ""}
-                            onChange={(e) =>
-                              updateAddress(i, "houseNo", e.target.value)
-                            }
+                            maxLength={20}
+                            onChange={(e) => updateAddress(i, "houseNo", e.target.value)}
                           />
                           {errors[`addresses[${i}].houseNo`] && (
                             <p className="text-red-500 text-xs mt-1">

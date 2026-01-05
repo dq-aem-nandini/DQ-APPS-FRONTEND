@@ -211,14 +211,14 @@ const SetupPassword: React.FC = () => {
                 <CardContent className="p-6">
                     <form onSubmit={handleSubmit} className="space-y-4">
                          {/* Hidden username for accessibility + browser autofill */}
-    <input
-        type="text"
-        name="username"
-        autoComplete="username"
-        value={user?.companyEmail|| ""}
-        readOnly
-        hidden
-    />
+                    <input
+                        type="text"
+                        name="username"
+                        autoComplete="username"
+                        value={user?.companyEmail|| ""}
+                        readOnly
+                        hidden
+                    />
                         
                         {/* CURRENT PASSWORD */}
                         <div className="space-y-2">
