@@ -69,7 +69,7 @@ export type HolidayType =
   | "COMPANY_SPECIFIC";
 export type RecurrenceRule = "ANNUAL" | "ONE_TIME";
 export type EmploymentType = "CONTRACTOR" | "FREELANCER" | "FULLTIME";
-export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" | "WORK_PERMIT" | "PAN_CARD" | "AADHAR_CARD" | "BANK_PASSBOOK" | "TENTH_CERTIFICATE" | "TWELFTH_CERTIFICATE" | "DEGREE_CERTIFICATE" | "POST_GRADUATION_CERTIFICATE" | "OTHER";
+export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" | "WORK_PERMIT" | "PAN_CARD" | "AADHAAR_CARD" | "BANK_PASSBOOK" | "TENTH_CERTIFICATE" | "TWELFTH_CERTIFICATE" | "DEGREE_CERTIFICATE" | "POST_GRADUATION_CERTIFICATE" | "OTHER";
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY";
 export type ProjectStatus = "ACTIVE" | "INACTIVE" | "COMPLETED" | "ON_HOLD";
 export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
@@ -240,7 +240,7 @@ export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
   "TAX_DECLARATION_FORM",
   "WORK_PERMIT",
   "PAN_CARD",
-  "AADHAR_CARD",
+  "AADHAAR_CARD",
   "BANK_PASSBOOK",
   "TENTH_CERTIFICATE",
   "TWELFTH_CERTIFICATE",
@@ -254,7 +254,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   TAX_DECLARATION_FORM: "Tax Declaration Form",
   WORK_PERMIT: "Work Permit / Visa",
   PAN_CARD: "PAN Card",
-  AADHAR_CARD: "Aadhaar Card",
+  AADHAAR_CARD: "Aadhaar Card",
   BANK_PASSBOOK: "Bank Passbook / Cancelled Cheque",
   TENTH_CERTIFICATE: "10th Marksheet",
   TWELFTH_CERTIFICATE: "12th Marksheet",
@@ -430,6 +430,7 @@ export interface LeaveCalendarEmployeeDTO {
   employeeId: string;
   employeeName: string;
   leaveType: "FULL_DAY" | "HALF_DAY" | "FIRST_HALF" | "SECOND_HALF";
+  status: "APPROVED" | "PENDING" | "REJECTED";
 }
 
 export interface LeaveCalendarDTO {

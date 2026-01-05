@@ -209,6 +209,9 @@ export default function LeaveCalendarPage() {
             const leaveDay = leaveMap[dateStr];
             const employees = leaveDay?.employees || [];
 
+            const approved = employees.filter(e => e.status === 'APPROVED');
+            const pending = employees.filter(e => e.status === 'PENDING');
+
             const fullDay = employees.filter(e => e.leaveType === 'FULL_DAY');
             const halfDay = employees.filter(e => e.leaveType === 'HALF_DAY');
 
@@ -230,7 +233,7 @@ export default function LeaveCalendarPage() {
 
                 {/* Badges */}
                 {employees.length > 0 && (
-                  <div className="flex gap-1 flex-wrap mt-1 sm:absolute sm:top-2 sm:right-2 sm:mt-0">
+                  <div className="flex gap-1 flex-wrap">
                     {fullDay.length > 0 && (
                       <span className="bg-green-200 text-green-700 text-[9px] sm:text-[11px] px-2 py-0.5 rounded-full">
                         {fullDay.length} FULL
@@ -241,14 +244,19 @@ export default function LeaveCalendarPage() {
                         {halfDay.length} HALF
                       </span>
                     )}
+                    {pending.length > 0 && (
+                      <span className="bg-yellow-200 text-yellow-800 text-[9px] sm:text-[11px] px-2 py-0.5 rounded-full">
+                        {pending.length} PENDING
+                      </span>
+                    )}
                   </div>
                 )}
 
                 {/* Names */}
-                <div className="mt-1 text-indigo-800 text-xs space-y-0.5">
+                <div className="mt-1 text-indigo-800 text-xs space-y-0.5 max-h-24 overflow-y-auto">
                   {employees.slice(0, 3).map(emp => (
-                    <div key={emp.employeeId} className="truncate">
-                      • {emp.employeeName}
+                    <div key={emp.employeeId} className={`truncate ${emp.status === 'PENDING' ? 'text-gray-400 italic' : ''}`}>
+                      • {emp.employeeName} {emp.status === 'PENDING' && `(${emp.status})`}
                     </div>
                   ))}
                   {employees.length > 3 && (
@@ -275,15 +283,19 @@ export default function LeaveCalendarPage() {
           <div className="space-y-3 mt-4">
             {selectedDay?.employees.map((emp, index) => {
               const isFullDay = emp.leaveType === 'FULL_DAY';
-
+              const isPending = emp.status === 'PENDING';
               return (
                 <div
                   key={`${emp.employeeId}-${index}`}
                   className={`
                     flex justify-between items-center p-3 rounded
-                    ${isFullDay ? 'bg-indigo-100' : 'bg-red-100'}
+                    ${isPending ? 'bg-yellow-100' : isFullDay ? 'bg-indigo-100' : 'bg-red-100'}
                   `}
                 >
+                  <span className="text-xs text-gray-600 ml-2">
+                    ({emp.status})
+                  </span>
+
                   <span className="font-medium text-gray-800">
                     {emp.employeeName}
                   </span>
