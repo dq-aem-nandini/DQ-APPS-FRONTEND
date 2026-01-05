@@ -56,7 +56,7 @@ const AddEmployeePage = () => {
     alternateContactNumber: '',
     gender: '',
     maritalStatus: '',
-    numberOfChildren: 0,
+    numberOfChildren: null,
     employeePhotoUrl: '',
     nationality: '',
     emergencyContactName: '',
@@ -69,7 +69,7 @@ const AddEmployeePage = () => {
     designation: '' as Designation,
     dateOfBirth: '',
     dateOfJoining: '',
-    rateCard: 0,
+    rateCard: null,
     employmentType: 'FULLTIME' as EmploymentType,
     panNumber: '',
     aadharNumber: '',
@@ -82,9 +82,9 @@ const AddEmployeePage = () => {
     documents: [],
     employeeSalaryDTO: {
       employeeId: '',
-      ctc: 0,
+      ctc: null,
       payType: 'MONTHLY' as PayType,
-      standardHours: 40,
+      standardHours: null,
       bankAccountNumber: '',
       ifscCode: '',
       payClass: 'A1' as PayClass,
@@ -172,7 +172,7 @@ const AddEmployeePage = () => {
       if (val && !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(val)) {
         newErrors[name] = "Invalid email format (use only lowercase letters)";
       }
-            if (name === 'companyEmail' && val.toLowerCase() === formData.personalEmail.toLowerCase() && formData.personalEmail)
+      if (name === 'companyEmail' && val.toLowerCase() === formData.personalEmail.toLowerCase() && formData.personalEmail)
         newErrors[name] = 'Cannot be same as personal email';
     }
     // Contact Numbers
@@ -213,8 +213,16 @@ const AddEmployeePage = () => {
     }
 
     // Convert numeric fields
-    if (['ctc', 'standardHours', 'rateCard'].some(f => name.includes(f))) {
-      parsedValue = parseFloat(parsedValue) || 0;
+    // if (['ctc', 'standardHours', 'rateCard'].some(f => name.includes(f))) {
+    //   parsedValue = parseFloat(parsedValue) || 0;
+    // }
+    if (['ctc', 'standardHours', 'rateCard', 'numberOfChildren'].some(f => name.includes(f))) {
+      if (parsedValue === '' || parsedValue == null) {
+        parsedValue = null;
+      } else {
+        const num = parseFloat(parsedValue);
+        parsedValue = isNaN(num) ? null : num;
+      }
     }
 
     // Handle nested dto fields
@@ -238,23 +246,6 @@ const AddEmployeePage = () => {
     validateField(name, parsedValue);
   };
 
-
-  // const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-  //   const { name, value, type } = e.target;
-  //   let parsedValue: any = value;
-  //   if (type === 'checkbox') parsedValue = (e.target as HTMLInputElement).checked;
-  //   if (['ctc', 'standardHours', 'rateCard'].some(f => name.includes(f))) parsedValue = parseFloat(value) || 0;
-  //   if (name.includes('.')) {
-  //     const [parent, child] = name.split('.');
-  //     setFormData(prev => ({
-  //       ...prev,
-  //       [parent]: { ...(prev[parent as keyof EmployeeModel] as any), [child]: parsedValue },
-  //     }));
-  //   } else {
-  //     setFormData(prev => ({ ...prev, [name]: parsedValue }));
-  //   }
-  //   validateField(name, parsedValue);
-  // };
   const fetchDepartmentEmployees = async (dept: Department) => {
     if (!dept) {
       setDepartmentEmployees([]);
@@ -326,35 +317,6 @@ const AddEmployeePage = () => {
 
   // ⭐ VALIDATION: Debounce timeouts per field
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
-
-  // ⭐ VALIDATION: Debounced validation function
-  // const debouncedValidate = useCallback(async (key: string, value: string, field: UniqueField) => {
-  //   if (timeouts.current[key]) clearTimeout(timeouts.current[key]);
-  //   timeouts.current[key] = setTimeout(async () => {
-  //     const trimmedValue = value.trim();
-  //     if (!trimmedValue) {
-  //       // Clear on empty
-  //       setValidationResults(prev => {
-  //         const newResults = { ...prev };
-  //         delete newResults[key];
-  //         return newResults;
-  //       });
-  //       return;
-  //     }
-  //     try {
-  //       const result = await validationService.validateField({
-  //         field,
-  //         value: trimmedValue,
-  //         mode: 'create' as const,
-  //       });
-  //       setValidationResults(prev => ({ ...prev, [key]: result }));
-  //     } catch (error) {
-  //       console.warn('Validation failed:', error);
-  //       // Fallback: Assume available on error (non-blocking)
-  //       setValidationResults(prev => ({ ...prev, [key]: { exists: false, message: 'Validation unavailable' } }));
-  //     }
-  //   }, 500);
-  // }, []);
   const debouncedValidate = useCallback(async (key: string, value: string, field: UniqueField) => {
     if (timeouts.current[key]) clearTimeout(timeouts.current[key]);
     timeouts.current[key] = setTimeout(async () => {
@@ -530,7 +492,7 @@ const AddEmployeePage = () => {
     setIsSubmitting(true);
     // Clear previous errors
     setErrors({});
-    document.querySelectorAll('.error-field').forEach(el => el.classList.remove('error-field'));
+    // document.querySelectorAll('.error-field').forEach(el => el.classList.remove('error-field'));
     try {
       // === CLIENT-SIDE REQUIRED FIELDS (Silent Focus) ===
       const requiredFields = [
@@ -547,6 +509,7 @@ const AddEmployeePage = () => {
         { value: formData.designation, name: 'designation', label: 'Designation' },
         { value: formData.dateOfJoining, name: 'dateOfJoining', label: 'Date of Joining' },
         { value: formData.employmentType, name: 'employmentType', label: 'Employment Type' },
+        { value: formData.employeeSalaryDTO?.ctc, name: 'employeeSalaryDTO.ctc', label: 'CTC' },
       ];
       const missingField = requiredFields.find(f => !f.value);
       if (missingField) {
@@ -555,7 +518,7 @@ const AddEmployeePage = () => {
           const input = document.querySelector(`[name="${missingField.name}"]`) as HTMLInputElement;
           input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           input?.focus();
-          input?.classList.add('error-field');
+          // input?.classList.add('error-field');
         }, 100);
         setIsSubmitting(false);
         return;
@@ -609,7 +572,7 @@ const AddEmployeePage = () => {
           if (input) {
             input.scrollIntoView({ behavior: 'smooth', block: 'center' });
             input.focus();
-            input.classList.add('error-field');
+            // input.classList.add('error-field');
           }
         }, 100);
       } else {
@@ -620,16 +583,16 @@ const AddEmployeePage = () => {
       setIsSubmitting(false);
     }
   };
-  useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      setTimeout(() => {
-        Object.keys(errors).forEach(field => {
-          const input = document.querySelector(`[name="${field}"]`);
-          if (input) input.classList.add('error-field');
-        });
-      }, 100);
-    }
-  }, [errors]);
+  // useEffect(() => {
+  //   if (Object.keys(errors).length > 0) {
+  //     setTimeout(() => {
+  //       Object.keys(errors).forEach(field => {
+  //         const input = document.querySelector(`[name="${field}"]`);
+  //         if (input) input.classList.add('error-field');
+  //       });
+  //     }, 100);
+  //   }
+  // }, [errors]);
   // ⭐ VALIDATION: Helper to get validation for a field key
   const getValidation = (key: string) => validationResults[key];
   const selectValue = formData.clientSelection?.startsWith('STATUS:')
@@ -703,11 +666,30 @@ const AddEmployeePage = () => {
                       value={formData.personalEmail}
                       required
                       // onChange={handleChange}
+                      // onChange={(e) => {
+                      //   e.target.value = e.target.value.toLowerCase();
+                      //   handleChange(e);
+                      // }}
                       onChange={(e) => {
                         e.target.value = e.target.value.toLowerCase();
                         handleChange(e);
+                        // Clear error while typing
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.personalEmail;
+                          return newErrors;
+                        });
                       }}
-                      onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'personalEmail', 'personal_email')}
+                      // onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'personalEmail', 'personal_email')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        // Validate format
+                        if (val && !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(val)) {
+                          setErrors(prev => ({ ...prev, personalEmail: "Invalid email format (use only lowercase letters)" }));
+                        }
+                        // Uniqueness check
+                        if (val) checkUniqueness('EMAIL', val, 'personalEmail', 'personal_email');
+                      }}
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       placeholder="you@gmail.com"
                     />
@@ -725,11 +707,34 @@ const AddEmployeePage = () => {
                       value={formData.companyEmail}
                       required
                       // onChange={handleChange}
+                      // onChange={(e) => {
+                      //   e.target.value = e.target.value.toLowerCase();
+                      //   handleChange(e);
+                      // }}
                       onChange={(e) => {
                         e.target.value = e.target.value.toLowerCase();
                         handleChange(e);
+                        // Clear error while typing
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.companyEmail;
+                          return newErrors;
+                        });
                       }}
-                      onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'companyEmail', 'company_email')}
+                      // onBlur={(e) => checkUniqueness('EMAIL', e.target.value, 'companyEmail', 'company_email')}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        // Validate format
+                        if (val && !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(val)) {
+                          setErrors(prev => ({ ...prev, companyEmail: "Invalid email format (use only lowercase letters)" }));
+                        }
+                        // Check if same as personal email
+                        if (val.toLowerCase() === formData.personalEmail.toLowerCase() && formData.personalEmail) {
+                          setErrors(prev => ({ ...prev, companyEmail: 'Cannot be same as personal email' }));
+                        }
+                        // Uniqueness check
+                        if (val) checkUniqueness('EMAIL', val, 'companyEmail', 'company_email');
+                      }}
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       placeholder="you@company.com"
                     />
@@ -742,9 +747,9 @@ const AddEmployeePage = () => {
                       <TooltipHint hint="10-digit Indian mobile number. Must start with 6-9." />
                     </Label>
                     <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       name="contactNumber"
                       value={formData.contactNumber}
                       required
@@ -853,7 +858,7 @@ const AddEmployeePage = () => {
                   {/* Department */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Department<span className="text-red-500">*</span>
-                    <TooltipHint hint="Department where employee works (e.g., Development, QA, HR)." />
+                      <TooltipHint hint="Department where employee works (e.g., Development, QA, HR)." />
                     </Label>
                     <Select required
                       value={formData.employeeEmploymentDetailsDTO?.department || ''}
@@ -874,9 +879,9 @@ const AddEmployeePage = () => {
                   {/* Reporting Manager */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Reporting Manager
-                    <TooltipHint hint="Select the employee's direct reporting manager from the same department." />
+                      <TooltipHint hint="Select the employee's direct reporting manager from the same department." />
                     </Label>
-                    <Select 
+                    <Select
                       value={formData.reportingManagerId}
                       onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}
                       disabled={!formData.employeeEmploymentDetailsDTO?.department}
@@ -949,7 +954,7 @@ const AddEmployeePage = () => {
                   {/* Rate Card */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Rate Card
-                    <TooltipHint hint="Hourly or daily billing rate for client projects (in selected currency). Leave blank if not applicable." />
+                      <TooltipHint hint="Hourly or daily billing rate for client projects (in selected currency). Leave blank if not applicable." />
                     </Label>
                     <Input
                       className="h-12 text-base w-full"
@@ -962,10 +967,31 @@ const AddEmployeePage = () => {
                       onChange={handleChange}
                     />
                   </div>
+                  {/* CTC - Mandatory */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      CTC <span className="text-red-500">*</span>
+                      <TooltipHint hint="Cost to Company - Annual gross salary in rupees (before deductions)." />
+                    </Label>
+                    <Input
+                      className="h-12 text-base w-full"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g. 1200000"
+                      name="employeeSalaryDTO.ctc"
+                      value={formData.employeeSalaryDTO?.ctc ?? ''}
+                      onChange={handleChange}
+                      required
+                    />
+                    {errors['employeeSalaryDTO.ctc'] && (
+                      <p className="text-red-500 text-xs mt-1">{errors['employeeSalaryDTO.ctc']}</p>
+                    )}
+                  </div>
                   {/* Pay Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Pay Type
-                    <TooltipHint hint="How salary is structured: Fixed, Variable, Hourly, etc." />
+                      <TooltipHint hint="How salary is structured: Fixed, Variable, Hourly, etc." />
                     </Label>
                     <Select
                       value={formData.employeeSalaryDTO?.payType || ""}
@@ -992,7 +1018,7 @@ const AddEmployeePage = () => {
                   {/* Standard Hours */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Standard Hours
-                    <TooltipHint hint="Expected working hours per week. Default is 40." />
+                      <TooltipHint hint="Expected working hours per week. Default is 40." />
                     </Label>
                     <Input
                       className="h-12 text-base w-full"
@@ -1000,14 +1026,14 @@ const AddEmployeePage = () => {
                       min="1"
                       max="168"
                       name="employeeSalaryDTO.standardHours"
-                      value={formData.employeeSalaryDTO?.standardHours ?? 40}
+                      value={formData.employeeSalaryDTO?.standardHours ?? ''}
                       onChange={handleChange}
                     />
                   </div>
                   {/* Pay Class */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Pay Class
-                    <TooltipHint hint="Salary classification: Salaried, Hourly, Contractor, etc." />
+                      <TooltipHint hint="Salary classification: Salaried, Hourly, Contractor, etc." />
                     </Label>
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ''}
@@ -1028,7 +1054,7 @@ const AddEmployeePage = () => {
                   {/* Working Model */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Working Model
-                    <TooltipHint hint="Work arrangement: Remote, Hybrid, Onsite, etc." />
+                      <TooltipHint hint="Work arrangement: Remote, Hybrid, Onsite, etc." />
                     </Label>
                     <Select
                       value={formData.employeeEmploymentDetailsDTO?.workingModel || ''}
@@ -1051,7 +1077,7 @@ const AddEmployeePage = () => {
                   {/* Shift Timing */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Shift Timing
-                    <TooltipHint hint="Employee's work shift: General, US Shift, UK Shift, etc." />
+                      <TooltipHint hint="Employee's work shift: General, US Shift, UK Shift, etc." />
                     </Label>
                     <Select
                       value={formData.employeeEmploymentDetailsDTO?.shiftTiming || ''}
@@ -1072,7 +1098,7 @@ const AddEmployeePage = () => {
                   {/* Date of Confirmation */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Date of Confirmation
-                    <TooltipHint hint="Date when employee moved from probation to permanent. Leave blank if still on probation." />
+                      <TooltipHint hint="Date when employee moved from probation to permanent. Leave blank if still on probation." />
                     </Label>
                     <Input
                       className="h-12 text-base w-full"
@@ -1085,7 +1111,7 @@ const AddEmployeePage = () => {
                   {/* Notice Period */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Notice Period
-                    <TooltipHint hint="Number of days/months required for resignation after confirmation." />
+                      <TooltipHint hint="Number of days/months required for resignation after confirmation." />
                     </Label>
                     <Select
                       value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ''}
@@ -1209,7 +1235,7 @@ const AddEmployeePage = () => {
                   {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700">Bond Duration
-                      <TooltipHint hint="Duration employee must serve after training or bond period." />
+                        <TooltipHint hint="Duration employee must serve after training or bond period." />
                       </Label>
                       <Select
                         value={formData.employeeEmploymentDetailsDTO?.bondDuration || ''}
@@ -1236,7 +1262,7 @@ const AddEmployeePage = () => {
                   {/* Allowances */}
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">Allowances
-                    <TooltipHint hint="Common allowances: HRA (House Rent), Travel, Medical, Special Allowance, Conveyance, LTA" />
+                      <TooltipHint hint="Common allowances: HRA (House Rent), Travel, Medical, Special Allowance, Conveyance, LTA" />
                     </Label>
 
                     <div className="space-y-4">
@@ -1248,7 +1274,7 @@ const AddEmployeePage = () => {
                         >
                           {/* Allowance Type */}
                           <div className="space-y-2">
-                            
+
                             <Input
                               placeholder="Type (e.g., HRA)"
                               value={a.allowanceType}
@@ -1276,11 +1302,10 @@ const AddEmployeePage = () => {
                           <Input
                             type="number"
                             placeholder="Amount"
-                            value={a.amount}
+                            value={a.amount ?? ''}
                             onChange={e => {
                               const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
-                              updated[i].amount = parseFloat(e.target.value) || 0;
-                              setFormData(p => ({
+                              updated[i].amount = e.target.value === '' ? null : (parseFloat(e.target.value) || null); setFormData(p => ({
                                 ...p,
                                 employeeSalaryDTO: { ...p.employeeSalaryDTO!, allowances: updated },
                               }));
@@ -1318,7 +1343,7 @@ const AddEmployeePage = () => {
                           const newAllowance: AllowanceDTO = {
                             allowanceId: null,
                             allowanceType: "",
-                            amount: 0,
+                            amount: null,
                           };
                           setFormData(p => ({
                             ...p,
@@ -1337,7 +1362,7 @@ const AddEmployeePage = () => {
                   {/* Deductions */}
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">Deductions
-                    <TooltipHint hint="Add mandatory or voluntary deductions from salary, like PF, Professional Tax, TDS, etc." />
+                      <TooltipHint hint="Add mandatory or voluntary deductions from salary, like PF, Professional Tax, TDS, etc." />
                     </Label>
 
                     <div className="space-y-4">
@@ -1372,10 +1397,11 @@ const AddEmployeePage = () => {
                           <Input
                             type="number"
                             placeholder="Amount"
-                            value={d.amount}
+                            value={d.amount ?? ''}
                             onChange={e => {
                               const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
-                              updated[i].amount = parseFloat(e.target.value) || 0;
+                              // updated[i].amount = parseFloat(e.target.value) || 0;
+                              updated[i].amount = e.target.value === '' ? null : (parseFloat(e.target.value) || null);
                               setFormData(p => ({
                                 ...p,
                                 employeeSalaryDTO: { ...p.employeeSalaryDTO!, deductions: updated },
@@ -1414,7 +1440,7 @@ const AddEmployeePage = () => {
                           const newDeduction: DeductionDTO = {
                             deductionId: null,
                             deductionType: "",
-                            amount: 0,
+                            amount: null,
                           };
                           setFormData(p => ({
                             ...p,
@@ -1448,7 +1474,7 @@ const AddEmployeePage = () => {
                       {/* Document Type */}
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Document Type
-                        <TooltipHint hint="Common documents: Aadhaar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
+                          <TooltipHint hint="Common documents: Aadhaar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
                         </Label>
                         <Select value={doc.docType} onValueChange={v => handleDocumentChange(i, 'docType', v as DocumentType)}>
                           <SelectTrigger className="w-full min-w-[200px] !h-12">
@@ -1464,7 +1490,7 @@ const AddEmployeePage = () => {
                       {/* File Upload */}
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Upload File
-                        <TooltipHint hint="Supported formats: PDF, JPG, PNG. Max size 5MB recommended." />
+                          <TooltipHint hint="Supported formats: PDF, JPG, PNG. Max size 5MB recommended." />
                         </Label>
                         <Input
                           type="file"
@@ -1517,7 +1543,7 @@ const AddEmployeePage = () => {
                       {/* Equipment Type */}
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Equipment Type
-                        <TooltipHint hint="Common types: Laptop, Desktop, Monitor, Keyboard, Mouse, Headset, Docking Station" />
+                          <TooltipHint hint="Common types: Laptop, Desktop, Monitor, Keyboard, Mouse, Headset, Docking Station" />
                         </Label>
                         <Input
                           placeholder="e.g., Laptop, Monitor"
@@ -1536,7 +1562,7 @@ const AddEmployeePage = () => {
                       {/* Serial Number */}
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Serial Number
-                        <TooltipHint hint="Unique serial number printed on the device. Usually on the back or bottom." />
+                          <TooltipHint hint="Unique serial number printed on the device. Usually on the back or bottom." />
                         </Label>
                         <Input
                           placeholder="e.g., ABC123XYZ"
@@ -1555,7 +1581,7 @@ const AddEmployeePage = () => {
                       {/* Issued Date */}
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Issued Date
-                        <TooltipHint hint="Date when equipment was handed over to employee" />
+                          <TooltipHint hint="Date when equipment was handed over to employee" />
                         </Label>
                         <Input
                           type="date"
@@ -1608,7 +1634,7 @@ const AddEmployeePage = () => {
                   {/* Skills & Certifications */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">Skills & Certifications
-                    <TooltipHint hint="List technical and soft skills, certifications. Example: React, AWS Certified Solutions Architect, Agile Scrum Master" />
+                      <TooltipHint hint="List technical and soft skills, certifications. Example: React, AWS Certified Solutions Architect, Agile Scrum Master" />
                     </Label>
                     <Textarea
                       name="skillsAndCertification"
@@ -1621,7 +1647,7 @@ const AddEmployeePage = () => {
                   {/* Background Check */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Background Check
-                    <TooltipHint hint="Status of verification: Cleared, Pending, Failed, Not Initiated" />
+                      <TooltipHint hint="Status of verification: Cleared, Pending, Failed, Not Initiated" />
                     </Label>
                     <Input
                       name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
@@ -1638,7 +1664,7 @@ const AddEmployeePage = () => {
                   {/* Remarks */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">Remarks
-                    <TooltipHint hint="Any special notes about the employee: performance, behavior, relocation, etc." />
+                      <TooltipHint hint="Any special notes about the employee: performance, behavior, relocation, etc." />
                     </Label>
                     <Textarea
                       name="employeeAdditionalDetailsDTO.remarks"
@@ -1664,7 +1690,7 @@ const AddEmployeePage = () => {
                   {/* Policy Number */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Policy Number
-                    <TooltipHint hint="Unique policy ID from insurance provider. Must be unique across employees." />
+                      <TooltipHint hint="Unique policy ID from insurance provider. Must be unique across employees." />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.policyNumber"
@@ -1687,7 +1713,7 @@ const AddEmployeePage = () => {
                   {/* Provider Name */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Provider Name
-                    <TooltipHint hint="Insurance company name. Example: LIC, Star Health, HDFC Life" />
+                      <TooltipHint hint="Insurance company name. Example: LIC, Star Health, HDFC Life" />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.providerName"
@@ -1704,7 +1730,7 @@ const AddEmployeePage = () => {
                   {/* Coverage Start */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Coverage Start
-                    <TooltipHint hint="Date when insurance coverage begins" />
+                      <TooltipHint hint="Date when insurance coverage begins" />
                     </Label>
                     <Input
                       type="date"
@@ -1718,7 +1744,7 @@ const AddEmployeePage = () => {
                   {/* Coverage End */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Coverage End
-                    <TooltipHint hint="Date when policy expires. Leave blank for lifelong policies." />
+                      <TooltipHint hint="Date when policy expires. Leave blank for lifelong policies." />
                     </Label>
                     <Input
                       type="date"
@@ -1731,7 +1757,7 @@ const AddEmployeePage = () => {
                   {/* Nominee Name */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Nominee Name
-                    <TooltipHint hint="Person who will receive insurance benefit in case of claim" />
+                      <TooltipHint hint="Person who will receive insurance benefit in case of claim" />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeName"
@@ -1748,7 +1774,7 @@ const AddEmployeePage = () => {
                   {/* Nominee Relation */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Nominee Relation
-                    <TooltipHint hint="Relationship to employee: Spouse, Parent, Child, Sibling, etc." />
+                      <TooltipHint hint="Relationship to employee: Spouse, Parent, Child, Sibling, etc." />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeRelation"
@@ -1765,12 +1791,12 @@ const AddEmployeePage = () => {
                   {/* Nominee Contact */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Nominee Contact
-                    <TooltipHint hint="10-digit mobile number of nominee" />
+                      <TooltipHint hint="10-digit mobile number of nominee" />
                     </Label>
                     <Input
-                   
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       name="employeeInsuranceDetailsDTO.nomineeContact"
                       value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ''}
                       maxLength={10}
@@ -1824,7 +1850,7 @@ const AddEmployeePage = () => {
                   {/* Passport Number */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Passport Number
-                    <TooltipHint hint="Indian passport number. Format: One letter + 7 digits (e.g., A1234567). Must be unique." />
+                      <TooltipHint hint="Indian passport number. Format: One letter + 7 digits (e.g., A1234567). Must be unique." />
                     </Label>
                     <Input
                       name="employeeStatutoryDetailsDTO.passportNumber"
@@ -1846,12 +1872,12 @@ const AddEmployeePage = () => {
                   {/* PF UAN Number */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">PF UAN Number
-                    <TooltipHint hint="12-digit Universal Account Number for Provident Fund. Must be unique across all employees." />
+                      <TooltipHint hint="12-digit Universal Account Number for Provident Fund. Must be unique across all employees." />
                     </Label>
                     <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       name="employeeStatutoryDetailsDTO.pfUanNumber"
                       value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ''}
                       // onChange={handleChange}
@@ -1876,7 +1902,7 @@ const AddEmployeePage = () => {
                   {/* Tax Regime */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">Tax Regime
-                    <TooltipHint hint="Income tax regime employee has opted for. Common options: Old Regime, New Regime" />
+                      <TooltipHint hint="Income tax regime employee has opted for. Common options: Old Regime, New Regime" />
                     </Label>
                     <Input
                       name="employeeStatutoryDetailsDTO.taxRegime"
@@ -1893,12 +1919,12 @@ const AddEmployeePage = () => {
                   {/* ESI Number */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">ESI Number
-                    <TooltipHint hint="Employee State Insurance number (usually 10-17 digits). Must be unique." />
+                      <TooltipHint hint="Employee State Insurance number (usually 10-17 digits). Must be unique." />
                     </Label>
                     <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       name="employeeStatutoryDetailsDTO.esiNumber"
                       value={formData.employeeStatutoryDetailsDTO?.esiNumber || ''}
                       // onChange={handleChange}
@@ -1924,12 +1950,12 @@ const AddEmployeePage = () => {
                   {/* SSN Number */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">SSN Number
-                    <TooltipHint hint="Social Security Number (for international employees, e.g., US format: 123-45-6789). Must be unique." />
+                      <TooltipHint hint="Social Security Number (for international employees, e.g., US format: 123-45-6789). Must be unique." />
                     </Label>
                     <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       name="employeeStatutoryDetailsDTO.ssnNumber"
                       value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ''}
                       // onChange={handleChange}
@@ -1946,7 +1972,7 @@ const AddEmployeePage = () => {
                         }
                       }}
                       maxLength={30}
-                      placeholder="e.g., 123456789"                      className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"
+                      placeholder="e.g., 123456789" className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"
                     />
                     {errors['employeeStatutoryDetailsDTO.ssnNumber'] && (
                       <p className="text-red-500 text-xs mt-1">{errors['employeeStatutoryDetailsDTO.ssnNumber']}</p>

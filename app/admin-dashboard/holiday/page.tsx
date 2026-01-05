@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+
+import { useState, useEffect, useMemo } from 'react';
+import { format, parseISO, getYear, getMonth } from 'date-fns';
 import { Plus, Edit2, Trash2, Search, Loader2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,11 +10,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Add this import if not present
 import { holidayService } from '@/lib/api/holidayService';
 import type { HolidaysDTO, HolidaysModel } from '@/lib/api/types';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export default function HolidayListPage() {
   const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear()); // Default to current year (2026)
+  const [selectedMonth, setSelectedMonth] = useState<number | 'all'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<HolidaysDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +33,8 @@ export default function HolidayListPage() {
     holidayDate: '',
     comments: '',
   });
-  // Fetch all holidays
+
+  // Fetch holidays
   const fetchHolidays = async () => {
     try {
       setLoading(true);
@@ -42,12 +53,38 @@ export default function HolidayListPage() {
     fetchHolidays();
   }, []);
 
-  // Filter holidays
-  const filteredHolidays = holidays.filter(h =>
-    h.holidayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.holidayDate.includes(searchTerm)
-  );
-  // Open dialog
+  // Dynamic years from holidays (unique sorted descending)
+  const availableYears = useMemo(() => {
+    const years = new Set(holidays.map(h => getYear(parseISO(h.holidayDate))));
+    const yearList = Array.from(years).sort((a, b) => b - a);
+    return yearList.length > 0 ? yearList : [new Date().getFullYear()];
+  }, [holidays]);
+
+  // Filtered holidays based on year, month, and search
+  const filteredHolidays = useMemo(() => {
+    let result = holidays;
+
+    // Year filter
+    result = result.filter(h => getYear(parseISO(h.holidayDate)) === selectedYear);
+
+    // Month filter
+    if (selectedMonth !== 'all') {
+      result = result.filter(h => getMonth(parseISO(h.holidayDate)) === selectedMonth);
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(h =>
+        h.holidayName.toLowerCase().includes(lowerSearch) ||
+        format(parseISO(h.holidayDate), 'dd MMM yyyy').includes(lowerSearch)
+      );
+    }
+
+    return result;
+  }, [holidays, selectedYear, selectedMonth, searchTerm]);
+
+  // Open dialog for add/edit
   const openDialog = async (holiday?: HolidaysDTO) => {
     if (holiday) {
       try {
@@ -70,7 +107,8 @@ export default function HolidayListPage() {
     }
     setIsDialogOpen(true);
   };
-  // Submit
+
+  // Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.holidayName.trim() || !formData.holidayDate) {
@@ -100,7 +138,7 @@ export default function HolidayListPage() {
     }
   };
 
-  // Delete with confirmation
+  // Delete holiday
   const handleDelete = async (holidayId: string) => {
     if (!confirm('Are you sure you want to delete this holiday?')) return;
 
@@ -112,6 +150,7 @@ export default function HolidayListPage() {
       toast.error(err.message || 'Failed to delete holiday');
     }
   };
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 py-8 px-4">
@@ -135,26 +174,75 @@ export default function HolidayListPage() {
               </Button>
             </div>
           </div>
-          {/* Search */}
+
+          {/* Filters: Year + Month + Search */}
           <Card className="mb-8 shadow-xl">
             <CardContent className="p-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <Input
-                  placeholder="Search by name or date..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 text-lg"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Year Select */}
+                <div>
+                  <Label>Year</Label>
+                  <Select
+                    value={selectedYear.toString()}
+                    onValueChange={(val) => setSelectedYear(Number(val))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map(year => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Month Select */}
+                <div>
+                  <Label>Month</Label>
+                  <Select
+                    value={selectedMonth.toString()}
+                    onValueChange={(val) => setSelectedMonth(val === 'all' ? 'all' : Number(val))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Months" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Months</SelectItem>
+                      {MONTHS.map((month, idx) => (
+                        <SelectItem key={idx} value={idx.toString()}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Search */}
+                <div className="lg:col-span-2">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      placeholder="Search by name or date..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 h-10"
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
+
           {/* Holiday List */}
           <Card className="shadow-2xl">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-3">
                 <Calendar className="w-8 h-8 text-purple-600" />
-                All Holidays ({filteredHolidays.length})
+                Holidays {selectedYear} ({filteredHolidays.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -165,8 +253,8 @@ export default function HolidayListPage() {
               ) : filteredHolidays.length === 0 ? (
                 <div className="text-center py-16 text-gray-500">
                   <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-xl">No holidays found</p>
-                  <p className="text-sm mt-2">Click "Add Holiday" to create one</p>
+                  <p className="text-xl">No holidays found in {selectedYear}</p>
+                  <p className="text-sm mt-2">Try changing filters or add one</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -188,10 +276,10 @@ export default function HolidayListPage() {
                           <td className="py-5 px-6">
                             <div className="flex items-center gap-3">
                               <div className="bg-purple-100 text-purple-700 rounded-lg px-3 py-2 font-medium">
-                                {format(new Date(holiday.holidayDate), 'dd MMM')}
+                                {format(parseISO(holiday.holidayDate), 'dd MMM')}
                               </div>
                               <div className="text-sm text-gray-600">
-                                {format(new Date(holiday.holidayDate), 'EEEE')}
+                                {format(parseISO(holiday.holidayDate), 'EEEE')}
                               </div>
                             </div>
                           </td>
@@ -230,7 +318,8 @@ export default function HolidayListPage() {
             </CardContent>
           </Card>
         </div>
-        {/* Dialog */}
+
+        {/* Dialog for Add/Edit */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>

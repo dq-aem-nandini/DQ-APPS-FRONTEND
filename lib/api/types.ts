@@ -516,13 +516,13 @@ export interface EmployeeDocumentDTO {
 export interface AllowanceDTO {
   allowanceId: string | null; // uuid
   allowanceType: string;
-  amount: number;
+  amount: number | null;
 }
 
 export interface DeductionDTO {
   deductionId: string | null; // uuid
   deductionType: string;
-  amount: number;
+  amount: number | null;
 }
 
 export interface EmployeeAdditionalDetailsDTO {
@@ -589,9 +589,9 @@ export interface EmployeeStatutoryDetailsDTO {
 
 export interface EmployeeSalaryDTO {
   employeeId: string; // UUID
-  ctc: number;
+  ctc: number | null;
   payType: PayType;
-  standardHours: number;
+  standardHours: number | null;
   bankAccountNumber: string;
   ifscCode: string;
   payClass: PayClass;
@@ -676,7 +676,7 @@ export interface EmployeeModel {
   alternateContactNumber: string;
   gender: string;
   maritalStatus: string;
-  numberOfChildren: number;
+  numberOfChildren: number | null;
   employeePhotoUrl: string;
   nationality: string;
   emergencyContactName: string;
@@ -689,7 +689,7 @@ export interface EmployeeModel {
   designation: Designation;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
-  rateCard: number;
+  rateCard: number | null;
   employmentType: EmploymentType;
   panNumber: string;
   aadharNumber: string;

@@ -173,7 +173,12 @@ const ViewEmployee = () => {
                 {hasValue(employee.clientName) && <InfoItem label="Company" value={employee.clientName!} />}
                 {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
                 {hasValue(employee.employmentType) && <InfoItem label="Employment Type" value={employee.employmentType!} />}
-                {hasValue(employee.rateCard) && <InfoItem label="Rate Card" value={String(employee.rateCard!)} />}              {hasValue(employee.availableLeaves) && <InfoItem label="Available Leaves" value={String(employee.availableLeaves!)} />}
+                {employee.rateCard != null && employee.rateCard > 0 && (
+                  <InfoItem label="Rate Card" value={String(employee.rateCard)} />
+                )}
+                {/* {hasValue(employee.rateCard) && employee.rateCard !== 0 && <InfoItem label="Rate Card" value={String(employee.rateCard!)} />} */}
+                {/* {hasValue(employee.rateCard) && <InfoItem label="Rate Card" value={String(employee.rateCard!)} />}               */}
+                {hasValue(employee.availableLeaves) && <InfoItem label="Available Leaves" value={String(employee.availableLeaves!)} />}
                 {hasValue(employee.reportingManagerName) && <InfoItem label="Reporting Manager" value={employee.reportingManagerName!} />}
               </div>
             </div>
@@ -303,9 +308,22 @@ const ViewEmployee = () => {
                 Salary & Compensation
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {hasValue(employee.employeeSalaryDTO.ctc) && <InfoItem label="CTC" value={String(employee.employeeSalaryDTO.ctc!)} />}
+                {employee.employeeSalaryDTO?.ctc != null && employee.employeeSalaryDTO.ctc > 0 && (
+                  <InfoItem label="CTC" value={String(employee.employeeSalaryDTO.ctc)} />
+                )}
+
+                {employee.employeeSalaryDTO?.standardHours != null && employee.employeeSalaryDTO.standardHours > 0 && (
+                  <InfoItem label="Standard Hours" value={String(employee.employeeSalaryDTO.standardHours)} />
+                )}
+                {/* {hasValue(employee.employeeSalaryDTO?.ctc) && employee.employeeSalaryDTO.ctc !== 0 && (
+  <InfoItem label="CTC" value={String(employee.employeeSalaryDTO.ctc!)} />
+)}
+{hasValue(employee.employeeSalaryDTO?.standardHours) && employee.employeeSalaryDTO.standardHours !== 0 && (
+  <InfoItem label="Standard Hours" value={String(employee.employeeSalaryDTO.standardHours!)} />
+)} */}
+                {/* {hasValue(employee.employeeSalaryDTO.ctc) && <InfoItem label="CTC" value={String(employee.employeeSalaryDTO.ctc!)} />} */}
                 {hasValue(employee.employeeSalaryDTO.payType) && <InfoItem label="Pay Type" value={employee.employeeSalaryDTO.payType!} />}
-                {hasValue(employee.employeeSalaryDTO.standardHours) && <InfoItem label="Standard Hours" value={String(employee.employeeSalaryDTO.standardHours!)} />}
+                {/* {hasValue(employee.employeeSalaryDTO.standardHours) && <InfoItem label="Standard Hours" value={String(employee.employeeSalaryDTO.standardHours!)} />} */}
                 {hasValue(employee.employeeSalaryDTO.payClass) && <InfoItem label="Pay Class" value={employee.employeeSalaryDTO.payClass!} />}
               </div>
 

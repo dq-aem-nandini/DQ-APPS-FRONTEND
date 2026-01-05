@@ -479,7 +479,7 @@ export default function EditClientPage() {
                       const val = e.target.value.trim();
                       if (val) checkUniqueness('COMPANY_NAME', val, 'companyName', 'company_name', formData.clientId);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
                   />
                   {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
                   {checking.has('companyName') && <Loader2 className="h-4 w-4 animate-spin inline ml-2" />}
@@ -499,7 +499,7 @@ export default function EditClientPage() {
                         checkUniqueness('CONTACT_NUMBER', val, 'contactNumber', 'contact_number', formData.clientId);
                       }
                     }} maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
                   />
                   {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
                 </div>
@@ -516,7 +516,7 @@ export default function EditClientPage() {
                       const val = e.target.value.trim();
                       if (val) checkUniqueness('EMAIL', val, 'email', 'email', formData.clientId);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
                   />
                   {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
@@ -534,7 +534,7 @@ export default function EditClientPage() {
                       if (val) checkUniqueness('GST', val, 'gst', 'gst', formData.clientId);
                     }}
                     maxLength={15}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
                   />
                   {errors.gst && <p className="text-red-500 text-xs mt-1">{errors.gst}</p>}
                 </div>
@@ -552,7 +552,7 @@ export default function EditClientPage() {
                       if (val) checkUniqueness('PAN_NUMBER', val, 'panNumber', 'pan_number', formData.clientId);
                     }}
                     maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
                   />
                   {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
                 </div>
@@ -570,7 +570,7 @@ export default function EditClientPage() {
                       if (val) checkUniqueness('TAN_NUMBER', val, 'tanNumber', 'tan_number', formData.clientId);
                     }}
                     maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
                   />
                   {errors.tanNumber && <p className="text-red-500 text-xs mt-1">{errors.tanNumber}</p>}
                 </div>
@@ -621,7 +621,7 @@ export default function EditClientPage() {
                         value={addr.houseNo || ''}
                         onChange={(e) => handleChange(e, i, 'addresses')}
                         placeholder="e.g. 221B"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                     </div>
 
@@ -634,7 +634,7 @@ export default function EditClientPage() {
                         value={addr.streetName || ''}
                         onChange={(e) => handleChange(e, i, 'addresses')}
                         placeholder="e.g. Baker Street"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                     </div>
 
@@ -649,7 +649,7 @@ export default function EditClientPage() {
                         onBlur={(e) => validateField(`addresses.${i}.city`, e.target.value, i)}
                         required={i === 0}
                         placeholder="e.g. Mumbai"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.city`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.city`]}</p>
@@ -667,7 +667,7 @@ export default function EditClientPage() {
                         onBlur={(e) => validateField(`addresses.${i}.state`, e.target.value, i)}
                         required={i === 0}
                         placeholder="e.g. Maharashtra"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.state`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.state`]}</p>
@@ -686,7 +686,7 @@ export default function EditClientPage() {
                         maxLength={6}
                         required={i === 0}
                         placeholder="e.g. 400001"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.pincode`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.pincode`]}</p>
@@ -704,7 +704,7 @@ export default function EditClientPage() {
                         onBlur={(e) => validateField(`addresses.${i}.country`, e.target.value, i)}
                         required={i === 0}
                         placeholder="e.g. India"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                       />
                       {errors[`addresses.${i}.country`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.country`]}</p>
@@ -718,7 +718,7 @@ export default function EditClientPage() {
                         name={`addresses.${i}.addressType`}
                         value={addr.addressType || ''}
                         onChange={(e) => handleChange(e, i, 'addresses')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                         required={i === 0}
                       >
                         <option value="" disabled>Select type</option>
@@ -781,7 +781,7 @@ export default function EditClientPage() {
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
                             onBlur={(e) => validateField(`clientPocs.${i}.name`, e.target.value, i)}
                             placeholder="e.g. Anita Sharma"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                             required={i === 0}
                           />
                           {errors[`clientPocs.${i}.name`] && (
@@ -807,7 +807,7 @@ export default function EditClientPage() {
                               }
                             }}
                             placeholder="anita.sharma@company.com"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                             required={i === 0}
                           />
                           {checking.has(`clientPocs.${i}.email`) && (
@@ -837,7 +837,7 @@ export default function EditClientPage() {
                             }}
                             maxLength={10}
                             placeholder="9876543210"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                             required={i === 0}
                           />
                           {checking.has(`clientPocs.${i}.contactNumber`) && (
@@ -857,7 +857,7 @@ export default function EditClientPage() {
                             value={poc.designation || ''}
                             onChange={(e) => handleChange(e, i, 'clientPocs')}
                             placeholder="e.g. Procurement Manager"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                           />
                         </div>
                       </div>

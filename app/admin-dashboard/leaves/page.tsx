@@ -23,7 +23,7 @@ const Leavespage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+  // const [confirmation, setConfirmation] = useState<string | null>(null);
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
@@ -127,6 +127,72 @@ const Leavespage: React.FC = () => {
   };
 
   // Handle review leave request
+  // const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
+  //   Swal.fire({
+  //     title: 'Review Leave Request',
+  //     html: `
+  //       <div class="text-left text-sm text-gray-600 space-y-3">
+  //         <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
+  //         <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
+  //         <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
+  //         <p><strong>From Date:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
+  //         <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
+  //         <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
+  //         <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
+  //         ${leave.attachmentUrl
+  //         ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
+  //         : '<p><strong>Attachment:</strong> None</p>'
+  //       }
+  //         <div>
+  //           <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
+  //           <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
+  //         </div>
+  //       </div>
+  //     `,
+  //     showCancelButton: true,
+  //     showDenyButton: true,
+  //     showConfirmButton: true,
+  //     cancelButtonText: 'Cancel',
+  //     denyButtonText: 'Reject',
+  //     confirmButtonText: 'Approve',
+  //     customClass: {
+  //       popup: 'rounded-lg',
+  //       confirmButton: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700',
+  //       denyButton: 'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700',
+  //       cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300',
+  //     },
+  //     preConfirm: () => {
+  //       const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
+  //       return { action: 'approve', reason };
+  //     },
+  //     preDeny: () => {
+  //       const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
+  //       return { action: 'reject', reason };
+  //     },
+  //   }).then(async (result) => {
+  //     if (result.isConfirmed) {
+  //       const { reason } = result.value;
+  //       try {
+  //         await leaveService.updateLeaveStatus(leave.leaveId!, 'APPROVED', reason);
+  //         setConfirmation(`Leave ${leave.leaveId} approved successfully${reason ? ` with reason: "${reason}"` : ''}.`);
+  //         updateLeaveStatus(leave.leaveId!, 'APPROVED');
+  //       } catch (err: any) {
+  //         setError(err.message || 'Failed to approve leave');
+  //       }
+  //     } else if (result.isDenied) {
+  //       const { reason } = result.value;
+  //       try {
+  //         await leaveService.updateLeaveStatus(leave.leaveId!, 'REJECTED', reason);
+  //         setConfirmation(`Leave ${leave.leaveId} rejected successfully${reason ? ` with reason: "${reason}"` : ''}.`);
+  //         updateLeaveStatus(leave.leaveId!, 'REJECTED');
+  //       } catch (err: any) {
+  //         setError(err.message || 'Failed to reject leave');
+  //       }
+  //     }
+  //     setTimeout(() => setConfirmation(null), 3000);
+  //   });
+  // };
+
   const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
     Swal.fire({
       title: 'Review Leave Request',
@@ -140,56 +206,70 @@ const Leavespage: React.FC = () => {
           <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
           <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
           ${leave.attachmentUrl
-          ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-          : '<p><strong>Attachment:</strong> None</p>'
-        }
+            ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
+            : '<p><strong>Attachment:</strong> None</p>'
+          }
           <div>
-            <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
+            <label for="reason" class="block text-sm font-medium text-gray-700 mt-4">Comment (optional)</label>
             <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
           </div>
         </div>
       `,
       showCancelButton: true,
       showDenyButton: true,
-      showConfirmButton: true,
-      cancelButtonText: 'Cancel',
-      denyButtonText: 'Reject',
       confirmButtonText: 'Approve',
-      customClass: {
-        popup: 'rounded-lg',
-        confirmButton: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700',
-        denyButton: 'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700',
-        cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300',
-      },
+      denyButtonText: 'Reject',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4f46e5', // indigo-600
+      denyButtonColor: '#dc2626',    // red-600
+      cancelButtonColor: '#6b7280',
+      allowOutsideClick: false,
       preConfirm: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
+        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value?.trim() || '';
         return { action: 'approve', reason };
       },
       preDeny: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
+        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value?.trim() || '';
         return { action: 'reject', reason };
       },
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        const { reason } = result.value;
+      if (result.isConfirmed || result.isDenied) {
+        const { action, reason } = result.value;
+        const status = action === 'approve' ? 'APPROVED' : 'REJECTED';
+  
+        // Show loading state
+        Swal.fire({
+          title: `${action === 'approve' ? 'Approving' : 'Rejecting'} leave...`,
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+  
         try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, 'APPROVED', reason);
-          setConfirmation(`Leave ${leave.leaveId} approved successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-          updateLeaveStatus(leave.leaveId!, 'APPROVED');
+          await leaveService.updateLeaveStatus(leave.leaveId!, status, reason);
+  
+          // Update UI immediately
+          updateLeaveStatus(leave.leaveId!, status);
+  
+          // Show success message
+          Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: `Leave request has been ${status.toLowerCase()}${reason ? ` with comment: "${reason}"` : ''}.`,
+            timer: 3000,
+            showConfirmButton: false,
+          });
         } catch (err: any) {
-          setError(err.message || 'Failed to approve leave');
-        }
-      } else if (result.isDenied) {
-        const { reason } = result.value;
-        try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, 'REJECTED', reason);
-          setConfirmation(`Leave ${leave.leaveId} rejected successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-          updateLeaveStatus(leave.leaveId!, 'REJECTED');
-        } catch (err: any) {
-          setError(err.message || 'Failed to reject leave');
+          // Show error message
+          Swal.fire({
+            icon: 'error',
+            title: 'Failed',
+            text: err.message || `Failed to ${action} leave request. Please try again.`,
+          });
         }
       }
-      setTimeout(() => setConfirmation(null), 3000);
     });
   };
 
@@ -244,7 +324,7 @@ const Leavespage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      {/* Confirmation Message */}
+      {/* Confirmation Message
       {confirmation && (
         <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-lg flex justify-between items-center mb-6">
           <span>{confirmation}</span>
@@ -255,7 +335,7 @@ const Leavespage: React.FC = () => {
             <XCircle size={20} />
           </button>
         </div>
-      )}
+      )} */}
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-0">
         <div className="relative flex items-center justify-center mb-0">
