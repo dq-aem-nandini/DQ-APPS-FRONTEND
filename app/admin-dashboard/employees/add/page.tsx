@@ -318,7 +318,7 @@ const AddEmployeePage = () => {
   ];
   const documentTypes: DocumentType[] = [
     'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
-    'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
+    'AADHAAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
     'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
   ];
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
@@ -873,10 +873,10 @@ const AddEmployeePage = () => {
                   </div>
                   {/* Reporting Manager */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Reporting Manager<span className="text-red-500">*</span>
+                    <Label className="text-sm font-semibold text-gray-700">Reporting Manager
                     <TooltipHint hint="Select the employee's direct reporting manager from the same department." />
                     </Label>
-                    <Select required
+                    <Select 
                       value={formData.reportingManagerId}
                       onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}
                       disabled={!formData.employeeEmploymentDetailsDTO?.department}

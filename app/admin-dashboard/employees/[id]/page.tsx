@@ -260,7 +260,7 @@ const ViewEmployee = () => {
               {employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM' && hasValue(d.file)) && <DocItem label="Tax Declaration" url={employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM')!.file!} />}
               {employee.documents.find(d => d.docType === 'WORK_PERMIT' && hasValue(d.file)) && <DocItem label="Work Permit" url={employee.documents.find(d => d.docType === 'WORK_PERMIT')!.file!} />}
               {employee.documents.find(d => d.docType === 'PAN_CARD' && hasValue(d.file)) && <DocItem label="PAN Card" url={employee.documents.find(d => d.docType === 'PAN_CARD')!.file!} />}
-              {employee.documents.find(d => d.docType === 'AADHAR_CARD' && hasValue(d.file)) && <DocItem label="Aadhar Card" url={employee.documents.find(d => d.docType === 'AADHAR_CARD')!.file!} />}
+              {employee.documents.find(d => d.docType === 'AADHAAR_CARD' && hasValue(d.file)) && <DocItem label="Aadhar Card" url={employee.documents.find(d => d.docType === 'AADHAAR_CARD')!.file!} />}
               {employee.documents.find(d => d.docType === 'BANK_PASSBOOK' && hasValue(d.file)) && <DocItem label="Bank Passbook" url={employee.documents.find(d => d.docType === 'BANK_PASSBOOK')!.file!} />}
               {employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="10th Certificate" url={employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE')!.file!} />}
               {employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Intermediate" url={employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE')!.file!} />}
