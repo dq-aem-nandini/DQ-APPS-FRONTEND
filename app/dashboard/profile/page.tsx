@@ -33,7 +33,7 @@ export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
   "TAX_DECLARATION_FORM",
   "WORK_PERMIT",
   "PAN_CARD",
-  "AADHAR_CARD",
+  "AADHAAR_CARD",
   "BANK_PASSBOOK",
   "TENTH_CERTIFICATE",
   "TWELFTH_CERTIFICATE",
@@ -167,7 +167,7 @@ const ProfilePage = () => {
       {
         documentId: "",
         docType: "OTHER" as DocumentType,
-        file: "",
+        file: null,
         fileObj: null,
         tempId: uuidv4(),
       } as FormDocument,
@@ -1555,15 +1555,17 @@ const ProfilePage = () => {
                             <span className="truncate">{doc.fileObj.name}</span>
                           </div>
                         ) : doc.file ? (
-                          <a
-                            href={doc.file}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View Current File
-                          </a>
+<a
+  href={doc.file ? URL.createObjectURL(doc.file) : doc.fileUrl || '#'}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+>
+  <Eye className="w-4 h-4" />
+  View Current File
+</a>
+
+
                         ) : (
                           <span className="text-gray-400 text-sm italic">
                             No file selected
@@ -1819,15 +1821,16 @@ const ProfilePage = () => {
                           </div>
 
                           {doc.file ? (
-                            <a
-                              href={doc.file}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
-                            >
-                              <Eye className="w-5 h-5" />
-                              <span className="text-sm">View</span>
-                            </a>
+                          <a
+                            href={doc.file ? URL.createObjectURL(doc.file) : doc.fileUrl || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                          >
+                            <Eye className="w-5 h-5" />
+                            <span className="text-sm">View</span>
+                          </a>
+
                           ) : (
                             <span className="text-gray-400 text-sm italic">
                               No file uploaded

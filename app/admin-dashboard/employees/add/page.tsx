@@ -309,7 +309,7 @@ const AddEmployeePage = () => {
   ];
   const documentTypes: DocumentType[] = [
     'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
-    'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
+    'AADHAAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
     'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
   ];
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
@@ -404,24 +404,49 @@ const AddEmployeePage = () => {
     };
     fetchInitialData();
   }, []);
-  const handleDocumentChange = (index: number, field: 'docType' | 'file', value: DocumentType | File | null) => {
-    setFormData(prev => ({
-      ...prev,
-      documents: prev.documents.map((doc, i) =>
-        i === index
-          ? {
+  const handleDocumentChange = (
+    index: number,
+    field: "docType" | "file",
+    value: DocumentType | File | null
+  ) => {
+    setFormData((prev) => {
+      if (!prev) return prev;
+
+      const updatedDocs = prev.documents.map((doc, i) => {
+        if (i !== index) return doc;
+
+        // When changing the file
+        if (field === "file") {
+          return {
             ...doc,
-            [field]: value,
+            file: value as File | null, // ✅ only assign File here
+            fileUrl: value ? "PENDING_UPLOAD" : doc.fileUrl ?? null, // ✅ keep string | null
             documentId: doc.documentId || crypto.randomUUID(),
-            fileUrl: field === 'file' && value ? 'PENDING_UPLOAD' : doc.file || '',
             uploadedAt: doc.uploadedAt || new Date().toISOString(),
             verified: doc.verified || false,
-          }
-          : doc
-      ),
-    }));
-    if (field === 'file') {
-      setDocumentFilesList(prev => {
+          };
+        }
+
+        // When changing docType
+        if (field === "docType") {
+          return {
+            ...doc,
+            docType: value as DocumentType,
+          };
+        }
+
+        return doc;
+      });
+
+      return {
+        ...prev,
+        documents: updatedDocs,
+      };
+    });
+
+    // Update separate File list for uploading
+    if (field === "file") {
+      setDocumentFilesList((prev) => {
         const updated = [...prev];
         updated[index] = value as File | null;
         return updated;
@@ -429,20 +454,21 @@ const AddEmployeePage = () => {
     }
   };
   const addDocument = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       documents: [
         ...prev.documents,
         {
           documentId: null,
-          docType: 'OTHER' as DocumentType,
-          file: '',
+          docType: "OTHER" as DocumentType,
+          file: null, // ✅ must be null, not ''
+          fileUrl: null, // ✅ must be null
           uploadedAt: new Date().toISOString(),
           verified: false,
         },
       ],
     }));
-    setDocumentFilesList(prev => [...prev, null]);
+    setDocumentFilesList((prev) => [...prev, null]);
   };
   const removeDocument = (index: number) => {
     setFormData(prev => ({
