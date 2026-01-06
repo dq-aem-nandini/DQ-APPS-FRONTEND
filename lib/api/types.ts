@@ -506,11 +506,12 @@ export interface WebResponseDTOLeaveStatusCount {
 
 // Additional Schemas
 export interface EmployeeDocumentDTO {
-  documentId: string | null; // uuid
+  documentId: string | null;      // uuid
   docType: DocumentType;
-  file: string;
-  uploadedAt: string; // date-time
-  verified: boolean;
+  file?: File | null;             // 👈 REAL uploaded file (optional)
+  fileUrl?: string | null;        // 👈 existing file from backend (read-only)
+  uploadedAt?: string;            // optional
+  verified?: boolean;
 }
 
 export interface AllowanceDTO {

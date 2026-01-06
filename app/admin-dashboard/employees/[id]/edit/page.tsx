@@ -46,36 +46,77 @@ import BackButton from '@/components/ui/BackButton';
 import { employeeService } from '@/lib/api/employeeService';
 import { UniqueField, validationService } from '@/lib/api/validationService';
 
-type FileInputProps = {
+interface FileInputProps {
   id: string;
-  onChange: (file: File | null) => void;
-  currentFile?: File | null;
+  currentFile: File | null;
   existingUrl?: string;
-  onClear?: () => void;
-};
+  onChange: (file: File | null) => void;
+  onClear: () => void;
+}
 
-const FileInput: React.FC<FileInputProps> = ({ id, onChange, currentFile, existingUrl, onClear }) => {
-  const [fileName, setFileName] = useState<string>('');
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setFileName(file?.name ?? '');
-    onChange(file);
-  };
-  const displayName = fileName || (existingUrl ? existingUrl.split('/').pop() : 'No file chosen');
+export const FileInput: React.FC<FileInputProps> = ({
+  id,
+  currentFile,
+  existingUrl,
+  onChange,
+  onClear,
+}) => {
   return (
-    <div className="flex items-center gap-2">
-      <label
-        htmlFor={id}
-        className="cursor-pointer inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition"
-      >
-        Choose file
-        <input id={id} type="file" className="hidden" onChange={handleChange} />
-      </label>
-      <span className="text-sm text-gray-600 truncate max-w-[180px]">{displayName}</span>
-      {(currentFile || existingUrl) && onClear && (
-        <button type="button" onClick={onClear} className="text-red-600 hover:underline text-sm">
-          Remove
-        </button>
+    <div className="space-y-2">
+
+      {/* View existing document */}
+      {existingUrl && !currentFile && (
+        <div>
+          <a
+            href={existingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium 
+                       text-indigo-600 border border-indigo-600 rounded-lg 
+                       hover:bg-indigo-50"
+          >
+            View
+          </a>
+        </div>
+      )}
+
+      {/* File chooser */}
+      <div className="flex items-center gap-3">
+        <input
+          id={id}
+          type="file"
+          className="hidden"
+          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        />
+
+        <label
+          htmlFor={id}
+          className="cursor-pointer bg-indigo-600 text-white px-4 py-2 
+                     rounded-lg text-sm font-medium hover:bg-indigo-700"
+        >
+          Choose file
+        </label>
+
+        <span className="text-sm text-gray-600">
+          {currentFile ? currentFile.name : "No file chosen"}
+        </span>
+
+        {currentFile && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-red-600 text-sm hover:underline"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Helper text */}
+      {existingUrl && !currentFile && (
+        <p className="text-xs text-gray-500">
+          Choose a file only if you want to replace the existing document
+        </p>
       )}
     </div>
   );
@@ -87,7 +128,7 @@ const EditEmployeePage = () => {
   const { state } = useAuth();
   const [formData, setFormData] = useState<EmployeeModel | null>(null);
   const [clients, setClients] = useState<ClientDTO[]>([]);
-  const [documentFiles, setDocumentFiles] = useState<(File | null)[]>([]);
+  // const [documentFiles, setDocumentFiles] = useState<(File | null)[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -207,7 +248,12 @@ const EditEmployeePage = () => {
           // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
           rateCard: emp.rateCard === 0 || emp.rateCard == null ? null : emp.rateCard,
 
-          documents: emp.documents ?? [],
+          documents: (emp.documents ?? []).map((d) => ({
+            documentId: d.documentId,
+            docType: d.docType,
+            file: null, // 👈 for replacement upload
+            fileUrl: typeof d.file === "string" ? d.file : undefined, // 👈 existing S3 URL (string only)
+          })),          
           employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
 
           employeeSalaryDTO: emp.employeeSalaryDTO
@@ -242,7 +288,7 @@ const EditEmployeePage = () => {
         // });
 
         // Reset the separate file upload tracker
-        setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
+        // setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
         if (emp.employeeEmploymentDetailsDTO?.department) {
           employeeService.getEmployeesByDepartment(emp.employeeEmploymentDetailsDTO.department)
             .then(setDepartmentEmployees)
@@ -363,28 +409,28 @@ const EditEmployeePage = () => {
         documents: [
           ...prev.documents,
           {
-            documentId: "",
-            docType: "OTHER" as DocumentType,
-            file: "",
-            uploadedAt: new Date().toISOString(),
-            verified: false,
+            documentId: null,
+            docType: "OTHER",
+            file: null, // 👈 important
           },
         ],
       };
     });
-
-    // Keep the separate file-upload tracker in sync
-    setDocumentFiles((prev) => [...prev, null]);
   };
 
-  const handleDocumentChange = (index: number, field: 'docType' | 'fileObj', value: DocumentType | File | null) => {
-    setFormData(prev => prev ? ({
-      ...prev,
-      documents: prev.documents.map((doc, i) =>
-        i === index ? { ...doc, [field]: value } : doc
-      ),
-    }) : prev);
-  };
+const handleDocumentFileChange = (index: number, field: string, value: string | File | null) => {
+  setFormData(prev =>
+    prev
+      ? {
+          ...prev,
+          documents: prev.documents.map((doc, i) =>
+            i === index ? { ...doc, [field]: value } : doc
+          ),
+        }
+      : prev
+  );
+};
+
 
   const confirmAndRemoveDocument = async (index: number) => {
     const result = await Swal.fire({
@@ -814,9 +860,13 @@ const EditEmployeePage = () => {
       //     fd.append(`documents[${index}]`, file);
       //   }
       // });
-      documentFiles.forEach((file) => {
-        if (file instanceof File) {
-          fd.append("documents", file); // MUST NOT use [0], [1]
+      formData.documents.forEach((doc, index) => {
+        fd.append(`documents[${index}].documentId`, doc.documentId ?? "");
+        fd.append(`documents[${index}].docType`, doc.docType);
+
+        // attach file ONLY if user selected one
+        if (doc.file instanceof File) {
+          fd.append(`documents[${index}].file`, doc.file);
         }
       });
       const res = await adminService.updateEmployee(params.id as string, fd);
@@ -1974,7 +2024,7 @@ const EditEmployeePage = () => {
 
                           <Select
                             value={doc.docType}
-                            onValueChange={(v) => handleDocumentChange(i, "docType", v as DocumentType)}
+                            onValueChange={(v) => handleDocumentFileChange(i, "docType", v as DocumentType)}
                           >
                             <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                               <SelectValue placeholder="Select Type" />
@@ -1996,21 +2046,36 @@ const EditEmployeePage = () => {
                             Upload Document
                           </Label>
 
-                          <FileInput
-                            id={`doc-upload-${i}`}
-                            onChange={(file) => {
-                              const newFiles = [...documentFiles];
-                              newFiles[i] = file;
-                              setDocumentFiles(newFiles);
-                            }}
-                            currentFile={documentFiles[i] ?? null}
-                            existingUrl={doc.file || undefined}
-                            onClear={() => {
-                              const newFiles = [...documentFiles];
-                              newFiles[i] = null;
-                              setDocumentFiles(newFiles);
-                            }}
-                          />
+                        <FileInput
+                          id={`doc-upload-${i}`}
+                          onChange={(file) => {
+                            setFormData(prev =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    documents: prev.documents.map((d, idx) =>
+                                      idx === i ? { ...d, file } : d
+                                    ),
+                                  }
+                                : prev
+                            );
+                          }}
+                          currentFile={doc.file ?? null}
+                          existingUrl={doc.fileUrl ?? undefined}
+                          onClear={() => {
+                            setFormData(prev =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    documents: prev.documents.map((d, idx) =>
+                                      idx === i ? { ...d, file: null } : d
+                                    ),
+                                  }
+                                : prev
+                            );
+                          }}
+                        />
+
                         </div>
 
                         {/* Remove Button */}
