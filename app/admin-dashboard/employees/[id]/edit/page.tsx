@@ -418,28 +418,14 @@ const EditEmployeePage = () => {
     });
   };
 
-const handleDocumentFileChange = (
-  index: number,
-  field: 'file' | 'docType', // explicitly only these two fields
-  value: File | null | DocumentType
-) => {
+const handleDocumentFileChange = (index: number, field: string, value: string | File | null) => {
   setFormData(prev =>
     prev
       ? {
           ...prev,
-          documents: prev.documents.map((doc, i) => {
-            if (i !== index) return doc;
-
-            if (field === 'file') {
-              return { ...doc, file: value as File | null, fileUrl: null }; // clear fileUrl when uploading new file
-            }
-
-            if (field === 'docType') {
-              return { ...doc, docType: value as DocumentType };
-            }
-
-            return doc;
-          }),
+          documents: prev.documents.map((doc, i) =>
+            i === index ? { ...doc, [field]: value } : doc
+          ),
         }
       : prev
   );

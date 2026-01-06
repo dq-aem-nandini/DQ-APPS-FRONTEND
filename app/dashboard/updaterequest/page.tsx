@@ -339,14 +339,15 @@ export default function UpdateRequestPage() {
                                                                 <div className="sm:text-center">
                                                                     {oldDoc?.file ? (
                                                                         <a
-                                                                            href={oldDoc.file}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="text-red-600 hover:underline text-sm break-all block"
-                                                                            title={oldDoc.file}
+                                                                        href={oldDoc.file instanceof File ? URL.createObjectURL(oldDoc.file) : oldDoc.file}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-red-600 hover:underline text-sm break-all block"
+                                                                        title={oldDoc.file instanceof File ? oldDoc.file.name : oldDoc.file}
                                                                         >
-                                                                            View Old File →
+                                                                        View Old File →
                                                                         </a>
+
                                                                     ) : (
                                                                         <span className="text-red-600 italic text-sm">No previous file</span>
                                                                     )}
