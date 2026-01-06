@@ -64,6 +64,11 @@ const ViewEmployee = () => {
 
   const formatDuration = (value: string | undefined) => value || null;
 
+  const getFileUrl = (file: any): string => {
+    if (!file) return '';
+    return typeof file === 'string' ? file : URL.createObjectURL(file);
+  };
+
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="max-w-7xl mx-auto p-6 space-y-8">
@@ -260,17 +265,17 @@ const ViewEmployee = () => {
               Documents
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {employee.documents.find(d => d.docType === 'OFFER_LETTER' && hasValue(d.file)) && <DocItem label="Offer Letter" url={employee.documents.find(d => d.docType === 'OFFER_LETTER')!.file!} />}
-              {employee.documents.find(d => d.docType === 'CONTRACT' && hasValue(d.file)) && <DocItem label="Contract" url={employee.documents.find(d => d.docType === 'CONTRACT')!.file!} />}
-              {employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM' && hasValue(d.file)) && <DocItem label="Tax Declaration" url={employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM')!.file!} />}
-              {employee.documents.find(d => d.docType === 'WORK_PERMIT' && hasValue(d.file)) && <DocItem label="Work Permit" url={employee.documents.find(d => d.docType === 'WORK_PERMIT')!.file!} />}
-              {employee.documents.find(d => d.docType === 'PAN_CARD' && hasValue(d.file)) && <DocItem label="PAN Card" url={employee.documents.find(d => d.docType === 'PAN_CARD')!.file!} />}
-              {employee.documents.find(d => d.docType === 'AADHAAR_CARD' && hasValue(d.file)) && <DocItem label="Aadhar Card" url={employee.documents.find(d => d.docType === 'AADHAAR_CARD')!.file!} />}
-              {employee.documents.find(d => d.docType === 'BANK_PASSBOOK' && hasValue(d.file)) && <DocItem label="Bank Passbook" url={employee.documents.find(d => d.docType === 'BANK_PASSBOOK')!.file!} />}
-              {employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="10th Certificate" url={employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE')!.file!} />}
-              {employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Intermediate" url={employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE')!.file!} />}
-              {employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Degree" url={employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE')!.file!} />}
-              {employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Post Graduation" url={employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE')!.file!} />}
+              {employee.documents.find(d => d.docType === 'OFFER_LETTER' && hasValue(d.file)) && <DocItem label="Offer Letter" url={getFileUrl(employee.documents.find(d => d.docType === 'OFFER_LETTER')!.file)} />}
+              {employee.documents.find(d => d.docType === 'CONTRACT' && hasValue(d.file)) && <DocItem label="Contract" url={getFileUrl(employee.documents.find(d => d.docType === 'CONTRACT')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM' && hasValue(d.file)) && <DocItem label="Tax Declaration" url={getFileUrl(employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'WORK_PERMIT' && hasValue(d.file)) && <DocItem label="Work Permit" url={getFileUrl(employee.documents.find(d => d.docType === 'WORK_PERMIT')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'PAN_CARD' && hasValue(d.file)) && <DocItem label="PAN Card" url={getFileUrl(employee.documents.find(d => d.docType === 'PAN_CARD')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'AADHAAR_CARD' && hasValue(d.file)) && <DocItem label="Aadhar Card" url={getFileUrl(employee.documents.find(d => d.docType === 'AADHAAR_CARD')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'BANK_PASSBOOK' && hasValue(d.file)) && <DocItem label="Bank Passbook" url={getFileUrl(employee.documents.find(d => d.docType === 'BANK_PASSBOOK')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="10th Certificate" url={getFileUrl(employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Intermediate" url={getFileUrl(employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Degree" url={getFileUrl(employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE')!.file!)} />}
+              {employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Post Graduation" url={getFileUrl(employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE')!.file!)} />}
             </div>
 
             {employee.documents.filter(d => d.docType === 'OTHER' && hasValue(d.file)).length > 0 && (
@@ -282,7 +287,7 @@ const ViewEmployee = () => {
                     .map((doc, i) => (
                       <div key={i} className="flex justify-between items-center bg-gray-50 p-3 rounded">
                         <span className="font-medium">Document {i + 1}</span>
-                        <a href={doc.file!} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <a href={getFileUrl(doc.file)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                           View
                         </a>
                       </div>
