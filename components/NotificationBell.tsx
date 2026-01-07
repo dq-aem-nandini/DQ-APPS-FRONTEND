@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import React, { useEffect, useState, useRef } from "react";
 import { notificationService } from "@/lib/api/notificationService";
 import { NotificationDTO } from "@/lib/api/types";
@@ -9,102 +9,129 @@ import { Stomp } from "@stomp/stompjs";
 import { timesheetService } from "@/lib/api/timeSheetService";
 import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
-
 import { leaveService } from "@/lib/api/leaveService";
-import { LeaveResponseDTO, PendingLeavesResponseDTO, LeaveStatus } from '@/lib/api/types';
+import {
+  LeaveResponseDTO,
+  PendingLeavesResponseDTO,
+} from "@/lib/api/types";
 import Swal from "sweetalert2";
-
+ 
 interface NotificationBellProps {
   className?: string;
 }
-
+ 
 const NotificationBell: React.FC<NotificationBellProps> = ({
   className = "h-6 w-6",
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationDTO | null>(null);
   const [showModal, setShowModal] = useState(false);
-const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // ✅ Get user & role from AuthContext
+ 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+ 
   const { state } = useAuth();
-  const userRole = state.user?.role.roleName; // "EMPLOYEE" | "MANAGER" | "ADMIN" etc.
-
-  // Get userId directly from AuthContext
-const userId = state.user?.userId;
-console.log("User ID in NotificationBell (from context):", userId);
-
-
- useEffect(() => {
-  loadNotifications();
-
-  if (!userId) {
-    console.log("No userId, skipping WebSocket connection");
-    return;
-  }
-  const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL+"/ws"
-  // const SOCKET_URL = "https://emptimehub-pre-production.up.railway.app/ws";
-
-  const socket = new SockJS(SOCKET_URL);
-
-  const stompClient = Stomp.over(socket);
-
-  // GET JWT FROM wherever you store it (localStorage, cookies, etc.)
-  const token = localStorage.getItem("accessToken") || 
-                localStorage.getItem("token") || 
-                document.cookie.split("; ").find(row => row.startsWith("accessToken="))?.split("=")[1];
-
-  if (!token) {
-    console.error("No JWT token found! WebSocket auth will fail.");
-    return;
-  }
-
-  stompClient.connect(
-    {
-      Authorization: `Bearer ${token}`,  // THIS IS THE KEY LINE
-    },
-    () => {
-      console.log("WebSocket Connected & Authenticated!");
-
-      stompClient.subscribe(`/topic/notifications/${userId}`, (message) => {
-        if (message.body) {
-          try {
-            const data = JSON.parse(message.body);
-            const newNotifications = Array.isArray(data) ? data : [data];
-
-            setNotifications((prev) => [
-              ...newNotifications.map((n: NotificationDTO) => ({ ...n, read: false })),
-              ...prev.filter(existing => 
-                !newNotifications.some(newNotif => newNotif.id === existing.id)
-              ), // avoid duplicates
-            ]);
-          } catch (err) {
-            console.error("Parse error in WS message:", err);
-          }
-        }
-      });
-    },
-    (error: any) => {
-      console.error("WebSocket connection failed:", error);
-      const stompError = error as { headers?: { message?: string } };
-      if (stompError.headers?.message?.includes("401")) {
-        console.error("401 Unauthorized – Token missing or invalid");
-      }
-    }
-  );
-
-  return () => {
-    if (stompClient.connected) {
-      stompClient.disconnect(() => {
-        console.log("WebSocket Disconnected");
-      });
+  const userRole = state.user?.role.roleName;
+  const userId = state.user?.userId;
+ 
+  // console.log("User ID in NotificationBell:", userId);
+ 
+  // Reuse the exact same token logic as axios.ts
+  const getStoredToken = (): string | null => {
+    if (typeof window === "undefined") return null;
+    let token = localStorage.getItem("accessToken");
+    if (token) return token;
+    return sessionStorage.getItem("accessToken");
+  };
+ 
+  const loadNotifications = async () => {
+    try {
+      const res = await notificationService.getAllNotifications();
+      setNotifications(res.response || []);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
     }
   };
-}, [userId]);
+ 
+  useEffect(() => {
+    loadNotifications();
+ 
+    if (!userId) {
+      console.log("No userId, skipping WebSocket connection");
+      return;
+    }
+ 
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_API_URL}/ws`;
+    const token = getStoredToken();
+ 
+    if (!token) {
+      console.warn("No accessToken found – WebSocket will not authenticate");
+      return;
+    }
+ 
+    const socket = new SockJS(SOCKET_URL);
+ 
+    // Fix: Pass factory function to enable auto-reconnect
+    const stompClient = Stomp.over(() => new SockJS(SOCKET_URL));
+ 
+    stompClient.reconnect_delay = 5000; // Reconnect every 5 seconds if disconnected
+    stompClient.debug = () => {}; // Silence verbose logs (optional)
+ 
+    const connectHeaders = {
+      Authorization: `Bearer ${token}`,
+    };
+ 
+    stompClient.connect(
+      connectHeaders,
+      () => {
+        console.log("WebSocket Connected & Authenticated!");
+ 
+        stompClient.subscribe(`/topic/notifications/${userId}`, (message) => {
+          if (message.body) {
+            try {
+              const data = JSON.parse(message.body);
+              const newNotifications = Array.isArray(data) ? data : [data];
+ 
+              setNotifications((prev) => {
+                const filteredPrev = prev.filter(
+                  (existing) =>
+                    !newNotifications.some(
+                      (newNotif: NotificationDTO) => newNotif.id === existing.id
+                    )
+                );
+ 
+                return [
+                  ...newNotifications.map((n: NotificationDTO) => ({
+                    ...n,
+                    read: false,
+                  })),
+                  ...filteredPrev,
+                ];
+              });
+            } catch (err) {
+              console.error("Error parsing WebSocket message:", err);
+            }
+          }
+        });
+      },
+      (error: any) => {
+        console.error("WebSocket connection error:", error);
+        if (error.headers?.message?.includes("401")) {
+          console.error("401 Unauthorized – Token may be invalid or expired");
+        }
+      }
+    );
+ 
+    return () => {
+      if (stompClient.connected) {
+        stompClient.disconnect(() => {
+          console.log("WebSocket Disconnected");
+        });
+      }
+    };
+  }, [userId]);
 
  useEffect(() => {
   function handleClickOutside(event: MouseEvent) {
@@ -121,16 +148,6 @@ console.log("User ID in NotificationBell (from context):", userId);
   document.addEventListener("mousedown", handleClickOutside);
   return () => document.removeEventListener("mousedown", handleClickOutside);
 }, []);
-
-
-  const loadNotifications = async () => {
-    try {
-      const res = await notificationService.getAllNotifications();
-      setNotifications(res.response || []);
-    } catch (error) {
-      console.error("Error loading notifications:", error);
-    }
-  };
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -275,29 +292,28 @@ console.log("User ID in NotificationBell (from context):", userId);
         // }
 
         if (notification.notificationType === "LEAVE") {
-          // Show loading immediately
-          Swal.fire({
-            title: "Loading leave request...",
-            allowOutsideClick: false,
-            didOpen: () => {
-              Swal.showLoading();
-            },
-          });
-        
+          
           try {
-            // Try to get full leave details by ID
-            const res = await leaveService.getLeaveById(notification.referenceId);
-            const leave = res;
-        
-            if (!leave) {
-              throw new Error("Leave request not found");
-            }
-        
-            Swal.close();
-        
-            // Now open the review modal directly
-            handleReviewLeaveFromNotification(leave);
-        
+             // Fetch leave FIRST — NO LOADER
+              const leave = await leaveService.getLeaveById(notification.referenceId);
+              console.log("Leave details fetched:", leave.status);
+
+              if (!leave) {
+                throw new Error("Leave request not found");
+              }
+
+              // PENDING → directly open review modal
+              // (handleReviewLeaveFromNotification already shows UI)
+              if (leave.status === "PENDING") {
+                handleReviewLeaveFromNotification(leave);
+                return;
+              }
+
+              // NON-PENDING → fallback modal
+              setSelectedNotification(notification);
+              setShowModal(true);
+
+
             // Mark notification as read (optional, since action was taken)
             if (!notification.read) {
               await notificationService.markAsRead([notification.id]);

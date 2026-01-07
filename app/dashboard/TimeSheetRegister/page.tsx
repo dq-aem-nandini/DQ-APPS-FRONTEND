@@ -16,6 +16,7 @@ import Spinner from '@/components/ui/Spinner';
 import { employeeService } from '@/lib/api/employeeService';
 import weekday from 'dayjs/plugin/weekday';
 import isoWeek from 'dayjs/plugin/isoWeek';
+import { stat } from 'fs';
 
 dayjs.extend(weekday);
 dayjs.extend(isoWeek);
@@ -204,7 +205,19 @@ function getBackendError(error: any): string {
       setHolidayMap(map);
     } 
     catch (err: any) {
+      const status = err?.response?.status;
       const backendMessage = getBackendError(err);
+      console.log('Backend message for holidays fetch:', backendMessage , status);
+      
+      // DO NOTHING for empty holiday case
+      if (
+        status === 400
+      ) {
+        setHolidayMap({});
+        return;
+      }
+  
+      //  Real errors only
       pushMessage('error', backendMessage);
     }
   }, []);
@@ -638,7 +651,6 @@ function getBackendError(error: any): string {
   
       pushMessage('success', 'Changes saved');
     } catch (err) {
-      console.error(err);
       pushMessage('error', 'Save failed');
     } finally {
       setLoading(false);

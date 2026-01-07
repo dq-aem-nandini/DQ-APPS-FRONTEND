@@ -11,6 +11,7 @@ import type {
 import api from "./axios";
 function getBackendError(error: any): string {
   return (
+    error?.backendMessage ||  
     error?.response?.data?.message ||
     error?.response?.data?.error ||
     error?.response?.data?.response ||
@@ -51,14 +52,14 @@ export class PasswordService {
       };
   
     } catch (error: any) {
-      throw new Error(getBackendError(error));
+      console.log("sendOTP AXIOS ERROR 👉",error.response.status )
+      // throw new Error(getBackendError(error));
+      throw error;
+
     }
   }
   
   
-
-  
-
   // Verify OTP
   async verifyOTP(identifier: string, otp: string): Promise<WebResponseDTOPasswordResponseDTO> {
     try {

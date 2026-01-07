@@ -1598,3 +1598,27 @@ export interface WebResponseDTOListHolidaysDTO {
   totalRecords: number;
   otherInfo?: any;
 }
+
+export interface RevertTimesheetRequest {
+  employeeId: string;   // UUID
+  startDate: string;    // yyyy-MM-dd
+  endDate: string;      // yyyy-MM-dd
+  workRequest: string;
+}
+
+// types.ts
+
+export type WorkRequest =
+  | "DRAFTED"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "PENDING"
+  | "REJECTED";
+
+export const workRequestLabels: Record<WorkRequest, string> = {
+  DRAFTED: "Drafted",
+  SUBMITTED: "Submitted",
+  APPROVED: "Approved",
+  PENDING: "Pending",
+  REJECTED: "Rejected",
+};
