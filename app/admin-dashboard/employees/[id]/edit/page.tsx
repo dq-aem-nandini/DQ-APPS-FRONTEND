@@ -1,8 +1,8 @@
-'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { adminService } from '@/lib/api/adminService';
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { adminService } from "@/lib/api/adminService";
 import {
   EmployeeModel,
   ClientDTO,
@@ -26,25 +26,35 @@ import {
   PAY_TYPE_OPTIONS,
   EmployeeDepartmentDTO,
   EmployeeDTO,
-} from '@/lib/api/types';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import Swal from 'sweetalert2';
-import Link from 'next/link';
+} from "@/lib/api/types";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Swal from "sweetalert2";
+import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
-import { Trash2, Plus, Briefcase, FileText, Package, Upload, Shield, FileCheck } from 'lucide-react';
-import BackButton from '@/components/ui/BackButton';
-import { employeeService } from '@/lib/api/employeeService';
-import { UniqueField, validationService } from '@/lib/api/validationService';
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import {
+  Trash2,
+  Plus,
+  Briefcase,
+  FileText,
+  Package,
+  Upload,
+  Shield,
+  FileCheck,
+} from "lucide-react";
+import BackButton from "@/components/ui/BackButton";
+import { employeeService } from "@/lib/api/employeeService";
+import { UniqueField, validationService } from "@/lib/api/validationService";
 
 interface FileInputProps {
   id: string;
@@ -132,21 +142,42 @@ const EditEmployeePage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string>('');
-  const today = new Date().toISOString().split('T')[0];
-  const [departmentEmployees, setDepartmentEmployees] = useState<EmployeeDepartmentDTO[]>([]);
-  const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(undefined);
+  const [error, setError] = useState<string>("");
+  const today = new Date().toISOString().split("T")[0];
+  const [departmentEmployees, setDepartmentEmployees] = useState<
+    EmployeeDepartmentDTO[]
+  >([]);
+  const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
+    undefined,
+  );
   const [checking, setChecking] = useState<Set<string>>(new Set());
   const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
   const designations: Designation[] = [
-    'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
-    'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
-    'DIRECTOR', 'VP_ENGINEERING', 'CTO', 'HR', 'FINANCE', 'OPERATIONS'
+    "INTERN",
+    "TRAINEE",
+    "ASSOCIATE_ENGINEER",
+    "SOFTWARE_ENGINEER",
+    "SENIOR_SOFTWARE_ENGINEER",
+    "LEAD_ENGINEER",
+    "TEAM_LEAD",
+    "TECHNICAL_ARCHITECT",
+    "REPORTING_MANAGER",
+    "DELIVERY_MANAGER",
+    "DIRECTOR",
+    "VP_ENGINEERING",
+    "CTO",
+    "HR",
+    "FINANCE",
+    "OPERATIONS",
   ];
 
-  const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
+  const staticClients = new Set(["BENCH", "INHOUSE", "HR", "NA"]);
   const managerDesignations: Designation[] = [
-    'REPORTING_MANAGER', 'DELIVERY_MANAGER', 'DIRECTOR', 'VP_ENGINEERING', 'CTO'
+    "REPORTING_MANAGER",
+    "DELIVERY_MANAGER",
+    "DIRECTOR",
+    "VP_ENGINEERING",
+    "CTO",
   ];
 
   const documentTypes: DocumentType[] = [
@@ -155,7 +186,11 @@ const EditEmployeePage = () => {
     'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
   ];
 
-  const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
+  const employmentTypes: EmploymentType[] = [
+    "CONTRACTOR",
+    "FREELANCER",
+    "FULLTIME",
+  ];
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   const fetchDepartmentEmployees = async (dept: Department) => {
@@ -167,7 +202,7 @@ const EditEmployeePage = () => {
       const result = await employeeService.getEmployeesByDepartment(dept);
       setDepartmentEmployees(result);
     } catch (err: any) {
-      console.error('Failed to load employees for department:', dept, err);
+      console.error("Failed to load employees for department:", dept, err);
       setDepartmentEmployees([]);
     }
   };
@@ -177,16 +212,17 @@ const EditEmployeePage = () => {
     value: string,
     errorKey: string,
     fieldColumn: string,
-    excludeId?: string | null
+    excludeId?: string | null,
   ) => {
     const val = value.trim();
     if (!val || val.length < 3 || checking.has(errorKey)) return;
 
-    setChecking(prev => new Set(prev).add(errorKey));
+    setChecking((prev) => new Set(prev).add(errorKey));
 
     try {
       // ONLY use edit mode if excludeId is a REAL, NON-EMPTY UUID
-      const isValidExcludeId = excludeId && excludeId.trim() !== "" && excludeId.length > 10;
+      const isValidExcludeId =
+        excludeId && excludeId.trim() !== "" && excludeId.length > 10;
 
       const mode = isValidExcludeId ? "edit" : "create";
 
@@ -198,7 +234,7 @@ const EditEmployeePage = () => {
         fieldColumn,
       });
 
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         if (result.exists) {
           newErrors[errorKey] = "Already exists in the system";
@@ -210,7 +246,7 @@ const EditEmployeePage = () => {
     } catch (err) {
       console.warn("Uniqueness check failed:", err);
     } finally {
-      setChecking(prev => {
+      setChecking((prev) => {
         const s = new Set(prev);
         s.delete(errorKey);
         return s;
@@ -220,8 +256,8 @@ const EditEmployeePage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!params.id || typeof params.id !== 'string') {
-        Swal.fire({ icon: 'error', title: 'Invalid ID' });
+      if (!params.id || typeof params.id !== "string") {
+        Swal.fire({ icon: "error", title: "Invalid ID" });
         setLoading(false);
         return;
       }
@@ -232,21 +268,23 @@ const EditEmployeePage = () => {
           adminService.getAllClients(),
         ]);
 
-        if (!empRes.flag || !empRes.response) throw new Error('Employee not found');
+        if (!empRes.flag || !empRes.response)
+          throw new Error("Employee not found");
 
         const emp = empRes.response as EmployeeDTO;
         setEmployeeData(emp);
-        let clientSelection = '';
+        let clientSelection = "";
         if (emp.clientId) {
           clientSelection = `CLIENT:${emp.clientId}`;
         } else {
-          clientSelection = `STATUS:${emp.clientStatus || ''}`;
+          clientSelection = `STATUS:${emp.clientStatus || ""}`;
         }
         setFormData({
           ...emp,
           clientSelection,
           // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
-          rateCard: emp.rateCard === 0 || emp.rateCard == null ? null : emp.rateCard,
+          rateCard:
+            emp.rateCard === 0 || emp.rateCard == null ? null : emp.rateCard,
 
           documents: (emp.documents ?? []).map((d) => ({
             documentId: d.documentId,
@@ -258,15 +296,21 @@ const EditEmployeePage = () => {
 
           employeeSalaryDTO: emp.employeeSalaryDTO
             ? {
-              ...emp.employeeSalaryDTO,
-              employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
-              // Clean CTC and Standard Hours to show blank if 0/undefined
-              ctc: emp.employeeSalaryDTO.ctc === 0 || emp.employeeSalaryDTO.ctc == null ? null : emp.employeeSalaryDTO.ctc,
-              standardHours: emp.employeeSalaryDTO.standardHours === 0 ||
-                emp.employeeSalaryDTO.standardHours == null ||
-                emp.employeeSalaryDTO.standardHours === 40
-                ? null : emp.employeeSalaryDTO.standardHours,
-            }
+                ...emp.employeeSalaryDTO,
+                employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
+                // Clean CTC and Standard Hours to show blank if 0/undefined
+                ctc:
+                  emp.employeeSalaryDTO.ctc === 0 ||
+                  emp.employeeSalaryDTO.ctc == null
+                    ? null
+                    : emp.employeeSalaryDTO.ctc,
+                standardHours:
+                  emp.employeeSalaryDTO.standardHours === 0 ||
+                  emp.employeeSalaryDTO.standardHours == null ||
+                  emp.employeeSalaryDTO.standardHours === 40
+                    ? null
+                    : emp.employeeSalaryDTO.standardHours,
+              }
             : undefined,
         });
 
@@ -290,7 +334,10 @@ const EditEmployeePage = () => {
         // Reset the separate file upload tracker
         // setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
         if (emp.employeeEmploymentDetailsDTO?.department) {
-          employeeService.getEmployeesByDepartment(emp.employeeEmploymentDetailsDTO.department)
+          employeeService
+            .getEmployeesByDepartment(
+              emp.employeeEmploymentDetailsDTO.department,
+            )
             .then(setDepartmentEmployees)
             .catch(() => setDepartmentEmployees([]));
         }
@@ -300,17 +347,19 @@ const EditEmployeePage = () => {
         if (emp.employeeEmploymentDetailsDTO?.department) {
           try {
             const deptManagers = await employeeService.getEmployeesByDepartment(
-              emp.employeeEmploymentDetailsDTO.department
+              emp.employeeEmploymentDetailsDTO.department,
             );
             setDepartmentEmployees(deptManagers);
           } catch (err) {
-            console.warn('Could not load managers for department:', emp.employeeEmploymentDetailsDTO.department);
+            console.warn(
+              "Could not load managers for department:",
+              emp.employeeEmploymentDetailsDTO.department,
+            );
             setDepartmentEmployees([]);
           }
         }
-
       } catch (err: any) {
-        Swal.fire('Error', err.message || 'Failed to load data', 'error');
+        Swal.fire("Error", err.message || "Failed to load data", "error");
       } finally {
         setLoading(false);
       }
@@ -320,23 +369,29 @@ const EditEmployeePage = () => {
   }, [params.id]);
 
   const validateField = (name: string, value: string) => {
-    let errorMsg = '';
+    let errorMsg = "";
     switch (name) {
-      case 'firstName':
-      case 'lastName':
+      case "firstName":
+      case "lastName":
         if (!value.trim()) errorMsg = `${name} is required.`;
-        else if (value.length > 30) errorMsg = `${name} must not exceed 30 characters.`;
-        else if (!/^[a-zA-Z\s]+$/.test(value)) errorMsg = `${name} must contain only letters and spaces.`;
+        else if (value.length > 30)
+          errorMsg = `${name} must not exceed 30 characters.`;
+        else if (!/^[a-zA-Z\s]+$/.test(value))
+          errorMsg = `${name} must contain only letters and spaces.`;
         break;
-      case 'personalEmail':
-      case 'companyEmail':
+      case "personalEmail":
+      case "companyEmail":
         if (!value.trim()) errorMsg = `${name} is required.`;
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errorMsg = `${name} must be a valid email address.`;
-        else if (value.length > 50) errorMsg = `${name} must not exceed 50 characters.`;
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+          errorMsg = `${name} must be a valid email address.`;
+        else if (value.length > 50)
+          errorMsg = `${name} must not exceed 50 characters.`;
         break;
-      case 'contactNumber':
-        if (!value.trim()) errorMsg = 'Contact number is required.';
-        else if (!/^[6-9]\d{9}$/.test(value)) errorMsg = 'Contact number must be a valid 10-digit number starting with 6-9.';
+      case "contactNumber":
+        if (!value.trim()) errorMsg = "Contact number is required.";
+        else if (!/^[6-9]\d{9}$/.test(value))
+          errorMsg =
+            "Contact number must be a valid 10-digit number starting with 6-9.";
         break;
       default:
         break;
@@ -346,18 +401,23 @@ const EditEmployeePage = () => {
 
   // FIXED: Safe handleChange — never wipes data
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value, type } = e.target;
-    const isCheckbox = type === 'checkbox';
+    const isCheckbox = type === "checkbox";
     const checked = (e.target as HTMLInputElement).checked;
 
     setFormData((prev) => {
       if (!prev) return prev;
 
       // Handle nested fields like employeeEmploymentDetailsDTO.shiftTiming
-      if (name.includes('.')) {
-        const [parent, child] = name.split('.') as [keyof EmployeeModel, string];
+      if (name.includes(".")) {
+        const [parent, child] = name.split(".") as [
+          keyof EmployeeModel,
+          string,
+        ];
 
         // Special safety for undefined nested objects
         const currentParent = prev[parent] as any;
@@ -384,13 +444,16 @@ const EditEmployeePage = () => {
     //   setErrors((prev) => ({ ...prev, [name]: error }));
     // }
     // Only validate non-email fields on change
-    if (!name.includes('.') && !['personalEmail', 'companyEmail'].includes(name)) {
+    if (
+      !name.includes(".") &&
+      !["personalEmail", "companyEmail"].includes(name)
+    ) {
       const error = validateField(name, value);
       setErrors((prev) => ({ ...prev, [name]: error }));
     }
 
     // Clear email errors while typing (will re-validate on blur)
-    if (['personalEmail', 'companyEmail'].includes(name)) {
+    if (["personalEmail", "companyEmail"].includes(name)) {
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name]; // remove error while typing
@@ -434,17 +497,17 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
   const confirmAndRemoveDocument = async (index: number) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to remove this document?',
-      icon: 'warning',
+      title: "Are you sure?",
+      text: "Do you want to remove this document?",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
     });
     if (result.isConfirmed) {
       await removeDocument(index);
-      Swal.fire('Deleted!', 'Document has been removed.', 'success');
+      Swal.fire("Deleted!", "Document has been removed.", "success");
     }
   };
 
@@ -452,51 +515,76 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
     if (!formData) return;
     const doc = formData.documents[index];
     if (doc.documentId) {
-      const res = await adminService.deleteEmployeeDocument(params.id as string, doc.documentId);
+      const res = await adminService.deleteEmployeeDocument(
+        params.id as string,
+        doc.documentId,
+      );
       if (!res.flag) {
-        Swal.fire({ icon: 'error', title: 'Delete failed', text: res.message });
+        Swal.fire({ icon: "error", title: "Delete failed", text: res.message });
         return;
       }
     }
-    setFormData(prev => prev ? ({
-      ...prev,
-      documents: prev.documents.filter((_, i) => i !== index),
-    }) : prev);
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            documents: prev.documents.filter((_, i) => i !== index),
+          }
+        : prev,
+    );
   };
 
   // EQUIPMENT
   const addEquipment = () => {
-    setFormData(prev => prev ? ({
-      ...prev,
-      employeeEquipmentDTO: [
-        ...(prev.employeeEquipmentDTO ?? []),
-        { equipmentId: "", equipmentType: '', serialNumber: '', issuedDate: '' },
-      ],
-    }) : prev);
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            employeeEquipmentDTO: [
+              ...(prev.employeeEquipmentDTO ?? []),
+              {
+                equipmentId: "",
+                equipmentType: "",
+                serialNumber: "",
+                issuedDate: "",
+              },
+            ],
+          }
+        : prev,
+    );
   };
 
-  const handleEquipmentChange = (index: number, field: keyof EmployeeEquipmentDTO, value: string) => {
-    setFormData(prev => prev ? ({
-      ...prev,
-      employeeEquipmentDTO: prev.employeeEquipmentDTO?.map((eq, i) =>
-        i === index ? { ...eq, [field]: value } : eq
-      ) ?? [],
-    }) : prev);
+  const handleEquipmentChange = (
+    index: number,
+    field: keyof EmployeeEquipmentDTO,
+    value: string,
+  ) => {
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            employeeEquipmentDTO:
+              prev.employeeEquipmentDTO?.map((eq, i) =>
+                i === index ? { ...eq, [field]: value } : eq,
+              ) ?? [],
+          }
+        : prev,
+    );
   };
 
   const confirmAndRemoveEquipment = async (index: number) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to remove this equipment?',
-      icon: 'warning',
+      title: "Are you sure?",
+      text: "Do you want to remove this equipment?",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
     });
     if (result.isConfirmed) {
       await removeEquipment(index);
-      Swal.fire('Deleted!', 'Equipment has been removed.', 'success');
+      Swal.fire("Deleted!", "Equipment has been removed.", "success");
     }
   };
 
@@ -504,33 +592,41 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
     if (!formData) return;
     const eq = formData.employeeEquipmentDTO?.[index];
     if (eq?.equipmentId) {
-      const res = await adminService.deleteEmployeeEquipmentInfo(eq.equipmentId);
+      const res = await adminService.deleteEmployeeEquipmentInfo(
+        eq.equipmentId,
+      );
       if (!res.flag) {
-        Swal.fire({ icon: 'error', title: 'Delete failed', text: res.message });
+        Swal.fire({ icon: "error", title: "Delete failed", text: res.message });
         return;
       }
     }
-    setFormData(prev => prev ? ({
-      ...prev,
-      employeeEquipmentDTO: prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
-    }) : prev);
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            employeeEquipmentDTO:
+              prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
+          }
+        : prev,
+    );
   };
   const currentManagerName = formData?.reportingManagerId
-    ? departmentEmployees.find(e => e.employeeId === formData.reportingManagerId)?.fullName
+    ? departmentEmployees.find(
+        (e) => e.employeeId === formData.reportingManagerId,
+      )?.fullName
     : null;
 
-
-  // DELETE ALLOWANCE 
+  // DELETE ALLOWANCE
   const confirmAndRemoveAllowance = async (index: number) => {
     const result = await Swal.fire({
-      title: 'Remove Allowance?',
-      text: 'This action cannot be undone.',
-      icon: 'warning',
+      title: "Remove Allowance?",
+      text: "This action cannot be undone.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
     });
 
     if (!result.isConfirmed) return;
@@ -548,7 +644,7 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
       try {
         const res = await adminService.deleteEmployeeAllowance(
           params.id as string,
-          allowance.allowanceId
+          allowance.allowanceId,
         );
 
         // If HTTP 200 → success (even if flag is false – often means "already deleted")
@@ -557,61 +653,67 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
         }
         // Optional: you can log if flag false but still proceed
         else if (!res.flag) {
-          console.warn('Backend returned flag: false but 200 OK – treating as success', res);
+          console.warn(
+            "Backend returned flag: false but 200 OK – treating as success",
+            res,
+          );
           wasDeletedFromServer = true;
         }
       } catch (err: any) {
         // Only real network errors or 4xx/5xx → show error
         if (err.response?.status >= 400) {
           await Swal.fire({
-            icon: 'error',
-            title: 'Failed',
-            text: 'Could not delete allowance from server',
+            icon: "error",
+            title: "Failed",
+            text: "Could not delete allowance from server",
           });
           return;
         }
         // If it's a network error but not 4xx/5xx, fall through
-        console.error('Unexpected delete error:', err);
+        console.error("Unexpected delete error:", err);
       }
     } else {
       wasDeletedFromServer = true; // never saved → safe to remove
     }
 
     // Always remove from UI if we think it succeeded
-    setFormData(prev => {
+    setFormData((prev) => {
       if (!prev?.employeeSalaryDTO) return prev;
 
       return {
         ...prev,
         employeeSalaryDTO: {
           ...prev.employeeSalaryDTO,
-          employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string),
-          allowances: prev.employeeSalaryDTO.allowances?.filter((_, i) => i !== index) || [],
+          employeeId:
+            prev.employeeSalaryDTO.employeeId || (params.id as string),
+          allowances:
+            prev.employeeSalaryDTO.allowances?.filter((_, i) => i !== index) ||
+            [],
         },
       };
     });
 
     // Always show success if we reached here
     Swal.fire({
-      icon: 'success',
-      title: 'Deleted!',
-      text: 'Allowance removed successfully',
+      icon: "success",
+      title: "Deleted!",
+      text: "Allowance removed successfully",
       timer: 1500,
       showConfirmButton: false,
     });
   };
 
-  // DELETE DEDUCTION 
+  // DELETE DEDUCTION
   const confirmAndRemoveDeduction = async (index: number) => {
     const result = await Swal.fire({
-      title: 'Remove Deduction?',
-      text: 'This action cannot be undone.',
-      icon: 'warning',
+      title: "Remove Deduction?",
+      text: "This action cannot be undone.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
     });
 
     if (!result.isConfirmed) return;
@@ -629,21 +731,23 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
       try {
         const res = await adminService.deleteEmployeeDeduction(
           params.id as string,
-          deduction.deductionId
+          deduction.deductionId,
         );
 
         if (res.status === 200 || res.flag === true) {
           wasDeletedFromServer = true;
         } else if (!res.flag) {
-          console.warn('Deduction delete: flag false but 200 OK → treating as success');
+          console.warn(
+            "Deduction delete: flag false but 200 OK → treating as success",
+          );
           wasDeletedFromServer = true;
         }
       } catch (err: any) {
         if (err.response?.status >= 400) {
           await Swal.fire({
-            icon: 'error',
-            title: 'Failed',
-            text: 'Could not delete deduction from server',
+            icon: "error",
+            title: "Failed",
+            text: "Could not delete deduction from server",
           });
           return;
         }
@@ -652,28 +756,30 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
       wasDeletedFromServer = true;
     }
 
-    setFormData(prev => {
+    setFormData((prev) => {
       if (!prev?.employeeSalaryDTO) return prev;
 
       return {
         ...prev,
         employeeSalaryDTO: {
           ...prev.employeeSalaryDTO,
-          employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string),
-          deductions: prev.employeeSalaryDTO.deductions?.filter((_, i) => i !== index) || [],
+          employeeId:
+            prev.employeeSalaryDTO.employeeId || (params.id as string),
+          deductions:
+            prev.employeeSalaryDTO.deductions?.filter((_, i) => i !== index) ||
+            [],
         },
       };
     });
 
     Swal.fire({
-      icon: 'success',
-      title: 'Deleted!',
-      text: 'Deduction removed successfully',
+      icon: "success",
+      title: "Deleted!",
+      text: "Deduction removed successfully",
       timer: 1500,
       showConfirmButton: false,
     });
   };
-
 
   // const removeAllowance = async (index: number) => {
   //   if (!formData || !params.id) return;
@@ -760,9 +866,17 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
     try {
       const cleanEmploymentDetails = (dto?: any) => {
         if (!dto) return undefined;
-        const { shiftTimingLabel, workingModelLabel, noticePeriodDurationLabel,
-          probationDurationLabel, probationNoticePeriodLabel, bondDurationLabel,
-          departmentLabel, locationLabel, ...clean } = dto;
+        const {
+          shiftTimingLabel,
+          workingModelLabel,
+          noticePeriodDurationLabel,
+          probationDurationLabel,
+          probationNoticePeriodLabel,
+          bondDurationLabel,
+          departmentLabel,
+          locationLabel,
+          ...clean
+        } = dto;
         return clean;
       };
 
@@ -789,8 +903,8 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
         employmentType: formData.employmentType,
         reportingManagerId: formData.reportingManagerId,
 
-        ...(formData.clientSelection?.startsWith('CLIENT:')
-          ? { clientId: formData.clientSelection.replace('CLIENT:', '') }
+        ...(formData.clientSelection?.startsWith("CLIENT:")
+          ? { clientId: formData.clientSelection.replace("CLIENT:", "") }
           : { clientSelection: formData.clientSelection }),
 
         panNumber: formData.panNumber,
@@ -800,54 +914,68 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
         bankName: formData.bankName,
         ifscCode: formData.ifscCode,
         branchName: formData.branchName,
-        employeeEmploymentDetailsDTO: cleanEmploymentDetails(formData.employeeEmploymentDetailsDTO),
+        employeeEmploymentDetailsDTO: cleanEmploymentDetails(
+          formData.employeeEmploymentDetailsDTO,
+        ),
         employeeSalaryDTO: formData.employeeSalaryDTO,
         employeeEquipmentDTO: formData.employeeEquipmentDTO,
 
         // ONLY send document metadata — NO file field!
-        documents: formData.documents.map(doc => ({
+        documents: formData.documents.map((doc) => ({
           documentId: doc.documentId || null,
           docType: doc.docType,
         })),
 
         // ADDED: INSURANCE & STATUTORY — ONLY IF ANY FIELD IS FILLED
-        ...(formData.employeeInsuranceDetailsDTO && (
-          formData.employeeInsuranceDetailsDTO.policyNumber ||
+        ...(formData.employeeInsuranceDetailsDTO &&
+        (formData.employeeInsuranceDetailsDTO.policyNumber ||
           formData.employeeInsuranceDetailsDTO.providerName ||
           formData.employeeInsuranceDetailsDTO.coverageStart ||
           formData.employeeInsuranceDetailsDTO.coverageEnd ||
           formData.employeeInsuranceDetailsDTO.nomineeName ||
           formData.employeeInsuranceDetailsDTO.nomineeRelation ||
           formData.employeeInsuranceDetailsDTO.nomineeContact ||
-          formData.employeeInsuranceDetailsDTO.groupInsurance === true
-        ) ? {
-          employeeInsuranceDetailsDTO: {
-            policyNumber: formData.employeeInsuranceDetailsDTO.policyNumber || '',
-            providerName: formData.employeeInsuranceDetailsDTO.providerName || '',
-            coverageStart: formData.employeeInsuranceDetailsDTO.coverageStart || '',
-            coverageEnd: formData.employeeInsuranceDetailsDTO.coverageEnd || '',
-            nomineeName: formData.employeeInsuranceDetailsDTO.nomineeName || '',
-            nomineeRelation: formData.employeeInsuranceDetailsDTO.nomineeRelation || '',
-            nomineeContact: formData.employeeInsuranceDetailsDTO.nomineeContact || '',
-            groupInsurance: formData.employeeInsuranceDetailsDTO.groupInsurance || false,
-          }
-        } : {}),
+          formData.employeeInsuranceDetailsDTO.groupInsurance === true)
+          ? {
+              employeeInsuranceDetailsDTO: {
+                policyNumber:
+                  formData.employeeInsuranceDetailsDTO.policyNumber || "",
+                providerName:
+                  formData.employeeInsuranceDetailsDTO.providerName || "",
+                coverageStart:
+                  formData.employeeInsuranceDetailsDTO.coverageStart || "",
+                coverageEnd:
+                  formData.employeeInsuranceDetailsDTO.coverageEnd || "",
+                nomineeName:
+                  formData.employeeInsuranceDetailsDTO.nomineeName || "",
+                nomineeRelation:
+                  formData.employeeInsuranceDetailsDTO.nomineeRelation || "",
+                nomineeContact:
+                  formData.employeeInsuranceDetailsDTO.nomineeContact || "",
+                groupInsurance:
+                  formData.employeeInsuranceDetailsDTO.groupInsurance || false,
+              },
+            }
+          : {}),
 
-        ...(formData.employeeStatutoryDetailsDTO && (
-          formData.employeeStatutoryDetailsDTO.passportNumber ||
+        ...(formData.employeeStatutoryDetailsDTO &&
+        (formData.employeeStatutoryDetailsDTO.passportNumber ||
           formData.employeeStatutoryDetailsDTO.taxRegime ||
           formData.employeeStatutoryDetailsDTO.pfUanNumber ||
           formData.employeeStatutoryDetailsDTO.esiNumber ||
-          formData.employeeStatutoryDetailsDTO.ssnNumber
-        ) ? {
-          employeeStatutoryDetailsDTO: {
-            passportNumber: formData.employeeStatutoryDetailsDTO.passportNumber || '',
-            taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || '',
-            pfUanNumber: formData.employeeStatutoryDetailsDTO.pfUanNumber || '',
-            esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || '',
-            ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || '',
-          }
-        } : {}),
+          formData.employeeStatutoryDetailsDTO.ssnNumber)
+          ? {
+              employeeStatutoryDetailsDTO: {
+                passportNumber:
+                  formData.employeeStatutoryDetailsDTO.passportNumber || "",
+                taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || "",
+                pfUanNumber:
+                  formData.employeeStatutoryDetailsDTO.pfUanNumber || "",
+                esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || "",
+                ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || "",
+              },
+            }
+          : {}),
       };
 
       fd.append("employee", JSON.stringify(cleanPayload));
@@ -872,14 +1000,18 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
       const res = await adminService.updateEmployee(params.id as string, fd);
 
       if (res.flag) {
-        await Swal.fire('Success!', 'Employee updated successfully!', 'success');
-        router.push('/admin-dashboard/employees/list');
+        await Swal.fire(
+          "Success!",
+          "Employee updated successfully!",
+          "success",
+        );
+        router.push("/admin-dashboard/employees/list");
       } else {
         throw new Error(res.message || "Update failed");
       }
     } catch (err: any) {
-      console.error('Update failed:', err);
-      Swal.fire('Error', err.message || 'Update failed', 'error');
+      console.error("Update failed:", err);
+      Swal.fire("Error", err.message || "Update failed", "error");
     } finally {
       setSubmitting(false);
     }
@@ -888,11 +1020,13 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
   // LOADING STATES
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={["ADMIN"]}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
           <div className="flex flex-col items-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-            <p className="text-lg font-medium text-gray-700">Loading employee data...</p>
+            <p className="text-lg font-medium text-gray-700">
+              Loading employee data...
+            </p>
           </div>
         </div>
       </ProtectedRoute>
@@ -901,19 +1035,21 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
   if (!formData) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
-        <div className="text-center py-20 text-gray-500 text-xl">Employee not found</div>
+      <ProtectedRoute allowedRoles={["ADMIN"]}>
+        <div className="text-center py-20 text-gray-500 text-xl">
+          Employee not found
+        </div>
       </ProtectedRoute>
     );
   }
 
-  const selectValue = formData.clientSelection?.startsWith('STATUS:')
-    ? formData.clientSelection.replace('STATUS:', '')
+  const selectValue = formData.clientSelection?.startsWith("STATUS:")
+    ? formData.clientSelection.replace("STATUS:", "")
     : (formData.clientId ?? undefined);
 
-  const getError = (key: string) => errors[key] || '';
+  const getError = (key: string) => errors[key] || "";
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={["ADMIN"]}>
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-10 flex items-center justify-between">
@@ -934,7 +1070,6 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
               <CardContent className="pt-8 pb-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
                   {/* First Name */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -950,8 +1085,10 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       placeholder="Enter first name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-                    {getError('firstName') && (
-                      <p className="text-xs text-red-600">{getError('firstName')}</p>
+                    {getError("firstName") && (
+                      <p className="text-xs text-red-600">
+                        {getError("firstName")}
+                      </p>
                     )}
                   </div>
 
@@ -969,11 +1106,12 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       maxLength={50}
                       placeholder="Enter last name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                     />
 
-                    {getError('lastName') && (
-                      <p className="text-xs text-red-600">{getError('lastName')}</p>
+                    {getError("lastName") && (
+                      <p className="text-xs text-red-600">
+                        {getError("lastName")}
+                      </p>
                     )}
                   </div>
 
@@ -996,16 +1134,22 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
-                          if (val) checkUniqueness('EMAIL', val, 'personalEmail', 'personal_email', employeeData?.employeeId);
+                          if (val)
+                            checkUniqueness(
+                              "EMAIL",
+                              val,
+                              "personalEmail",
+                              "personal_email",
+                              employeeData?.employeeId,
+                            );
                         }}
                         maxLength={30}
                         placeholder="you@gmail.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
 
                       {/* Loading Spinner */}
-                      {checking.has('personalEmail') && (
+                      {checking.has("personalEmail") && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
@@ -1013,9 +1157,9 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     </div>
 
                     {/* Error Message */}
-                    {getError('personalEmail') && (
+                    {getError("personalEmail") && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {getError('personalEmail')}
+                        {getError("personalEmail")}
                       </p>
                     )}
                   </div>
@@ -1038,24 +1182,30 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         }}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
-                          if (val) checkUniqueness('EMAIL', val, 'companyEmail', 'company_email', employeeData?.employeeId);
+                          if (val)
+                            checkUniqueness(
+                              "EMAIL",
+                              val,
+                              "companyEmail",
+                              "company_email",
+                              employeeData?.employeeId,
+                            );
                         }}
                         maxLength={30}
                         placeholder="you@company.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('companyEmail') && (
+                      {checking.has("companyEmail") && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
                       )}
                     </div>
                     {/* Error Message */}
-                    {getError('companyEmail') && (
+                    {getError("companyEmail") && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {getError('companyEmail')}
+                        {getError("companyEmail")}
                       </p>
                     )}
                   </div>
@@ -1082,25 +1232,30 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val && val.length === 10) {
-                            checkUniqueness('CONTACT_NUMBER', val, 'contactNumber', 'contact_number', employeeData?.employeeId);
+                            checkUniqueness(
+                              "CONTACT_NUMBER",
+                              val,
+                              "contactNumber",
+                              "contact_number",
+                              employeeData?.employeeId,
+                            );
                           }
                         }}
                         maxLength={10}
                         placeholder="9876543210"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('contactNumber') && (
+                      {checking.has("contactNumber") && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
                       )}
                     </div>
                     {/* Error Message */}
-                    {getError('contactNumber') && (
+                    {getError("contactNumber") && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {getError('contactNumber')}
+                        {getError("contactNumber")}
                       </p>
                     )}
                   </div>
@@ -1119,11 +1274,12 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       onChange={handleChange}
                       max={today}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                     />
 
-                    {getError('dateOfBirth') && (
-                      <p className="text-xs text-red-600">{getError('dateOfBirth')}</p>
+                    {getError("dateOfBirth") && (
+                      <p className="text-xs text-red-600">
+                        {getError("dateOfBirth")}
+                      </p>
                     )}
                   </div>
 
@@ -1141,11 +1297,12 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       maxLength={30}
                       placeholder="Indian"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                     />
 
-                    {getError('nationality') && (
-                      <p className="text-xs text-red-600">{getError('nationality')}</p>
+                    {getError("nationality") && (
+                      <p className="text-xs text-red-600">
+                        {getError("nationality")}
+                      </p>
                     )}
                   </div>
 
@@ -1159,10 +1316,14 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       required
                       value={formData?.gender || ""}
                       onValueChange={(v) =>
-                        setFormData((prev) => prev ? { ...prev, gender: v } : prev)
+                        setFormData((prev) =>
+                          prev ? { ...prev, gender: v } : prev,
+                        )
                       }
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">    <SelectValue placeholder="Select Gender" />
+                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                        {" "}
+                        <SelectValue placeholder="Select Gender" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MALE">Male</SelectItem>
@@ -1171,11 +1332,12 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       </SelectContent>
                     </Select>
 
-                    {getError('gender') && (
-                      <p className="text-xs text-red-600">{getError('gender')}</p>
+                    {getError("gender") && (
+                      <p className="text-xs text-red-600">
+                        {getError("gender")}
+                      </p>
                     )}
                   </div>
-
                 </div>
               </CardContent>
             </Card>
@@ -1190,10 +1352,8 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
               </CardHeader>
 
               <CardContent className="pt-8 pb-6">
-
                 {/* GRID START */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
                   {/* Client */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -1204,16 +1364,21 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       required
                       value={selectValue}
                       onValueChange={(v) => {
-                        setFormData((prev) => prev ? {
-                          ...prev,
-                          clientId: staticClients.has(v) ? null : v,
-                          clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`,
-                        } : prev);
+                        setFormData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                clientId: staticClients.has(v) ? null : v,
+                                clientSelection: staticClients.has(v)
+                                  ? `STATUS:${v}`
+                                  : `CLIENT:${v}`,
+                              }
+                            : prev,
+                        );
                         setErrors((prev) => ({ ...prev, clientSelection: "" }));
                       }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-
                         <SelectValue placeholder="Select Client" />
                       </SelectTrigger>
 
@@ -1231,45 +1396,68 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     </Select>
 
                     {getError("clientSelection") && (
-                      <p className="text-xs text-red-600">{getError("clientSelection")}</p>
+                      <p className="text-xs text-red-600">
+                        {getError("clientSelection")}
+                      </p>
                     )}
                   </div>
 
                   {/* Department */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Department<span className="text-red-500">*</span></Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Department<span className="text-red-500">*</span>
+                    </Label>
 
                     <Select
                       required
-                      value={formData?.employeeEmploymentDetailsDTO?.department || ''}
+                      value={
+                        formData?.employeeEmploymentDetailsDTO?.department || ""
+                      }
                       onValueChange={async (v) => {
                         const department = v as Department;
 
-                        setFormData((prev) => prev ? {
-                          ...prev,
-                          employeeEmploymentDetailsDTO: {
-                            ...(prev.employeeEmploymentDetailsDTO || {
-                              employmentId: "",
-                              employeeId: params.id as string,
-                              probationApplicable: false,
-                              bondApplicable: false,
-                            }),
-                            department,
-                          },
-                          reportingManagerId: '', // temporarily clear
-                        } : prev);
+                        setFormData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                employeeEmploymentDetailsDTO: {
+                                  ...(prev.employeeEmploymentDetailsDTO || {
+                                    employmentId: "",
+                                    employeeId: params.id as string,
+                                    probationApplicable: false,
+                                    bondApplicable: false,
+                                  }),
+                                  department,
+                                },
+                                reportingManagerId: "", // temporarily clear
+                              }
+                            : prev,
+                        );
 
                         // Fetch fresh list
-                        const employees = await employeeService.getEmployeesByDepartment(department);
+                        const employees =
+                          await employeeService.getEmployeesByDepartment(
+                            department,
+                          );
                         setDepartmentEmployees(employees);
 
-                        const validManagers = employees.filter(emp =>
-                          managerDesignations.includes(emp.designation as Designation)
+                        const validManagers = employees.filter((emp) =>
+                          managerDesignations.includes(
+                            emp.designation as Designation,
+                          ),
                         );
 
                         // Auto-select if only one manager
                         if (validManagers.length === 1) {
-                          setFormData(prev => prev ? { ...prev, reportingManagerId: validManagers[0].employeeId } : prev);
+                          setFormData((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  reportingManagerId:
+                                    validManagers[0].employeeId,
+                                }
+                              : prev,
+                          );
                         }
                       }}
                     >
@@ -1282,10 +1470,13 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                                 ? `${currentManagerName} (Selected)`
                                 : "Select Reporting Manager"
                           }
-                        />                      </SelectTrigger>
+                        />{" "}
+                      </SelectTrigger>
                       <SelectContent>
-                        {DEPARTMENT_OPTIONS.map(d => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        {DEPARTMENT_OPTIONS.map((d) => (
+                          <SelectItem key={d} value={d}>
+                            {d}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1293,13 +1484,19 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Reporting Manager */}
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">Reporting Manager</Label>
+                    <Label className="mb-2 block text-sm font-medium">
+                      Reporting Manager
+                    </Label>
                     <Select
                       value={formData?.reportingManagerId || ""}
                       onValueChange={(v) =>
-                        setFormData((prev) => prev ? { ...prev, reportingManagerId: v } : prev)
+                        setFormData((prev) =>
+                          prev ? { ...prev, reportingManagerId: v } : prev,
+                        )
                       }
-                      disabled={!formData?.employeeEmploymentDetailsDTO?.department}
+                      disabled={
+                        !formData?.employeeEmploymentDetailsDTO?.department
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12">
                         <SelectValue
@@ -1319,8 +1516,12 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                           </SelectItem>
                         ) : (
                           departmentEmployees.map((emp) => (
-                            <SelectItem key={emp.employeeId} value={emp.employeeId}>
-                              {emp.fullName} ({emp.designation.replace(/_/g, ' ')})
+                            <SelectItem
+                              key={emp.employeeId}
+                              value={emp.employeeId}
+                            >
+                              {emp.fullName} (
+                              {emp.designation.replace(/_/g, " ")})
                             </SelectItem>
                           ))
                         )}
@@ -1338,11 +1539,14 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       required
                       value={formData?.designation || ""}
                       onValueChange={(v) =>
-                        setFormData((prev) => prev ? { ...prev, designation: v as Designation } : prev)
+                        setFormData((prev) =>
+                          prev
+                            ? { ...prev, designation: v as Designation }
+                            : prev,
+                        )
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-
                         <SelectValue placeholder="Select Designation" />
                       </SelectTrigger>
 
@@ -1356,7 +1560,9 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     </Select>
 
                     {getError("designation") && (
-                      <p className="text-xs text-red-600">{getError("designation")}</p>
+                      <p className="text-xs text-red-600">
+                        {getError("designation")}
+                      </p>
                     )}
                   </div>
 
@@ -1373,11 +1579,12 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       value={formData.dateOfJoining}
                       onChange={handleChange}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                     />
 
                     {getError("dateOfJoining") && (
-                      <p className="text-xs text-red-600">{getError("dateOfJoining")}</p>
+                      <p className="text-xs text-red-600">
+                        {getError("dateOfJoining")}
+                      </p>
                     )}
                   </div>
 
@@ -1391,11 +1598,14 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       required
                       value={formData.employmentType}
                       onValueChange={(v) =>
-                        setFormData((prev) => prev ? { ...prev, employmentType: v as EmploymentType } : prev)
+                        setFormData((prev) =>
+                          prev
+                            ? { ...prev, employmentType: v as EmploymentType }
+                            : prev,
+                        )
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-
                         <SelectValue placeholder="Select Type" />
                       </SelectTrigger>
 
@@ -1409,17 +1619,21 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     </Select>
 
                     {getError("employmentType") && (
-                      <p className="text-xs text-red-600">{getError("employmentType")}</p>
+                      <p className="text-xs text-red-600">
+                        {getError("employmentType")}
+                      </p>
                     )}
                   </div>
 
                   {/* Rate Card */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Rate Card</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Rate Card
+                    </Label>
                     <Input
                       type="number"
                       name="rateCard"
-                      value={formData.rateCard ?? ''}
+                      value={formData.rateCard ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       placeholder="45.00"
@@ -1435,41 +1649,45 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       type="number"
                       placeholder="e.g. 1200000"
                       name="employeeSalaryDTO.ctc"
-                      value={formData.employeeSalaryDTO?.ctc ?? ''}
+                      value={formData.employeeSalaryDTO?.ctc ?? ""}
                       onChange={handleChange}
                       required
                     />
                     {getError("ctc") && (
                       <p className="text-xs text-red-600">{getError("ctc")}</p>
                     )}
-
                   </div>
                   {/* Pay Type */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Pay Type</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Pay Type
+                    </Label>
                     <Select
                       value={formData?.employeeSalaryDTO?.payType || ""}
                       onValueChange={(v) =>
-                        setFormData((prev) => prev ? {
-                          ...prev,
-                          employeeSalaryDTO: {
-                            ...(prev.employeeSalaryDTO ?? {
-                              employeeId: params.id as string,
-                              ctc: 0,
-                              standardHours: 160,
-                              payClass: "A1" as PayClass,
-                              bankAccountNumber: "",
-                              ifscCode: "",
-                              allowances: [],
-                              deductions: [],
-                            }),
-                            payType: v as PayType,
-                          },
-                        } : prev)
+                        setFormData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO ?? {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: [],
+                                  }),
+                                  payType: v as PayType,
+                                },
+                              }
+                            : prev,
+                        )
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-
                         <SelectValue placeholder="Select Pay Type" />
                       </SelectTrigger>
 
@@ -1485,11 +1703,13 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Standard Hours */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Standard Hours</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Standard Hours
+                    </Label>
                     <Input
                       type="number"
                       name="employeeSalaryDTO.standardHours"
-                      value={formData.employeeSalaryDTO?.standardHours ?? ''}
+                      value={formData.employeeSalaryDTO?.standardHours ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                     />
@@ -1497,18 +1717,22 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Pay Class */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Pay Class</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Pay Class
+                    </Label>
 
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ""}
                       onValueChange={(v) =>
                         handleChange({
-                          target: { name: "employeeSalaryDTO.payClass", value: v },
+                          target: {
+                            name: "employeeSalaryDTO.payClass",
+                            value: v,
+                          },
                         } as any)
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-
                         <SelectValue placeholder="Select Pay Class" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1523,13 +1747,21 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Working Model */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Working Model</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Working Model
+                    </Label>
 
                     <Select
-                      value={formData.employeeEmploymentDetailsDTO?.workingModel || ""}
+                      value={
+                        formData.employeeEmploymentDetailsDTO?.workingModel ||
+                        ""
+                      }
                       onValueChange={(v) =>
                         handleChange({
-                          target: { name: "employeeEmploymentDetailsDTO.workingModel", value: v },
+                          target: {
+                            name: "employeeEmploymentDetailsDTO.workingModel",
+                            value: v,
+                          },
                         } as any)
                       }
                     >
@@ -1549,13 +1781,20 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Shift Timing */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Shift Timing</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Shift Timing
+                    </Label>
 
                     <Select
-                      value={formData.employeeEmploymentDetailsDTO?.shiftTiming || ""}
+                      value={
+                        formData.employeeEmploymentDetailsDTO?.shiftTiming || ""
+                      }
                       onValueChange={(v) =>
                         handleChange({
-                          target: { name: "employeeEmploymentDetailsDTO.shiftTiming", value: v },
+                          target: {
+                            name: "employeeEmploymentDetailsDTO.shiftTiming",
+                            value: v,
+                          },
                         } as any)
                       }
                     >
@@ -1575,11 +1814,16 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Date of Confirmation */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Date of Confirmation</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Date of Confirmation
+                    </Label>
                     <Input
                       type="date"
                       name="employeeEmploymentDetailsDTO.dateOfConfirmation"
-                      value={formData.employeeEmploymentDetailsDTO?.dateOfConfirmation || ""}
+                      value={
+                        formData.employeeEmploymentDetailsDTO
+                          ?.dateOfConfirmation || ""
+                      }
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                     />
@@ -1587,13 +1831,21 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Notice Period */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Notice Period</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Notice Period
+                    </Label>
 
                     <Select
-                      value={formData.employeeEmploymentDetailsDTO?.noticePeriodDuration || ""}
+                      value={
+                        formData.employeeEmploymentDetailsDTO
+                          ?.noticePeriodDuration || ""
+                      }
                       onValueChange={(v) =>
                         handleChange({
-                          target: { name: "employeeEmploymentDetailsDTO.noticePeriodDuration", value: v },
+                          target: {
+                            name: "employeeEmploymentDetailsDTO.noticePeriodDuration",
+                            value: v,
+                          },
                         } as any)
                       }
                     >
@@ -1614,7 +1866,10 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                   {/* Probation Applicable */}
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      checked={formData.employeeEmploymentDetailsDTO?.probationApplicable || false}
+                      checked={
+                        formData.employeeEmploymentDetailsDTO
+                          ?.probationApplicable || false
+                      }
                       onCheckedChange={(v) =>
                         handleChange({
                           target: {
@@ -1624,19 +1879,30 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         } as any)
                       }
                     />
-                    <Label className="text-sm font-semibold text-gray-700">Probation Applicable</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Probation Applicable
+                    </Label>
                   </div>
 
                   {/* Probation Duration */}
-                  {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
+                  {formData.employeeEmploymentDetailsDTO
+                    ?.probationApplicable && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Probation Duration</Label>
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Probation Duration
+                      </Label>
 
                       <Select
-                        value={formData.employeeEmploymentDetailsDTO?.probationDuration || ""}
+                        value={
+                          formData.employeeEmploymentDetailsDTO
+                            ?.probationDuration || ""
+                        }
                         onValueChange={(v) =>
                           handleChange({
-                            target: { name: "employeeEmploymentDetailsDTO.probationDuration", value: v },
+                            target: {
+                              name: "employeeEmploymentDetailsDTO.probationDuration",
+                              value: v,
+                            },
                           } as any)
                         }
                       >
@@ -1656,12 +1922,18 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                   )}
 
                   {/* Probation Notice Period */}
-                  {formData.employeeEmploymentDetailsDTO?.probationApplicable && (
+                  {formData.employeeEmploymentDetailsDTO
+                    ?.probationApplicable && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Probation Notice Period</Label>
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Probation Notice Period
+                      </Label>
 
                       <Select
-                        value={formData.employeeEmploymentDetailsDTO?.probationNoticePeriod || ""}
+                        value={
+                          formData.employeeEmploymentDetailsDTO
+                            ?.probationNoticePeriod || ""
+                        }
                         onValueChange={(v) =>
                           handleChange({
                             target: {
@@ -1689,7 +1961,10 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                   {/* Bond Applicable */}
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      checked={formData.employeeEmploymentDetailsDTO?.bondApplicable || false}
+                      checked={
+                        formData.employeeEmploymentDetailsDTO?.bondApplicable ||
+                        false
+                      }
                       onCheckedChange={(v) =>
                         handleChange({
                           target: {
@@ -1699,19 +1974,29 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         } as any)
                       }
                     />
-                    <Label className="text-sm font-semibold text-gray-700">Bond Applicable</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Bond Applicable
+                    </Label>
                   </div>
 
                   {/* Bond Duration */}
                   {formData.employeeEmploymentDetailsDTO?.bondApplicable && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Bond Duration</Label>
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Bond Duration
+                      </Label>
 
                       <Select
-                        value={formData.employeeEmploymentDetailsDTO?.bondDuration || ""}
+                        value={
+                          formData.employeeEmploymentDetailsDTO?.bondDuration ||
+                          ""
+                        }
                         onValueChange={(v) =>
                           handleChange({
-                            target: { name: "employeeEmploymentDetailsDTO.bondDuration", value: v },
+                            target: {
+                              name: "employeeEmploymentDetailsDTO.bondDuration",
+                              value: v,
+                            },
                           } as any)
                         }
                       >
@@ -1734,7 +2019,9 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                 <div className="mt-10 space-y-10">
                   {/* ================= ALLOWANCES ================= */}
                   <div>
-                    <Label className="text-lg font-bold text-gray-800 mb-4 block">Allowances</Label>
+                    <Label className="text-lg font-bold text-gray-800 mb-4 block">
+                      Allowances
+                    </Label>
 
                     <div className="space-y-4">
                       {formData.employeeSalaryDTO?.allowances?.map((a, i) => (
@@ -1750,31 +2037,40 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                               maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
-                                const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
+                                const updated = [
+                                  ...(formData.employeeSalaryDTO?.allowances ||
+                                    []),
+                                ];
                                 updated[i].allowanceType = e.target.value;
 
-                                setFormData((prev) => prev ? {
-                                  ...prev,
-                                  employeeSalaryDTO: {
-                                    ...(prev.employeeSalaryDTO || {
-                                      employeeId: params.id as string,
-                                      ctc: 0,
-                                      payType: "MONTHLY" as PayType,
-                                      standardHours: 160,
-                                      payClass: "A1" as PayClass,
-                                      bankAccountNumber: "",
-                                      ifscCode: "",
-                                      allowances: [],
-                                      deductions: [],
-                                    }),
-                                    allowances: updated,
-                                  },
-                                } : prev);
+                                setFormData((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        employeeSalaryDTO: {
+                                          ...(prev.employeeSalaryDTO || {
+                                            employeeId: params.id as string,
+                                            ctc: 0,
+                                            payType: "MONTHLY" as PayType,
+                                            standardHours: 160,
+                                            payClass: "A1" as PayClass,
+                                            bankAccountNumber: "",
+                                            ifscCode: "",
+                                            allowances: [],
+                                            deductions: [],
+                                          }),
+                                          allowances: updated,
+                                        },
+                                      }
+                                    : prev,
+                                );
                               }}
                             />
 
                             {errors[`allowance_${i}_type`] && (
-                              <p className="text-red-500 text-xs">{errors[`allowance_${i}_type`]}</p>
+                              <p className="text-red-500 text-xs">
+                                {errors[`allowance_${i}_type`]}
+                              </p>
                             )}
                           </div>
 
@@ -1782,36 +2078,45 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                           <Input
                             type="number"
                             placeholder="Amount"
-                            value={a.amount ?? ''}
+                            value={a.amount ?? ""}
                             className="h-12 text-base"
                             onChange={(e) => {
-                              const updated = [...(formData.employeeSalaryDTO?.allowances || [])];
+                              const updated = [
+                                ...(formData.employeeSalaryDTO?.allowances ||
+                                  []),
+                              ];
                               // updated[i].amount = parseFloat(e.target.value) || 0;
-                              updated[i].amount = e.target.value === '' ? null : (parseFloat(e.target.value) || null);
+                              updated[i].amount =
+                                e.target.value === ""
+                                  ? null
+                                  : parseFloat(e.target.value) || null;
 
-                              setFormData((prev) => prev ? {
-                                ...prev,
-                                employeeSalaryDTO: {
-                                  ...(prev.employeeSalaryDTO || {
-                                    employeeId: params.id as string,
-                                    ctc: 0,
-                                    payType: "MONTHLY" as PayType,
-                                    standardHours: 160,
-                                    payClass: "A1" as PayClass,
-                                    bankAccountNumber: "",
-                                    ifscCode: "",
-                                    allowances: [],
-                                    deductions: [],
-                                  }),
-                                  allowances: updated,
-                                },
-                              } : prev);
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      employeeSalaryDTO: {
+                                        ...(prev.employeeSalaryDTO || {
+                                          employeeId: params.id as string,
+                                          ctc: 0,
+                                          payType: "MONTHLY" as PayType,
+                                          standardHours: 160,
+                                          payClass: "A1" as PayClass,
+                                          bankAccountNumber: "",
+                                          ifscCode: "",
+                                          allowances: [],
+                                          deductions: [],
+                                        }),
+                                        allowances: updated,
+                                      },
+                                    }
+                                  : prev,
+                              );
                             }}
                           />
 
                           {/*Remove Button */}
                           <div className="flex items-end">
-
                             <Button
                               type="button"
                               size="sm"
@@ -1839,23 +2144,31 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                             amount: null,
                           };
 
-                          setFormData((prev) => prev ? {
-                            ...prev,
-                            employeeSalaryDTO: {
-                              ...(prev.employeeSalaryDTO || {
-                                employeeId: params.id as string,
-                                ctc: 0,
-                                payType: "MONTHLY" as PayType,
-                                standardHours: 160,
-                                payClass: "A1" as PayClass,
-                                bankAccountNumber: "",
-                                ifscCode: "",
-                                allowances: [],
-                                deductions: [],
-                              }),
-                              allowances: [...(prev.employeeSalaryDTO?.allowances || []), newAllowance],
-                            },
-                          } : prev);
+                          setFormData((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  employeeSalaryDTO: {
+                                    ...(prev.employeeSalaryDTO || {
+                                      employeeId: params.id as string,
+                                      ctc: 0,
+                                      payType: "MONTHLY" as PayType,
+                                      standardHours: 160,
+                                      payClass: "A1" as PayClass,
+                                      bankAccountNumber: "",
+                                      ifscCode: "",
+                                      allowances: [],
+                                      deductions: [],
+                                    }),
+                                    allowances: [
+                                      ...(prev.employeeSalaryDTO?.allowances ||
+                                        []),
+                                      newAllowance,
+                                    ],
+                                  },
+                                }
+                              : prev,
+                          );
                         }}
                       >
                         <Plus className="h-5 w-5 mr-2" /> Add Allowance
@@ -1863,10 +2176,11 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     </div>
                   </div>
 
-
                   {/* ================= DEDUCTIONS ================= */}
                   <div>
-                    <Label className="text-lg font-bold text-gray-800 mb-4 block">Deductions</Label>
+                    <Label className="text-lg font-bold text-gray-800 mb-4 block">
+                      Deductions
+                    </Label>
 
                     <div className="space-y-4">
                       {formData.employeeSalaryDTO?.deductions?.map((d, i) => (
@@ -1882,30 +2196,39 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                               maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
-                                const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
+                                const updated = [
+                                  ...(formData.employeeSalaryDTO?.deductions ||
+                                    []),
+                                ];
                                 updated[i].deductionType = e.target.value;
 
-                                setFormData((prev) => prev ? {
-                                  ...prev,
-                                  employeeSalaryDTO: {
-                                    ...(prev.employeeSalaryDTO || {
-                                      employeeId: params.id as string,
-                                      ctc: 0,
-                                      payType: "MONTHLY" as PayType,
-                                      standardHours: 160,
-                                      payClass: "A1" as PayClass,
-                                      bankAccountNumber: "",
-                                      ifscCode: "",
-                                      allowances: [],
-                                      deductions: []
-                                    }),
-                                    deductions: updated,
-                                  }
-                                } : prev);
+                                setFormData((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        employeeSalaryDTO: {
+                                          ...(prev.employeeSalaryDTO || {
+                                            employeeId: params.id as string,
+                                            ctc: 0,
+                                            payType: "MONTHLY" as PayType,
+                                            standardHours: 160,
+                                            payClass: "A1" as PayClass,
+                                            bankAccountNumber: "",
+                                            ifscCode: "",
+                                            allowances: [],
+                                            deductions: [],
+                                          }),
+                                          deductions: updated,
+                                        },
+                                      }
+                                    : prev,
+                                );
                               }}
                             />
                             {errors[`deduction_${i}_type`] && (
-                              <p className="text-red-500 text-xs">{errors[`deduction_${i}_type`]}</p>
+                              <p className="text-red-500 text-xs">
+                                {errors[`deduction_${i}_type`]}
+                              </p>
                             )}
                           </div>
 
@@ -1913,30 +2236,40 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                           <Input
                             type="number"
                             placeholder="Amount"
-                            value={d.amount ?? ''}
+                            value={d.amount ?? ""}
                             className="h-12 text-base"
                             onChange={(e) => {
-                              const updated = [...(formData.employeeSalaryDTO?.deductions || [])];
+                              const updated = [
+                                ...(formData.employeeSalaryDTO?.deductions ||
+                                  []),
+                              ];
                               // updated[i].amount = parseFloat(e.target.value) || 0;
-                              updated[i].amount = e.target.value === '' ? null : (parseFloat(e.target.value) || null);
+                              updated[i].amount =
+                                e.target.value === ""
+                                  ? null
+                                  : parseFloat(e.target.value) || null;
 
-                              setFormData((prev) => prev ? {
-                                ...prev,
-                                employeeSalaryDTO: {
-                                  ...(prev.employeeSalaryDTO || {
-                                    employeeId: params.id as string,
-                                    ctc: 0,
-                                    payType: "MONTHLY" as PayType,
-                                    standardHours: 160,
-                                    payClass: "A1" as PayClass,
-                                    bankAccountNumber: "",
-                                    ifscCode: "",
-                                    allowances: [],
-                                    deductions: []
-                                  }),
-                                  deductions: updated,
-                                }
-                              } : prev);
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      employeeSalaryDTO: {
+                                        ...(prev.employeeSalaryDTO || {
+                                          employeeId: params.id as string,
+                                          ctc: 0,
+                                          payType: "MONTHLY" as PayType,
+                                          standardHours: 160,
+                                          payClass: "A1" as PayClass,
+                                          bankAccountNumber: "",
+                                          ifscCode: "",
+                                          allowances: [],
+                                          deductions: [],
+                                        }),
+                                        deductions: updated,
+                                      },
+                                    }
+                                  : prev,
+                              );
                             }}
                           />
 
@@ -1969,30 +2302,37 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                             amount: null,
                           };
 
-                          setFormData((prev) => prev ? {
-                            ...prev,
-                            employeeSalaryDTO: {
-                              ...(prev.employeeSalaryDTO || {
-                                employeeId: params.id as string,
-                                ctc: 0,
-                                payType: "MONTHLY" as PayType,
-                                standardHours: 160,
-                                payClass: "A1" as PayClass,
-                                bankAccountNumber: "",
-                                ifscCode: "",
-                                allowances: [],
-                                deductions: []
-                              }),
-                              deductions: [...(prev.employeeSalaryDTO?.deductions || []), newDeduction],
-                            }
-                          } : prev);
+                          setFormData((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  employeeSalaryDTO: {
+                                    ...(prev.employeeSalaryDTO || {
+                                      employeeId: params.id as string,
+                                      ctc: 0,
+                                      payType: "MONTHLY" as PayType,
+                                      standardHours: 160,
+                                      payClass: "A1" as PayClass,
+                                      bankAccountNumber: "",
+                                      ifscCode: "",
+                                      allowances: [],
+                                      deductions: [],
+                                    }),
+                                    deductions: [
+                                      ...(prev.employeeSalaryDTO?.deductions ||
+                                        []),
+                                      newDeduction,
+                                    ],
+                                  },
+                                }
+                              : prev,
+                          );
                         }}
                       >
                         <Plus className="h-5 w-5 mr-2" /> Add Deduction
                       </Button>
                     </div>
                   </div>
-
                 </div>
               </CardContent>
             </Card>
@@ -2015,11 +2355,11 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     >
                       {/* GRID */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-
                         {/* Document Type */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
-                            Document Type <span className="text-red-500">*</span>
+                            Document Type{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
 
                           <Select
@@ -2128,7 +2468,6 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     >
                       {/* GRID */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-
                         {/* Equipment Type */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
@@ -2137,7 +2476,11 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                           <Input
                             value={eq.equipmentType || ""}
                             onChange={(e) =>
-                              handleEquipmentChange(i, "equipmentType", e.target.value)
+                              handleEquipmentChange(
+                                i,
+                                "equipmentType",
+                                e.target.value,
+                              )
                             }
                             placeholder="Enter Type"
                             className="h-12 text-base"
@@ -2152,7 +2495,11 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                           <Input
                             value={eq.serialNumber || ""}
                             onChange={(e) =>
-                              handleEquipmentChange(i, "serialNumber", e.target.value)
+                              handleEquipmentChange(
+                                i,
+                                "serialNumber",
+                                e.target.value,
+                              )
                             }
                             placeholder="Enter Serial Number"
                             className="h-12 text-base"
@@ -2168,7 +2515,11 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                             type="date"
                             value={eq.issuedDate || ""}
                             onChange={(e) =>
-                              handleEquipmentChange(i, "issuedDate", e.target.value)
+                              handleEquipmentChange(
+                                i,
+                                "issuedDate",
+                                e.target.value,
+                              )
                             }
                             max={today}
                             className="h-12 text-base"
@@ -2218,10 +2569,11 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
               <CardContent className="pt-8 pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
                   {/* SKILLS & CERTIFICATION */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                    <Label className="text-sm font-semibold text-gray-700">Skills & Certification</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Skills & Certification
+                    </Label>
                     <textarea
                       name="skillsAndCertification"
                       value={formData.skillsAndCertification}
@@ -2233,35 +2585,53 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* BACKGROUND CHECK STATUS */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Background Check Status</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Background Check Status
+                    </Label>
                     <input
                       id="backgroundCheckStatus"
                       name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                      value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ""}
+                      value={
+                        formData.employeeAdditionalDetailsDTO
+                          ?.backgroundCheckStatus || ""
+                      }
                       onChange={handleChange}
                       maxLength={30}
                       placeholder="e.g., Cleared, Pending"
-                      className={`w-full h-12 px-4 py-3 border rounded-xl text-base focus:ring-indigo-500 ${errors["employeeAdditionalDetailsDTO.backgroundCheckStatus"]
-                        ? "border-red-500"
-                        : "border-gray-300"
-                        }`}
+                      className={`w-full h-12 px-4 py-3 border rounded-xl text-base focus:ring-indigo-500 ${
+                        errors[
+                          "employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                        ]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     />
 
                     {/* Error */}
-                    {errors["employeeAdditionalDetailsDTO.backgroundCheckStatus"] && (
+                    {errors[
+                      "employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                    ] && (
                       <p className="text-red-500 text-xs mt-1">
-                        {errors["employeeAdditionalDetailsDTO.backgroundCheckStatus"]}
+                        {
+                          errors[
+                            "employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                          ]
+                        }
                       </p>
                     )}
                   </div>
 
                   {/* ADDITIONAL REMARKS */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                    <Label className="text-sm font-semibold text-gray-700">Additional Remarks</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Additional Remarks
+                    </Label>
                     <textarea
                       id="additionalRemarks"
                       name="employeeAdditionalDetailsDTO.remarks"
-                      value={formData.employeeAdditionalDetailsDTO?.remarks || ""}
+                      value={
+                        formData.employeeAdditionalDetailsDTO?.remarks || ""
+                      }
                       onChange={handleChange}
                       placeholder="Any notes..."
                       className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
@@ -2270,7 +2640,9 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* GENERAL REMARKS */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                    <Label className="text-sm font-semibold text-gray-700">General Remarks</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      General Remarks
+                    </Label>
                     <textarea
                       id="generalRemarks"
                       name="remarks"
@@ -2295,20 +2667,31 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
               <CardContent className="pt-8 pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
                   {/* Policy Number */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Policy Number</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Policy Number
+                    </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.policyNumber"
-                      value={formData.employeeInsuranceDetailsDTO?.policyNumber || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.policyNumber || ""
+                      }
                       onChange={handleChange}
                       placeholder="e.g., POL123456"
                       onBlur={(e) => {
                         const val = e.target.value.trim();
                         if (val) {
-                          const insuranceId = employeeData?.employeeInsuranceDetailsDTO?.insuranceId;
-                          checkUniqueness('POLICY_NUMBER', val, 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number', insuranceId);
+                          const insuranceId =
+                            employeeData?.employeeInsuranceDetailsDTO
+                              ?.insuranceId;
+                          checkUniqueness(
+                            "POLICY_NUMBER",
+                            val,
+                            "employeeInsuranceDetailsDTO.policyNumber",
+                            "policy_number",
+                            insuranceId,
+                          );
                         }
                         // if (val) {
                         //   checkUniqueness('POLICY_NUMBER', val, 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number', employeeData?.employeeInsuranceDetailsDTO?.insuranceId);
@@ -2325,10 +2708,14 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Provider Name */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Provider Name</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Provider Name
+                    </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.providerName"
-                      value={formData.employeeInsuranceDetailsDTO?.providerName || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.providerName || ""
+                      }
                       onChange={handleChange}
                       placeholder="e.g., Star Health"
                       className="h-12 text-base border-gray-300 focus:ring-amber-500"
@@ -2342,11 +2729,16 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Coverage Start */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Coverage Start</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Coverage Start
+                    </Label>
                     <Input
                       type="date"
                       name="employeeInsuranceDetailsDTO.coverageStart"
-                      value={formData.employeeInsuranceDetailsDTO?.coverageStart || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.coverageStart ||
+                        ""
+                      }
                       max={today}
                       onChange={handleChange}
                       className="h-12 text-base border-gray-300 focus:ring-amber-500"
@@ -2355,11 +2747,15 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Coverage End */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Coverage End</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Coverage End
+                    </Label>
                     <Input
                       type="date"
                       name="employeeInsuranceDetailsDTO.coverageEnd"
-                      value={formData.employeeInsuranceDetailsDTO?.coverageEnd || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.coverageEnd || ""
+                      }
                       onChange={handleChange}
                       className="h-12 text-base border-gray-300 focus:ring-amber-500"
                     />
@@ -2367,10 +2763,14 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Nominee Name */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Nominee Name</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Nominee Name
+                    </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeName"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeName || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.nomineeName || ""
+                      }
                       onChange={handleChange}
                       placeholder="e.g., Priya Sharma"
                       className="h-12 text-base border-gray-300 focus:ring-amber-500"
@@ -2384,10 +2784,15 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Nominee Relation */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Nominee Relation</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Nominee Relation
+                    </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeRelation"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.nomineeRelation ||
+                        ""
+                      }
                       onChange={handleChange}
                       placeholder="e.g., Spouse"
                       className="h-12 text-base border-gray-300 focus:ring-amber-500"
@@ -2401,14 +2806,19 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Nominee Contact */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Nominee Contact</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Nominee Contact
+                    </Label>
                     <div className="relative">
                       <Input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         name="employeeInsuranceDetailsDTO.nomineeContact"
-                        value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ""}
+                        value={
+                          formData.employeeInsuranceDetailsDTO
+                            ?.nomineeContact || ""
+                        }
                         // onChange={handleChange}
                         maxLength={10}
                         onChange={(e) => {
@@ -2419,16 +2829,25 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val && val.length === 10) {
-                            const insuranceId = employeeData?.employeeInsuranceDetailsDTO?.insuranceId;
-                            checkUniqueness('CONTACT_NUMBER', val, 'employeeInsuranceDetailsDTO.nomineeContact', 'nominee_contact', insuranceId);
+                            const insuranceId =
+                              employeeData?.employeeInsuranceDetailsDTO
+                                ?.insuranceId;
+                            checkUniqueness(
+                              "CONTACT_NUMBER",
+                              val,
+                              "employeeInsuranceDetailsDTO.nomineeContact",
+                              "nominee_contact",
+                              insuranceId,
+                            );
                           }
                         }}
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('employeeInsuranceDetailsDTO.nomineeContact') && (
+                      {checking.has(
+                        "employeeInsuranceDetailsDTO.nomineeContact",
+                      ) && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
@@ -2447,7 +2866,8 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                       id="groupInsurance"
                       // checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
                       checked={
-                        formData.employeeInsuranceDetailsDTO?.groupInsurance === null
+                        formData.employeeInsuranceDetailsDTO?.groupInsurance ===
+                        null
                           ? undefined
                           : formData.employeeInsuranceDetailsDTO?.groupInsurance
                       }
@@ -2460,7 +2880,10 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         } as any)
                       }
                     />
-                    <Label htmlFor="groupInsurance" className="text-base font-medium cursor-pointer">
+                    <Label
+                      htmlFor="groupInsurance"
+                      className="text-base font-medium cursor-pointer"
+                    >
                       Group Insurance
                     </Label>
                   </div>
@@ -2479,29 +2902,42 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
               <CardContent className="pt-8 pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
                   {/* Passport Number */}
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-gray-700">Passport Number</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Passport Number
+                    </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.passportNumber"
                         type="text"
-                        value={formData.employeeStatutoryDetailsDTO?.passportNumber || ""}
+                        value={
+                          formData.employeeStatutoryDetailsDTO
+                            ?.passportNumber || ""
+                        }
                         onChange={handleChange}
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
-                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
-                            checkUniqueness('PASSPORT_NUMBER', val, 'employeeStatutoryDetailsDTO.passportNumber', 'passport_number', statutoryId);
+                            const statutoryId =
+                              employeeData?.employeeStatutoryDetailsDTO
+                                ?.statutoryId;
+                            checkUniqueness(
+                              "PASSPORT_NUMBER",
+                              val,
+                              "employeeStatutoryDetailsDTO.passportNumber",
+                              "passport_number",
+                              statutoryId,
+                            );
                           }
                         }}
                         placeholder="e.g., A1234567"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('employeeStatutoryDetailsDTO.passportNumber') && (
+                      {checking.has(
+                        "employeeStatutoryDetailsDTO.passportNumber",
+                      ) && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
@@ -2516,15 +2952,20 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* PF UAN Number */}
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-gray-700">PF UAN Number</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      PF UAN Number
+                    </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.pfUanNumber"
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ""}
-                        // onChange={handleChange}  
+                        value={
+                          formData.employeeStatutoryDetailsDTO?.pfUanNumber ||
+                          ""
+                        }
+                        // onChange={handleChange}
                         onChange={(e) => {
                           if (/^\d{0,12}$/.test(e.target.value)) {
                             handleChange(e);
@@ -2533,16 +2974,25 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
-                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
-                            checkUniqueness('PF_UAN_NUMBER', val, 'employeeStatutoryDetailsDTO.pfUanNumber', 'pf_uan_number', statutoryId);
+                            const statutoryId =
+                              employeeData?.employeeStatutoryDetailsDTO
+                                ?.statutoryId;
+                            checkUniqueness(
+                              "PF_UAN_NUMBER",
+                              val,
+                              "employeeStatutoryDetailsDTO.pfUanNumber",
+                              "pf_uan_number",
+                              statutoryId,
+                            );
                           }
                         }}
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('employeeStatutoryDetailsDTO.pfUanNumber') && (
+                      {checking.has(
+                        "employeeStatutoryDetailsDTO.pfUanNumber",
+                      ) && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
@@ -2557,15 +3007,18 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* Tax Regime */}
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-gray-700">Tax Regime</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Tax Regime
+                    </Label>
                     <Input
                       name="employeeStatutoryDetailsDTO.taxRegime"
                       type="text"
-                      value={formData.employeeStatutoryDetailsDTO?.taxRegime || ""}
+                      value={
+                        formData.employeeStatutoryDetailsDTO?.taxRegime || ""
+                      }
                       onChange={handleChange}
                       placeholder="e.g., Old Regime / New Regime"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                     />
                     {errors["employeeStatutoryDetailsDTO.taxRegime"] && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
@@ -2576,15 +3029,19 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* ESI Number */}
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-gray-700">ESI Number</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      ESI Number
+                    </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.esiNumber"
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={formData.employeeStatutoryDetailsDTO?.esiNumber || ""}
-                        // onChange={handleChange} 
+                        value={
+                          formData.employeeStatutoryDetailsDTO?.esiNumber || ""
+                        }
+                        // onChange={handleChange}
                         onChange={(e) => {
                           if (/^\d*$/.test(e.target.value)) {
                             handleChange(e);
@@ -2593,16 +3050,25 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
-                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
-                            checkUniqueness('ESI_NUMBER', val, 'employeeStatutoryDetailsDTO.esiNumber', 'esi_number', statutoryId);
+                            const statutoryId =
+                              employeeData?.employeeStatutoryDetailsDTO
+                                ?.statutoryId;
+                            checkUniqueness(
+                              "ESI_NUMBER",
+                              val,
+                              "employeeStatutoryDetailsDTO.esiNumber",
+                              "esi_number",
+                              statutoryId,
+                            );
                           }
                         }}
                         placeholder="e.g., 1234567890"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('employeeStatutoryDetailsDTO.esiNumber') && (
+                      {checking.has(
+                        "employeeStatutoryDetailsDTO.esiNumber",
+                      ) && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
@@ -2617,14 +3083,18 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                   {/* SSN Number */}
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-gray-700">SSN Number</Label>
+                    <Label className="text-sm font-semibold text-gray-700">
+                      SSN Number
+                    </Label>
                     <div className="relative">
                       <Input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         name="employeeStatutoryDetailsDTO.ssnNumber"
-                        value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ""}
+                        value={
+                          formData.employeeStatutoryDetailsDTO?.ssnNumber || ""
+                        }
                         // onChange={handleChange}
                         onChange={(e) => {
                           // Allow only digits (you can later format as 123-45-6789 if needed)
@@ -2635,16 +3105,25 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                         onBlur={(e) => {
                           const val = e.target.value.trim();
                           if (val) {
-                            const statutoryId = employeeData?.employeeStatutoryDetailsDTO?.statutoryId;
-                            checkUniqueness('SSN_NUMBER', val, 'employeeStatutoryDetailsDTO.ssnNumber', 'ssn_number', statutoryId);
+                            const statutoryId =
+                              employeeData?.employeeStatutoryDetailsDTO
+                                ?.statutoryId;
+                            checkUniqueness(
+                              "SSN_NUMBER",
+                              val,
+                              "employeeStatutoryDetailsDTO.ssnNumber",
+                              "ssn_number",
+                              statutoryId,
+                            );
                           }
                         }}
                         placeholder="e.g., 123-45-6789"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
-
                       />
                       {/* Loading Spinner */}
-                      {checking.has('employeeStatutoryDetailsDTO.ssnNumber') && (
+                      {checking.has(
+                        "employeeStatutoryDetailsDTO.ssnNumber",
+                      ) && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
                         </div>
@@ -2668,10 +3147,40 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
             )}
             {/* Submit */}
             <div className="flex justify-end space-x-4 pt-6">
-              <Link href="/admin-dashboard/employees/list" className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancel</Link>
-              <button type="submit" disabled={submitting} className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2">
-                {submitting && <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                {submitting ? 'Updating...' : 'Update Employee'}
+              <Link
+                href="/admin-dashboard/employees/list"
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2"
+              >
+                {submitting && (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                )}
+                {submitting ? "Updating..." : "Update Employee"}
               </button>
             </div>
           </form>

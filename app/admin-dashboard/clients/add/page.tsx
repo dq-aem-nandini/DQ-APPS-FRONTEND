@@ -690,7 +690,7 @@ export default function AddClientPage() {
             {/* ==================== ADDRESSES ==================== */}
             <div className="border-b border-gray-200 pb-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Addresses</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Addresses <span className="text-red-500">*</span></h3>
                 <button
                   type="button"
                   onClick={() => addItem("addresses")}
@@ -846,7 +846,7 @@ export default function AddClientPage() {
             {/* ==================== POINT OF CONTACTS (POCs) ==================== */}
             <div className="border-b border-gray-200 pb-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Point of Contacts</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Point of Contacts <span className="text-red-500">*</span></h3>
                 <button
                   type="button"
                   onClick={() => addItem("clientPocs")}

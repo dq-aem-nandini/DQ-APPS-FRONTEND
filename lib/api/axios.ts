@@ -171,7 +171,7 @@ api.interceptors.response.use(
     // For all other API errors — extract backend message if exists
     const errorData = error.response?.data as ApiErrorResponse | undefined;
     if (errorData?.message) {
-      return Promise.reject(new Error(errorData.message));
+      (error as any).backendMessage = errorData.message;
     }
 
     // Fallback: original error (should rarely hit)

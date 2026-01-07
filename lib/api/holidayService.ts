@@ -71,8 +71,9 @@ export class HolidayService {
     try {
       const response = await api.get("/simple/holiday/get/all");
       return response.data;
-    } catch (error: any) {
-      throw new Error(getBackendError(error));
+    } 
+    catch (error: any) {
+      throw error;
     }
   }
   // Delete holiday

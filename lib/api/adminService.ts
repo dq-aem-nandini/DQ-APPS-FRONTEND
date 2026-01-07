@@ -418,5 +418,26 @@ class AdminService {
     }
   }
 
+  async revertTimesheet(
+    params: {
+      employeeId: string;
+      startDate: string;
+      endDate: string;
+      workRequest: string;
+    }
+  ): Promise<WebResponseDTOString> {
+    try {
+      const response: AxiosResponse<WebResponseDTOString> = await api.get(
+        `/admin/revert/timesheet`,
+        { params }
+      );
+  
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+  
+
 }
 export const adminService = new AdminService();

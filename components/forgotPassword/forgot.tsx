@@ -28,6 +28,8 @@ const ForgotPassword: React.FC = () => {
   // Real-time password reuse check
   const [passwordCheckStatus, setPasswordCheckStatus] = useState<'idle' | 'checking' | 'used' | 'available'>('idle');
   const [passwordCheckMessage, setPasswordCheckMessage] = useState('');
+  const [canEnterOTP, setCanEnterOTP] = useState(false);
+
 
   const router = useRouter();
   const passwordService = new PasswordService();
@@ -103,11 +105,17 @@ const ForgotPassword: React.FC = () => {
         setSuccessMessage('OTP sent successfully to your email.');
         setOtpDigits(['', '', '', '', '', '']);
         setCountdown(300);
+        setCanEnterOTP(true); // ✅ SHOW OTP UI
       } else {
         setError(res.message || 'Failed to send OTP.');
+        setCanEnterOTP(false); //  HIDE OTP UI
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP.');
+      const status = err?.response?.status;
+      setError(err?.response?.data?.response?.message || 'Failed to send OTP.');
+      if (status === 404) {
+        setCanEnterOTP(false);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +168,7 @@ const ForgotPassword: React.FC = () => {
         setError(response.message || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
+      console.log("verifyOTP AXIOS ERROR 👉",err.message )
       setError(err.message || 'Failed to verify OTP. Please try again.');
     } finally {
       setIsLoading(false);
@@ -172,7 +181,7 @@ const ForgotPassword: React.FC = () => {
     setNewPasswordError(validateNewPassword(val));
     setPasswordCheckStatus('idle');
     setPasswordCheckMessage('');
-    setConfirmPasswordError(confirmNewPassword && confirmNewPassword !== val ? 'Passwords do not match.' : '');
+    setConfirmPasswordError(confirmNewPassword && confirmNewPassword !== val ? 'Passwords do not match.' : '');  
   };
 
   const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,34 +238,52 @@ const ForgotPassword: React.FC = () => {
           </form>
         );
 
-      case 'otp':
-        return (
-          <form onSubmit={handleVerifyOTP} className="space-y-6">
-            <div className="text-center">
-              <label className="block text-sm font-bold text-gray-900 mb-4">Enter OTP</label>
-              <div className="flex justify-center gap-3">
-                {otpDigits.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => { if (el) otpRefs.current[i] = el; }}
-                    type="text"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpDigitChange(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
-                  />
-                ))}
-              </div>
-            </div>
-            <button type="submit" disabled={isLoading || otpDigits.every(d => !d)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg">
-              {isLoading ? 'Verifying...' : 'Verify OTP'}
-            </button>
-            <div className="text-center text-sm">
-              {countdown > 0 ? `Resend in ${formatTime(countdown)}` : <button onClick={handleResendOTP} className="text-indigo-600 hover:underline">Resend OTP</button>}
-            </div>
-          </form>
-        );
+        case 'otp':
+          return (
+            <form onSubmit={handleVerifyOTP} className="space-y-6">
+        
+              {canEnterOTP && (
+                <>
+                  {/* OTP INPUTS */}
+                  <div className="text-center">
+                    <label className="block text-sm font-bold text-gray-900 mb-4">
+                      Enter OTP
+                    </label>
+                    <div className="flex justify-center gap-3">
+                      {otpDigits.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { if (el) otpRefs.current[i] = el; }}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpDigitChange(i, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                          className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-300 rounded-lg"
+                        />
+                      ))}
+                    </div>
+                  </div>
+        
+                  <button
+                    type="submit"
+                    disabled={isLoading || otpDigits.every(d => !d)}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg"
+                  >
+                    {isLoading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+        
+                  <div className="text-center text-sm">
+                    {countdown > 0
+                      ? `Resend in ${formatTime(countdown)}`
+                      : <button onClick={handleResendOTP} className="text-indigo-600 hover:underline">Resend OTP</button>
+                    }
+                  </div>
+                </>
+              )}
+        
+            </form>
+          );        
 
       case 'newPassword':
         return (
