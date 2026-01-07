@@ -421,7 +421,7 @@ const AddEmployeePage = () => {
             ...doc,
             file: value as File | null, // ✅ only assign File here
             fileUrl: value ? "PENDING_UPLOAD" : doc.fileUrl ?? null, // ✅ keep string | null
-            documentId: doc.documentId || crypto.randomUUID(),
+            documentId: doc.documentId ?? null,
             uploadedAt: doc.uploadedAt || new Date().toISOString(),
             verified: doc.verified || false,
           };
