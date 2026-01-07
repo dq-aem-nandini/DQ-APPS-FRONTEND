@@ -1555,15 +1555,20 @@ const ProfilePage = () => {
                             <span className="truncate">{doc.fileObj.name}</span>
                           </div>
                         ) : doc.file ? (
-<a
-  href={doc.file ? URL.createObjectURL(doc.file) : doc.fileUrl || '#'}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
->
-  <Eye className="w-4 h-4" />
-  View Current File
-</a>
+                        <a
+                          href={
+                            typeof doc.file === "string"
+                              ? doc.file
+                              : doc.fileUrl ?? "#"
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+
+                          <Eye className="w-4 h-4" />
+                          View Current File
+                        </a>
 
 
                         ) : (
@@ -1822,7 +1827,11 @@ const ProfilePage = () => {
 
                           {doc.file ? (
                           <a
-                            href={doc.file ? URL.createObjectURL(doc.file) : doc.fileUrl || '#'}
+                            href={
+                              typeof doc.file === "string"
+                                ? doc.file
+                                : doc.fileUrl ?? "#"
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
