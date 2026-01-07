@@ -27,6 +27,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { LeaveCalendarService } from '@/lib/api/leaveCalendarService';
+import { holidayService } from '@/lib/api/holidayService';
+import { HolidaysDTO } from '@/lib/api/types';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -41,6 +43,8 @@ export default function LeaveCalendarPage() {
   const [data, setData] = useState<LeaveCalendarDTO[]>([]);
   const [selectedDay, setSelectedDay] = useState<LeaveCalendarDTO | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
+
 
   // -------------------------------
   // Fetch calendar data
@@ -53,6 +57,21 @@ export default function LeaveCalendarPage() {
   }, [month, year]);
 
   // -------------------------------
+  // Fetch all holidays
+  // -------------------------------
+
+  useEffect(() => {
+    holidayService.getAllHolidays()
+      .then(res => {
+        if (res.flag && res.response) {
+          setHolidays(res.response);
+        }
+      })
+      .catch(console.error);
+  }, []);
+  
+
+  // -------------------------------
   // Map data by date
   // -------------------------------
   const leaveMap = useMemo(() => {
@@ -60,6 +79,15 @@ export default function LeaveCalendarPage() {
     data.forEach(d => (map[d.date] = d));
     return map;
   }, [data]);
+
+  const holidayMap = useMemo(() => {
+    const map: Record<string, HolidaysDTO> = {};
+    holidays.forEach(h => {
+      map[h.holidayDate] = h;
+    });
+    return map;
+  }, [holidays]);
+  
 
   // -------------------------------
   // Calendar grid dates
@@ -207,6 +235,7 @@ export default function LeaveCalendarPage() {
           {days.map((d, i) => {
             const dateStr = format(d, 'yyyy-MM-dd');
             const leaveDay = leaveMap[dateStr];
+            const holiday = holidayMap[dateStr];
             const employees = leaveDay?.employees || [];
 
             const approved = employees.filter(e => e.status === 'APPROVED');
@@ -230,6 +259,19 @@ export default function LeaveCalendarPage() {
                 <div className="text-sm font-medium">
                   {format(d, 'd')}
                 </div>
+
+                {/* Holiday */}
+                  {holiday && (
+                    <div className="mt-1">
+                      <span className="bg-red-200 text-red-800 text-[10px] px-2 py-0.5 rounded-full">
+                        HOLIDAY
+                      </span>
+                      <div className="text-[11px] text-red-700 font-medium truncate">
+                        {holiday.holidayName}
+                      </div>
+                    </div>
+                  )}
+
 
                 {/* Badges */}
                 {employees.length > 0 && (

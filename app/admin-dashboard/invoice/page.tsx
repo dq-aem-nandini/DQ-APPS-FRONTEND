@@ -154,8 +154,8 @@ export default function InvoicesPage() {
       case 'APPROVED':
         return 'bg-green-100 text-green-800 border border-green-200';
       case 'SENT':
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+      // case 'PENDING':
+      //   return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'OVERDUE':
       case 'REJECTED':
         return 'bg-red-100 text-red-800 border border-red-200';
@@ -376,7 +376,7 @@ export default function InvoicesPage() {
                 <option value="">All Status</option>
                 <option value="DRAFT">Draft</option>
                 <option value="SENT">Sent</option>
-                <option value="PENDING">Pending</option>
+                {/* <option value="PENDING">Pending</option> */}
                 <option value="PAID">Paid</option>
                 <option value="APPROVED">Approved</option>
                 <option value="REJECTED">Rejected</option>
