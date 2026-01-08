@@ -264,7 +264,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       // ------------------------------------------------------------
       // ⭐ MANAGER FLOW → REDIRECT
       // ------------------------------------------------------------
-      if (userRole === "MANAGER") {
+
+      // || userRole === "ADMIN"
+      if (userRole === "MANAGER" ) {
         if (notification.notificationType === "TIMESHEET") {
           const res = await timesheetService.getTimesheetById(
             notification.referenceId
@@ -381,7 +383,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                       {notification.message}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {new Date(notification.updatedAt).toLocaleString()}
                     </p>
                   </div>
 
@@ -471,7 +473,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               </p>
               <p>
                 <span className="font-medium text-gray-600">Created At:</span>{" "}
-                {new Date(selectedNotification.createdAt).toLocaleString()}
+                {new Date(selectedNotification.updatedAt).toLocaleString()}
               </p>
             </div>
           </div>

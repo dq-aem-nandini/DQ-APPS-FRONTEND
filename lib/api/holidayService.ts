@@ -66,10 +66,45 @@ export class HolidayService {
       throw new Error(getBackendError(error));
     }
   }
-  // Get all holidays
-  async getAllHolidays(): Promise<WebResponseDTOListHolidaysDTO> {
+  // Get all holidays of the selected employee
+  // async getAllHolidays(): Promise<WebResponseDTOListHolidaysDTO> {
+  //   try {
+  //     const response = await api.get("/simple/holiday/timesheet/get/all");
+  //     return response.data;
+  //   } 
+  //   catch (error: any) {
+  //     throw error;
+  //   }
+  // }
+
+
+  // lib/api/holidayService.ts
+async getAllHolidays(
+  employeeId?: string
+): Promise<WebResponseDTOListHolidaysDTO> {
+  try {
+    const params = new URLSearchParams();
+
+    // pass only if valid UUID (manager/admin case)
+    if (employeeId && employeeId.includes("-")) {
+      params.append("employeeId", employeeId);
+    }
+
+    const response = await api.get(
+      `/simple/holiday/timesheet/get/all?${params.toString()}`
+    );
+
+    return response.data;
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+
+  // Get all holidays for Leave calender view in Admin
+  async getAllHolidaysview(): Promise<WebResponseDTOListHolidaysDTO> {
     try {
-      const response = await api.get("/simple/holiday/get/all");
+      const response = await api.get("/simple/holiday/leave/calendar/get/all");
       return response.data;
     } 
     catch (error: any) {

@@ -306,7 +306,7 @@ export interface WebResponseDTOEmployeeDepartmentList {
 
 // Core Models
 export interface AddressModel {
-  addressId?: string| null;   // uuid
+  addressId: string| null;   // uuid
   houseNo?: string;
   streetName?: string;
   city?: string;

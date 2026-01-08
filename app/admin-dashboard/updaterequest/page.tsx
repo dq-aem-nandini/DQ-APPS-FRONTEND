@@ -57,7 +57,7 @@ export default function UpdateRequestAdminPage() {
 
   const [viewAllChanges, setViewAllChanges] = useState<any>(null);
   const [isViewAllOpen, setIsViewAllOpen] = useState(false);
-
+  const isLongText = (val: any, limit = 18) =>String(val).length > limit;
   const loadOldProfile = async (employeeId: string) => {
     if (oldProfiles[employeeId]) return oldProfiles[employeeId];
     try {
@@ -134,13 +134,40 @@ export default function UpdateRequestAdminPage() {
     }
   };
 
+  // const getStatusBadge = (status: string) => {
+  //   if (status === 'APPROVED')
+  //     return <Badge className="bg-green-100 text-green-700 text-xs"><CheckCircle2 className="w-3 h-3 mr-1" />Approved</Badge>;
+  //   if (status === 'REJECTED')
+  //     return <Badge className="bg-red-100 text-red-700 text-xs"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+  //   return <Badge className="bg-yellow-100 text-yellow-700 text-xs"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+  // };
   const getStatusBadge = (status: string) => {
+    const base =
+      'max-w-full whitespace-nowrap overflow-hidden text-ellipsis';
+  
     if (status === 'APPROVED')
-      return <Badge className="bg-green-100 text-green-700 text-xs"><CheckCircle2 className="w-3 h-3 mr-1" />Approved</Badge>;
+      return (
+        <Badge className={`bg-green-100 text-green-700 text-xs ${base}`}>
+          <CheckCircle2 className="w-3 h-3 mr-1" />
+          Approved
+        </Badge>
+      );
+  
     if (status === 'REJECTED')
-      return <Badge className="bg-red-100 text-red-700 text-xs"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
-    return <Badge className="bg-yellow-100 text-yellow-700 text-xs"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
-  };
+      return (
+        <Badge className={`bg-red-100 text-red-700 text-xs ${base}`}>
+          <XCircle className="w-3 h-3 mr-1" />
+          Rejected
+        </Badge>
+      );
+  
+    return (
+      <Badge className={`bg-yellow-100 text-yellow-700 text-xs ${base}`}>
+        <Clock className="w-3 h-3 mr-1" />
+        Pending
+      </Badge>
+    );
+  };  
 
   // Extract all meaningful changes
   const extractChanges = (req: EmployeeUpdateRequestDTO, oldProfile: EmployeeDTO | undefined) => {
@@ -158,29 +185,92 @@ export default function UpdateRequestAdminPage() {
         return String(oldValue ?? '') !== String(newValue);
       });
 
-    // Address changes - only modified fields
-    const addressChanges: { field: string; old: string; new: string; type: string }[] = [];
-    if (Array.isArray(updatedData.addresses) && updatedData.addresses.length > 0) {
-      const newAddr = updatedData.addresses[0];
-      const oldAddr = oldProfile?.addresses?.find(a => a.addressType === newAddr.addressType) || {};
+    
+    // Address changes - ADDED / UPDATED / REMOVED
+      const addressChanges: {
+        field: string;
+        old: string;
+        new: string;
+        type: string;
+      }[] = [];
+
+      const oldAddresses: AddressModel[] = oldProfile?.addresses || [];
+      const newAddresses: AddressModel[] = updatedData.addresses || [];
+
+      const oldMap = new Map<string, AddressModel>(
+        oldAddresses
+          .filter((a) => a.addressType !== undefined)
+          .map((a) => [a.addressType as string, a]),
+      );
+
+      const newMap = new Map<string, AddressModel>(
+        newAddresses
+          .filter((a) => a.addressType !== undefined)
+          .map((a) => [a.addressType as string, a]),
+      );
 
       const addrFields: (keyof AddressModel)[] = [
-        'houseNo', 'streetName', 'city', 'state', 'country', 'pincode', 'addressType'
+        'houseNo',
+        'streetName',
+        'city',
+        'state',
+        'country',
+        'pincode',
       ];
 
-      addrFields.forEach((field) => {
-        const oldVal = oldAddr[field as keyof AddressModel] ?? '—';
-        const newVal = newAddr[field] ?? '—';
-        if (String(oldVal) !== String(newVal)) {
-          addressChanges.push({
-            field: formatKey(field),
-            old: String(oldVal),
-            new: String(newVal),
-            type: newAddr.addressType || 'Address'
-          });
-        }
+      // --------------------
+      // ADDED & UPDATED
+      // --------------------
+      newMap.forEach((newAddr, type) => {
+        const oldAddr = oldMap.get(type);
+
+        // ➕ ADDED
+      if (!oldAddr) {
+        addrFields.forEach((field) => {
+          const newVal = newAddr[field] ?? '—';
+
+          if (newVal !== '—') {
+            addressChanges.push({
+              field: formatKey(field),
+              old: '—',
+              new: String(newVal),
+              type,
+            });
+          }
+        });
+        return;
+      }
+
+
+  // ✏️ UPDATED (field-level diff)
+  addrFields.forEach((field) => {
+    const oldVal = oldAddr[field] ?? '—';
+    const newVal = newAddr[field] ?? '—';
+
+    if (String(oldVal) !== String(newVal)) {
+      addressChanges.push({
+        field: formatKey(field),
+        old: String(oldVal),
+        new: String(newVal),
+        type,
       });
     }
+  });
+});
+
+// --------------------
+// ❌ REMOVED
+// --------------------
+oldMap.forEach((oldAddr, type) => {
+  if (!newMap.has(type)) {
+    addressChanges.push({
+      field: 'Address',
+      old: 'Removed',
+      new: '—',
+      type,
+    });
+  }
+});
 
     // New documents
     const newDocuments = Array.isArray(updatedData.documents) && updatedData.documents.length > 0
@@ -202,6 +292,25 @@ export default function UpdateRequestAdminPage() {
       </div>
     );
   }
+
+
+  const groupAddressChangesByType = (
+    addressChanges: {
+      field: string;
+      old: string;
+      new: string;
+      type: string;
+    }[],
+  ) => {
+    return addressChanges.reduce((acc, change) => {
+      if (!acc[change.type]) {
+        acc[change.type] = [];
+      }
+      acc[change.type].push(change);
+      return acc;
+    }, {} as Record<string, typeof addressChanges>);
+  };
+  
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
@@ -230,17 +339,24 @@ export default function UpdateRequestAdminPage() {
               return (
                 <Card key={req.requestId} className="h-full flex flex-col hover:shadow-xl transition-shadow">
                   <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <div className="grid grid-cols-[1fr_auto] items-start gap-3 w-full">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2 min-w-0">
                           <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                          <span className="truncate">{req.employeeName}</span>
+                          <span
+                            className="truncate block max-w-full"
+                            title={req.employeeName}
+                          >
+                            {req.employeeName}
+                          </span>
                         </CardTitle>
+
                         <CardDescription className="text-xs sm:text-sm">
                           {format(new Date(req.createdAt), 'dd MMM yyyy, hh:mm a')}
                         </CardDescription>
                       </div>
-                      <div className="flex-shrink-0">
+
+                      <div className="max-w-[90px] shrink-0 overflow-hidden">
                         {getStatusBadge(req.status)}
                       </div>
                     </div>
@@ -257,7 +373,7 @@ export default function UpdateRequestAdminPage() {
                       ) : (
                         <div className="text-xs space-y-3">
                           {/* Scalar Fields */}
-                          {scalarChanges.slice(0, 3).map(([key, newValue]) => {
+                          {/* {scalarChanges.slice(0, 3).map(([key, newValue]) => {
                             const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
                             return (
                               <div key={key} className="grid grid-cols-3 py-1">
@@ -266,37 +382,84 @@ export default function UpdateRequestAdminPage() {
                                 <span className="text-right text-green-700 font-medium truncate">{String(newValue)}</span>
                               </div>
                             );
+                          })} */}
+                          {scalarChanges.slice(0, 3).map(([key, newValue]) => {
+                            const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
+                            const showEllipsis =
+                              isLongText(oldValue) || isLongText(newValue);
+
+                            return (
+                              <div
+                                key={key}
+                                className="grid grid-cols-3 gap-2 py-1 items-start"
+                              >
+                                <span className="font-medium truncate">
+                                  {formatKey(key)}
+                                </span>
+
+                                <span
+                                  className="text-center text-red-600 break-words line-clamp-1"
+                                  title={String(oldValue)}
+                                >
+                                  {String(oldValue)}
+                                </span>
+
+                                <span
+                                  className="text-right text-green-700 font-medium break-words line-clamp-1"
+                                  title={String(newValue)}
+                                >
+                                  {String(newValue)}
+                                </span>
+
+                                {/* {showEllipsis && (
+                                  <span className="col-span-3 text-right text-[10px] text-gray-500">
+                                    (Truncated)
+                                  </span>
+                                )} */}
+                              </div>
+                            );
                           })}
 
+
                           {/* Address Changes - Only Modified Fields */}
-                          {addressChanges.length > 0 && (
-                            <div className="space-y-3">
-                              <p className="font-semibold text-purple-700 text-sm flex items-center gap-2">
-                                <MapPin className="w-5 h-5" />
-                                {addressChanges[0].type} Address Changes:
-                              </p>
-                              {addressChanges.map((change, i) => (
-                                <div
-                                  key={i}
-                                  className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-purple-50 gap-2"
-                                >
-                                  <div className="font-medium text-gray-800 text-sm">
-                                    {change.field}
+                          {addressChanges.length > 0 && (() => {
+                            const groupedAddresses = groupAddressChangesByType(addressChanges);
+
+                            return (
+                              <div className="space-y-5">
+                                {Object.entries(groupedAddresses).map(([type, changes], idx) => (
+                                  <div key={type} className="space-y-3">
+                                    <p className="font-semibold text-purple-700 text-sm flex items-center gap-2">
+                                      <MapPin className="w-5 h-5" />
+                                      Address {idx + 1} ({type})
+                                    </p>
+
+                                    {changes.map((change, i) => (
+                                      <div
+                                        key={`${type}-${i}`}
+                                        className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-purple-50 gap-2"
+                                      >
+                                        <div className="font-medium text-gray-800 text-sm">
+                                          {change.field}
+                                        </div>
+                                        <div className="sm:text-center">
+                                          <span className="text-red-600 font-medium text-sm">
+                                            {change.old}
+                                          </span>
+                                        </div>
+                                        <div className="text-right">
+                                        <span className="text-green-700 font-medium text-sm break-words">
+                                            {change.new}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div className="sm:text-center">
-                                    <span className="text-red-600 font-medium text-sm">
-                                      {change.old}
-                                    </span>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className="text-green-700 font-medium text-sm">
-                                      {change.new}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                                ))}
+                              </div>
+                            );
+                          })()}
+
 
                           {/* Documents */}
                           {newDocuments.length > 0 && (
@@ -322,17 +485,23 @@ export default function UpdateRequestAdminPage() {
                           )}
 
                           {/* View All Button */}
-                          {(scalarChanges.length > 3 || addressChanges.length > 0 || newDocuments.length > 2 || hasNewPhoto) && (
-                            <button
-                              className="text-center text-xs text-blue-600 underline pt-2 block w-full"
-                              onClick={() => {
-                                setViewAllChanges({ req, profile });
-                                setSelectedRequest(req);
-                                setIsViewAllOpen(true);
-                              }}
-                            >
-                              View all changes
-                            </button>
+                          {(
+                              scalarChanges.length > 3 ||
+                              scalarChanges.some(([_, v]) => isLongText(v)) ||
+                              addressChanges.length > 0 ||
+                              newDocuments.length > 2 ||
+                              hasNewPhoto
+                            ) && (
+                                <button
+                                  className="text-center text-xs text-blue-600 underline pt-2 block w-full"
+                                  onClick={() => {
+                                    setViewAllChanges({ req, profile });
+                                    setSelectedRequest(req);
+                                    setIsViewAllOpen(true);
+                                  }}
+                                >
+                                  View all changes
+                                </button>
                           )}
                         </div>
                       )}
@@ -494,18 +663,32 @@ export default function UpdateRequestAdminPage() {
                     </>
                   )}
 
-                  {addressChanges.length > 0 && (
-                    <>
-                      <p className="font-bold text-purple-700 mt-4">{addressChanges[0].type} Address Changes:</p>
-                      {addressChanges.map((change, i) => (
-                        <div key={i} className="grid grid-cols-3 py-2 border-b">
-                          <span className="font-medium">{change.field}</span>
-                          <span className="text-center text-red-600">{change.old}</span>
-                          <span className="text-right text-green-700">{change.new}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
+                  {/* model */}
+
+                  {addressChanges.length > 0 && (() => {
+                    const groupedAddresses = groupAddressChangesByType(addressChanges);
+
+                    return (
+                      <>
+                        {Object.entries(groupedAddresses).map(([type, changes], idx) => (
+                          <div key={type} className="space-y-2 mt-4">
+                            <p className="font-bold text-purple-700">
+                              Address {idx + 1} ({type})
+                            </p>
+
+                            {changes.map((change, i) => (
+                              <div key={`${type}-${i}`} className="grid grid-cols-3 py-2 border-b">
+                                <span className="font-medium">{change.field}</span>
+                                <span className="text-center text-red-600">{change.old}</span>
+                                <span className="text-right text-green-700">{change.new}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
+
 
                   {newDocuments.length > 0 && (
                     <>
