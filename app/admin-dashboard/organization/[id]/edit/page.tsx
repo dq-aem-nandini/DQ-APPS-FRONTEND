@@ -13,6 +13,8 @@ import { Loader2, Upload, Plus, Trash2 } from 'lucide-react';
 import { organizationService } from '@/lib/api/organizationService';
 import { employeeService } from '@/lib/api/employeeService';
 import { validationService, UniqueField } from '@/lib/api/validationService';
+import {adminService} from '@/lib/api/adminService';
+// deleteEmployeeAddress
 import {
   Domain,
   CurrencyCode,
@@ -42,7 +44,7 @@ export default function EditOrganizationPage() {
   const [success, setSuccess] = useState<string>('');
   const [isLookingUp, setIsLookingUp] = useState<boolean>(false);
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
-
+  const [currentAddrId, setCurrentAddrId] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
   const [signaturePreview, setSignaturePreview] = useState<string>("");
 
@@ -145,6 +147,38 @@ export default function EditOrganizationPage() {
 
     load();
   }, [id]);
+
+
+  const handleDeleteAddress = async (idx: number, addressId: string | null) => {
+    // If address is not yet saved in backend (newly added)
+    if (!addressId) {
+      removeAddress(idx);
+      return;
+    }
+  
+    if (!currentOrgId) {
+      console.error("Organization ID missing");
+      return;
+    }
+  
+    try {
+      setLoading(true);
+  
+      await adminService.deleteEmployeeAddress(
+        currentOrgId,   // entityId
+        addressId       // addressId
+      );
+  
+      // Remove from UI after successful delete
+      removeAddress(idx);
+    } catch (err: any) {
+      setError(err?.message || "Failed to delete address");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
 
   // ---------- Handlers ----------
 
@@ -496,52 +530,65 @@ export default function EditOrganizationPage() {
     try {
       // build multipart form data
       const fd = new FormData();
-
-      // Append scalar fields
-      const scalars: (keyof OrganizationRequestDTO)[] = [
-        'organizationName',
-        'organizationLegalName',
-        'registrationNumber',
-        'gstNumber',
-        'panNumber',
-        'cinNumber',
-        'website',
-        'email',
-        'contactNumber',
-        'industryType',
-        'domain',
-        'establishedDate',
-        'timezone',
-        'currencyCode',
-        'accountNumber',
-        'accountHolderName',
-        'bankName',
-        'ifscCode',
-        'branchName',
-      ];
-
-      scalars.forEach(k => {
-        const v = (formData as any)[k];
-        if (v !== undefined && v !== null) fd.append(String(k), String(v));
+      const payload = {
+        ...formData,
+        logo: null,
+        digitalSignature: null,
+      };
+      
+      /* ---------- BASIC FIELDS ---------- */
+      fd.append("organizationName", formData.organizationName ?? "");
+      fd.append("organizationLegalName", formData.organizationLegalName ?? "");
+      fd.append("registrationNumber", formData.registrationNumber ?? "");
+      fd.append("gstNumber", formData.gstNumber ?? "");
+      fd.append("panNumber", formData.panNumber ?? "");
+      fd.append("cinNumber", formData.cinNumber ?? "");
+      fd.append("website", formData.website ?? "");
+      fd.append("email", formData.email ?? "");
+      fd.append("contactNumber", formData.contactNumber ?? "");
+      fd.append("industryType", formData.industryType ?? "");
+      fd.append("domain", formData.domain ?? "");
+      fd.append("establishedDate", formData.establishedDate ?? "");
+      fd.append("timezone", formData.timezone ?? "");
+      fd.append("currencyCode", formData.currencyCode ?? "");
+      fd.append("accountNumber", formData.accountNumber ?? "");
+      fd.append("accountHolderName", formData.accountHolderName ?? "");
+      fd.append("bankName", formData.bankName ?? "");
+      fd.append("ifscCode", formData.ifscCode ?? "");
+      fd.append("branchName", formData.branchName ?? "");
+      
+      /* ---------- FILES ---------- */
+      if (formData.logo instanceof File) {
+        fd.append("logo", formData.logo);
+      }
+      
+      if (formData.digitalSignature instanceof File) {
+        fd.append("digitalSignature", formData.digitalSignature);
+      }
+      
+      /* ---------- ADDRESSES ---------- */
+      formData.addresses.forEach((addr, index) => {
+        if (addr.addressId) {
+          fd.append(`addresses[${index}].addressId`, addr.addressId);
+        }
+      
+        fd.append(`addresses[${index}].houseNo`, addr.houseNo ?? "");
+        fd.append(`addresses[${index}].streetName`, addr.streetName ?? "");
+        fd.append(`addresses[${index}].city`, addr.city ?? "");
+        fd.append(`addresses[${index}].state`, addr.state ?? "");
+        fd.append(`addresses[${index}].country`, addr.country ?? "");
+        fd.append(`addresses[${index}].pincode`, addr.pincode ?? "");
+        fd.append(`addresses[${index}].addressType`, addr.addressType ?? "OFFICE");
       });
-
-      // files
-      if (formData.logo instanceof File) fd.append('logo', formData.logo);
-      if (formData.digitalSignature instanceof File) fd.append('digitalSignature', formData.digitalSignature);
-
-      // addresses -> append as JSON string
-      // ensure we send same shape as backend expects
-      if (formData.addresses && formData.addresses.length) {
-        fd.append('addresses', JSON.stringify(formData.addresses.map(a => ({
-          addressId: a.addressId ?? null,
-          houseNo: a.houseNo ?? '',
-          streetName: a.streetName ?? '',
-          city: a.city ?? '',
-          state: a.state ?? '',
-          country: a.country ?? '',
-          pincode: a.pincode ?? '',
-          addressType: a.addressType ?? 'OFFICE',
-        }))));
+      
+      
+      // ✅ STEP 3: send files separately
+      if (formData.logo instanceof File) {
+        fd.append("logo", formData.logo);
+      }
+      
+      if (formData.digitalSignature instanceof File) {
+        fd.append("digitalSignature", formData.digitalSignature);
       }
 
       // Call update API. According to swagger, organizationId is query param.
@@ -1102,10 +1149,11 @@ export default function EditOrganizationPage() {
                 )}
 
                 {formData.addresses.map((address, idx) => (
+                  console.log('Rendering address', idx, currentOrgId, address.addressId),
                   <div key={idx} className="mb-6 p-4 border rounded bg-gray-50">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium">Address {idx + 1}</h4>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeAddress(idx)}>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteAddress(idx, address.addressId)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
