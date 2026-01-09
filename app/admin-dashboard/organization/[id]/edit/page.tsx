@@ -1153,7 +1153,7 @@ export default function EditOrganizationPage() {
                   <div key={idx} className="mb-6 p-4 border rounded bg-gray-50">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium">Address {idx + 1}</h4>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteAddress(idx, address.addressId)}>
+                      <Button type="button" variant="ghost" size="sm"  onClick={() => handleDeleteAddress(idx, address.addressId ?? null)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
