@@ -15,6 +15,8 @@ import {
   Department,
   EmployeeDepartmentDTO,
   WebResponseDTOEmployeeDepartmentList,
+  WebResponseDTOVoid,
+  AddressModel,
 
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -194,6 +196,22 @@ class EmployeeService {
       throw new Error(getBackendError(error));
     }
   }
+  // submit delete address request
+  async submitDeleteAddressRequest(
+    address: AddressModel
+  ): Promise<WebResponseDTOVoid> {
+    try {
+      const response: AxiosResponse<WebResponseDTOVoid> =
+        await api.post("/employee/update-request/submit/delete/address", address);
+
+      console.log("📌 Submit Delete Address Request:", response.data);
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
   // =====================================================
   // ✅ GET ALL ADMIN UPDATE REQUESTS
   // GET /admin/update-request/all

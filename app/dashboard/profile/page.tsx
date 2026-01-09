@@ -41,6 +41,10 @@ export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
   "POST_GRADUATION_CERTIFICATE",
   "OTHER",
 ] as const;
+// Employee should NOT see offer letter or contract
+const EMPLOYEE_ALLOWED_DOCUMENTS = DOCUMENT_TYPE_OPTIONS.filter(
+  (doc) => doc !== "OFFER_LETTER" && doc !== "CONTRACT"
+);
 // Safe value
 const safe = (val: any) =>
   val === null || val === undefined ? "—" : String(val);
@@ -507,6 +511,45 @@ const ProfilePage = () => {
       setUpdating(false);
     }
   };
+
+  const handleDeleteAddress = async (address: AddressModel) => {
+    const result = await Swal.fire({
+      title: "Request Address Deletion?",
+      text: "This will send a delete request to the admin for approval.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, send request",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await employeeService.submitDeleteAddressRequest(address);
+
+      Swal.fire({
+        icon: "success",
+        title: "Delete Request Sent",
+        text: "Admin will review your request.",
+      });
+
+      // Update UI ONLY, do not delete from DB
+      setFormData(prev => ({
+        ...prev!,
+        addresses: prev!.addresses.filter(a => a.addressId !== address.addressId),
+      }));
+
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: "Unable to submit delete request. Please try again.",
+      });
+    }
+  };
+
+
+
 
 
   const onChange = (
@@ -1344,11 +1387,13 @@ const ProfilePage = () => {
                         </h4>
                         <button
                           type="button"
-                          onClick={() => removeAddress(i)}
-                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteAddress(addr)}
+                          className="text-red-600 hover:text-red-800 transition"
+                          title="Request Delete"
                         >
-                          Remove
+                          <Trash2 className="w-5 h-5" />
                         </button>
+
                       </div>
                       <div
                         className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4"
@@ -1466,7 +1511,9 @@ const ProfilePage = () => {
                   title="Upload Documents"
                   icon={<Upload className="w-5 h-5" />}
                 >
-                  {documents.map((doc, i) => (
+                  {documents
+                    .filter(doc => doc.docType !== "OFFER_LETTER" && doc.docType !== "CONTRACT")
+                    .map((doc, i) => (
                     <div
                       key={doc.tempId || doc.documentId}
                       className="flex flex-wrap items-end gap-4 p-5 bg-gray-50 rounded-xl mb-4 border border-gray-200"
@@ -1483,7 +1530,7 @@ const ProfilePage = () => {
                               e.target.value as DocumentType
                             )
                           }
-                          options={DOCUMENT_TYPE_OPTIONS}
+                          options={EMPLOYEE_ALLOWED_DOCUMENTS}
                         />
                         {errors[`documents[${i}].docType`] && (
                           <p className="text-red-500 text-xs mt-1">

@@ -163,6 +163,12 @@ export type BondDuration =
   | 'TWO_YEARS'
   | 'THREE_YEARS'
   | 'NA';
+
+export type UpdateRequestType = 
+  | 'EMPLOYEE_UPDATE'
+  | 'ADDRESS_DELETE'
+  | 'CALENDAR_UPDATE';
+
 export const PAY_TYPE_OPTIONS = [
   "HOURLY",
   "MONTHLY",
@@ -336,6 +342,7 @@ export interface EmployeeUpdateRequestDTO {
   employeeId: string;             // UUID
   employeeName: string;
   updatedData: any;               // Holds changed fields (key-value pairs)
+  requestType: UpdateRequestType;     // <-- Use new type here
   status: UpdateRequestStatus;    // "PENDING" | "APPROVED" | "REJECTED"
   adminComment: string | null;
   createdAt: string;              // ISO date-time string
