@@ -902,11 +902,8 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
         rateCard: formData.rateCard,
         employmentType: formData.employmentType,
         reportingManagerId: formData.reportingManagerId,
-
-        ...(formData.clientSelection?.startsWith("CLIENT:")
-          ? { clientId: formData.clientSelection.replace("CLIENT:", "") }
-          : { clientSelection: formData.clientSelection }),
-
+        clientId: formData.clientId ?? null,
+        clientSelection: formData.clientSelection,
         panNumber: formData.panNumber,
         aadharNumber: formData.aadharNumber,
         accountNumber: formData.accountNumber,

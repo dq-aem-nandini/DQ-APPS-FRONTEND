@@ -111,14 +111,37 @@ export default function ManagerTimesheetReview() {
   // ------------------------------------------------------------------
   // Holidays
   // ------------------------------------------------------------------
+  // useEffect(() => {
+  //   const fetchHolidays = async () => {
+  //     const res = await holidayService.getAllHolidays();
+  //     setHolidays(res.response || []);
+  //   };
+  //   fetchHolidays();
+  // }, []);
+
+    // ------------------------------------------------------------------
+  // Holidays of that selected employee
+  // ------------------------------------------------------------------
   useEffect(() => {
     const fetchHolidays = async () => {
-      const res = await holidayService.getAllHolidays();
-      setHolidays(res.response || []);
+      if (!selectedEmployee?.id) {
+        setHolidays([]);
+        return;
+      }
+  
+      try {
+        const res = await holidayService.getAllHolidays(
+          selectedEmployee.id
+        );
+        setHolidays(res.response || []);
+      } catch (err) {
+        console.error("Error fetching holidays:", err);
+      }
     };
+  
     fetchHolidays();
-  }, []);
-
+  }, [selectedEmployee]);
+  
   // ------------------------------------------------------------------
   // Calendar helpers
   // ------------------------------------------------------------------
@@ -152,6 +175,15 @@ export default function ManagerTimesheetReview() {
   const currentWeekEnd = useMemo(() => weekStart.endOf("isoWeek"), [weekStart]);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day"));
+
+  // ------------------------------------------------------------------
+  // Split Week Detection (month boundary)
+  // ------------------------------------------------------------------
+  const isSplitWeek = useMemo(() => {
+    const months = new Set(weekDays.map((day) => day.format("YYYY-MM")));
+    return months.size > 1;
+  }, [weekDays]);
+
 
   // ------------------------------------------------------------------
   // Timesheets
@@ -510,7 +542,7 @@ export default function ManagerTimesheetReview() {
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
-      ) : timesheets.length === 0 || timesheets[0]?.status === "DRAFTED" ? (
+      ) : !isSplitWeek && (timesheets.length === 0 || timesheets[0]?.status === "DRAFTED") ? (
         <p className="text-center text-gray-500 mt-10">
           {timesheets[0]?.status === "DRAFTED"
             ? "Timesheet in draft state."

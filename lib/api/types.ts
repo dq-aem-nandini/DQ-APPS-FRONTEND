@@ -306,7 +306,7 @@ export interface WebResponseDTOEmployeeDepartmentList {
 
 // Core Models
 export interface AddressModel {
-  addressId?: string| null;   // uuid
+  addressId: string| null;   // uuid
   houseNo?: string;
   streetName?: string;
   city?: string;
@@ -1622,3 +1622,12 @@ export const workRequestLabels: Record<WorkRequest, string> = {
   PENDING: "Pending",
   REJECTED: "Rejected",
 };
+
+export type HolidayUpdateType = "ADD_HOLIDAY" | "REMOVE_HOLIDAY";
+
+export interface HolidayUpdateRequestDTO {
+  holidayDate: string;
+  holidayName: string;
+  updateType: HolidayUpdateType;
+  clientID: string;
+}

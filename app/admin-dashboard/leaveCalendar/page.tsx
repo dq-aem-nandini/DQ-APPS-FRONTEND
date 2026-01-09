@@ -57,11 +57,11 @@ export default function LeaveCalendarPage() {
   }, [month, year]);
 
   // -------------------------------
-  // Fetch all holidays
+  // Fetch all leave calender holidays
   // -------------------------------
 
   useEffect(() => {
-    holidayService.getAllHolidays()
+    holidayService.getAllHolidaysview()
       .then(res => {
         if (res.flag && res.response) {
           setHolidays(res.response);
