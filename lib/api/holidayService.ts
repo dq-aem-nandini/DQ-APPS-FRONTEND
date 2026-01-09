@@ -5,6 +5,7 @@ import type {
   WebResponseDTOListHolidaysDTO,
   WebResponseDTO,
   HolidaysModel,
+  HolidayUpdateRequestDTO,
 } from "@/lib/api/types";
 function getBackendError(error: any): string {
   return (
@@ -91,7 +92,7 @@ async getAllHolidays(
     }
 
     const response = await api.get(
-      `/simple/holiday/timesheet/get/all?${params.toString()}`
+      `/simple/holiday/employee-specific/get/all?${params.toString()}`
     );
 
     return response.data;
@@ -124,6 +125,22 @@ async getAllHolidays(
       throw new Error(getBackendError(error));
     }
   }
-}
+
+  // Submit holiday add/remove request (approval workflow)
+  async submitHolidayUpdateRequest(
+    request: HolidayUpdateRequestDTO[]
+  ): Promise<WebResponseDTO<string>> {
+    try {
+      const response = await api.post(
+        "/employee/update-request/submit/holiday",
+        request
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
+  }
 // Export instance
 export const holidayService = new HolidayService();

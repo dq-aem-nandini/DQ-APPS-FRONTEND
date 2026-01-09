@@ -1622,3 +1622,12 @@ export const workRequestLabels: Record<WorkRequest, string> = {
   PENDING: "Pending",
   REJECTED: "Rejected",
 };
+
+export type HolidayUpdateType = "ADD_HOLIDAY" | "REMOVE_HOLIDAY";
+
+export interface HolidayUpdateRequestDTO {
+  holidayDate: string;
+  holidayName: string;
+  updateType: HolidayUpdateType;
+  clientID: string;
+}

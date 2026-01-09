@@ -28,7 +28,7 @@ import {
 
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-
+import {adminService} from "@/lib/api/adminService"; 
 import {
   Clock,
   CheckCircle2,
@@ -48,6 +48,7 @@ const formatKey = (key: string) =>
 
 export default function UpdateRequestAdminPage() {
   const [requests, setRequests] = useState<EmployeeUpdateRequestDTO[]>([]);
+  const [holidayRequests, setHolidayRequests] = useState<any[]>([]);
   const [oldProfiles, setOldProfiles] = useState<Record<string, EmployeeDTO>>({});
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<EmployeeUpdateRequestDTO | null>(null);
@@ -57,6 +58,12 @@ export default function UpdateRequestAdminPage() {
 
   const [viewAllChanges, setViewAllChanges] = useState<any>(null);
   const [isViewAllOpen, setIsViewAllOpen] = useState(false);
+
+  const hasProfileRequests = requests.length > 0;
+const hasHolidayRequests = holidayRequests.length > 0;
+const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
+
+
   const isLongText = (val: any, limit = 18) =>String(val).length > limit;
   const loadOldProfile = async (employeeId: string) => {
     if (oldProfiles[employeeId]) return oldProfiles[employeeId];
@@ -69,6 +76,50 @@ export default function UpdateRequestAdminPage() {
       return null;
     }
   };
+
+    const fetchholidayRequests = async () => {
+      try {
+        setLoading(true);
+        const res = await adminService.getAllHolidayUpdateRequests();
+        console.log("Holiday Update Requests:", res.response);
+        if (res.flag && res.response) {
+          console.log("Setting requests:");
+          setHolidayRequests(res.response);
+        }
+      } catch (err: any) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.message || 'Failed to load',
+          confirmButtonColor: '#2563eb',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    const handleholidayApprove = async (requestId: string) => {
+      if (processing) return;
+      setProcessing(true);
+  
+      Swal.fire({ title: 'Approving...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  
+      try {
+        const res = await adminService.approveHolidayUpdateRequest(requestId);
+        if (res.flag) {
+          Swal.fire({ icon: 'success', title: 'Approved!', confirmButtonColor: '#2563eb' });
+          fetchRequests(); // refresh the list
+        }
+      } catch (err: any) {
+        Swal.fire({ icon: 'error', title: 'Failed', text: err.message, confirmButtonColor: '#2563eb' });
+      } finally {
+        setProcessing(false);
+      }
+    };
+  
+    useEffect(() => {
+      fetchholidayRequests();
+    }, []);
 
   const fetchRequests = async () => {
     try {
@@ -321,7 +372,7 @@ oldMap.forEach((oldAddr, type) => {
           </h1>
         </div>
 
-        {requests.length === 0 ? (
+        {!hasAnyRequests? (
           <Card className="text-center py-20">
             <CardContent>
               <div className="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24 mx-auto mb-6" />
@@ -373,16 +424,7 @@ oldMap.forEach((oldAddr, type) => {
                       ) : (
                         <div className="text-xs space-y-3">
                           {/* Scalar Fields */}
-                          {/* {scalarChanges.slice(0, 3).map(([key, newValue]) => {
-                            const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
-                            return (
-                              <div key={key} className="grid grid-cols-3 py-1">
-                                <span className="font-medium truncate">{formatKey(key)}</span>
-                                <span className="text-center text-red-600 truncate">{String(oldValue)}</span>
-                                <span className="text-right text-green-700 font-medium truncate">{String(newValue)}</span>
-                              </div>
-                            );
-                          })} */}
+                          
                           {scalarChanges.slice(0, 3).map(([key, newValue]) => {
                             const oldValue = profile?.[key as keyof EmployeeDTO] ?? '—';
                             const showEllipsis =
@@ -533,6 +575,138 @@ oldMap.forEach((oldAddr, type) => {
             })}
           </div>
         )}
+
+          {!hasAnyRequests ? (
+            <Card className="text-center py-20">
+              <CardContent>
+                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24 mx-auto mb-6" />
+                <p className="text-xl text-gray-600">No pending holiday requests</p>
+                <p className="text-gray-400 mt-2">Everything is up to date</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+            {holidayRequests.map((req) => {
+              const profile = oldProfiles[req.employeeId];
+              const { scalarChanges, addressChanges, newDocuments, hasNewPhoto } = extractChanges(req, profile);
+              const hasAnyChange = scalarChanges.length > 0 || addressChanges.length > 0 || newDocuments.length > 0 || hasNewPhoto;
+
+              return (
+                <Card key={req.requestId} className="h-full flex flex-col hover:shadow-xl transition-shadow">
+                  <CardHeader className="pb-4">
+                    <div className="grid grid-cols-[1fr_auto] items-start gap-3 w-full">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2 min-w-0">
+                          <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                          <span className="truncate block max-w-full" title={req.employeeName}>
+                            {req.employeeName}
+                          </span>
+                        </CardTitle>
+
+                        <CardDescription className="text-xs sm:text-sm">
+                          {format(new Date(req.createdAt), 'dd MMM yyyy, hh:mm a')}
+                        </CardDescription>
+                      </div>
+
+                      <div className="max-w-[90px] shrink-0 overflow-hidden">
+                        {getStatusBadge(req.status)}
+                      </div>
+                    </div>
+                  </CardHeader>
+
+
+                <CardContent className="flex-1 flex flex-col">
+                  <Separator className="mb-4" />
+
+                  <div className="space-y-4 flex-1">
+                    <p className="text-sm font-semibold text-gray-700">Holiday Changes</p>
+
+                    <div className="space-y-3">
+                      {req.updatedData.map((item: any, index: number) => {
+                        const isAdd = item.updateType === "ADD_HOLIDAY";
+                        const isRemove = item.updateType === "REMOVE_HOLIDAY";
+
+                        return (
+                          <div
+                            key={index}
+                            className={`p-3 rounded-lg border flex items-start gap-3 ${
+                              isAdd
+                                ? "bg-green-50 border-green-200"
+                                : "bg-red-50 border-red-200"
+                            }`}
+                          >
+                            {/* Icon */}
+                            <div className="mt-1">
+                              {isAdd ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-red-600" />
+                              )}
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 text-xs sm:text-sm">
+                              <p className={`font-semibold ${isAdd ? "text-green-700" : "text-red-700"}`}>
+                                {isAdd ? "Add Holiday" : "Remove Holiday"}
+                              </p>
+
+                              <p className="text-gray-800 mt-1">
+                                <span className="font-medium">Name:</span> {item.holidayName}
+                              </p>
+
+                              <p className="text-gray-600">
+                                <span className="font-medium">Date:</span>{" "}
+                                {format(new Date(item.holidayDate), "dd MMM yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Admin comment (only if rejected earlier) */}
+                  {req.adminComment && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-xs text-red-800 font-medium flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3" />
+                        Reason for rejection:
+                      </p>
+                      <p className="text-xs text-red-700 mt-1">{req.adminComment}</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  {req.status === "PENDING" && (
+                    <div className="flex gap-2 mt-6">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        onClick={() => handleholidayApprove(req.requestId)}
+                        disabled={processing} 
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                        onClick={() => openRejectDialog(req)}
+                        disabled={processing}
+                      >
+                        <XCircle className="w-4 h-4 mr-1" /> Reject
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
       </div>
 
       {/* Reject Dialog */}

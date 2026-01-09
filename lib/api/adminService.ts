@@ -438,6 +438,33 @@ class AdminService {
     }
   }
   
+  // ------------------------------
+  // 1️⃣ Get all pending holiday update requests
+  // ------------------------------
+  async getAllHolidayUpdateRequests(): Promise<WebResponseDTOListEmployeeDTO> {
+    try {
+      const response: AxiosResponse<any> = await api.get(
+        '/admin/update-request/all/holidays'
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
+  // ------------------------------
+  // 2️⃣ Approve a holiday update request
+  // ------------------------------
+  async approveHolidayUpdateRequest(requestId: string): Promise<WebResponseDTOString> {
+    try {
+      const response: AxiosResponse<WebResponseDTOString> = await api.put(
+        `/admin/update-request/approve/holiday/${requestId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
 
 }
 export const adminService = new AdminService();

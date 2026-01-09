@@ -38,7 +38,7 @@ export default function HolidayListPage() {
   const fetchHolidays = async () => {
     try {
       setLoading(true);
-      const res = await holidayService.getAllHolidays();
+      const res = await holidayService.getAllHolidaysview();
       if (res.flag && Array.isArray(res.response)) {
         setHolidays(res.response.sort((a, b) => a.holidayDate.localeCompare(b.holidayDate)));
       }
