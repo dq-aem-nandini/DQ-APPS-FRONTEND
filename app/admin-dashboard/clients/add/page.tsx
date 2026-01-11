@@ -299,27 +299,6 @@ export default function AddClientPage() {
     setSuccess('');
     setErrors({}); // Clear previous errors
     setIsSubmitting(true);
-  // Special validation for required Address and POC
-  if (formData.addresses.length === 0) {
-    setIsSubmitting(false);
-    Swal.fire({
-      icon: "error",
-      title: "Address is required",
-      text: "Please add  address before submitting."
-    });
-    return;
-  }
-
-  if (formData.clientPocs.length === 0) {
-    setIsSubmitting(false);
-    Swal.fire({
-      icon: "error",
-      title: "POC is required",
-      text: "Please add at least one Point of Contact before submitting."
-    });
-    return;
-  }
-
 
     // ────── REQUIRED FIELDS WITH AUTO-FOCUS & SCROLL ──────
     const requiredFields = [
@@ -1084,23 +1063,23 @@ export default function AddClientPage() {
             {error && <div className="text-red-600 bg-red-50 p-3 rounded">{error}</div>}
             {success && <div className="text-green-600 bg-green-50 p-3 rounded">{success}</div>}
 
-              <div className="flex justify-end gap-4">
-                <button
-                  type="button"
-                  onClick={() => router.push('/admin/clients')}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
+            <div className="flex justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => router.push('/admin/clients')}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Adding...' : 'Add Client'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Adding...' : 'Add Client'}
+              </button>
+            </div>
 
           </form>
         </div>
