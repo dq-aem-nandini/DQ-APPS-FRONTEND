@@ -163,7 +163,13 @@ export type BondDuration =
   | 'TWO_YEARS'
   | 'THREE_YEARS'
   | 'NA';
-export const PAY_TYPE_OPTIONS = [
+
+  export type UpdateRequestType = 
+  | 'EMPLOYEE_UPDATE'
+  | 'ADDRESS_DELETE'
+  | 'CALENDAR_UPDATE';
+  
+  export const PAY_TYPE_OPTIONS = [
   "HOURLY",
   "MONTHLY",
   "WEEKLY",
