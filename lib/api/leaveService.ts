@@ -349,7 +349,7 @@ export const leaveService = {
   /**
    * Get approved leaves for an employee in a given year (GET with query params).
    */
-  async getApprovedLeaves(employeeId?: string, year?: string): Promise<EmployeeLeaveDayDTO[]> {
+  async getApprovedLeaves(year?: string, employeeId?: string,): Promise<EmployeeLeaveDayDTO[]> {
     try {
       // 🧩 1️⃣ Determine correct year format for backend (LocalDate -> "YYYY-01-01")
       const currentYear = year

@@ -249,8 +249,11 @@ const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
       const newAddresses: AddressModel[] = updatedData.addresses || [];
 
       const oldMap = new Map<string, AddressModel>(
+        
         oldAddresses
-          .filter((a) => a.addressType !== undefined)
+          .filter((a) => {a.addressType !== undefined
+            
+          })
           .map((a) => [a.addressType as string, a]),
       );
 

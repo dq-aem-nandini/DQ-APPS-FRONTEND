@@ -79,12 +79,17 @@ export class HolidayService {
   // }
 
 
-  // lib/api/holidayService.ts
+// lib/api/holidayService.ts
 async getAllHolidays(
+  year?: number,
   employeeId?: string
 ): Promise<WebResponseDTOListHolidaysDTO> {
   try {
     const params = new URLSearchParams();
+
+    if (year) {
+      params.append("year", year.toString());
+    }
 
     // pass only if valid UUID (manager/admin case)
     if (employeeId && employeeId.includes("-")) {
@@ -102,16 +107,37 @@ async getAllHolidays(
 }
 
 
-  // Get all holidays for Leave calender view in Admin
-  async getAllHolidaysview(): Promise<WebResponseDTOListHolidaysDTO> {
-    try {
-      const response = await api.get("/simple/holiday/leave/calendar/get/all");
-      return response.data;
-    } 
-    catch (error: any) {
-      throw error;
-    }
+  // Get all holidays for Leave calendar view (Admin)
+// async getAllHolidaysView(
+//   year?: number
+// ): Promise<WebResponseDTOListHolidaysDTO> {
+//   try {
+//     const params = new URLSearchParams();
+
+//     if (year) {
+//       params.append("year", year.toString());
+//     }
+
+//     const response = await api.get(
+//       `/simple/holiday/leave/calendar/get/all?${params.toString()}`
+//     );
+
+//     return response.data;
+//   } catch (error: any) {
+//     throw error;
+//   }
+// }
+
+async getAllHolidaysview(): Promise<WebResponseDTOListHolidaysDTO> {
+  try {
+    const response = await api.get("/simple/holiday/leave/calendar/get/all");
+    return response.data;
+  } 
+  catch (error: any) {
+    throw error;
   }
+}
+
   // Delete holiday
   async deleteHoliday(
     holidayId: string
