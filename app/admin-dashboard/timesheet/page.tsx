@@ -67,6 +67,21 @@ export default function ManagerTimesheetReview() {
 
   // Safe fallback (never undefined)
   const weekStart = currentWeekStart ?? dayjs().startOf("isoWeek");
+  // const weekDays = Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day"));
+   const weekDays = useMemo(
+      () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
+      [weekStart]
+    );
+    
+    const weekYears = useMemo(() => {
+      const startYear = weekStart.year();
+      const endYear = weekStart.add(6, "day").year();
+    
+      return startYear === endYear
+        ? [startYear]
+        : [startYear, endYear];
+    }, [weekStart]);
+    
 
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [selectedWorkRequest, setSelectedWorkRequest] = useState<
@@ -135,25 +150,51 @@ export default function ManagerTimesheetReview() {
   // ------------------------------------------------------------------
 // Holidays of that selected employee
 // ------------------------------------------------------------------
-useEffect(() => {
-  const fetchHolidays = async () => {
-    if (!selectedEmployee?.id) {
-      setHolidays([]);
-      return;
-    }
+// useEffect(() => {
+//   const fetchHolidays = async () => {
+//     if (!selectedEmployee?.id) {
+//       setHolidays([]);
+//       return;
+//     }
 
-    try {
-      const res = await holidayService.getAllHolidays(
-        selectedEmployee.id
-      );
-      setHolidays(res.response || []);
-    } catch (err) {
-      console.error("Error fetching holidays:", err);
-    }
-  };
+//     try {
+//       const res = await holidayService.getAllHolidays(
+//         selectedEmployee.id
+//       );
+//       setHolidays(res.response || []);
+//     } catch (err) {
+//       console.error("Error fetching holidays:", err);
+//     }
+//   };
 
-  fetchHolidays();
-}, [selectedEmployee]);
+//   fetchHolidays();
+// }, [selectedEmployee]);
+ useEffect(() => {
+    const fetchHolidays = async () => {
+      if (!selectedEmployee?.id) {
+        setHolidays([]);
+        return;
+      }
+  
+      try {
+        const results = await Promise.all(
+          weekYears.map(year =>
+            holidayService.getAllHolidays(
+              year,
+              selectedEmployee.id,
+            )
+          )
+        );
+  
+        const merged = results.flatMap(r => r.response || []);
+        setHolidays(merged);
+      } catch (err) {
+        console.error("Error fetching holidays:", err);
+      }
+    };
+  
+    fetchHolidays();
+  }, [selectedEmployee, weekYears]);
 
 
   // ------------------------------------------------------------------
@@ -188,7 +229,7 @@ useEffect(() => {
   // ------------------------------------------------------------------
   const currentWeekEnd = useMemo(() => weekStart.endOf("isoWeek"), [weekStart]);
 
-  const weekDays = Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day"));
+
 
   // ------------------------------------------------------------------
   // Split Week Detection (month boundary)
@@ -263,22 +304,47 @@ useEffect(() => {
   // ------------------------------------------------------------------
   // Leaves
   // ------------------------------------------------------------------
-  useEffect(() => {
-    const fetchLeaves = async () => {
-      if (!selectedEmployee?.id) return;
-      try {
-        const currentYear = weekStart.year().toString();
-        const data = await leaveService.getApprovedLeaves(
-          selectedEmployee.id,
-          currentYear,
-        );
-        setLeaves(data);
-      } catch (err) {
-        console.error("Error fetching approved leaves:", err);
-      }
-    };
-    fetchLeaves();
-  }, [selectedEmployee, weekStart]);
+  // useEffect(() => {
+  //   const fetchLeaves = async () => {
+  //     if (!selectedEmployee?.id) return;
+  //     try {
+  //       const currentYear = weekStart.year().toString();
+  //       const data = await leaveService.getApprovedLeaves(
+  //         selectedEmployee.id,
+  //         currentYear,
+  //       );
+  //       setLeaves(data);
+  //     } catch (err) {
+  //       console.error("Error fetching approved leaves:", err);
+  //     }
+  //   };
+  //   fetchLeaves();
+  // }, [selectedEmployee, weekStart]);
+
+    useEffect(() => {
+      const fetchLeaves = async () => {
+        if (!selectedEmployee?.id) return;
+    
+        try {
+          const results = await Promise.all(
+            weekYears.map(year =>
+              leaveService.getApprovedLeaves(
+                year.toString(),
+                selectedEmployee.id
+              )
+            )
+          );
+    
+          // merge results
+          const merged = results.flat();
+          setLeaves(merged);
+        } catch (err) {
+          console.error("Error fetching approved leaves:", err);
+        }
+      };
+    
+      fetchLeaves();
+    }, [selectedEmployee, weekYears]);
 
   // ------------------------------------------------------------------
   // URL params (employee + week)

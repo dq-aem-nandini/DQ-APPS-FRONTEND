@@ -87,7 +87,13 @@ function getBackendError(error: any): string {
   const [deletingRowIndex, setDeletingRowIndex] = useState<number | null>(null);
 
   const currentYear = weekStart.format('YYYY');
+  const activeYear = useMemo(() => weekStart.year(), [weekStart]);
+
   const weekDates = useMemo(() => Array.from({ length: 7 }).map((_, i) => weekStart.add(i, 'day')), [weekStart]);
+  const weekYears = useMemo(() => {
+    return [...new Set(weekDates.map(d => d.year()))];
+  }, [weekDates]);
+  
 
   const isSplitWeek = useMemo(() => {
     const months = new Set(weekDates.map(d => d.format('YYYY-MM')));
@@ -191,53 +197,91 @@ function getBackendError(error: any): string {
     fetchDOJ();
   }, []);
 
-  const fetchHolidays = useCallback(async () => {
-    try {
-      const response = await holidayService.getAllHolidays();
-      if (!response.flag || !response.response) return;
+  // const fetchHolidays = useCallback(async (year: number) => {
+  //   try {
+  //     const response = await holidayService.getAllHolidays(year);
   
-      const map: Record<string, HolidaysDTO> = {};
-      
-      response.response.forEach((h: HolidaysDTO) => {
-        map[dayjs(h.holidayDate).format('YYYY-MM-DD')] = h;
+  //     if (!response.flag || !response.response) return;
+  
+  //     const map: Record<string, HolidaysDTO> = {};
+  //     response.response.forEach(h => {
+  //       map[dayjs(h.holidayDate).format('YYYY-MM-DD')] = h;
+  //     });
+  
+  //     setHolidayMap(map);
+  //   } catch (err: any) {
+  //     const status = err?.response?.status;
+  //     if (status === 400) {
+  //       setHolidayMap({});
+  //       return;
+  //     }
+  //     pushMessage('error', getBackendError(err));
+  //   }
+  // }, []);
+
+  const fetchHolidaysForWeek = useCallback(async () => {
+    try {
+      const results = await Promise.all(
+        weekYears.map(y => holidayService.getAllHolidays(y))
+      );
+  
+      const merged: Record<string, HolidaysDTO> = {};
+  
+      results.forEach(res => {
+        if (!res.flag || !res.response) return;
+  
+        res.response.forEach(h => {
+          merged[dayjs(h.holidayDate).format('YYYY-MM-DD')] = h;
+        });
       });
   
-      setHolidayMap(map);
-    } 
-    catch (err: any) {
-      const status = err?.response?.status;
-      const backendMessage = getBackendError(err);
-      console.log('Backend message for holidays fetch:', backendMessage , status);
-      
-      // DO NOTHING for empty holiday case
-      if (
-        status === 400
-      ) {
-        setHolidayMap({});
-        return;
-      }
-  
-      //  Real errors only
-      pushMessage('error', backendMessage);
+      setHolidayMap(merged);
+    } catch {
+      pushMessage('error', 'Failed to fetch holidays');
     }
-  }, []);
+  }, [weekYears]);
+  
   
 
-  const fetchLeaves = useCallback(async (year: string) => {
+  // const fetchLeaves = useCallback(async (year: string) => {
+  //   try {
+  //     const leaves: EmployeeLeaveDayDTO[] = await leaveService.getApprovedLeaves(year);
+  //     const map: Record<string, { leaveCategory: string; duration: number }> = {};
+  //     leaves.forEach(l => {
+  //       map[dayjs(l.date).format('YYYY-MM-DD')] = {
+  //         leaveCategory: l.leaveCategory,
+  //         duration: l.duration ?? 1,
+  //       };
+  //     });
+  //     setLeaveMap(map);
+  //   } catch (err) {
+  //     pushMessage('error', 'Failed to fetch leaves');
+  //   }
+  // }, []);
+
+  const fetchLeavesForWeek = useCallback(async () => {
     try {
-      const leaves: EmployeeLeaveDayDTO[] = await leaveService.getApprovedLeaves(year);
-      const map: Record<string, { leaveCategory: string; duration: number }> = {};
-      leaves.forEach(l => {
-        map[dayjs(l.date).format('YYYY-MM-DD')] = {
+      const results = await Promise.all(
+        weekYears.map(y =>
+          leaveService.getApprovedLeaves(y.toString())
+        )
+      );
+  
+      const merged: Record<string, { leaveCategory: string; duration: number }> = {};
+  
+      results.flat().forEach(l => {
+        merged[dayjs(l.date).format('YYYY-MM-DD')] = {
           leaveCategory: l.leaveCategory,
           duration: l.duration ?? 1,
         };
       });
-      setLeaveMap(map);
-    } catch (err) {
+  
+      setLeaveMap(merged);
+    } catch {
       pushMessage('error', 'Failed to fetch leaves');
     }
-  }, []);
+  }, [weekYears]);
+  
 
   const fetchData = useCallback(async () => {
     try {
@@ -321,14 +365,23 @@ function getBackendError(error: any): string {
     }
   }, [weekStart, weekDates]);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      await Promise.all([fetchData(), fetchHolidays(), fetchLeaves(currentYear)]);
-      setLoading(false);
-    };
-    load();
-  }, [fetchData, fetchHolidays, fetchLeaves, currentYear]);
+useEffect(() => {
+  const load = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchData(),
+      // fetchLeaves(activeYear.toString()),
+      // fetchHolidays(activeYear),
+      fetchLeavesForWeek(),
+      fetchHolidaysForWeek(),
+    ]);
+
+    setLoading(false);
+  };
+
+  load();
+}, [fetchData, fetchLeavesForWeek, fetchHolidaysForWeek]);
+
 
   // VALIDATIONS
   const runValidationForDates = (dates: string[]): { ok: boolean; messages: string[] } => {
