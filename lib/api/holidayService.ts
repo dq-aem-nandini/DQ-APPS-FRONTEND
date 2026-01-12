@@ -108,35 +108,35 @@ async getAllHolidays(
 
 
   // Get all holidays for Leave calendar view (Admin)
-// async getAllHolidaysView(
-//   year?: number
-// ): Promise<WebResponseDTOListHolidaysDTO> {
-//   try {
-//     const params = new URLSearchParams();
-
-//     if (year) {
-//       params.append("year", year.toString());
-//     }
-
-//     const response = await api.get(
-//       `/simple/holiday/leave/calendar/get/all?${params.toString()}`
-//     );
-
-//     return response.data;
-//   } catch (error: any) {
-//     throw error;
-//   }
-// }
-
-async getAllHolidaysview(): Promise<WebResponseDTOListHolidaysDTO> {
+async getAllHolidaysView(
+  year?: number
+): Promise<WebResponseDTOListHolidaysDTO> {
   try {
-    const response = await api.get("/simple/holiday/leave/calendar/get/all");
+    const params = new URLSearchParams();
+
+    if (year) {
+      params.append("year", year.toString());
+    }
+
+    const response = await api.get(
+      `/simple/holiday/leave/calendar/get/all?${params.toString()}`
+    );
+
     return response.data;
-  } 
-  catch (error: any) {
+  } catch (error: any) {
     throw error;
   }
 }
+
+// async getAllHolidaysview(): Promise<WebResponseDTOListHolidaysDTO> {
+//   try {
+//     const response = await api.get("/simple/holiday/leave/calendar/get/all");
+//     return response.data;
+//   } 
+//   catch (error: any) {
+//     throw error;
+//   }
+// }
 
   // Delete holiday
   async deleteHoliday(
