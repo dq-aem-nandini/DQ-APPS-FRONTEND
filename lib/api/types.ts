@@ -341,6 +341,7 @@ export interface EmployeeUpdateRequestDTO {
   requestId: string;              // UUID
   employeeId: string;             // UUID
   employeeName: string;
+  requestType: UpdateRequestType;
   updatedData: any;               // Holds changed fields (key-value pairs)
   status: UpdateRequestStatus;    // "PENDING" | "APPROVED" | "REJECTED"
   adminComment: string | null;

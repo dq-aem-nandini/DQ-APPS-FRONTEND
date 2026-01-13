@@ -28,7 +28,7 @@ function getBackendError(error: any): string {
     "Something went wrong"
   );
 }
-
+const stateCache: Record<string, string[]> = {};
 
 class AdminService {
   // ✅ Add client
@@ -462,6 +462,44 @@ class AdminService {
       );
       return response.data;
     } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
+  /**
+ * Simple in-memory cache
+ * Key = country (lowercase)
+ * Value = list of states
+ */
+
+
+  async getStatesByCountry(country: string): Promise<string[]> {
+    const normalizedCountry = country.trim().toLowerCase();
+
+    console.log(`🌍 [getStatesByCountry] Country: ${normalizedCountry}`);
+
+    // ✅ CACHE HIT
+    if (stateCache[normalizedCountry]) {
+      console.log("🧠 [getStatesByCountry] Returning cached states");
+      return stateCache[normalizedCountry];
+    }
+
+    try {
+      const response: AxiosResponse<string[]> = await api.get(
+        `/client/states`,
+        {
+          params: { country },
+        }
+      );
+
+      console.log("✅ [getStatesByCountry] API Response:", response.data);
+
+      // ✅ SAVE TO CACHE
+      stateCache[normalizedCountry] = response.data;
+
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ [getStatesByCountry] Error:", error);
       throw new Error(getBackendError(error));
     }
   }
