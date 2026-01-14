@@ -45,6 +45,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard/profile', label: 'Profile', icon: <UserIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/updaterequest', label: 'Update Request', icon: <User size={18} /> },
         { href: '/admin-dashboard/settings', label: 'Settings', icon: <CogIcon className="h-5 w-5" /> },
+        { href: '/admin-dashboard/manualInvoice', label: 'Manual Invoice', icon: <CogIcon className="h-5 w-5" /> },
       ],
     },
   ];

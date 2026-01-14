@@ -1638,3 +1638,31 @@ export interface HolidayUpdateRequestDTO {
   updateType: HolidayUpdateType;
   clientID: string;
 }
+
+export interface ClientMinDTO {
+  clientId: string;
+  companyName: string;
+}
+export interface EmployeeMinDTO {
+  employeeId: string;
+  employeeName: string;
+  companyId: string;
+  rateCard: number | null;
+}
+export interface ManualInvoiceItemRequestDTO {
+  employeeId: string;
+  hoursWorked: number;      // decimal allowed
+  ratePerHour: number;      // decimal allowed
+  description?: string;
+}
+export interface ManualInvoiceRequestDTO {
+  clientId: string;
+  year: number;
+  month: number;
+
+  invoiceNumber: string;
+  invoiceDate?: string; // yyyy-MM-dd
+  dueDate?: string;     // yyyy-MM-dd
+
+  items: ManualInvoiceItemRequestDTO[];
+}
