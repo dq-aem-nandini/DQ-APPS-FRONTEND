@@ -29,6 +29,7 @@ import {
 import { LeaveCalendarService } from '@/lib/api/leaveCalendarService';
 import { holidayService } from '@/lib/api/holidayService';
 import { HolidaysDTO } from '@/lib/api/types';
+import { toast } from 'sonner';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -44,33 +45,51 @@ export default function LeaveCalendarPage() {
   const [selectedDay, setSelectedDay] = useState<LeaveCalendarDTO | null>(null);
   const [exporting, setExporting] = useState(false);
   const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
-
-
-  // -------------------------------
-  // Fetch calendar data
-  // -------------------------------
-  useEffect(() => {
-    LeaveCalendarService
-      .getLeaveCalendar(month, year)
-      .then(setData)
-      .catch(console.error);
-  }, [month, year]);
+  const [loading, setLoading] = useState(true);
 
   // -------------------------------
   // Fetch all leave calender holidays
   // -------------------------------
 
-  useEffect(() => {
-    holidayService.getAllHolidaysview()
-      .then(res => {
-        if (res.flag && res.response) {
-          setHolidays(res.response);
-        }
-      })
-      .catch(console.error);
-  }, []);
+  // useEffect(() => {
+  //   holidayService.getAllHolidaysview()
+  //     .then(res => {
+  //       if (res.flag && res.response) {
+  //         setHolidays(res.response);
+  //       }
+  //     })
+  //     .catch(console.error);
+  // }, []);
+  const fetchHolidays = async (year: number) => {
+    try {
+      setLoading(true);
+      const res = await holidayService.getAllHolidaysView(year);
   
-
+      if (res.flag && Array.isArray(res.response)) {
+        setHolidays(
+          res.response.sort((a, b) =>
+            a.holidayDate.localeCompare(b.holidayDate)
+          )
+        );
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load holidays');
+    } finally {
+      setLoading(false);
+    }
+  };
+   // -------------------------------
+  // Fetch calendar data
+  // -------------------------------
+  
+  useEffect(() => {
+    LeaveCalendarService.getLeaveCalendar(month, year)
+      .then(setData)
+      .catch(console.error);
+  
+    fetchHolidays(year);
+  }, [month, year]);
+  
   // -------------------------------
   // Map data by date
   // -------------------------------
@@ -107,23 +126,23 @@ export default function LeaveCalendarPage() {
   // -------------------------------
   // Navigation
   // -------------------------------
-  const prevMonth = () => {
-    if (month === 1) {
-      setMonth(12);
-      setYear(y => y - 1);
-    } else {
-      setMonth(m => m - 1);
-    }
-  };
+  // const prevMonth = () => {
+  //   if (month === 1) {
+  //     setMonth(12);
+  //     setYear(y => y - 1);
+  //   } else {
+  //     setMonth(m => m - 1);
+  //   }
+  // };
 
-  const nextMonth = () => {
-    if (month === 12) {
-      setMonth(1);
-      setYear(y => y + 1);
-    } else {
-      setMonth(m => m + 1);
-    }
-  };
+  // const nextMonth = () => {
+  //   if (month === 12) {
+  //     setMonth(1);
+  //     setYear(y => y + 1);
+  //   } else {
+  //     setMonth(m => m + 1);
+  //   }
+  // };
 
   // -------------------------------
   // Export handler
@@ -177,7 +196,7 @@ export default function LeaveCalendarPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <ChevronLeft className="cursor-pointer" onClick={prevMonth} />
+          {/* <ChevronLeft className="cursor-pointer" onClick={prevMonth} /> */}
 
           <select
             value={month}
@@ -204,7 +223,7 @@ export default function LeaveCalendarPage() {
             })}
           </select>
 
-          <ChevronRight className="cursor-pointer" onClick={nextMonth} />
+          {/* <ChevronRight className="cursor-pointer" onClick={nextMonth} /> */}
 
           {/* ===== Export ===== */}
           <button

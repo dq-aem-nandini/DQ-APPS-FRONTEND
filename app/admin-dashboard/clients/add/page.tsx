@@ -1,3 +1,4 @@
+// app/admin-dashboard/clients/add/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -69,6 +70,12 @@ export default function AddClientPage() {
   const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/;
   const gstRegex = /^[0-9]{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]$/;
   const tanRegex = /^[A-Z]{4}\d{5}[A-Z]$/;
+  // ---- State cache for India ----
+const [indiaStates, setIndiaStates] = useState<string[]>([]);
+const [statesLoading, setStatesLoading] = useState(false);
+const isIndia = (country?: string) =>
+  country?.trim().toLowerCase() === 'india';
+
 
   // Real-time validation while typing
   const validateField = (name: string, value: string | number, index?: number) => {
@@ -125,7 +132,21 @@ export default function AddClientPage() {
 
     setErrors(prev => ({ ...prev, [name]: error }));
   };
-
+   
+  const fetchIndiaStates = async () => {
+    if (indiaStates.length > 0) return; // ✅ cache hit
+  
+    try {
+      setStatesLoading(true);
+      const response = await adminService.getStatesByCountry('india');
+      setIndiaStates(response || []);
+    } catch (err) {
+      console.error('Failed to fetch states', err);
+    } finally {
+      setStatesLoading(false);
+    }
+  };
+  
   const checkUniqueness = async (
     field: UniqueField,
     value: string,
@@ -257,7 +278,7 @@ export default function AddClientPage() {
           city: '',
           state: '',
           pincode: '',
-          country: 'India',
+          country: '',
           addressType: 'OFFICE',
         }],
       }));
@@ -755,7 +776,7 @@ export default function AddClientPage() {
                     </div>
 
                     {/* State */}
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">State {i === 0}<span className="text-red-500">*</span>
                         {i === 0 && <TooltipHint hint="State name as per official records" />}</label>
                       <input
@@ -771,7 +792,7 @@ export default function AddClientPage() {
                       {errors[`addresses.${i}.state`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.state`]}</p>
                       )}
-                    </div>
+                    </div> */}
 
                     {/* Pincode */}
                     <div>
@@ -797,21 +818,81 @@ export default function AddClientPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Country {i === 0}<span className="text-red-500">*</span>
                         {i === 0 && <TooltipHint hint="Country name as per official records" />}</label>
-                      <input
-                        type="text"
-                        name={`addresses.${i}.country`}
-                        value={addr.country || ''}
-                        onChange={(e) => handleChange(e, i, 'addresses')}
-                        onBlur={(e) => validateField(`addresses.${i}.country`, e.target.value, i)}
-                        required={i === 0}
-                        placeholder="e.g. India"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                      />
+                        <input
+                          type="text"
+                          name={`addresses.${i}.country`}
+                          value={addr.country || ''}
+                          onChange={(e) => {
+                            handleChange(e, i, 'addresses');
+
+                            if (isIndia(e.target.value)) {
+                              fetchIndiaStates(); // ✅ call once
+                            } else {
+                              // Clear state if switching away from India
+                              setFormData(prev => ({
+                                ...prev,
+                                addresses: prev.addresses.map((a, idx) =>
+                                  idx === i ? { ...a, state: '' } : a
+                                ),
+                              }));
+                            }
+                          }}
+                          onBlur={(e) => validateField(`addresses.${i}.country`, e.target.value, i)}
+                          required={i === 0}
+                          placeholder="e.g. India"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+
                       {errors[`addresses.${i}.country`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.country`]}</p>
                       )}
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        State {i === 0 && <span className="text-red-500">*</span>}
+                        {i === 0 && <TooltipHint hint="State name as per official records" />}
+                      </label>
+
+                      {/* INDIA → DROPDOWN */}
+                      {isIndia(addr.country) ? (
+                        <select
+                          name={`addresses.${i}.state`}
+                          value={addr.state || ''}
+                          onChange={(e) => handleChange(e, i, 'addresses')}
+                          onBlur={(e) => validateField(`addresses.${i}.state`, e.target.value, i)}
+                          required={i === 0}
+                          disabled={statesLoading}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">Select State</option>
+                          {indiaStates.map(state => (
+                            <option key={state} value={state}>
+                              {state}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        /* OTHER COUNTRY → TEXT INPUT */
+                        <input
+                          type="text"
+                          name={`addresses.${i}.state`}
+                          value={addr.state || ''}
+                          onChange={(e) => handleChange(e, i, 'addresses')}
+                          onBlur={(e) => validateField(`addresses.${i}.state`, e.target.value, i)}
+                          required={i === 0}
+                          placeholder="Enter state"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      )}
+
+                      {errors[`addresses.${i}.state`] && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors[`addresses.${i}.state`]}
+                        </p>
+                      )}
+                    </div>
+  
                     {/* Address Type */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Address Type</label>

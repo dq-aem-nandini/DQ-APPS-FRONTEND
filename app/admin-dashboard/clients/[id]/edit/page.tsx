@@ -67,6 +67,7 @@ export default function EditClientPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checking, setChecking] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
 
   // Regex
   const phoneRegex = /^[6-9]\d{9}$/;
@@ -126,6 +127,23 @@ export default function EditClientPage() {
             : []
           ,
         });
+
+        if (dto.addresses && dto.addresses.length > 0) {
+          dto.addresses.forEach(async (addr: any, index: number) => {
+            if (addr.country?.toLowerCase() === 'india') {
+              try {
+                const states = await adminService.getStatesByCountry('India');
+                setStatesMap(prev => ({
+                  ...prev,
+                  [index]: states || [],
+                }));
+              } catch (e) {
+                console.error('Failed to load states', e);
+              }
+            }
+          });
+        }
+        
       } catch (err) {
         setErrors({ root: 'Failed to load client' });
       } finally {
@@ -267,6 +285,42 @@ export default function EditClientPage() {
     if (name.includes('email')) parsedValue = value.toLowerCase().trim();
     if (name === 'gst' || name === 'panNumber' || name === 'tanNumber') parsedValue = value.toUpperCase().trim();
     if (name.includes('pincode') || name.includes('contactNumber')) parsedValue = value.replace(/\D/g, '');
+    // 🇮🇳 Country → State logic
+if (
+  section === 'addresses' &&
+  index !== undefined &&
+  name.endsWith('.country')
+) {
+  const country = value.trim();
+
+  // Update country immediately
+  setFormData(prev => ({
+    ...prev,
+    addresses: prev.addresses.map((a, i) =>
+      i === index ? { ...a, country, state: '' } : a
+    ),
+  }));
+
+  // If India → fetch states
+  if (country.toLowerCase() === 'india') {
+    adminService.getStatesByCountry('India').then(states => {
+      setStatesMap(prev => ({
+        ...prev,
+        [index]: states || [],
+      }));
+    });
+  } else {
+    // Non-India → remove dropdown
+    setStatesMap(prev => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+  }
+
+  return; // ⛔ STOP default handler
+}
+
 
     if (section && index !== undefined) {
       setFormData(prev => ({
@@ -278,7 +332,6 @@ export default function EditClientPage() {
     } else {
       setFormData(prev => ({ ...prev, [name]: parsedValue }));
     }
-
     validateField(name, parsedValue, index);
   };
 
@@ -657,7 +710,7 @@ export default function EditClientPage() {
                     </div>
 
                     {/* State */}
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">State {i === 0}<span className="text-red-500">*</span></label>
                       <input
                         type="text"
@@ -672,7 +725,7 @@ export default function EditClientPage() {
                       {errors[`addresses.${i}.state`] && (
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.state`]}</p>
                       )}
-                    </div>
+                    </div> */}
 
                     {/* Pincode */}
                     <div>
@@ -710,6 +763,54 @@ export default function EditClientPage() {
                         <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.country`]}</p>
                       )}
                     </div>
+
+                    <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    State {i === 0 && <span className="text-red-500">*</span>}
+  </label>
+
+  {statesMap[i]?.length ? (
+    <Select
+      value={addr.state}
+      onValueChange={(val) =>
+        setFormData(prev => ({
+          ...prev,
+          addresses: prev.addresses.map((a, idx) =>
+            idx === i ? { ...a, state: val } : a
+          ),
+        }))
+      }
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Select State" />
+      </SelectTrigger>
+      <SelectContent>
+        {statesMap[i].map(state => (
+          <SelectItem key={state} value={state}>
+            {state}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ) : (
+    <input
+      type="text"
+      name={`addresses.${i}.state`}
+      value={addr.state || ''}
+      onChange={(e) => handleChange(e, i, 'addresses')}
+      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+      placeholder="Enter State"
+      required={i === 0}
+    />
+  )}
+
+  {errors[`addresses.${i}.state`] && (
+    <p className="text-red-500 text-xs mt-1">
+      {errors[`addresses.${i}.state`]}
+    </p>
+  )}
+</div>
+
 
                     {/* Address Type */}
                     <div>

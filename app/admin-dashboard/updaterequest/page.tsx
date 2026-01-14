@@ -227,6 +227,15 @@ const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
       try { updatedData = JSON.parse(updatedData); } catch { updatedData = {}; }
     }
 
+     // New documents
+     const newDocuments = Array.isArray(updatedData.documents) && updatedData.documents.length > 0
+     ? updatedData.documents.filter((d: any) => d.fileUrl || d.documentId)
+     : [];
+
+    // Profile photo - check both possible keys
+    const photoUrl = updatedData.employeePhotoUrl || updatedData.employeePhotoUrlString;
+    const oldPhotoUrl = oldProfile?.employeePhotoUrl || '';
+    const hasNewPhoto = !!photoUrl && photoUrl !== oldPhotoUrl;
     // Scalar field changes (exclude complex objects)
     const scalarChanges = Object.entries(updatedData)
       .filter(([key]) => !['documents', 'addresses', 'employeePhotoUrl', 'employeePhotoUrlString'].includes(key))
@@ -236,7 +245,8 @@ const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
         return String(oldValue ?? '') !== String(newValue);
       });
 
-    
+      // const isAddressDelete = req.requestType === 'ADDRESS_DELETE';
+
     // Address changes - ADDED / UPDATED / REMOVED
       const addressChanges: {
         field: string;
@@ -246,13 +256,62 @@ const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
       }[] = [];
 
       const oldAddresses: AddressModel[] = oldProfile?.addresses || [];
-      const newAddresses: AddressModel[] = updatedData.addresses || [];
+
+// const isAddressDelete =
+//   updatedData &&
+//   typeof updatedData === 'object' &&
+//   'addressId' in updatedData &&
+//   !Array.isArray(updatedData.addresses);
+      const isAddressDelete = req.requestType === 'ADDRESS_DELETE';
+
+
+      if (isAddressDelete) {
+        const deletedAddressId = updatedData.addressId;
+
+        const deletedAddress = oldAddresses.find(
+          (a) => a.addressId === deletedAddressId
+        );
+
+        if (deletedAddress) {
+          addressChanges.push({
+            field: 'Address',
+            old: 'Removed',
+            new: '—',
+            type: deletedAddress.addressType ?? 'UNKNOWN',
+          });
+        }
+
+        return {
+          scalarChanges,
+          addressChanges,
+          newDocuments,
+          hasNewPhoto,
+          photoUrl,
+          oldPhotoUrl,
+        };
+      }
+
+      let newAddresses: AddressModel[] = [];
+
+      if (Array.isArray(updatedData.addresses)) {
+        newAddresses = updatedData.addresses;
+      }
+
+      const deletedAddressTypes = new Set<string>();
+
+      if (Array.isArray(updatedData.addresses)) {
+        updatedData.addresses.forEach((addr: any) => {
+          if (addr.isDeleted === true && addr.addressType) {
+            deletedAddressTypes.add(addr.addressType);
+          }
+        });
+      }
 
       const oldMap = new Map<string, AddressModel>(
-        
         oldAddresses
-          .filter((a) => {a.addressType !== undefined
-            
+          .filter((a) => {
+            console.log(a.addressId);
+            return a.addressType !== undefined 
           })
           .map((a) => [a.addressType as string, a]),
       );
@@ -295,47 +354,51 @@ const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
         return;
       }
 
-
   // ✏️ UPDATED (field-level diff)
   addrFields.forEach((field) => {
     const oldVal = oldAddr[field] ?? '—';
     const newVal = newAddr[field] ?? '—';
 
-    if (String(oldVal) !== String(newVal)) {
-      addressChanges.push({
-        field: formatKey(field),
-        old: String(oldVal),
-        new: String(newVal),
-        type,
-      });
-    }
+      if (String(oldVal) !== String(newVal)) {
+        addressChanges.push({
+          field: formatKey(field),
+          old: String(oldVal),
+          new: String(newVal),
+          type,
+        });
+      }
+    });
   });
-});
 
 // --------------------
 // ❌ REMOVED
 // --------------------
-oldMap.forEach((oldAddr, type) => {
-  if (!newMap.has(type)) {
-    addressChanges.push({
-      field: 'Address',
-      old: 'Removed',
-      new: '—',
-      type,
-    });
-  }
-});
+// oldMap.forEach((oldAddr, type) => {
+//   if (!newMap.has(type)) {
+//     addressChanges.push({
+//       field: 'Address',
+//       old: 'Removed',
+//       new: '—',
+//       type,
+//     });
+//   }
+// });
 
-    // New documents
-    const newDocuments = Array.isArray(updatedData.documents) && updatedData.documents.length > 0
-      ? updatedData.documents.filter((d: any) => d.fileUrl || d.documentId)
-      : [];
+if (!isAddressDelete) {
+  oldMap.forEach((oldAddr, id) => {
+    if (!newMap.has(id)) {
+      addressChanges.push({
+        field: 'Address',
+        old: 'Removed',
+        new: '—',
+        type: oldAddr.addressType ?? 'UNKNOWN',
+      });
+    }
+  });
+}
 
-    // Profile photo - check both possible keys
-    const photoUrl = updatedData.employeePhotoUrl || updatedData.employeePhotoUrlString;
-    const oldPhotoUrl = oldProfile?.employeePhotoUrl || '';
-    const hasNewPhoto = !!photoUrl && photoUrl !== oldPhotoUrl;
 
+   
     return { scalarChanges, addressChanges, newDocuments, hasNewPhoto, photoUrl, oldPhotoUrl };
   };
 

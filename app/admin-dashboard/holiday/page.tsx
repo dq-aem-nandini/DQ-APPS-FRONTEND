@@ -35,12 +35,34 @@ export default function HolidayListPage() {
   });
 
   // Fetch holidays
-  const fetchHolidays = async () => {
+  // const fetchHolidays = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const res = await holidayService.getAllHolidaysview();
+  //     if (res.flag && Array.isArray(res.response)) {
+  //       setHolidays(res.response.sort((a, b) => a.holidayDate.localeCompare(b.holidayDate)));
+  //     }
+  //   } catch (err: any) {
+  //     toast.error(err.message || 'Failed to load holidays');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchHolidays();
+  // }, []);
+  const fetchHolidays = async (year: number) => {
     try {
       setLoading(true);
-      const res = await holidayService.getAllHolidaysview();
+      const res = await holidayService.getAllHolidaysView(year);
+  
       if (res.flag && Array.isArray(res.response)) {
-        setHolidays(res.response.sort((a, b) => a.holidayDate.localeCompare(b.holidayDate)));
+        setHolidays(
+          res.response.sort((a, b) =>
+            a.holidayDate.localeCompare(b.holidayDate)
+          )
+        );
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to load holidays');
@@ -48,24 +70,30 @@ export default function HolidayListPage() {
       setLoading(false);
     }
   };
-
+  
   useEffect(() => {
-    fetchHolidays();
-  }, []);
+    fetchHolidays(selectedYear);
+  }, [selectedYear]);
+  
 
   // Dynamic years from holidays (unique sorted descending)
+  // const availableYears = useMemo(() => {
+  //   const years = new Set(holidays.map(h => getYear(parseISO(h.holidayDate))));
+  //   const yearList = Array.from(years).sort((a, b) => b - a);
+  //   return yearList.length > 0 ? yearList : [new Date().getFullYear()];
+  // }, [holidays]);
   const availableYears = useMemo(() => {
-    const years = new Set(holidays.map(h => getYear(parseISO(h.holidayDate))));
-    const yearList = Array.from(years).sort((a, b) => b - a);
-    return yearList.length > 0 ? yearList : [new Date().getFullYear()];
-  }, [holidays]);
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 6 }, (_, index) => currentYear - index);
+  }, []);
+  
 
   // Filtered holidays based on year, month, and search
   const filteredHolidays = useMemo(() => {
     let result = holidays;
 
     // Year filter
-    result = result.filter(h => getYear(parseISO(h.holidayDate)) === selectedYear);
+    // result = result.filter(h => getYear(parseISO(h.holidayDate)) === selectedYear);
 
     // Month filter
     if (selectedMonth !== 'all') {
@@ -82,7 +110,7 @@ export default function HolidayListPage() {
     }
 
     return result;
-  }, [holidays, selectedYear, selectedMonth, searchTerm]);
+  }, [holidays, selectedMonth, searchTerm]);
 
   // Open dialog for add/edit
   const openDialog = async (holiday?: HolidaysDTO) => {
@@ -130,7 +158,7 @@ export default function HolidayListPage() {
         toast.success('Holiday added successfully');
       }
       setIsDialogOpen(false);
-      fetchHolidays();
+      fetchHolidays(selectedYear);
     } catch (err: any) {
       toast.error(err.message || 'Failed to save holiday');
     } finally {
@@ -145,7 +173,7 @@ export default function HolidayListPage() {
     try {
       await holidayService.deleteHoliday(holidayId);
       toast.success('Holiday deleted successfully');
-      fetchHolidays();
+      fetchHolidays(selectedYear);
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete holiday');
     }
