@@ -1,7 +1,7 @@
 // /app/admin-dashboard/organization/[id]/edit/page.tsx
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ import {
 import BackButton from '@/components/ui/BackButton';
 import Swal from 'sweetalert2';
 import TooltipHint from '@/components/ui/TooltipHint';
+import { useMemo as reactUseMemo } from 'react';
 
 const ADDRESS_TYPES: AddressType[] = ['PERMANENT', 'CURRENT', 'OFFICE'];
 const TIMEZONES = ['Asia/Kolkata', 'America/New_York', 'Europe/London', 'Australia/Sydney', 'Asia/Singapore'];
@@ -76,7 +77,7 @@ export default function EditOrganizationPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checking, setChecking] = useState<Set<string>>(new Set());
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
+  const [originalData, setOriginalData] = useState<OrganizationRequestDTO | null>(null);
   // simple patterns
   const patterns = {
     email: /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i,
@@ -105,7 +106,7 @@ export default function EditOrganizationPage() {
         setSignaturePreview(res.digitalSignatureUrl || "");
 
         // Map response to request DTO shape, keep addresses and fields; file inputs remain null
-        setFormData({
+        const loadedData: OrganizationRequestDTO = {
           organizationName: res.organizationName ?? '',
           organizationLegalName: res.organizationLegalName ?? '',
           registrationNumber: res.registrationNumber ?? '',
@@ -137,7 +138,9 @@ export default function EditOrganizationPage() {
             pincode: a.pincode ?? '',
             addressType: (a.addressType ?? 'OFFICE') as AddressType,
           })),
-        });
+        };
+        setFormData(loadedData);
+       setOriginalData(loadedData);
       } catch (err: any) {
         setError(err?.message || 'Failed to load organization');
       } finally {
@@ -148,6 +151,12 @@ export default function EditOrganizationPage() {
     load();
   }, [id]);
 
+  const hasChanges = useMemo(() => {
+      if (!originalData) return false;
+       
+       // Simple deep comparison (good enough for most cases)
+       return JSON.stringify(formData) !== JSON.stringify(originalData);
+     }, [formData, originalData]);
 
   const handleDeleteAddress = async (idx: number, addressId: string | null) => {
     // If address is not yet saved in backend (newly added)
@@ -478,7 +487,9 @@ export default function EditOrganizationPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
-
+    if (!hasChanges) {
+           return;
+        }
     // final basic required checks
     const required = [
       { key: 'organizationName', label: 'Organization Name' },
@@ -1252,9 +1263,13 @@ export default function EditOrganizationPage() {
                 <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : 'Update Organization'}
-                </Button>
+                <Button 
+         type="submit" 
+         disabled={saving || !hasChanges}
+         title={!hasChanges ? "No changes made" : ""}
+       >
+          {saving ? 'Saving...' : 'Update Organization'}
+        </Button>
               </div>
             </form>
           </CardContent>

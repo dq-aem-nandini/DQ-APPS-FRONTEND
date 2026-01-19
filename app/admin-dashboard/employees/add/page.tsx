@@ -69,6 +69,10 @@ const AddEmployeePage = () => {
     designation: '' as Designation,
     dateOfBirth: '',
     dateOfJoining: '',
+    dateOfOnboardingToClient: '',
+    dateOfOffboardingToClient: '',
+    clientBillingStartDate: '',
+    clientBillingStopDate: '',  
     rateCard: null,
     employmentType: 'FULLTIME' as EmploymentType,
     panNumber: '',
@@ -954,6 +958,74 @@ const AddEmployeePage = () => {
                       name="dateOfJoining"
                       value={formData.dateOfJoining}
                       required
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      max={maxJoiningDateStr}
+                    />
+                  </div>
+                  {/* Date of onboarding*/}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Date Of Onboarding To Client 
+                      {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                    </Label>
+                    <Input
+                      type="date"
+                      name="dateOfOnboardingToClient"
+                      value={formData.dateOfOnboardingToClient}
+                      
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      max={maxJoiningDateStr}
+                    />
+                  </div>
+                  {/* Date of Offboarding To Client*/}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                    Date Of Offboarding To Client 
+                    {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                    </Label>
+                    <Input
+                      type="date"
+                      name="dateOfOffboardingToClient"
+                      value={formData.dateOfOffboardingToClient}
+                      
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      max={maxJoiningDateStr}
+                    />
+                  </div>
+                  {/* Client Billing Start Date */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                    Client Billing Start Date 
+                    {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                    </Label>
+                    <Input
+                      type="date"
+                      name="clientBillingStartDate"
+                      value={formData.clientBillingStartDate}
+                      
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      max={maxJoiningDateStr}
+                    />
+                  </div>
+                  {/* client Billing Stop Date */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                    Client Billing End Date 
+                    {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                    </Label>
+                    <Input
+                      type="date"
+                      name="clientBillingStopDate"
+                      value={formData.clientBillingStopDate}
+                      
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}

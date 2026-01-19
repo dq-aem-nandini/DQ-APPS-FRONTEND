@@ -74,26 +74,53 @@ export default function EmployeeHolidayDashboard() {
       fetchEmployeeId();
     }, []);
 
+  // useEffect(() => {
+  //   const fetchHolidays = async () => {
+  //     try {
+  //       setLoading(true);
+  //       const res = await holidayService.getAllHolidays();
+  //       if (res.flag && Array.isArray(res.response)) {
+  //         setHolidays(
+  //           res.response.sort((a, b) =>
+  //             a.holidayDate.localeCompare(b.holidayDate),
+  //           ),
+  //         );
+  //       }
+  //     } catch (err) {
+  //       console.error("Failed to load holidays");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+  //   fetchHolidays();
+  // }, []);
+
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
         setLoading(true);
-        const res = await holidayService.getAllHolidays();
+  
+        const year = currentMonth.getFullYear(); // 👈 IMPORTANT
+  
+        const res = await holidayService.getAllHolidays(year);
+  
         if (res.flag && Array.isArray(res.response)) {
           setHolidays(
             res.response.sort((a, b) =>
-              a.holidayDate.localeCompare(b.holidayDate),
-            ),
+              a.holidayDate.localeCompare(b.holidayDate)
+            )
           );
         }
       } catch (err) {
-        console.error("Failed to load holidays");
+        console.error("Failed to load holidays", err);
       } finally {
         setLoading(false);
       }
     };
+  
     fetchHolidays();
-  }, []);
+  }, [currentMonth.getFullYear()]);
+  
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);

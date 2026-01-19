@@ -59,10 +59,10 @@ class AdminService {
       // -------------------------------------------------------
       const cleanEmployee: any = { ...employee };
 
-      // ❌ Remove file fields (backend does NOT accept MultipartFile in JSON)
+      //  Remove file fields (backend does NOT accept MultipartFile in JSON)
       delete cleanEmployee.employeePhotoUrl;
 
-      // ❌ Remove frontend-only label fields from Employment DTO
+      //  Remove frontend-only label fields from Employment DTO
       if (cleanEmployee.employeeEmploymentDetailsDTO) {
         const dto = cleanEmployee.employeeEmploymentDetailsDTO;
         delete dto.noticePeriodDurationLabel;
