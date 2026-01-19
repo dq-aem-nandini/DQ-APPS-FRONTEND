@@ -68,7 +68,7 @@ export default function EditClientPage() {
   const [checking, setChecking] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
-
+  const [originalData, setOriginalData] = useState<FormDataType | null>(null);
   // Regex
   const phoneRegex = /^[6-9]\d{9}$/;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -85,7 +85,7 @@ export default function EditClientPage() {
         const res = await adminService.getClientById(id);
         const dto = res.response;
 
-        setFormData({
+        const loadedData: FormDataType = {
           clientId: dto.clientId!,
           companyName: dto.companyName || '',
           contactNumber: dto.contactNumber || '',
@@ -126,7 +126,10 @@ export default function EditClientPage() {
             }))
             : []
           ,
-        });
+        };
+
+        setFormData(loadedData);
++       setOriginalData(loadedData);
 
         if (dto.addresses && dto.addresses.length > 0) {
           dto.addresses.forEach(async (addr: any, index: number) => {
@@ -152,6 +155,13 @@ export default function EditClientPage() {
     };
     fetchClient();
   }, [id]);
+
+  // ──────────────────────────────────────────────────────────────
+  //           Add this new memoized value
+  // ──────────────────────────────────────────────────────────────
+   const hasChanges = originalData
+   ? JSON.stringify(formData) !== JSON.stringify(originalData)
+   : false;
 
   // Manual validation
   const validateField = (name: string, value: string | number, index?: number) => {
@@ -376,6 +386,7 @@ if (
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasChanges) return;
     setErrors({}); // Clear previous errors
     const requiredFields = [
       { value: formData.companyName, name: 'companyName', label: 'Company Name' },
@@ -1042,7 +1053,13 @@ if (
               <Button type="button" variant="outline" onClick={() => router.push('/admin-dashboard/clients/list')}>
                 Cancel
               </Button>
-              <Button type="submit">Update Client</Button>
+              <Button 
+                type="submit" 
+                disabled={!hasChanges}
+                title={!hasChanges ? "No changes made" : ""}
+              >
+                Update Client
+              </Button>
             </div>
           </form>
         </div>

@@ -73,7 +73,6 @@ export const FileInput: React.FC<FileInputProps> = ({
 }) => {
   return (
     <div className="space-y-2">
-
       {/* View existing document */}
       {existingUrl && !currentFile && (
         <div>
@@ -148,8 +147,8 @@ const EditEmployeePage = () => {
     EmployeeDepartmentDTO[]
   >([]);
   const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
-    undefined,
-  );
+    undefined,);
+  const [isDirty, setIsDirty] = useState(false);  
   const [checking, setChecking] = useState<Set<string>>(new Set());
   const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
   const designations: Designation[] = [
@@ -181,9 +180,18 @@ const EditEmployeePage = () => {
   ];
 
   const documentTypes: DocumentType[] = [
-    'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
-    'AADHAAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
-    'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
+    "OFFER_LETTER",
+    "CONTRACT",
+    "TAX_DECLARATION_FORM",
+    "WORK_PERMIT",
+    "PAN_CARD",
+    "AADHAAR_CARD",
+    "BANK_PASSBOOK",
+    "TENTH_CERTIFICATE",
+    "TWELFTH_CERTIFICATE",
+    "DEGREE_CERTIFICATE",
+    "POST_GRADUATION_CERTIFICATE",
+    "OTHER",
   ];
 
   const employmentTypes: EmploymentType[] = [
@@ -291,7 +299,7 @@ const EditEmployeePage = () => {
             docType: d.docType,
             file: null, // 👈 for replacement upload
             fileUrl: typeof d.file === "string" ? d.file : undefined, // 👈 existing S3 URL (string only)
-          })),          
+          })),
           employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
 
           employeeSalaryDTO: emp.employeeSalaryDTO
@@ -408,7 +416,7 @@ const EditEmployeePage = () => {
     const { name, value, type } = e.target;
     const isCheckbox = type === "checkbox";
     const checked = (e.target as HTMLInputElement).checked;
-
+    setIsDirty(true);
     setFormData((prev) => {
       if (!prev) return prev;
 
@@ -481,19 +489,22 @@ const EditEmployeePage = () => {
     });
   };
 
-const handleDocumentFileChange = (index: number, field: string, value: string | File | null) => {
-  setFormData(prev =>
-    prev
-      ? {
-          ...prev,
-          documents: prev.documents.map((doc, i) =>
-            i === index ? { ...doc, [field]: value } : doc
-          ),
-        }
-      : prev
-  );
-};
-
+  const handleDocumentFileChange = (
+    index: number,
+    field: string,
+    value: string | File | null,
+  ) => {
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            documents: prev.documents.map((doc, i) =>
+              i === index ? { ...doc, [field]: value } : doc,
+            ),
+          }
+        : prev,
+    );
+  };
 
   const confirmAndRemoveDocument = async (index: number) => {
     const result = await Swal.fire({
@@ -1585,6 +1596,94 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                     )}
                   </div>
 
+                  {/* Date of onboarding*/}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Date Of Onboarding To Client
+                      {/* <span className="text-red-500">*</span> */}
+                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
+                    </Label>
+                    <Input
+                      type="date"
+                      name="dateOfOnboardingToClient"
+                      value={formData.dateOfOnboardingToClient}
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      // max={maxJoiningDateStr}
+                    />
+                    {getError("dateOfJoining") && (
+                      <p className="text-xs text-red-600">
+                        {getError("dateOfJoining")}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Date of Offboarding To Client*/}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Date Of Offboarding To Client
+                      {/* <span className="text-red-500">*</span> */}
+                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
+                    </Label>
+                    <Input
+                      type="date"
+                      name="dateOfOffboardingToClient"
+                      value={formData.dateOfOffboardingToClient}
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      //  max={maxJoiningDateStr}
+                    />
+                    {getError("dateOfJoining") && (
+                      <p className="text-xs text-red-600">
+                        {getError("dateOfJoining")}
+                      </p>
+                    )}
+                  </div>
+                  {/* Client Billing Start Date */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Client Billing Start Date
+                      {/* <span className="text-red-500">*</span> */}
+                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
+                    </Label>
+                    <Input
+                      type="date"
+                      name="clientBillingStartDate"
+                      value={formData.clientBillingStartDate}
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      //  max={maxJoiningDateStr}
+                    />
+
+                    {getError("dateOfJoining") && (
+                      <p className="text-xs text-red-600">
+                        {getError("dateOfJoining")}
+                      </p>
+                    )}
+                  </div>
+                  {/* client Billing Stop Date */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Client Billing End Date
+                      {/* <span className="text-red-500">*</span> */}
+                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
+                    </Label>
+                    <Input
+                      type="date"
+                      name="clientBillingStopDate"
+                      value={formData.clientBillingStopDate}
+                      onChange={handleChange}
+                      className="h-12 text-base w-full"
+                      //  max={maxJoiningDateStr}
+                    />
+
+                    {getError("dateOfJoining") && (
+                      <p className="text-xs text-red-600">
+                        {getError("dateOfJoining")}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Employment Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -2361,7 +2460,13 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
 
                           <Select
                             value={doc.docType}
-                            onValueChange={(v) => handleDocumentFileChange(i, "docType", v as DocumentType)}
+                            onValueChange={(v) =>
+                              handleDocumentFileChange(
+                                i,
+                                "docType",
+                                v as DocumentType,
+                              )
+                            }
                           >
                             <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                               <SelectValue placeholder="Select Type" />
@@ -2383,36 +2488,35 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
                             Upload Document
                           </Label>
 
-                        <FileInput
-                          id={`doc-upload-${i}`}
-                          onChange={(file) => {
-                            setFormData(prev =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    documents: prev.documents.map((d, idx) =>
-                                      idx === i ? { ...d, file } : d
-                                    ),
-                                  }
-                                : prev
-                            );
-                          }}
-                          currentFile={doc.file ?? null}
-                          existingUrl={doc.fileUrl ?? undefined}
-                          onClear={() => {
-                            setFormData(prev =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    documents: prev.documents.map((d, idx) =>
-                                      idx === i ? { ...d, file: null } : d
-                                    ),
-                                  }
-                                : prev
-                            );
-                          }}
-                        />
-
+                          <FileInput
+                            id={`doc-upload-${i}`}
+                            onChange={(file) => {
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      documents: prev.documents.map((d, idx) =>
+                                        idx === i ? { ...d, file } : d,
+                                      ),
+                                    }
+                                  : prev,
+                              );
+                            }}
+                            currentFile={doc.file ?? null}
+                            existingUrl={doc.fileUrl ?? undefined}
+                            onClear={() => {
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      documents: prev.documents.map((d, idx) =>
+                                        idx === i ? { ...d, file: null } : d,
+                                      ),
+                                    }
+                                  : prev,
+                              );
+                            }}
+                          />
                         </div>
 
                         {/* Remove Button */}
@@ -3152,7 +3256,8 @@ const handleDocumentFileChange = (index: number, field: string, value: string | 
               </Link>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !isDirty}
+                // disabled={submitting}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2"
               >
                 {submitting && (

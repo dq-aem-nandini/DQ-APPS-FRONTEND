@@ -697,6 +697,10 @@ export interface EmployeeModel {
   designation: Designation;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
+  dateOfOnboardingToClient: string;
+  dateOfOffboardingToClient: string;
+  clientBillingStartDate: string;
+  clientBillingStopDate: string;
   rateCard: number | null;
   employmentType: EmploymentType;
   panNumber: string;
@@ -848,7 +852,11 @@ export interface EmployeeDTO {
   remarks: string;
   skillsAndCertification: string;
   designation: Designation;
-  dateOfJoining: string;            // date
+  dateOfJoining: string; 
+  dateOfOnboardingToClient: string;
+  dateOfOffboardingToClient: string;
+  clientBillingStartDate: string;
+  clientBillingStopDate: string;           // date
   rateCard: number;
   availableLeaves: number;
   employmentType: EmploymentType;

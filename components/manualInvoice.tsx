@@ -10,7 +10,6 @@ import {
 } from "@/lib/api/types";
 
 import { toast } from "sonner";
-
 const YEARS = [2025, 2026, 2027, 2028];
 const MONTHS = [
   { value: 1, label: "January" },
@@ -26,13 +25,23 @@ const MONTHS = [
   { value: 11, label: "November" },
   { value: 12, label: "December" },
 ];
+function getBackendError(error: any): string {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.response ||
+    error?.response?.data ||
+    error?.message ||
+    "Something went wrong"
+  );
+}
 
 export default function ManualInvoice() {
   /* -------------------- State -------------------- */
 
   const [clients, setClients] = useState<ClientMinDTO[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
-
+  const [apiError, setApiError] = useState<string | null>(null);
   const [clientId, setClientId] = useState("");
   const [year, setYear] = useState<number | "">("");
   const [month, setMonth] = useState<number | "">("");
@@ -135,6 +144,8 @@ export default function ManualInvoice() {
   /* -------------------- Generate Invoice -------------------- */
 
   const generateInvoice = async () => {
+    setApiError(null);
+
     if (!clientId || !year || !month || !invoiceNumber) {
       toast.error("Please fill all mandatory fields");
       return;
@@ -142,7 +153,7 @@ export default function ManualInvoice() {
   
     const invoiceItems: ManualInvoiceItemRequestDTO[] = employees
       .filter(
-        (emp) =>
+        (emp) =>  
           emp.rateCard != null &&
           items[emp.employeeId]?.hoursWorked > 0
       )
@@ -172,7 +183,8 @@ export default function ManualInvoice() {
       await manualInvoiceService.generateManualInvoice(payload);
       toast.success("Manual invoice generated successfully");
     } catch (e: any) {
-      toast.error(e.message);
+      const errorMsg = getBackendError(e);
+      setApiError(errorMsg);
     }
   };
   
@@ -244,7 +256,7 @@ export default function ManualInvoice() {
 
        {/* Invoice Header */}
       <div className="flex gap-6">
-        <div className="flex flex-col">
+        {/* <div className="flex flex-col">
           <label className="text-sm font-medium mb-1">
             Invoice Number <span className="text-red-500">*</span>
           </label>
@@ -254,6 +266,27 @@ export default function ManualInvoice() {
             value={invoiceNumber}
             onChange={(e) => setInvoiceNumber(e.target.value)}
           />
+        </div> */}
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-1">
+            Invoice Number <span className="text-red-500">*</span>
+          </label>
+
+          <input
+            className={`border px-3 py-2 rounded ${
+              apiError ? "border-red-500" : ""
+            }`}
+            placeholder="INV-001"
+            value={invoiceNumber}
+            onChange={(e) => {
+              setInvoiceNumber(e.target.value);
+              setApiError(null); // clear error on change
+            }}
+          />
+
+          {apiError && (
+            <span className="text-sm text-red-600 mt-1">{apiError}</span>
+          )}
         </div>
 
         <div className="flex flex-col">
