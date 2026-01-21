@@ -1151,7 +1151,7 @@ export default function EditOrganizationPage() {
     <img
       src={signaturePreview}
       alt="Digital Signature Preview"
-      className="w-24 h-24 object-cover rounded border shadow-sm mb-2"
+      className="h-28 object-contain border rounded-xl p-3 bg-white shadow-sm"
     />
   )}
 
