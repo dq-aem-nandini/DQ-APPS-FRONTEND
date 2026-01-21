@@ -17,7 +17,7 @@ import {
   WebResponseDTOEmployeeDepartmentList,
   WebResponseDTOVoid,
   AddressModel,
-
+  EmployeeDocumentDTO
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
 function getBackendError(error: any): string {
@@ -212,8 +212,34 @@ class EmployeeService {
     }
   }
 
+// submit delete document request
+async submitDeleteDocumentRequest(
+  document: EmployeeDocumentDTO
+): Promise<WebResponseDTOVoid> {
+  try {
+    //  Remove frontend-only fields before sending
+    const payload = {
+      documentId: document.documentId,
+      docType: document.docType,
+      fileUrl: document.fileUrl ?? null,
+    };
+
+    const response: AxiosResponse<WebResponseDTOVoid> =
+      await api.post(
+        "/employee/update-request/submit/delete/document",
+        payload
+      );
+
+    console.log("📌 Submit Delete Document Request:", response.data);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
   // =====================================================
-  // ✅ GET ALL ADMIN UPDATE REQUESTS
+  // GET ALL ADMIN UPDATE REQUESTS
   // GET /admin/update-request/all
   // =====================================================
   async getAllUpdateRequestsAdmin(): Promise<WebResponseDTOListEmployeeUpdateRequestDTO> {

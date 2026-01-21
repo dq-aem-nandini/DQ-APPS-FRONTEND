@@ -167,7 +167,8 @@ export type BondDuration =
   export type UpdateRequestType = 
   | 'EMPLOYEE_UPDATE'
   | 'ADDRESS_DELETE'
-  | 'CALENDAR_UPDATE';
+  | 'CALENDAR_UPDATE'
+  | 'DOCUMENT_DELETE';
   
   export const PAY_TYPE_OPTIONS = [
   "HOURLY",
