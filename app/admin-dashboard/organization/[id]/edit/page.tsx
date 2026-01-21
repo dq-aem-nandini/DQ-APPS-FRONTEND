@@ -1103,9 +1103,9 @@ export default function EditOrganizationPage() {
                 </div>
               </div>
               {/* Digital Signature */}
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label>Digital Signature</Label>
-                {/* Show ONLY if preview exists */}
+                
                 {signaturePreview && (
                   signaturePreview.startsWith("blob:") || signaturePreview.match(/\.(png|jpg|jpeg|gif|svg)$/i)
                     ? (
@@ -1140,8 +1140,41 @@ export default function EditOrganizationPage() {
                   }}
                   className="h-12 text-base border-gray-300"
                 />
-              </div>
+              </div> */}
 
+                {/* Digital Signature */}
+<div className="space-y-2">
+  <Label>Digital Signature</Label>
+
+  {/* Show preview ONLY if available */}
+  {signaturePreview && (
+    <img
+      src={signaturePreview}
+      alt="Digital Signature Preview"
+      className="h-28 object-contain border rounded-xl p-3 bg-white shadow-sm"
+    />
+  )}
+
+  <Input
+    type="file"
+    accept=".p12,.pfx,.cer,image/*"
+    onChange={(e) => {
+      const file = e.target.files?.[0] ?? null;
+      handleFileChange("digitalSignature", file);
+
+      if (file) {
+        if (file.type.startsWith("image/")) {
+          setSignaturePreview(URL.createObjectURL(file));
+        } else {
+          setSignaturePreview(""); // no preview for cert files
+        }
+      } else {
+        setSignaturePreview("");
+      }
+    }}
+    className="h-12 text-base border-gray-300"
+  />
+</div>
 
 
               {/* Addresses (optional) */}

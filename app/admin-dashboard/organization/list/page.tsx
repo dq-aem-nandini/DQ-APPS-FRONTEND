@@ -156,7 +156,6 @@ export default function OrganizationListPage() {
       <ProtectedRoute allowedRoles={['ADMIN']}>
         <div className="flex items-center justify-center h-[80vh] p-4 sm:p-6 md:p-8 text-center text-gray-600">
           <div className="w-10 h-10 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-base">Loading organizations...</p>
         </div>
       </ProtectedRoute>
     );

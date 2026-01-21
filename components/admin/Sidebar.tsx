@@ -51,9 +51,26 @@ export default function AdminSidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm flex flex-col justify-between">
-      {/* Logo */}
-      <div>
+    // <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm flex flex-col justify-between">
+    <aside
+      className="
+    w-64
+    bg-white
+    border-r border-gray-200
+    h-screen
+    flex flex-col
+    shadow-sm
+    overflow-hidden            
+  "
+    >
+      {/* This is the REAL scrolling container */}
+      <div className="
+    flex-1                    
+    overflow-y-auto           
+    overflow-x-hidden        
+    custom-scrollbar
+    p-5                      
+  ">
         <div className="flex items-center justify-center space-x-4 mb-8">
           <Image
             src="/digiquad logo.jpeg"
@@ -80,8 +97,8 @@ export default function AdminSidebar() {
                     key={href}
                     href={href}
                     className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${isActive
-                        ? 'bg-indigo-100 text-indigo-700 font-medium'
-                        : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                      ? 'bg-indigo-100 text-indigo-700 font-medium'
+                      : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
                       }`}
                   >
                     {icon}
