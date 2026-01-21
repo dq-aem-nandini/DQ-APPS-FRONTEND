@@ -56,7 +56,7 @@ export default function HolidayListPage() {
     try {
       setLoading(true);
       const res = await holidayService.getAllHolidaysView(year);
-  
+
       if (res.flag && Array.isArray(res.response)) {
         setHolidays(
           res.response.sort((a, b) =>
@@ -70,11 +70,11 @@ export default function HolidayListPage() {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchHolidays(selectedYear);
   }, [selectedYear]);
-  
+
 
   // Dynamic years from holidays (unique sorted descending)
   // const availableYears = useMemo(() => {
@@ -86,7 +86,7 @@ export default function HolidayListPage() {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 6 }, (_, index) => currentYear - index);
   }, []);
-  
+
 
   // Filtered holidays based on year, month, and search
   const filteredHolidays = useMemo(() => {
@@ -195,7 +195,7 @@ export default function HolidayListPage() {
               <Button
                 onClick={() => openDialog()}
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg cursor-pointer"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Holiday
@@ -214,7 +214,7 @@ export default function HolidayListPage() {
                     value={selectedYear.toString()}
                     onValueChange={(val) => setSelectedYear(Number(val))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder="Select Year" />
                     </SelectTrigger>
                     <SelectContent>
@@ -234,7 +234,7 @@ export default function HolidayListPage() {
                     value={selectedMonth.toString()}
                     onValueChange={(val) => setSelectedMonth(val === 'all' ? 'all' : Number(val))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder="All Months" />
                     </SelectTrigger>
                     <SelectContent>
@@ -249,15 +249,15 @@ export default function HolidayListPage() {
                 </div>
 
                 {/* Search */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 ">
                   <Label>Search</Label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 " />
                     <Input
                       placeholder="Search by name or date..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 h-10"
+                      className="pl-10 h-10 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -323,7 +323,7 @@ export default function HolidayListPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => openDialog(holiday)}
-                                className="hover:bg-blue-50 hover:text-blue-600"
+                                className="hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </Button>
@@ -331,7 +331,7 @@ export default function HolidayListPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDelete(holiday.holidayId)}
-                                className="hover:bg-red-50 hover:text-red-600"
+                                className="hover:bg-red-50 hover:text-red-600 cursor-pointer"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>

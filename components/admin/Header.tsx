@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { LogOut, Loader2 } from 'lucide-react'; // Added Loader2
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { sessionService } from '@/lib/api/sessionService'; 
+import { sessionService } from '@/lib/api/sessionService';
 import toast from 'react-hot-toast';
 import { getDeviceIdSync } from "@/lib/deviceUtils";
 
@@ -42,7 +42,7 @@ const Header = () => {
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
-  
+
     try {
       await sessionService.logoutCurrent(); // ✅ correct deviceId inside
       toast.success("Logged out securely");
@@ -55,22 +55,22 @@ const Header = () => {
       setShowDropdown(false);
     }
   };
-  
+
 
   // const handleLogout = async () => {
   //   if (isLoggingOut) return;
   //   setIsLoggingOut(true);
-  
+
   //   let hasCalledBackend = false;
-  
+
   //   try {
   //     // const deviceId = typeof window !== "undefined" ? localStorage.getItem("deviceId") : null;
   //     const deviceId = getDeviceIdSync();
 
-  
+
   //     if (deviceId && !hasCalledBackend) {
   //       hasCalledBackend = true;
-  
+
   //       // Direct axios call — no import issue
   //       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/logout?deviceId=${deviceId}`, {
   //         method: "POST",
@@ -83,7 +83,7 @@ const Header = () => {
   //         },
   //       });
   //     }
-  
+
   //     toast.success("Logged out securely");
   //   } catch (err: any) {
   //     // Silently ignore all logout errors — they are safe
@@ -119,7 +119,7 @@ const Header = () => {
               Admin Dashboard
             </h1>
             <div className="flex items-center space-x-4">
-              <NotificationBell className="h-8 w-8 text-yellow-600" />
+              <NotificationBell className="h-8 w-8 text-yellow-600 cursor-pointer " />
               <span className="text-lg text-gray-700 hidden md:block font-semibold">
                 Welcome, {user.profileName || 'Admin'}
               </span>

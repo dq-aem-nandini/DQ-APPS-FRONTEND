@@ -25,13 +25,13 @@ dayjs.extend(isoWeek);
 dayjs.Ls.en.weekStart = 1;
 
 interface TaskRow {
-id: string;
-taskName: string;
-hours: Record<string, number>;
-timesheetIds?: Record<string, string>;
-statuses?: Record<string, 'DRAFTED' | 'PENDING' | 'APPROVED' | 'REJECTED'>;
-_dirty?: boolean;
-order?: number;
+  id: string;
+  taskName: string;
+  hours: Record<string, number>;
+  timesheetIds?: Record<string, string>;
+  statuses?: Record<string, 'DRAFTED' | 'PENDING' | 'APPROVED' | 'REJECTED'>;
+  _dirty?: boolean;
+  order?: number;
 }
 
 function getBackendError(error: any): string {
@@ -45,8 +45,8 @@ function getBackendError(error: any): string {
   );
 }
 
-  const TimeSheetRegister: React.FC = () => {
-    // TESTING: Remove in production
+const TimeSheetRegister: React.FC = () => {
+  // TESTING: Remove in production
   // const TEST_TODAY = '2025-10-3'; 
   // const now = TEST_TODAY ? dayjs(TEST_TODAY) : dayjs();
   // const todayKey = now.format('YYYY-MM-DD');
@@ -93,18 +93,18 @@ function getBackendError(error: any): string {
   const weekYears = useMemo(() => {
     return [...new Set(weekDates.map(d => d.year()))];
   }, [weekDates]);
-  
+
 
   const isSplitWeek = useMemo(() => {
     const months = new Set(weekDates.map(d => d.format('YYYY-MM')));
     return months.size > 1;
   }, [weekDates]);
 
- // Allow any date >= actual Date of Joining
+  // Allow any date >= actual Date of Joining
   const minSelectableDate = joiningDate; // ← This is correct!
 
   // Still keep this for week navigation logic (to block previous full weeks)
- const firstAllowedMonday = useMemo(() => {
+  const firstAllowedMonday = useMemo(() => {
     if (!joiningDate) return null;
     return joiningDate.startOf('isoWeek'); // ← CORRECT: Monday of DOJ week
   }, [joiningDate]);
@@ -153,23 +153,23 @@ function getBackendError(error: any): string {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (!value) return;
-  
+
     const date = dayjs(value);
     if (!date.isValid()) return;
-  
+
     // Block dates before actual joining date
     if (joiningDate && date.isBefore(joiningDate, 'day')) {
       pushMessage('info', 'Cannot select date before your joining date');
       return;
     }
-  
+
     // Block future weeks
     const selectedMonday = date.startOf('isoWeek');
     if (selectedMonday.isAfter(currentMonday, 'week')) {
       pushMessage('info', 'Cannot select future weeks');
       return;
     }
-  
+
     // If selected date is in a previous week but after DOJ → still allow
     setWeekStart(selectedMonday);
     setDisplayDate(value);
@@ -200,14 +200,14 @@ function getBackendError(error: any): string {
   // const fetchHolidays = useCallback(async (year: number) => {
   //   try {
   //     const response = await holidayService.getAllHolidays(year);
-  
+
   //     if (!response.flag || !response.response) return;
-  
+
   //     const map: Record<string, HolidaysDTO> = {};
   //     response.response.forEach(h => {
   //       map[dayjs(h.holidayDate).format('YYYY-MM-DD')] = h;
   //     });
-  
+
   //     setHolidayMap(map);
   //   } catch (err: any) {
   //     const status = err?.response?.status;
@@ -224,24 +224,24 @@ function getBackendError(error: any): string {
       const results = await Promise.all(
         weekYears.map(y => holidayService.getAllHolidays(y))
       );
-  
+
       const merged: Record<string, HolidaysDTO> = {};
-  
+
       results.forEach(res => {
         if (!res.flag || !res.response) return;
-  
+
         res.response.forEach(h => {
           merged[dayjs(h.holidayDate).format('YYYY-MM-DD')] = h;
         });
       });
-  
+
       setHolidayMap(merged);
     } catch {
       pushMessage('error', 'Failed to fetch holidays');
     }
   }, [weekYears]);
-  
-  
+
+
 
   // const fetchLeaves = useCallback(async (year: string) => {
   //   try {
@@ -266,22 +266,22 @@ function getBackendError(error: any): string {
           leaveService.getApprovedLeaves(y.toString())
         )
       );
-  
+
       const merged: Record<string, { leaveCategory: string; duration: number }> = {};
-  
+
       results.flat().forEach(l => {
         merged[dayjs(l.date).format('YYYY-MM-DD')] = {
           leaveCategory: l.leaveCategory,
           duration: l.duration ?? 1,
         };
       });
-  
+
       setLeaveMap(merged);
     } catch {
       pushMessage('error', 'Failed to fetch leaves');
     }
   }, [weekYears]);
-  
+
 
   const fetchData = useCallback(async () => {
     try {
@@ -300,9 +300,9 @@ function getBackendError(error: any): string {
 
       const statuses = list.map(i => i.status).filter(Boolean);
       const status = statuses.includes('APPROVED') ? 'APPROVED' :
-                     statuses.includes('PENDING') ? 'PENDING' :
-                     statuses.includes('REJECTED') ? 'REJECTED' :
-                     statuses.includes('DRAFTED') ? 'DRAFTED' : 'DRAFTED';
+        statuses.includes('PENDING') ? 'PENDING' :
+          statuses.includes('REJECTED') ? 'REJECTED' :
+            statuses.includes('DRAFTED') ? 'DRAFTED' : 'DRAFTED';
       setWeekStatus(status);
 
       const comment = list.find(i => i.managerComment)?.managerComment || null;
@@ -316,48 +316,46 @@ function getBackendError(error: any): string {
       // Sort by createdAt to determine original insertion order
       entriesWithMeta.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-      const grouped = new Map<string, TaskRow>(); // Use Map to preserve insertion order
+      // ───────────────────────────────────────────────────────────────
+      // NEW: One row per backend timesheet entry (no taskName merging)
+      // ───────────────────────────────────────────────────────────────
+
+      // NEW: One row per timesheet entry — NO merging by task name
+      const rowsFromBackend: TaskRow[] = [];
+
       let orderCounter = 0;
 
       entriesWithMeta.forEach(item => {
-        const task = item.taskName || 'Untitled';
-        if (!grouped.has(task)) {
-          grouped.set(task, {
-            id: task + '_' + (item.timesheetId?.slice(0, 8) || Date.now().toString()),
-            taskName: task,
-            hours: {},
-            timesheetIds: {},
-            statuses: {},
-            order: orderCounter++, // ← assign stable order
-          });
-        }
+        const dateKey = item.dateKey;
 
-        const row = grouped.get(task)!;
-        row.hours[item.dateKey] = Number(item.workedHours || 0);
-        if (item.timesheetId) {
-          row.timesheetIds![item.dateKey] = item.timesheetId;
-          row.statuses![item.dateKey] = (item.status as any) || 'DRAFT';
-        }
+        const row: TaskRow = {
+          id: item.timesheetId
+            ? `ts_${item.timesheetId}`
+            : `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          taskName: item.taskName?.trim() || 'Untitled',
+          hours: { [dateKey]: Number(item.workedHours || 0) },
+          timesheetIds: item.timesheetId ? { [dateKey]: item.timesheetId } : {},
+          statuses: item.status ? { [dateKey]: item.status as any } : {},
+          order: orderCounter++,
+        };
+
+        rowsFromBackend.push(row);
       });
 
-      // Convert Map → Array (preserves insertion order!)
-      let finalRows = Array.from(grouped.values());
-
-      // If no data → add empty row
-      if (finalRows.length === 0) {
-        finalRows = [{
-          id: 'row0',
+      if (rowsFromBackend.length === 0) {
+        rowsFromBackend.push({
+          id: 'empty-' + Date.now(),
           taskName: '',
           hours: Object.fromEntries(weekDates.map(d => [d.format('YYYY-MM-DD'), 0])),
+          timesheetIds: {},
           statuses: {},
           order: 0,
-        }];
+        });
       }
 
-      // FINAL: Sort by `order` field to guarantee consistent ordering
-      finalRows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      rowsFromBackend.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-      setRows(finalRows);
+      setRows(rowsFromBackend);
     } catch (err) {
       pushMessage('error', 'Failed to fetch timesheets');
     } finally {
@@ -365,22 +363,22 @@ function getBackendError(error: any): string {
     }
   }, [weekStart, weekDates]);
 
-useEffect(() => {
-  const load = async () => {
-    setLoading(true);
-    await Promise.all([
-      fetchData(),
-      // fetchLeaves(activeYear.toString()),
-      // fetchHolidays(activeYear),
-      fetchLeavesForWeek(),
-      fetchHolidaysForWeek(),
-    ]);
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchData(),
+        // fetchLeaves(activeYear.toString()),
+        // fetchHolidays(activeYear),
+        fetchLeavesForWeek(),
+        fetchHolidaysForWeek(),
+      ]);
 
-    setLoading(false);
-  };
+      setLoading(false);
+    };
 
-  load();
-}, [fetchData, fetchLeavesForWeek, fetchHolidaysForWeek]);
+    load();
+  }, [fetchData, fetchLeavesForWeek, fetchHolidaysForWeek]);
 
 
   // VALIDATIONS
@@ -456,15 +454,26 @@ useEffect(() => {
 
   const addRow = () => {
     if (loading || !hasEditableDay) return;
+
+    // NEW: block adding new tasks if ANY day in this week is already submitted
+    const hasAnySubmittedDay = rows.some(row =>
+      Object.values(row.statuses || {}).some(s => s === 'PENDING' || s === 'APPROVED')
+    );
+
+    if (hasAnySubmittedDay) {
+      pushMessage('info', 'Cannot add new tasks — some entries in this week are already submitted');
+      return;
+    }
+
     const id = 'r' + Date.now();
     const hours = Object.fromEntries(weekDates.map(d => [d.format('YYYY-MM-DD'), 0]));
     const newOrder = rows.length > 0 ? Math.max(...rows.map(r => r.order || 0)) + 1 : 0;
-  
-    setRows(prev => [...prev, { 
-      id, 
-      taskName: '', 
+
+    setRows(prev => [...prev, {
+      id,
+      taskName: '',
       hours,
-      order: newOrder  // ← assign order
+      order: newOrder
     }]);
   };
 
@@ -529,17 +538,17 @@ useEffect(() => {
     return weekDates.every(d => {
       const dateKey = d.format('YYYY-MM-DD');
       const totalHours = dayTotals[weekDates.findIndex(wd => wd.format('YYYY-MM-DD') === dateKey)] || 0;
-  
+
       const isWeekend = d.day() === 0 || d.day() === 6;
       const isHoliday = !!holidayMap[dateKey];
       const leave = leaveMap[dateKey];
       const isFullLeave = leave?.duration === 1;
-  
+
       // If it's weekend, holiday, or full-day leave → no hours required
       if (isWeekend || isHoliday || isFullLeave) {
         return true;
       }
-  
+
       // Otherwise: must have > 0 hours
       return totalHours > 0;
     });
@@ -549,41 +558,41 @@ useEffect(() => {
 
   const splitWeekInfo = useMemo(() => {
     if (!isSplitWeek) return null;
-  
+
     const months = [...new Set(weekDates.map(d => d.format('YYYY-MM')))];
     const [firstMonth, secondMonth] = months;
-  
+
     const firstMonthDays = weekDates.filter(d => d.format('YYYY-MM') === firstMonth);
     const lastDayOfFirstMonth = firstMonthDays[firstMonthDays.length - 1];
-  
+
     // Find the last weekday (Mon–Fri) in the week
     const lastWeekday = [...weekDates]
       .reverse()
       .find(d => d.day() >= 1 && d.day() <= 5); // Mon=1, Fri=5
-  
+
     const lastDayOfWeek = weekDates[weekDates.length - 1]; // Sunday
-  
+
     // Check if there is ANY work (hours > 0) in the second month (Oct 1–5)
     const hasAnyWorkInSecondMonth = weekDates.some(d => {
       const key = d.format('YYYY-MM-DD');
       if (d.format('YYYY-MM') !== secondMonth) return false;
-      
+
       // CRITICAL: Allow submission if ANY day in second month has hours
       // EVEN if some days are already submitted (PENDING)
       const totalHours = rows.reduce((sum, r) => sum + (Number(r.hours[key]) || 0), 0);
       return totalHours > 0;
     });
-  
+
     // FINAL RULE:
     // If user worked ANY day in October (even Sat/Sun) → allow submit from last weekday (Fri) to Sunday
     const secondMonthSubmitDate = hasAnyWorkInSecondMonth
       ? (lastWeekday ? lastWeekday.format('YYYY-MM-DD') : lastDayOfWeek.format('YYYY-MM-DD'))
       : null;
-  
+
     // For display: the range user can submit
     const secondMonthSubmitFrom = lastWeekday ? lastWeekday.format('YYYY-MM-DD') : null;
     const secondMonthSubmitTo = lastDayOfWeek.format('YYYY-MM-DD');
-  
+
     return {
       firstMonth,
       secondMonth,
@@ -598,18 +607,18 @@ useEffect(() => {
 
   const saveAll = async () => {
     if (loading || !hasUnsubmittedChanges || !hasEditableDay) return;
-  
+
     const validation = validateForSave();
     if (!validation.ok) {
       validation.messages.forEach(m => pushMessage('error', m));
       return;
     }
-  
+
     try {
       setLoading(true);
       const toCreate: TimeSheetModel[] = [];
       const toUpdate: Record<string, TimeSheetModel> = {};
-  
+
       rows.forEach(r => {
         const isDirty = r._dirty;
         const hasTimesheetIds = r.timesheetIds && Object.keys(r.timesheetIds).length > 0;
@@ -617,7 +626,7 @@ useEffect(() => {
           Object.entries(r.hours).forEach(([date, hours]) => {
             const tsId = r.timesheetIds?.[date];
             const hrs = Number(hours);
-  
+
             // CREATE new entry
             if (!tsId && hrs > 0 && r.taskName?.trim()) {
               toCreate.push({
@@ -628,7 +637,7 @@ useEffect(() => {
                 clientId: '',
               });
             }
-  
+
             // UPDATE existing (including setting to 0)
             if (tsId && (r._dirty || hrs === 0)) {
               toUpdate[tsId] = {
@@ -643,65 +652,85 @@ useEffect(() => {
           });
         }
       });
-  
+
       // === CREATE NEW TIMESHEETS ===
       if (toCreate.length > 0) {
         const res = await timesheetService.createTimesheets(toCreate);
-  
+
         if (res.flag && Array.isArray(res.response)) {
-          // We will collect all newly created items first
-          const newItems = res.response as any[];
-  
-          setRows(prev => {
-            const rowMap = new Map<string, TaskRow>();
-  
-            // Build map: taskName → row (preserve current order)
-            prev.forEach(row => {
-              if (row.taskName) rowMap.set(row.taskName, row);
-            });
-  
-            // Add/update with new timesheet IDs
-            newItems.forEach(item => {
-              const dateKey = item.workDate;
-              const tsId = item.timesheetId;
-              const taskName = item.taskName;
-  
-              if (rowMap.has(taskName)) {
-                const row = rowMap.get(taskName)!;
-                row.timesheetIds = { ...(row.timesheetIds || {}), [dateKey]: tsId };
-                row.hours[dateKey] = Number(item.workedHours || 0);
+          const newItems = res.response as any[];   // assume this is array of created timesheets
+
+          setRows(prevRows => {
+            // Start with current rows (which are already one-per-entry)
+            let updated = [...prevRows];
+
+            newItems.forEach(created => {
+              const dateKey = dayjs(created.workDate).format('YYYY-MM-DD');
+              const tsId = created.timesheetId;
+              const taskName = created.taskName?.trim() || 'Untitled';
+
+              // Find if we already have a row for this exact timesheet (shouldn't, but safety)
+              const existingIndex = updated.findIndex(r =>
+                r.timesheetIds?.[dateKey] === tsId
+              );
+
+              if (existingIndex !== -1) {
+                // Update existing row (rare case)
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  hours: {
+                    ...updated[existingIndex].hours,
+                    [dateKey]: Number(created.workedHours || 0)
+                  },
+                  timesheetIds: {
+                    ...updated[existingIndex].timesheetIds,
+                    [dateKey]: tsId
+                  },
+                  statuses: {
+                    ...updated[existingIndex].statuses,
+                    [dateKey]: 'DRAFTED'
+                  }
+                };
               } else {
-                // Brand new task → append at the end (correct order)
-                const maxOrder = Math.max(0, ...prev.map(r => r.order ?? 0));
-                rowMap.set(taskName, {
-                  id: 'new_' + tsId,
+                // Add completely new row for this created entry
+                const maxOrder = Math.max(0, ...updated.map(r => r.order ?? 0));
+
+                const newRow: TaskRow = {
+                  id: `ts_${tsId}`,
                   taskName,
-                  hours: { [dateKey]: Number(item.workedHours || 0) },
+                  hours: { [dateKey]: Number(created.workedHours || 0) },
                   timesheetIds: { [dateKey]: tsId },
                   statuses: { [dateKey]: 'DRAFTED' },
                   order: maxOrder + 1,
-                });
+                };
+
+                updated.push(newRow);
               }
             });
-  
-            // Convert back to array and sort by order
-            const updatedRows = Array.from(rowMap.values());
-            return updatedRows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+            // Sort by order
+            updated.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+            // Clean dirty flags
+            return updated.map(r => ({ ...r, _dirty: false }));
           });
+
+          // Still re-fetch at the end to be 100% in sync with server
+          await fetchData();
         }
       }
-  
+
       // === UPDATE EXISTING ===
       for (const [id, data] of Object.entries(toUpdate)) {
         await timesheetService.updateTimesheet(id, data);
       }
-  
+
       // Clear dirty flags
       setRows(prev => prev.map(r => ({ ...r, _dirty: false })));
-  
+
       // Re-fetch to get final state + correct order from createdAt
       await fetchData();
-  
+
       pushMessage('success', 'Changes saved');
     } catch (err) {
       pushMessage('error', 'Save failed');
@@ -713,9 +742,9 @@ useEffect(() => {
 
   const handleConfirmSubmit = async () => {
     setConfirmSubmitOpen(false);
-  
+
     let idsToSubmit: string[] = [];
-  
+
     if (!isSplitWeek) {
       // Normal week
       rows.forEach(r => {
@@ -724,48 +753,48 @@ useEffect(() => {
         });
       });
     } else if (splitWeekInfo) {
-      
+
       let targetDates: string[] = [];
 
       // Check if first-month dates are still unsubmitted (missed submission)
-        const hasUnsubmittedFirstMonth = weekDates.some(d => {
-          if (d.format('YYYY-MM') !== splitWeekInfo.firstMonth) return false;
+      const hasUnsubmittedFirstMonth = weekDates.some(d => {
+        if (d.format('YYYY-MM') !== splitWeekInfo.firstMonth) return false;
 
-          const dateKey = d.format('YYYY-MM-DD');
+        const dateKey = d.format('YYYY-MM-DD');
 
-          return rows.some(r => {
-            const id = r.timesheetIds?.[dateKey];
-            const status = r.statuses?.[dateKey]; // assuming you track status
-            return id && status === 'DRAFTED';
-          });
+        return rows.some(r => {
+          const id = r.timesheetIds?.[dateKey];
+          const status = r.statuses?.[dateKey]; // assuming you track status
+          return id && status === 'DRAFTED';
         });
+      });
 
-  
+
       if (todayKey === splitWeekInfo.firstMonthEndDate) {
         targetDates = weekDates.filter(d => d.format('YYYY-MM') === splitWeekInfo.firstMonth).map(d => d.format('YYYY-MM-DD'));
       } else if (
-        splitWeekInfo.secondMonthSubmitFrom && 
+        splitWeekInfo.secondMonthSubmitFrom &&
         todayKey >= splitWeekInfo.secondMonthSubmitFrom
       ) {
         targetDates = weekDates
-        .filter(d => {
-          const month = d.format('YYYY-MM');
-          const dateKey = d.format('YYYY-MM-DD');
+          .filter(d => {
+            const month = d.format('YYYY-MM');
+            const dateKey = d.format('YYYY-MM-DD');
 
-          // Always include second month
-          if (month === splitWeekInfo.secondMonth) return true;
+            // Always include second month
+            if (month === splitWeekInfo.secondMonth) return true;
 
-          // Include first month ONLY if it was never submitted
-          if (
-            month === splitWeekInfo.firstMonth &&
-            hasUnsubmittedFirstMonth
-          ) return true;
+            // Include first month ONLY if it was never submitted
+            if (
+              month === splitWeekInfo.firstMonth &&
+              hasUnsubmittedFirstMonth
+            ) return true;
 
-          return false;
-        })
-        .map(d => d.format('YYYY-MM-DD'));
-          }
-  
+            return false;
+          })
+          .map(d => d.format('YYYY-MM-DD'));
+      }
+
       rows.forEach(r => {
         targetDates.forEach(date => {
           const id = r.timesheetIds?.[date];
@@ -773,12 +802,12 @@ useEffect(() => {
         });
       });
     }
-  
+
     if (idsToSubmit.length === 0) {
       pushMessage('error', 'No entries to submit');
       return;
     }
-  
+
     try {
       setLoading(true);
       const res = await timesheetService.submitForApproval(idsToSubmit);
@@ -827,38 +856,36 @@ useEffect(() => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-            <ChevronLeft
-              className={`cursor-pointer text-gray-600 hover:text-gray-800 transition-colors ${
-                firstAllowedMonday && weekStart.clone().subtract(1, 'week').isBefore(firstAllowedMonday, 'day')
+              <ChevronLeft
+                className={`cursor-pointer text-gray-600 hover:text-gray-800 transition-colors ${firstAllowedMonday && weekStart.clone().subtract(1, 'week').isBefore(firstAllowedMonday, 'day')
                   ? 'opacity-50 cursor-not-allowed'
                   : ''
-              }`}
-              size={24}
-              onClick={() => {
-                const nextWeek = weekStart.clone().subtract(1, 'week');
-                if (firstAllowedMonday && nextWeek.isBefore(firstAllowedMonday, 'day')) {
-                  pushMessage('info', 'Cannot go before your joining week');
-                  return;
-                }
-                setWeekStart(prev => prev.subtract(1, 'week'));
-              }}
-            />
-        <ChevronRight
-          className={`cursor-pointer text-gray-600 hover:text-gray-800 ${
-            weekStart.isSameOrAfter(currentMonday, 'week') 
-              ? 'opacity-50 cursor-not-allowed' 
-              : ''
-          }`}
-          size={24}
-          onClick={() => {
-            if (weekStart.clone().add(1, 'week').isAfter(currentMonday, 'week')) {
-              pushMessage('info', 'Cannot navigate to future weeks');
-              return;
-            }
-            setWeekStart(prev => prev.add(1, 'week'));
-          }}
-        />
-      </div>
+                  }`}
+                size={24}
+                onClick={() => {
+                  const nextWeek = weekStart.clone().subtract(1, 'week');
+                  if (firstAllowedMonday && nextWeek.isBefore(firstAllowedMonday, 'day')) {
+                    pushMessage('info', 'Cannot go before your joining week');
+                    return;
+                  }
+                  setWeekStart(prev => prev.subtract(1, 'week'));
+                }}
+              />
+              <ChevronRight
+                className={`cursor-pointer text-gray-600 hover:text-gray-800 ${weekStart.isSameOrAfter(currentMonday, 'week')
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+                  }`}
+                size={24}
+                onClick={() => {
+                  if (weekStart.clone().add(1, 'week').isAfter(currentMonday, 'week')) {
+                    pushMessage('info', 'Cannot navigate to future weeks');
+                    return;
+                  }
+                  setWeekStart(prev => prev.add(1, 'week'));
+                }}
+              />
+            </div>
           </div>
           {employeeDetails && (
             <div className="w-full md:w-auto p-4 bg-gradient-to-b from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm text-sm">
@@ -898,7 +925,11 @@ useEffect(() => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                   Task
-                  <button onClick={addRow} disabled={loading || !hasEditableDay} className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50">
+                  <button
+                    onClick={addRow}
+                    disabled={loading || !hasEditableDay || weekStatus === 'PENDING' || weekStatus === 'APPROVED'}
+                    className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
                     <Plus size={14} />
                   </button>
                 </th>
@@ -921,75 +952,75 @@ useEffect(() => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-            {rows.map((row, rowIndex) => {
-              const rowLocked = isRowLocked(row); // Check if any day in this row is submitted
-              return (
-                <tr 
-                  key={row.id} 
-                  className={`hover:bg-gray-50 transition-colors ${rowLocked ? 'bg-gray-50 opacity-90' : ''}`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-200">
-                    <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => deleteRow(rowIndex)}
-                        disabled={loading || !hasEditableDay || rowLocked}
-                        className="p-1 rounded-full text-red-500 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title={rowLocked ? "Cannot delete: row contains submitted entries" : "Delete row"}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+              {rows.map((row, rowIndex) => {
+                const rowLocked = isRowLocked(row); // Check if any day in this row is submitted
+                return (
+                  <tr
+                    key={row.id}
+                    className={`hover:bg-gray-50 transition-colors ${rowLocked ? 'bg-gray-50 opacity-90' : ''}`}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap border-r border-gray-200">
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => deleteRow(rowIndex)}
+                          disabled={loading || !hasEditableDay || rowLocked}
+                          className="p-1 rounded-full text-red-500 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title={rowLocked ? "Cannot delete: row contains submitted entries" : "Delete row"}
+                        >
+                          <Trash2 size={16} />
+                        </button>
 
-                      <input
-                        type="text"
-                        value={row.taskName}
-                        placeholder="Task name"
-                        onChange={e => handleTaskNameChange(rowIndex, e.target.value)}
-                        disabled={loading || !hasEditableDay || rowLocked}
-                        className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 transition-all
+                        <input
+                          type="text"
+                          value={row.taskName}
+                          placeholder="Task name"
+                          onChange={e => handleTaskNameChange(rowIndex, e.target.value)}
+                          disabled={loading || !hasEditableDay || rowLocked}
+                          className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 transition-all
                           ${rowLocked
-                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300'
-                            : 'border-gray-300 focus:ring-blue-500 hover:border-gray-400'
-                          }`}
-                        title={rowLocked ? "Task name locked — entries already submitted" : ""}
-                      />
-                    </div>
-                  </td>
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300'
+                              : 'border-gray-300 focus:ring-blue-500 hover:border-gray-400'
+                            }`}
+                          title={rowLocked ? "Task name locked — entries already submitted" : ""}
+                        />
+                      </div>
+                    </td>
 
-                  {/* The rest of your <td> cells for hours remain unchanged */}
-                  {weekDates.map(d => {
-                    const key = d.format('YYYY-MM-DD');
-                    const isPreDOJ = joiningDate && d.isBefore(joiningDate, 'day');
-                    const isHoliday = !!holidayMap[key];
-                    const isLeave = leaveMap[key];
-                    const disabled = loading || isHoliday || (isLeave?.duration === 1) || isPreDOJ || isDayLocked(key);
-                    const maxHours = isLeave?.duration === 0.5 ? 4 : 8;
+                    {/* The rest of your <td> cells for hours remain unchanged */}
+                    {weekDates.map(d => {
+                      const key = d.format('YYYY-MM-DD');
+                      const isPreDOJ = joiningDate && d.isBefore(joiningDate, 'day');
+                      const isHoliday = !!holidayMap[key];
+                      const isLeave = leaveMap[key];
+                      const disabled = loading || isHoliday || (isLeave?.duration === 1) || isPreDOJ || isDayLocked(key);
+                      const maxHours = isLeave?.duration === 0.5 ? 4 : 8;
 
-                    return (
-                      <td
-                        key={key}
-                        className="px-3 py-4 text-center border-r border-gray-200 relative transition-all"
-                      >
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="0"
-                            max={String(maxHours)}
-                            step="0.5"
-                            value={row.hours[key] ?? 0}
-                            disabled={disabled}
-                            className={`w-16 px-2 py-2 border rounded text-center text-sm font-medium transition-all
+                      return (
+                        <td
+                          key={key}
+                          className="px-3 py-4 text-center border-r border-gray-200 relative transition-all"
+                        >
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max={String(maxHours)}
+                              step="0.5"
+                              value={row.hours[key] ?? 0}
+                              disabled={disabled}
+                              className={`w-16 px-2 py-2 border rounded text-center text-sm font-medium transition-all
                               ${isPreDOJ ? 'bg-gray-100 text-gray-400' : ''}
                               ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'hover:bg-gray-50'}
                             `}
-                            onChange={e => handleChange(rowIndex, key, Number(e.target.value))}
-                          />
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+                              onChange={e => handleChange(rowIndex, key, Number(e.target.value))}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot className="bg-gradient-to-r from-indigo-50 to-purple-50">
               <tr>
@@ -1007,77 +1038,77 @@ useEffect(() => {
       </div>
 
 
-    {/* Sticky Action Bar - Always visible at bottom, never overlaps table */}
-    <div className=" bottom-0 left-0 right-0 bg-gray-50  border-gray-300 px-6 py-4 -mx-6 z-30">
-      <div className="flex justify-end items-center space-x-4 max-w-7xl mx-auto">
-        <button
-          onClick={saveAll}
-          disabled={loading || !hasUnsubmittedChanges}
-          className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow hover:shadow-lg disabled:opacity-50 transition-all"
-        >
-          Save Changes
-        </button>
-        <button
-          onClick={() => {
-            // NORMAL WEEK (not split)
-            if (!isSplitWeek) {
-              if (!areAllRequiredDaysFilled) {
-                pushMessage('error', 'Please enter hours for all working days (Mon–Fri, excluding holidays & leaves)');
+      {/* Sticky Action Bar - Always visible at bottom, never overlaps table */}
+      <div className=" bottom-0 left-0 right-0 bg-gray-50  border-gray-300 px-6 py-4 -mx-6 z-30">
+        <div className="flex justify-end items-center space-x-4 max-w-7xl mx-auto">
+          <button
+            onClick={saveAll}
+            disabled={loading || !hasUnsubmittedChanges}
+            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow hover:shadow-lg disabled:opacity-50 transition-all"
+          >
+            Save Changes
+          </button>
+          <button
+            onClick={() => {
+              // NORMAL WEEK (not split)
+              if (!isSplitWeek) {
+                if (!areAllRequiredDaysFilled) {
+                  pushMessage('error', 'Please enter hours for all working days (Mon–Fri, excluding holidays & leaves)');
+                  return;
+                }
+                const v = runValidation();
+                if (!v.ok) {
+                  v.messages.forEach(m => pushMessage('error', m));
+                  return;
+                }
+                setConfirmSubmitOpen(true);
                 return;
               }
-              const v = runValidation();
+
+              // SPLIT WEEK – MAIN FIX IS HERE
+              if (!splitWeekInfo) return;
+
+              let submitDates: string[] = [];
+
+              // Case 1: Today is the last day of first month (e.g. June 30)
+              if (todayKey === splitWeekInfo.firstMonthEndDate) {
+                submitDates = weekDates
+                  .filter(d => d.format('YYYY-MM') === splitWeekInfo.firstMonth)
+                  .map(d => d.format('YYYY-MM-DD'));
+              }
+              // Case 2: Today is in the allowed second-month range (Fri–Sun)
+              else if (
+                splitWeekInfo.secondMonthSubmitFrom &&
+                todayKey >= splitWeekInfo.secondMonthSubmitFrom
+              ) {
+                submitDates = weekDates
+                  .filter(d => d.format('YYYY-MM') === splitWeekInfo.secondMonth)
+                  .map(d => d.format('YYYY-MM-DD'));
+              }
+
+              if (submitDates.length === 0) {
+                pushMessage('info', `Submit on ${dayjs(splitWeekInfo.firstMonthEndDate).format('D MMM')} or from ${dayjs(splitWeekInfo.secondMonthSubmitFrom).format('D MMM')}`);
+                return;
+              }
+
+              // Validate only the dates we are about to submit
+              const v = runValidationForDates(submitDates);
               if (!v.ok) {
                 v.messages.forEach(m => pushMessage('error', m));
                 return;
               }
+
+              // Store for modal text (only used when submitting single day)
+              setSelectedSubmitDate(submitDates.length === 1 ? submitDates[0] : null);
+
+              // THIS LINE WAS MISSING → BUG 1 FIXED
               setConfirmSubmitOpen(true);
-              return;
-            }
-          
-            // SPLIT WEEK – MAIN FIX IS HERE
-            if (!splitWeekInfo) return;
-          
-            let submitDates: string[] = [];
-          
-            // Case 1: Today is the last day of first month (e.g. June 30)
-            if (todayKey === splitWeekInfo.firstMonthEndDate) {
-              submitDates = weekDates
-                .filter(d => d.format('YYYY-MM') === splitWeekInfo.firstMonth)
-                .map(d => d.format('YYYY-MM-DD'));
-            }
-            // Case 2: Today is in the allowed second-month range (Fri–Sun)
-            else if (
-              splitWeekInfo.secondMonthSubmitFrom &&
-              todayKey >= splitWeekInfo.secondMonthSubmitFrom
-            ) {
-              submitDates = weekDates
-                .filter(d => d.format('YYYY-MM') === splitWeekInfo.secondMonth)
-                .map(d => d.format('YYYY-MM-DD'));
-            }
-          
-            if (submitDates.length === 0) {
-              pushMessage('info', `Submit on ${dayjs(splitWeekInfo.firstMonthEndDate).format('D MMM')} or from ${dayjs(splitWeekInfo.secondMonthSubmitFrom).format('D MMM')}`);
-              return;
-            }
-          
-            // Validate only the dates we are about to submit
-            const v = runValidationForDates(submitDates);
-            if (!v.ok) {
-              v.messages.forEach(m => pushMessage('error', m));
-              return;
-            }
-          
-            // Store for modal text (only used when submitting single day)
-            setSelectedSubmitDate(submitDates.length === 1 ? submitDates[0] : null);
-          
-            // THIS LINE WAS MISSING → BUG 1 FIXED
-            setConfirmSubmitOpen(true);
-          }}
-          disabled={loading || !hasEditableDay || (isSplitWeek && !splitWeekInfo?.firstMonthEndDate)}
-          className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg shadow hover:shadow-lg disabled:opacity-50 transition-all"
-        >
-          {isSplitWeek
-            ? (() => {
+            }}
+            disabled={loading || !hasEditableDay || (isSplitWeek && !splitWeekInfo?.firstMonthEndDate)}
+            className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg shadow hover:shadow-lg disabled:opacity-50 transition-all"
+          >
+            {isSplitWeek
+              ? (() => {
                 if (!splitWeekInfo) return 'Submit Week';
                 const from = dayjs(splitWeekInfo.secondMonthSubmitFrom).format('D MMM');
                 const to = dayjs(splitWeekInfo.secondMonthSubmitTo).format('D MMM');
@@ -1093,11 +1124,11 @@ useEffect(() => {
 
                 return `Submit on ${dayjs(splitWeekInfo.firstMonthEndDate).format('D MMM')}`;
               })()
-            : 'Submit Week for Approval'
-          }
-        </button>
+              : 'Submit Week for Approval'
+            }
+          </button>
+        </div>
       </div>
-    </div>
 
       {confirmSubmitOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
@@ -1126,40 +1157,51 @@ useEffect(() => {
             <div className="flex justify-end space-x-3">
               <button className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300" onClick={() => setConfirmDelete({ open: false, rowIndex: null })}>Cancel</button>
               <button
-                  className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700"
-                  disabled={deletingRowIndex !== null}
-                  onClick={async () => {
-                    const idx = confirmDelete.rowIndex!;
-                    const row = rows[idx];
-                    setDeletingRowIndex(idx);
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700"
+                disabled={deletingRowIndex !== null}
+                onClick={async () => {
+                  const idx = confirmDelete.rowIndex!;
+                  const rowToDelete = rows[idx];
 
-                    try {
-                      // Optimistic UI update
-                      setRows(prev => prev.filter((_, i) => i !== idx));
+                  const idsToDelete = Object.values(rowToDelete.timesheetIds || {})
+                    .filter(Boolean) as string[];
 
-                      const ids = Object.values(row.timesheetIds || {}).filter(Boolean) as string[];
+                  console.log("Deleting row index:", idx);
+                  console.log("Row data:", rowToDelete);
+                  console.log("Timesheet IDs to delete:", idsToDelete);
 
-                      // ⬅️ SINGLE CALL — backend accepts list
-                      await timesheetService.deleteTimesheet(ids);
+                  if (idsToDelete.length === 0) {
+                    setRows(prev => prev.filter((_, i) => i !== idx));
+                    setConfirmDelete({ open: false, rowIndex: null });
+                    pushMessage('success', 'Empty row removed');
+                    return;
+                  }
 
-                      await fetchData();
-                      pushMessage('success', 'Row deleted');
-                    } catch {
-                      // Restore UI on failure
-                      setRows(prev => [
-                        ...prev.slice(0, idx),
-                        row,
-                        ...prev.slice(idx)
-                      ]);
-                      pushMessage('error', 'Delete failed');
-                    } finally {
-                      setDeletingRowIndex(null);
-                      setConfirmDelete({ open: false, rowIndex: null });
-                    }
-                  }}
-                >
-                  {deletingRowIndex !== null ? 'Deleting...' : 'Delete'}
-                </button>
+                  setDeletingRowIndex(idx);
+
+                  try {
+                    setRows(prev => prev.filter((_, i) => i !== idx));
+
+                    await timesheetService.deleteTimesheet(idsToDelete);
+
+                    await fetchData();
+                    pushMessage('success', `Deleted ${idsToDelete.length} entry(ies)`);
+                  } catch (err) {
+                    console.error("Delete failed:", err);
+                    setRows(prev => {
+                      const restored = [...prev];
+                      restored.splice(idx, 0, rowToDelete);
+                      return restored;
+                    });
+                    pushMessage('error', 'Delete failed – check console');
+                  } finally {
+                    setDeletingRowIndex(null);
+                    setConfirmDelete({ open: false, rowIndex: null });
+                  }
+                }}
+              >
+                {deletingRowIndex !== null ? 'Deleting...' : 'Delete'}
+              </button>
 
             </div>
           </div>

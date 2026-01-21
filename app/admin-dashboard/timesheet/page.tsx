@@ -1,7 +1,7 @@
 // app/admin-dashboard/timesheet/page.tsx
 "use client";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isBetween from "dayjs/plugin/isBetween";
@@ -52,6 +52,7 @@ export default function ManagerTimesheetReview() {
   const [modalAction, setModalAction] = useState<"APPROVE" | "REJECT" | null>(
     null,
   );
+  const calendarRef = useRef<HTMLDivElement>(null);
   const [managerComment, setManagerComment] = useState("");
   const [firstAllowedMonday, setFirstAllowedMonday] =
     useState<dayjs.Dayjs | null>(null);
@@ -68,20 +69,20 @@ export default function ManagerTimesheetReview() {
   // Safe fallback (never undefined)
   const weekStart = currentWeekStart ?? dayjs().startOf("isoWeek");
   // const weekDays = Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day"));
-   const weekDays = useMemo(
-      () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
-      [weekStart]
-    );
-    
-    const weekYears = useMemo(() => {
-      const startYear = weekStart.year();
-      const endYear = weekStart.add(6, "day").year();
-    
-      return startYear === endYear
-        ? [startYear]
-        : [startYear, endYear];
-    }, [weekStart]);
-    
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
+    [weekStart]
+  );
+
+  const weekYears = useMemo(() => {
+    const startYear = weekStart.year();
+    const endYear = weekStart.add(6, "day").year();
+
+    return startYear === endYear
+      ? [startYear]
+      : [startYear, endYear];
+  }, [weekStart]);
+
 
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [selectedWorkRequest, setSelectedWorkRequest] = useState<
@@ -95,8 +96,28 @@ export default function ManagerTimesheetReview() {
     const today = dayjs();
     const week = today.startOf("isoWeek");
     setCurrentWeekStart(week);
-    setSelectedDate(week.format("YYYY-MM-DD"));
+
+    // Use today's date instead of Monday for initial display
+    setSelectedDate(today.format("YYYY-MM-DD"));
   }, []);
+
+  // ------------------------------------------------------------------
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        setIsCalendarOpen(false);
+      }
+    };
+
+    if (isCalendarOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isCalendarOpen]);
 
   // ------------------------------------------------------------------
   // Employee list
@@ -148,34 +169,34 @@ export default function ManagerTimesheetReview() {
 
 
   // ------------------------------------------------------------------
-// Holidays of that selected employee
-// ------------------------------------------------------------------
-// useEffect(() => {
-//   const fetchHolidays = async () => {
-//     if (!selectedEmployee?.id) {
-//       setHolidays([]);
-//       return;
-//     }
+  // Holidays of that selected employee
+  // ------------------------------------------------------------------
+  // useEffect(() => {
+  //   const fetchHolidays = async () => {
+  //     if (!selectedEmployee?.id) {
+  //       setHolidays([]);
+  //       return;
+  //     }
 
-//     try {
-//       const res = await holidayService.getAllHolidays(
-//         selectedEmployee.id
-//       );
-//       setHolidays(res.response || []);
-//     } catch (err) {
-//       console.error("Error fetching holidays:", err);
-//     }
-//   };
+  //     try {
+  //       const res = await holidayService.getAllHolidays(
+  //         selectedEmployee.id
+  //       );
+  //       setHolidays(res.response || []);
+  //     } catch (err) {
+  //       console.error("Error fetching holidays:", err);
+  //     }
+  //   };
 
-//   fetchHolidays();
-// }, [selectedEmployee]);
- useEffect(() => {
+  //   fetchHolidays();
+  // }, [selectedEmployee]);
+  useEffect(() => {
     const fetchHolidays = async () => {
       if (!selectedEmployee?.id) {
         setHolidays([]);
         return;
       }
-  
+
       try {
         const results = await Promise.all(
           weekYears.map(year =>
@@ -185,14 +206,14 @@ export default function ManagerTimesheetReview() {
             )
           )
         );
-  
+
         const merged = results.flatMap(r => r.response || []);
         setHolidays(merged);
       } catch (err) {
         console.error("Error fetching holidays:", err);
       }
     };
-  
+
     fetchHolidays();
   }, [selectedEmployee, weekYears]);
 
@@ -206,11 +227,25 @@ export default function ManagerTimesheetReview() {
     return { before: doj.toDate() };
   }, [firstAllowedMonday, selectedEmployee]);
 
+  // const displayLabel = useMemo(() => {
+  //   const date =
+  //     selectedDate && dayjs(selectedDate).isValid()
+  //       ? dayjs(selectedDate)
+  //       : dayjs();
+  //   return date.format("DD MMM YYYY");
+  // }, [selectedDate]);
+
+  // Replace this entire memo
   const displayLabel = useMemo(() => {
-    const date =
-      selectedDate && dayjs(selectedDate).isValid()
-        ? dayjs(selectedDate)
-        : dayjs();
+    if (!selectedDate) {
+      return dayjs().format("DD MMM YYYY");
+    }
+
+    const date = dayjs(selectedDate);
+    if (!date.isValid()) {
+      return dayjs().format("DD MMM YYYY");
+    }
+
     return date.format("DD MMM YYYY");
   }, [selectedDate]);
 
@@ -321,30 +356,30 @@ export default function ManagerTimesheetReview() {
   //   fetchLeaves();
   // }, [selectedEmployee, weekStart]);
 
-    useEffect(() => {
-      const fetchLeaves = async () => {
-        if (!selectedEmployee?.id) return;
-    
-        try {
-          const results = await Promise.all(
-            weekYears.map(year =>
-              leaveService.getApprovedLeaves(
-                year.toString(),
-                selectedEmployee.id
-              )
+  useEffect(() => {
+    const fetchLeaves = async () => {
+      if (!selectedEmployee?.id) return;
+
+      try {
+        const results = await Promise.all(
+          weekYears.map(year =>
+            leaveService.getApprovedLeaves(
+              year.toString(),
+              selectedEmployee.id
             )
-          );
-    
-          // merge results
-          const merged = results.flat();
-          setLeaves(merged);
-        } catch (err) {
-          console.error("Error fetching approved leaves:", err);
-        }
-      };
-    
-      fetchLeaves();
-    }, [selectedEmployee, weekYears]);
+          )
+        );
+
+        // merge results
+        const merged = results.flat();
+        setLeaves(merged);
+      } catch (err) {
+        console.error("Error fetching approved leaves:", err);
+      }
+    };
+
+    fetchLeaves();
+  }, [selectedEmployee, weekYears]);
 
   // ------------------------------------------------------------------
   // URL params (employee + week)
@@ -407,8 +442,13 @@ export default function ManagerTimesheetReview() {
   // ------------------------------------------------------------------
   return (
     <div className="p-6">
-      <h2 className="text-xl font-semibold mb-6">Manager Timesheet Review</h2>
-
+      {/* <h2 className="text-xl font-semibold mb-6">Manager Timesheet Review</h2> */}
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10 text-center">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          Review Timesheeet
+        </h1>
+      </div>
       {/* Employee Dropdown */}
       {/* ────────────────────── EMPLOYEE SELECT + INFO (SIDE-BY-SIDE) ────────────────────── */}
       {/* ────────────────────── MANAGER HEADER: Dropdown + Info (Side-by-Side) ────────────────────── */}
@@ -458,9 +498,9 @@ export default function ManagerTimesheetReview() {
                   <span className="font-semibold text-gray-800 ml-3">
                     {selectedEmployee.designation
                       ? selectedEmployee.designation
-                          .replace(/_/g, " ")
-                          .toLowerCase()
-                          .replace(/\b\w/g, (l) => l.toUpperCase())
+                        .replace(/_/g, " ")
+                        .toLowerCase()
+                        .replace(/\b\w/g, (l) => l.toUpperCase())
                       : "—"}
                   </span>
                 </div>
@@ -493,18 +533,31 @@ export default function ManagerTimesheetReview() {
 
               {/* DayPicker */}
               {isCalendarOpen && (
-                <div className="absolute top-full mt-1 z-50 bg-white shadow-lg rounded-lg border">
+                <div ref={calendarRef} className="absolute top-full mt-1 z-50 bg-white shadow-lg rounded-lg border">
                   <DayPicker
                     mode="single"
-                    selected={
-                      selectedDate ? dayjs(selectedDate).toDate() : undefined
-                    }
+                    selected={selectedDate ? dayjs(selectedDate).toDate() : undefined}
+                    // onSelect={(date: Date | undefined) => {
+                    //   if (!date) return;
+                    //   const picked = dayjs(date);
+                    //   const newWeek = picked.startOf("isoWeek");
+                    //   setCurrentWeekStart(newWeek);
+                    //   setSelectedDate(newWeek.format("YYYY-MM-DD"));
+                    //   setIsCalendarOpen(false);
+                    // }}
+
                     onSelect={(date: Date | undefined) => {
                       if (!date) return;
+
                       const picked = dayjs(date);
-                      const newWeek = picked.startOf("isoWeek");
-                      setCurrentWeekStart(newWeek);
-                      setSelectedDate(newWeek.format("YYYY-MM-DD"));
+
+                      // Keep the actual picked date for display
+                      setSelectedDate(picked.format("YYYY-MM-DD"));
+
+                      // But load the week containing that date
+                      const weekMonday = picked.startOf("isoWeek");
+                      setCurrentWeekStart(weekMonday);
+
                       setIsCalendarOpen(false);
                     }}
                     disabled={disabledDays}
@@ -551,16 +604,15 @@ export default function ManagerTimesheetReview() {
           {/* Navigation arrows */}
           <div className="flex items-center space-x-2">
             <ChevronLeft
-              className={`cursor-pointer text-gray-600 hover:text-gray-800 transition-colors ${
-                firstAllowedMonday &&
+              className={`cursor-pointer text-gray-600 hover:text-gray-800 transition-colors ${firstAllowedMonday &&
                 weekStart
                   .clone()
                   .subtract(1, "week")
                   .endOf("week")
                   .isBefore(firstAllowedMonday, "day")
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+                }`}
               size={24}
               onClick={() => {
                 if (!firstAllowedMonday) return;
@@ -610,17 +662,16 @@ export default function ManagerTimesheetReview() {
       {/* Timesheet Status + Manager Comment */}
       {timesheets.length > 0 && (
         <div
-          className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${
-            timesheets[0].status === "DRAFTED"
-              ? "bg-gray-50 text-gray-700 border-gray-300"
-              : timesheets[0].status === "PENDING"
-                ? "bg-orange-50 text-orange-800 border-orange-300"
-                : timesheets[0].status === "APPROVED"
-                  ? "bg-green-50 text-green-800 border-green-300"
-                  : timesheets[0].status === "REJECTED"
-                    ? "bg-red-50 text-red-800 border-red-300"
-                    : "bg-gray-50 text-gray-700 border-gray-300"
-          }`}
+          className={`mb-4 p-4 rounded-lg font-medium border shadow-sm ${timesheets[0].status === "DRAFTED"
+            ? "bg-gray-50 text-gray-700 border-gray-300"
+            : timesheets[0].status === "PENDING"
+              ? "bg-orange-50 text-orange-800 border-orange-300"
+              : timesheets[0].status === "APPROVED"
+                ? "bg-green-50 text-green-800 border-green-300"
+                : timesheets[0].status === "REJECTED"
+                  ? "bg-red-50 text-red-800 border-red-300"
+                  : "bg-gray-50 text-gray-700 border-gray-300"
+            }`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -652,7 +703,7 @@ export default function ManagerTimesheetReview() {
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
-      ) : !isSplitWeek &&(timesheets.length === 0 || timesheets[0]?.status === "DRAFTED") ? (
+      ) : !isSplitWeek && (timesheets.length === 0 || timesheets[0]?.status === "DRAFTED") ? (
         <p className="text-center text-gray-500 mt-10">
           {timesheets[0]?.status === "DRAFTED"
             ? "Timesheet in draft state."
@@ -705,9 +756,8 @@ export default function ManagerTimesheetReview() {
                       return (
                         <td
                           key={day.toString()}
-                          className={`py-2 px-4 text-center font-semibold ${
-                            isFullDayLeave ? "text-red-600" : "text-gray-800"
-                          }`}
+                          className={`py-2 px-4 text-center font-semibold ${isFullDayLeave ? "text-red-600" : "text-gray-800"
+                            }`}
                         >
                           {displayValue}
                         </td>
@@ -865,11 +915,10 @@ export default function ManagerTimesheetReview() {
               <button
                 onClick={confirmAction}
                 disabled={loading}
-                className={`px-4 py-2 rounded-lg text-white ${
-                  modalAction === "APPROVE"
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-red-600 hover:bg-red-700"
-                }`}
+                className={`px-4 py-2 rounded-lg text-white ${modalAction === "APPROVE"
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-red-600 hover:bg-red-700"
+                  }`}
               >
                 {loading ? "Processing..." : "Yes"}
               </button>

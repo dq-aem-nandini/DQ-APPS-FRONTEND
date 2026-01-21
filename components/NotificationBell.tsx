@@ -1,9 +1,9 @@
 "use client";
- 
+
 import React, { useEffect, useState, useRef } from "react";
 import { notificationService } from "@/lib/api/notificationService";
 import { NotificationDTO } from "@/lib/api/types";
-import { Bell, MoreVertical, X } from "lucide-react";
+import { Bell, MoreVertical, X, Check, CheckCheck, Trash2 } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 import { timesheetService } from "@/lib/api/timeSheetService";
@@ -15,11 +15,11 @@ import {
   PendingLeavesResponseDTO,
 } from "@/lib/api/types";
 import Swal from "sweetalert2";
- 
+
 interface NotificationBellProps {
   className?: string;
 }
- 
+
 const NotificationBell: React.FC<NotificationBellProps> = ({
   className = "h-6 w-6",
 }) => {
@@ -29,15 +29,13 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationDTO | null>(null);
   const [showModal, setShowModal] = useState(false);
- 
+
   const dropdownRef = useRef<HTMLDivElement>(null);
- 
+
   const { state } = useAuth();
   const userRole = state.user?.role.roleName;
   const userId = state.user?.userId;
- 
-  // console.log("User ID in NotificationBell:", userId);
- 
+
   // Reuse the exact same token logic as axios.ts
   const getStoredToken = (): string | null => {
     if (typeof window === "undefined") return null;
@@ -45,7 +43,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
     if (token) return token;
     return sessionStorage.getItem("accessToken");
   };
- 
+
   const loadNotifications = async () => {
     try {
       const res = await notificationService.getAllNotifications();
@@ -54,46 +52,46 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       console.error("Error loading notifications:", error);
     }
   };
- 
+
   useEffect(() => {
     loadNotifications();
- 
+
     if (!userId) {
       console.log("No userId, skipping WebSocket connection");
       return;
     }
- 
+
     const SOCKET_URL = `${process.env.NEXT_PUBLIC_API_URL}/ws`;
     const token = getStoredToken();
- 
+
     if (!token) {
       console.warn("No accessToken found – WebSocket will not authenticate");
       return;
     }
- 
+
     const socket = new SockJS(SOCKET_URL);
- 
+
     // Fix: Pass factory function to enable auto-reconnect
     const stompClient = Stomp.over(() => new SockJS(SOCKET_URL));
- 
+
     stompClient.reconnect_delay = 5000; // Reconnect every 5 seconds if disconnected
-    stompClient.debug = () => {}; // Silence verbose logs (optional)
- 
+    stompClient.debug = () => { }; // Silence verbose logs (optional)
+
     const connectHeaders = {
       Authorization: `Bearer ${token}`,
     };
- 
+
     stompClient.connect(
       connectHeaders,
       () => {
         console.log("WebSocket Connected & Authenticated!");
- 
+
         stompClient.subscribe(`/topic/notifications/${userId}`, (message) => {
           if (message.body) {
             try {
               const data = JSON.parse(message.body);
               const newNotifications = Array.isArray(data) ? data : [data];
- 
+
               setNotifications((prev) => {
                 const filteredPrev = prev.filter(
                   (existing) =>
@@ -101,7 +99,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                       (newNotif: NotificationDTO) => newNotif.id === existing.id
                     )
                 );
- 
+
                 return [
                   ...newNotifications.map((n: NotificationDTO) => ({
                     ...n,
@@ -123,7 +121,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
         }
       }
     );
- 
+
     return () => {
       if (stompClient.connected) {
         stompClient.disconnect(() => {
@@ -133,21 +131,21 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
     };
   }, [userId]);
 
- useEffect(() => {
-  function handleClickOutside(event: MouseEvent) {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target as Node)
-    ) {
-      setDropdownOpen(false); // CLOSE THE DROPDOWN
-      setOpenMenuId(null);    // also close 3-dot menus
-      setShowModal(false);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false); // CLOSE THE DROPDOWN
+        setOpenMenuId(null);    // also close 3-dot menus
+        setShowModal(false);
+      }
     }
-  }
 
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -179,7 +177,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
     };
-  
+
     Swal.fire({
       title: 'Review Leave Request',
       width: 600,
@@ -218,14 +216,14 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       })
     }).then(async (result) => {
       if (!result.isConfirmed && !result.isDenied) return;
-  
+
       const { action, reason } = result.value!;
-  
+
       Swal.fire({ title: "Processing...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-  
+
       try {
         await leaveService.updateLeaveStatus(leave.leaveId!, action, reason);
-  
+
         Swal.fire({
           icon: "success",
           title: action === "APPROVED" ? "Leave Approved" : "Leave Rejected",
@@ -233,7 +231,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
           timer: 2000,
           showConfirmButton: false
         });
-  
+
       } catch (err: any) {
         Swal.fire("Error", err.message || "Failed to update leave", "error");
       }
@@ -244,111 +242,109 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   // ⭐ ROLE-BASED NOTIFICATION ACTIONS
   // ------------------------------------------------------------
   const handleOpenNotification = async (notification: NotificationDTO) => {
+    // console.log("===== NOTIFICATION CLICK START =====");
+    // console.log("Role:", userRole);
+    // console.log("Notification Type:", notification.notificationType);
+    // console.log("ID:", notification.id);
+    // console.log("Reference ID:", notification.referenceId);
+    // console.log("Employee ID:", notification.employeeId);
+    // console.log("Already read?", notification.read);
+
     try {
+      // Mark as read → double tick appears immediately
       if (!notification.read) {
+        // console.log("→ Marking as read...");
         await notificationService.markAsRead([notification.id]);
         setNotifications((prev) =>
           prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
         );
+        // console.log("→ Marked as read successfully");
+      } else {
+        // console.log("→ Already read, skipping mark");
       }
 
-      // ------------------------------------------------------------
-      // ⭐ EMPLOYEE FLOW → ALWAYS OPEN MODAL (NO REDIRECT)
-      // ------------------------------------------------------------
-      if (userRole === "EMPLOYEE") {
-        setSelectedNotification(notification);
-        setShowModal(true);
-        return;
+      // Close dropdown immediately
+      setDropdownOpen(false);
+      // console.log("→ Dropdown closed");
+
+      // Determine base path by role
+      let basePath = "/admin-dashboard"; // default for ADMIN, HR, FINANCE
+      if (userRole === "MANAGER") {
+        basePath = "/manager";
+        // console.log("→ Manager path selected:", basePath);
+      } else if (userRole === "EMPLOYEE") {
+        basePath = "/dashboard"; // your common paths
+        // console.log("→ Employee path selected:", basePath);
+      } else {
+        // console.log("→ Admin/HR/Finance path selected:", basePath);
       }
 
-      // ------------------------------------------------------------
-      // ⭐ MANAGER FLOW → REDIRECT
-      // ------------------------------------------------------------
+      let targetUrl = basePath; // fallback
 
-      // || userRole === "ADMIN"
-      if (userRole === "MANAGER" ) {
-        if (notification.notificationType === "TIMESHEET") {
-          const res = await timesheetService.getTimesheetById(
-            notification.referenceId
-          );
-          const ts = res.response;
+      const type = (notification.notificationType || "").toUpperCase().trim();
+      // console.log("→ Normalized type:", type);
 
-          if (!ts?.workDate) {
-            setSelectedNotification(notification);
-            setShowModal(true);
-            return;
-          }
-
-          const workDate = dayjs(ts.workDate);
-          const weekStart = workDate.startOf("isoWeek");
-
-          window.location.href = `/manager/timesheets?employeeId=${notification.employeeId}&week=${weekStart.format(
-            "YYYY-MM-DD"
-          )}`;
-          return;
+      // Role-based redirection
+      if (["MANAGER", "ADMIN", "HR", "FINANCE"].includes(userRole || "")) {
+        if (type.includes("LEAVE")) {
+          targetUrl = `${basePath}/leaves`;
+          // console.log("→ LEAVE detected → redirecting to:", targetUrl);
+        } else if (type.includes("TIMESHEET")) {
+          targetUrl = `${basePath}/timesheet`;
+          // console.log("→ TIMESHEET detected → redirecting to:", targetUrl);
+        } else if (type.includes("HOLIDAY")) {
+          targetUrl = `${basePath}/holiday`;
+          // console.log("→ HOLIDAY detected → redirecting to:", targetUrl);
+        } else if (type.includes("INVOICE")) {
+          targetUrl = `${basePath}/invoice`;
+          // console.log("→ INVOICE detected → redirecting to:", targetUrl);
+        } else if (type.includes("SALARY")) {
+          targetUrl = `${basePath}/salaries`;
+          // console.log("→ SALARY detected → redirecting to:", targetUrl);
+        } else if (type.includes("UPDATEREQUEST") || type.includes("UPDATE_REQUEST") || type.includes("PROFILE")) {
+          targetUrl = `${basePath}/updaterequest`;
+          // console.log("→ UPDATE_REQUEST detected → redirecting to:", targetUrl);
+        } else {
+          targetUrl = basePath;
+          // console.log("→ Unknown type → fallback to dashboard:", targetUrl);
         }
-
-        // if (notification.notificationType === "LEAVE") {
-        //   window.location.href = `/manager/leaves`;
-        //   return;
-        // }
-
-        if (notification.notificationType === "LEAVE") {
-          
-          try {
-             // Fetch leave FIRST — NO LOADER
-              const leave = await leaveService.getLeaveById(notification.referenceId);
-              console.log("Leave details fetched:", leave.status);
-
-              if (!leave) {
-                throw new Error("Leave request not found");
-              }
-
-              // PENDING → directly open review modal
-              // (handleReviewLeaveFromNotification already shows UI)
-              if (leave.status === "PENDING") {
-                handleReviewLeaveFromNotification(leave);
-                return;
-              }
-
-              // NON-PENDING → fallback modal
-              setSelectedNotification(notification);
-              setShowModal(true);
-
-
-            // Mark notification as read (optional, since action was taken)
-            if (!notification.read) {
-              await notificationService.markAsRead([notification.id]);
-              setNotifications(prev =>
-                prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-              );
-            }
-        
-          } catch (err: any) {
-            Swal.close();
-            Swal.fire({
-              icon: "error",
-              title: "Failed to load leave",
-              text: err.message || "Could not fetch leave details",
-            });
-          }
-        
-          return; // Prevent default modal
+      } else if (userRole === "EMPLOYEE") {
+        if (type.includes("LEAVE")) {
+          targetUrl = "/dashboard/leaves";
+          // console.log("→ EMPLOYEE LEAVE → redirecting to:", targetUrl);
+        } else if (type.includes("TIMESHEET")) {
+          targetUrl = "/dashboard/TimeSheetRegister";
+          // console.log("→ EMPLOYEE TIMESHEET → redirecting to:", targetUrl);
+        } else if (type.includes("HOLIDAY")) {
+          targetUrl = "/dashboard/holiday";
+          // console.log("→ EMPLOYEE HOLIDAY → redirecting to:", targetUrl);
+        } else if (type.includes("UPDATEREQUEST") || type.includes("UPDATE_REQUEST")) {
+          targetUrl = "/dashboard/updaterequest";
+          // console.log("→ EMPLOYEE UPDATE_REQUEST → redirecting to:", targetUrl);
+        } else if (type.includes("SALARY")) {
+          targetUrl = "/dashboard/salary";
+          // console.log("→ EMPLOYEE SALARY → redirecting to:", targetUrl);
+        } else {
+          targetUrl = "/dashboard";
+          // console.log("→ EMPLOYEE fallback → redirecting to:", targetUrl);
         }
       }
 
-      // ------------------------------------------------------------
-      // ⭐ Other Roles → Default modal
-      // ------------------------------------------------------------
-      setSelectedNotification(notification);
-      setShowModal(true);
+      // console.log("===== FINAL REDIRECT =====");
+      // console.log("To:", targetUrl);
+      // console.log("=====================================");
+
+      // Small delay for real-time feel (user sees double tick)
+      setTimeout(() => {
+        window.location.href = targetUrl;
+      }, 300);
+
     } catch (error) {
-      console.error("Notification click error:", error);
+      console.error("NOTIFICATION CLICK FAILED:", error);
       setSelectedNotification(notification);
       setShowModal(true);
     }
   };
-
   return (
     <div ref={dropdownRef} className="relative">
       <button onClick={() => setDropdownOpen(!isDropdownOpen)} className="relative">
@@ -369,55 +365,75 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`flex justify-between items-start px-4 py-3 border-b hover:bg-gray-50 cursor-pointer transition-all duration-150 ${
-                    notification.read ? "bg-gray-100" : "bg-white"
-                  }`}
+                  className={`group flex items-start px-5 py-4 border-b border-gray-100 last:border-none hover:bg-indigo-50/40 transition-all duration-150 cursor-pointer ${notification.read ? "bg-gray-50/70" : "bg-white"
+                    }`}
                   onClick={() => handleOpenNotification(notification)}
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p
-                      className={`text-sm leading-snug ${
-                        notification.read ? "text-gray-500" : "text-gray-900 font-medium"
-                      }`}
+                      className={`text-sm leading-relaxed ${notification.read ? "text-gray-600" : "text-gray-900 font-semibold"
+                        }`}
                     >
                       {notification.message}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(notification.updatedAt).toLocaleString()}
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      {new Date(notification.updatedAt).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
 
-                  <div className="relative ml-2">
+                  <div className="flex items-center space-x-3 ml-3 relative group">
+                    {/* Double tick (seen) / Single tick (unseen) */}
+                    {notification.read ? (
+                      <CheckCheck className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    ) : (
+                      <Check className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                    )}
+
+                    {/* Tooltip - real-time app style */}
+                    <div className="absolute -bottom-9 right-0 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-2.5 py-1.5 shadow-md whitespace-nowrap z-20 pointer-events-none">
+                      {notification.read ? "Seen" : "Delivered"}
+                    </div>
+
+                    {/* 3-dot menu with delete icon */}
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenMenuId(openMenuId === notification.id ? null : notification.id);
                       }}
+                      className="p-1 rounded-full hover:bg-gray-200 transition-colors"
                     >
                       <MoreVertical className="w-4 h-4 text-gray-500" />
                     </button>
 
                     {openMenuId === notification.id && (
-                      <div className="absolute right-0 mt-2 bg-white border rounded shadow-md z-10 min-w-[140px]">
+                      <div className="absolute right-4 top-10 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[160px] py-1">
                         <button
-                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          className="flex items-center w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleMarkAsRead(notification.id);
                             setOpenMenuId(null);
                           }}
                         >
+                          <CheckCheck className="w-4 h-4 mr-2 text-blue-500" />
                           Mark as Read
                         </button>
 
                         <button
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          className="flex items-center w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(notification.id);
                             setOpenMenuId(null);
                           }}
                         >
+                          <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </button>
                       </div>

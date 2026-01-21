@@ -102,10 +102,10 @@ const Header = () => {
         <div className="flex items-center justify-between h-20">
           {/* Dashboard Title */}
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-5xl font-extrabold text-gray-800 tracking-tight mt-8 mb-8">
-          {dashboardTitle}
-            </h1>
+            {dashboardTitle}
+          </h1>
           <div className="flex items-center gap-6">
-            <NotificationBell className="h-8 w-8 text-yellow-600 hover:scale-110 transition" />
+            <NotificationBell className="h-8 w-8 text-yellow-600 cursor-pointer" />
 
             {/* Profile Dropdown */}
             <div className="relative" ref={dropdownRef}>
