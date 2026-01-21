@@ -23,7 +23,7 @@ import {
   ClipboardList,
   BarChart2,
   Receipt,
-  CalendarDays, 
+  CalendarDays,
 } from "lucide-react";
 
 // icon mapping
@@ -63,10 +63,31 @@ export default function Sidebar() {
   const getIcon = (label: string) => ICON_MAP[label] ?? <Home size={18} />;
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm flex flex-col justify-between">
-      
-      {/* Logo */}
-      <div>
+    // <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-5 shadow-sm flex flex-col justify-between">
+    <aside
+      className="
+      w-64
+      bg-white
+      border-r border-gray-200
+      h-screen
+      flex flex-col
+      shadow-sm
+      overflow-hidden           
+    "
+    >
+      <div
+        className="
+        flex-1                  
+        overflow-y-auto         
+        p-5                     
+        scrollbar-thin          
+        scrollbar-thumb-gray-400
+        scrollbar-track-transparent
+        hover:scrollbar-thumb-gray-500
+        custom-scrollbar      
+      "
+      >
+        {/* Logo - stays at top, doesn't scroll away */}
         <div className="flex items-center justify-center space-x-4 mb-8">
           <Image
             src="/digiquad logo.jpeg"
@@ -116,8 +137,10 @@ export default function Sidebar() {
               })}
           </SidebarSection>
         )}
-      </div>
 
+        {/* Add extra space at bottom if needed */}
+        <div className="min-h-[200px]" /> {/* ← temporary test spacer */}
+      </div>
     </aside>
   );
 }
@@ -147,11 +170,10 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${
-        active
-          ? "bg-indigo-100 text-indigo-700 font-medium"
-          : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
-      }`}
+      className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${active
+        ? "bg-indigo-100 text-indigo-700 font-medium"
+        : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+        }`}
     >
       {icon}
       <span>{children}</span>

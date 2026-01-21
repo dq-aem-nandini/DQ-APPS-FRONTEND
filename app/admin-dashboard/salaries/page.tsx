@@ -4,7 +4,8 @@ import { salaryGenerateService } from '@/lib/api/salarybuttonGenerateService';
 import React, { useEffect, useState } from 'react';
 import { salaryService } from '@/lib/api/salaryService';
 import { ListofEmployeeSalaries } from '@/lib/api/ListofEmployeSalaries';
-
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   WebResponseDTO,
   EmployeeDTO,
@@ -60,6 +61,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import Swal from 'sweetalert2';
 
 export default function AdminPage() {
   /* ───────────────────────────────────────────
@@ -199,6 +201,71 @@ export default function AdminPage() {
   /* ───────────────────────────────────────────
    * RENDER UI
    * ─────────────────────────────────────────── */
+
+  const downloadAsPDF = (list: typeof generatedSalaryList) => {
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(79, 70, 229); // indigo-600
+    doc.text("Pending Salary Generation List", 14, 20);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${dayjs().format("DD MMMM YYYY, HH:mm")}`, 14, 30);
+    doc.text(`Total pending employees: ${list.length}`, 14, 38);
+
+    // Table data
+    const tableColumn = ["Employee Name", "Company ID", "Worked Hours"];
+    const tableRows = list.map((emp) => [
+      emp.employeeName,
+      emp.companyId ?? "—",
+      emp.workedHours.toString(),
+    ]);
+
+    // Use the imported autoTable function
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 48,
+      theme: "grid",
+      headStyles: {
+        fillColor: [79, 70, 229],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: {
+        fontSize: 10,
+        cellPadding: 6,
+        overflow: "linebreak",
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 255],
+      },
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 40 },
+      },
+      margin: { top: 48, left: 14, right: 14 },
+    });
+
+    // Footer with page numbers
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(140);
+      doc.text(
+        `Page ${i} of ${pageCount} • EmpTimeHub • ${dayjs().format("DD/MM/YYYY")}`,
+        14,
+        doc.internal.pageSize.height - 10
+      );
+    }
+
+    // Trigger download
+    doc.save(`pending-salary-generation-${dayjs().format("YYYY-MM-DD")}.pdf`);
+  };
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-10">
 
@@ -215,7 +282,7 @@ export default function AdminPage() {
       <Tabs defaultValue="generate" className="w-full">
 
         <TabsList className="grid grid-cols-2 w-full">
-        <TabsTrigger value="view">View Salary Slip</TabsTrigger>
+          <TabsTrigger value="view">View Salary Slip</TabsTrigger>
           <TabsTrigger value="generate">Generate Salary</TabsTrigger>
         </TabsList>
 
@@ -245,60 +312,118 @@ export default function AdminPage() {
               </div>
 
               <Button
-                  variant="destructive"
-                  disabled={!genMonth}
-                  onClick={async () => {
-                    if (!genMonth) return;
+                variant="destructive"
+                disabled={!genMonth}
+                onClick={async () => {
+                  if (!genMonth) return;
 
-                    const [year, month] = genMonth.split("-");
+                  const [year, month] = genMonth.split("-");
 
-                    try {
-                      const res = await salaryGenerateService.generateSalary(
-                        year,
-                        month.padStart(2, "0")
-                      );
+                  // 1. Show loading popup first
+                  Swal.fire({
+                    title: "Processing...",
+                    text: "Generating salaries, please wait...",
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                      Swal.showLoading();
+                    },
+                  });
 
-                      // 👇 store API response
+                  try {
+                    const res = await salaryGenerateService.generateSalary(
+                      year,
+                      month.padStart(2, "0")
+                    );
+
+                    // 2. Show success popup (user must click OK to proceed)
+                    const result = await Swal.fire({
+                      title: "Success!",
+                      text: "Salary generation completed successfully!",
+                      icon: "success",
+                      confirmButtonColor: "#4F46E5",
+                      confirmButtonText: "OK",
+                    });
+
+                    // 3. Only AFTER user clicks "OK" → update state → show the table
+                    if (result.isConfirmed) {
                       setGeneratedSalaryList(res.response || []);
-
-                      alert("Salary generation triggered successfully!");
-                    } catch (err) {
-                      console.error(err);
-                      alert("Failed to generate salary");
                     }
-                  }}
-                >
-                  Generate Salary
-                </Button>
+                  } catch (err) {
+                    console.error(err);
 
-                {generatedSalaryList.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3">Generated Salary Summary</h3>
+                    await Swal.fire({
+                      title: "Error",
+                      text: "Failed to generate salary. Please try again.",
+                      icon: "error",
+                      confirmButtonColor: "#EF4444",
+                      confirmButtonText: "OK",
+                    });
+                  }
+                }}
+              >
+                Generate Salary
+              </Button>
 
-                    <div className="overflow-x-auto rounded-lg border">
-                      <table className="min-w-full text-sm">
-                        <thead className="bg-gray-100 border-b">
-                          <tr>
-                            <th className="px-4 py-2 text-left font-medium">Employee Name</th>
-                            <th className="px-4 py-2 text-left font-medium">Company ID</th>
-                            <th className="px-4 py-2 text-left font-medium">Worked Hours</th>
-                          </tr>
-                        </thead>
+              {generatedSalaryList.length > 0 && (
+                <div className="mt-6">
+                  {/* Heading + Button in one row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                    <h3 className="text-lg font-semibold">
+                      Salary Generation Pending For these Employees
+                    </h3>
 
-                        <tbody>
-                          {generatedSalaryList.map((emp) => (
-                            <tr key={emp.employeeId} className="border-b hover:bg-gray-50">
-                              <td className="px-4 py-2">{emp.employeeName}</td>
-                              <td className="px-4 py-2">{emp.companyId ?? "—"}</td>
-                              <td className="px-4 py-2">{emp.workedHours}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    {/* Download Button – right-aligned on desktop */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadAsPDF(generatedSalaryList)}
+                      className="flex items-center gap-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" x2="12" y1="15" y2="3" />
+                      </svg>
+                      Download as PDF
+                    </Button>
                   </div>
-                )}
-                  
+
+                  {/* Table */}
+                  <div className="overflow-x-auto rounded-lg border shadow-sm">
+                    <table className="min-w-full text-sm divide-y divide-gray-200">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-6 py-3 text-left font-medium text-gray-700">Employee Name</th>
+                          <th className="px-6 py-3 text-left font-medium text-gray-700">Company ID</th>
+                          <th className="px-6 py-3 text-left font-medium text-gray-700">Worked Hours</th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {generatedSalaryList.map((emp) => (
+                          <tr key={emp.employeeId} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap">{emp.employeeName}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">{emp.companyId ?? "—"}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">{emp.workedHours}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
             </CardContent>
           </Card>
         </TabsContent>
@@ -309,7 +434,7 @@ export default function AdminPage() {
         <TabsContent value="view">
           {/* Keep your existing full UI exactly as before */}
           {/* -------------------------------------------- */}
-          
+
           {/* EMPLOYEE + YEAR + MONTH + FETCH UI */}
           <Card>
             <CardHeader>
@@ -409,7 +534,7 @@ export default function AdminPage() {
                 </div>
               )}
             </CardContent>
-            </Card>
+          </Card>
 
           {/* ERROR */}
           {error && (
@@ -448,7 +573,7 @@ export default function AdminPage() {
           {/* SALARY SLIP */}
           {salaryData && (
             <div className="grid gap-6 lg:grid-cols-3 mt-6">
-              
+
               {/* Overview */}
               <Card className="lg:col-span-3">
                 <CardHeader className="flex flex-row items-center justify-between">
