@@ -80,6 +80,20 @@ const deduplicateAddresses = (addresses: AddressModel[]): AddressModel[] => {
   return Array.from(map.values()).filter(isValidAddress);
 };
 
+// Simple deep equality check for address objects (only the fields we care about)
+const isAddressEqual = (a: AddressModel | undefined, b: AddressModel | undefined): boolean => {
+  if (!a || !b) return false;
+  return (
+    (a.houseNo || "").trim() === (b.houseNo || "").trim() &&
+    (a.streetName || "").trim() === (b.streetName || "").trim() &&
+    (a.city || "").trim() === (b.city || "").trim() &&
+    (a.state || "").trim() === (b.state || "").trim() &&
+    (a.country || "").trim() === (b.country || "").trim() &&
+    (a.pincode || "").trim() === (b.pincode || "").trim() &&
+    (a.addressType || "") === (b.addressType || "")
+  );
+};
+
 const ProfilePage = () => {
   const {
     state: { user },
@@ -112,6 +126,7 @@ const ProfilePage = () => {
   interface FormDocument extends EmployeeDocumentDTO {
     fileObj?: File | null;
     tempId?: string;
+    status?: 'unchanged' | 'new' ;
   }
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -131,10 +146,10 @@ const ProfilePage = () => {
           ? res.maritalStatus.charAt(0).toUpperCase() +
           res.maritalStatus.slice(1).toLowerCase()
           : "",
-        addresses: (res.addresses || []).map((a) => ({
-          ...a,
-          addressId: a.addressId || uuidv4(),
-        })),
+          addresses: (res.addresses || []).map((a) => ({
+            ...a,
+            addressId: a.addressId ?? uuidv4(),   // only if null/undefined
+          })),
         documents: res.documents || [],
         employeeSalaryDTO: res.employeeSalaryDTO || undefined,
         employeeInsuranceDetailsDTO:
@@ -157,6 +172,7 @@ const ProfilePage = () => {
           ...d,
           fileObj: null,
           tempId: uuidv4(),
+          status: 'unchanged' as const,
         }))
       );
     } catch (err: any) {
@@ -174,6 +190,7 @@ const ProfilePage = () => {
         file: null,
         fileObj: null,
         tempId: uuidv4(),
+        status: 'new' as const,           // ← Important
       } as FormDocument,
     ]);
   };
@@ -187,8 +204,47 @@ const ProfilePage = () => {
     );
   };
 
-  const removeDocument = (index: number) => {
-    setDocuments((prev) => prev.filter((_, i) => i !== index));
+  const removeDocument = async (index: number) => {
+    const doc = documents[index];
+  
+    // Case 1: New document (never saved) → just remove from UI
+    if (doc.status === 'new' || !doc.documentId) {
+      setDocuments((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+  
+    // Case 2: Existing document → ask for confirmation & send delete request
+    const result = await Swal.fire({
+      title: "Delete Document?",
+      text: "This will send a delete request to admin for approval.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, request delete",
+      cancelButtonText: "Cancel",
+    });
+  
+    if (!result.isConfirmed) return;
+  
+    try {
+      // Call the delete request API (similar to address)
+      await employeeService.submitDeleteDocumentRequest(doc);
+  
+      Swal.fire({
+        icon: "success",
+        title: "Delete Request Sent",
+        text: "Admin will review your request.",
+      });
+  
+      // Optimistic UI update: remove from list immediately
+      // setDocuments((prev) => prev.filter((_, i) => i !== index));
+  
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: err.message || "Unable to send delete request. Try again.",
+      });
+    }
   };
   // Handle IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
@@ -456,32 +512,68 @@ const ProfilePage = () => {
 
       // === Addresses ===
       // Always send full list (backend handles upsert based on addressId)
-      addresses.forEach((addr, i) => {
-        if (addr.addressId && !addr.addressId.startsWith("temp-")) {
-          payload.append(`addresses[${i}].addressId`, addr.addressId);
-        }
-        payload.append(`addresses[${i}].houseNo`, addr.houseNo || "");
-        payload.append(`addresses[${i}].streetName`, addr.streetName || "");
-        payload.append(`addresses[${i}].city`, addr.city || "");
-        payload.append(`addresses[${i}].state`, addr.state || "");
-        payload.append(`addresses[${i}].country`, addr.country || "");
-        payload.append(`addresses[${i}].pincode`, addr.pincode || "");
-        payload.append(`addresses[${i}].addressType`, addr.addressType || "");
-      });
+      // === Addresses ===
+// Only send new or changed addresses
+let addressIndex = 0;
 
-      // === Documents - only new file uploads ===
-      documents
-        .filter((d) => d.fileObj instanceof File)
+addresses.forEach((addr) => {
+  // Skip if this address was marked deleted in UI (you already handle deletion separately)
+  // If you ever add status: 'deleted' to addresses, you can add check here
+
+  const original = profile?.addresses?.find(
+    (o) => o.addressId === addr.addressId
+  );
+
+  const isNew = !addr.addressId || addr.addressId.startsWith("temp-");
+  const isChanged = !isNew && original && !isAddressEqual(original, addr);
+
+  if (!isNew && !isChanged) {
+    return; // skip unchanged existing addresses
+  }
+
+  // Send this address
+  if (!isNew) {
+    payload.append(`addresses[${addressIndex}].addressId`, addr.addressId!);
+  }
+
+  payload.append(`addresses[${addressIndex}].houseNo`, addr.houseNo || "");
+  payload.append(`addresses[${addressIndex}].streetName`, addr.streetName || "");
+  payload.append(`addresses[${addressIndex}].city`, addr.city || "");
+  payload.append(`addresses[${addressIndex}].state`, addr.state || "");
+  payload.append(`addresses[${addressIndex}].country`, addr.country || "");
+  payload.append(`addresses[${addressIndex}].pincode`, addr.pincode || "");
+  payload.append(`addresses[${addressIndex}].addressType`, addr.addressType || "");
+
+  addressIndex++;
+});
+      // Documents: new + replacements
+        documents
+        .filter((d) => d.fileObj instanceof File) // only when new file is selected
         .forEach((doc, i) => {
+          // If existing document → include ID for update
           if (doc.documentId) {
             payload.append(`documents[${i}].documentId`, doc.documentId);
+            // Optional: send old URL if backend needs it
+            if (doc.fileUrl) {
+              payload.append(`documents[${i}].fileUrl`, doc.fileUrl);
+            }
           }
+
           payload.append(`documents[${i}].docType`, doc.docType);
           payload.append(`documents[${i}].file`, doc.fileObj!);
         });
 
       // If no changes at all (except possibly photo/documents), prevent submission
-      if (payload.entries().next().done && !profilePhotoFile && documents.every(d => !(d.fileObj instanceof File))) {
+       // Check if we have any real changes
+        const hasRealChanges =
+        !payload.entries().next().done ||           // something was appended (fields, photo, addresses, etc.)
+        !!profilePhotoFile ||                       // photo changed
+        documents.some((d) => 
+          d.fileObj instanceof File || 
+          d.status === 'new' 
+        );                                       
+
+        if (!hasRealChanges) {
         Swal.fire({
           icon: "info",
           title: "No Changes",
@@ -489,7 +581,7 @@ const ProfilePage = () => {
           confirmButtonColor: "#4F46E5",
         });
         return;
-      }
+        }
 
       const res = await employeeService.submitUpdateRequest(payload);
       if (!res.flag) throw new Error(res.message || "Update failed");
@@ -513,6 +605,15 @@ const ProfilePage = () => {
   };
 
   const handleDeleteAddress = async (address: AddressModel) => {
+    const addressId = address.addressId;
+  
+    // Case 1: New / temporary address → instantly remove from UI (no prompt, no API)
+    if (!addressId || addressId.startsWith("temp-")) {
+      setAddresses((prev) => prev.filter(a => a.addressId !== addressId));
+      return;
+    }
+  
+    // Case 2: Existing address → show confirmation & send delete request
     const result = await Swal.fire({
       title: "Request Address Deletion?",
       text: "This will send a delete request to the admin for approval.",
@@ -521,24 +622,26 @@ const ProfilePage = () => {
       confirmButtonText: "Yes, send request",
       cancelButtonText: "Cancel",
     });
-
+  
     if (!result.isConfirmed) return;
-
+  
     try {
       await employeeService.submitDeleteAddressRequest(address);
-
       Swal.fire({
         icon: "success",
         title: "Delete Request Sent",
         text: "Admin will review your request.",
       });
-
-      // Update UI ONLY, do not delete from DB
-      setFormData(prev => ({
-        ...prev!,
-        addresses: prev!.addresses.filter(a => a.addressId !== address.addressId),
-      }));
-
+  
+      // Update UI: remove the address
+      // setAddresses((prev) => prev.filter(a => a.addressId !== addressId));
+  
+      // Also update formData if needed (though setAddresses should suffice)
+      // setFormData(prev => ({
+      //   ...prev!,
+      //   addresses: prev!.addresses.filter(a => a.addressId !== addressId),
+      // }));
+  
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -646,33 +749,6 @@ const ProfilePage = () => {
     setErrors(newErrors);
   };
 
-  const removeAddress = async (index: number) => {
-    const address = addresses[index];
-    const addressId = address.addressId;
-
-    if (!addressId || addressId.startsWith("temp-")) {
-      setAddresses((prev) => prev.filter((_, i) => i !== index));
-      return;
-    }
-
-    setDeletingAddresses((prev) => new Set(prev).add(addressId));
-    try {
-      await employeeService.deleteEmployeeAddressGlobal(
-        profile!.employeeId,
-        addressId
-      );
-      setAddresses((prev) => prev.filter((_, i) => i !== index));
-      setSuccess("Address removed successfully");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setDeletingAddresses((prev) => {
-        const next = new Set(prev);
-        next.delete(addressId);
-        return next;
-      });
-    }
-  };
   // ADD THIS FUNCTION — detects if anything actually changed
   const hasAnyChanges = useCallback(() => {
     if (!profile || !formData) return false;
@@ -707,15 +783,44 @@ const ProfilePage = () => {
     }
 
     // Compare addresses
+    // const oldAddresses = (profile.addresses || [])
+    //   .map((a) => JSON.stringify(a))
+    //   .sort();
+    // const newAddresses = addresses.map((a) => JSON.stringify(a)).sort();
+    // if (JSON.stringify(oldAddresses) !== JSON.stringify(newAddresses))
+    //   return true;
+
+    // Compare addresses — ignore temporary uuid differences
+    const normalizeAddressForCompare = (addr: AddressModel) => ({
+      houseNo: addr.houseNo?.trim() || "",
+      streetName: addr.streetName?.trim() || "",
+      city: addr.city?.trim() || "",
+      state: addr.state?.trim() || "",
+      country: addr.country?.trim() || "",
+      pincode: addr.pincode?.trim() || "",
+      addressType: addr.addressType || "",
+      // Do NOT include addressId in comparison
+    });
+
     const oldAddresses = (profile.addresses || [])
-      .map((a) => JSON.stringify(a))
-      .sort();
-    const newAddresses = addresses.map((a) => JSON.stringify(a)).sort();
-    if (JSON.stringify(oldAddresses) !== JSON.stringify(newAddresses))
+      .map(normalizeAddressForCompare)
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+    const newAddresses = addresses
+      .map(normalizeAddressForCompare)
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+    if (JSON.stringify(oldAddresses) !== JSON.stringify(newAddresses)) {
       return true;
+    }
 
     // Compare documents (new files uploaded)
-    if (documents.some((d) => d.fileObj instanceof File)) return true;
+    const documentsChanged =
+  documents.some((d) => d.fileObj instanceof File) ||     // new file upload
+  documents.some((d) => d.status === 'new') ||            // added new document 
+  false;          // Removed invalid check for 'updated'
+
+if (documentsChanged) return true;
 
     return false;
   }, [profile, formData, addresses, documents]);
@@ -1514,35 +1619,45 @@ const ProfilePage = () => {
                   {documents
                     .filter(doc => doc.docType !== "OFFER_LETTER" && doc.docType !== "CONTRACT")
                     .map((doc, i) => (
-                    <div
+                      <div
                       key={doc.tempId || doc.documentId}
-                      className="flex flex-wrap items-end gap-4 p-5 bg-gray-50 rounded-xl mb-4 border border-gray-200"
+                      className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-6 bg-gradient-to-r from-gray-50 to-white rounded-2xl mb-6 border border-gray-200 shadow-sm"
                     >
-                      {/* Document Type */}
-                      <div className="flex-1 min-w-[200px]">
+                      {/* Document Type - Col 1 */}
+                      <div className="lg:col-span-1">
                         <Select
                           label="Document Type"
                           value={doc.docType}
                           onChange={(e) =>
-                            updateDocument(
-                              i,
-                              "docType",
-                              e.target.value as DocumentType
-                            )
+                            updateDocument(i, "docType", e.target.value as DocumentType)
                           }
                           options={EMPLOYEE_ALLOWED_DOCUMENTS}
                         />
-                        {errors[`documents[${i}].docType`] && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors[`documents[${i}].docType`]}
-                          </p>
+                      </div>
+                    
+                      {/* Current File Info - Col 2 */}
+                      <div className="lg:col-span-1 flex items-center justify-center">
+                        {doc.fileUrl && !doc.fileObj && (
+                          <div className="text-center">
+                            {/* <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-2 mx-auto">
+                              <FileText className="w-6 h-6 text-blue-600" />
+                            </div> */}
+                            <a
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1 justify-center"
+                            >
+                              <Eye className="w-4 h-4" /> View Current
+                            </a>
+                          </div>
                         )}
                       </div>
-
-                      {/* File Input */}
-                      <div className="flex-1 min-w-[280px]">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Upload File
+                    
+                      {/* Upload / Replace - Col 3 (flexible) */}
+                      <div className="lg:col-span-1 flex-1">
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          {doc.fileUrl ? "Replace File" : "Upload File"}
                         </label>
                         <input
                           type="file"
@@ -1550,90 +1665,33 @@ const ProfilePage = () => {
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             updateDocument(i, "fileObj", file);
-                            // Basic file validation
-                            if (file) {
-                              const newErrors: Record<string, string> = {
-                                ...errors,
-                              };
-                              delete newErrors[`documents[${i}].file`];
-                              if (file.size > 5 * 1024 * 1024) {
-                                // 5MB
-                                newErrors[`documents[${i}].file`] =
-                                  "File too large (max 5MB)";
-                              }
-                              if (
-                                ![
-                                  "application/pdf",
-                                  "image/jpeg",
-                                  "image/jpg",
-                                  "image/png",
-                                ].includes(file.type)
-                              ) {
-                                newErrors[`documents[${i}].file`] =
-                                  "Only PDF, JPG, JPEG, PNG allowed";
-                              }
-                              setErrors(newErrors);
-                            }
                           }}
-                          className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                          className="block w-full text-sm text-gray-600 bg-white
+                            file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0
+                            file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 
+                            file:text-white file:font-medium file:shadow-md
+                            hover:file:from-indigo-700 hover:file:to-purple-700 
+                            cursor-pointer border border-gray-200 rounded-xl px-4 py-3
+                            focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         />
                         {errors[`documents[${i}].file`] && (
-                          <p className="text-red-500 text-xs mt-1">
+                          <p className="mt-1 text-red-600 text-xs font-medium">
                             {errors[`documents[${i}].file`]}
                           </p>
                         )}
-                      </div>
-
-                      {/* Current File or Selected File */}
-                      <div className="flex-1 min-w-[200px]">
-                        {doc.fileObj ? (
-                          <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
-                            <svg
-                              className="w-4 h-4"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            <span className="truncate">{doc.fileObj.name}</span>
-                          </div>
-                        ) : doc.file ? (
-                        <a
-                          href={
-                            typeof doc.file === "string"
-                              ? doc.file
-                              : doc.fileUrl ?? "#"
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      </div>      
+                    
+                      {/* Trash - Col 4 */}
+                      <div className="lg:col-span-1 flex items-start lg:items-center justify-center lg:justify-end pt-2 lg:pt-8">
+                        <button
+                          type="button"
+                          onClick={() => removeDocument(i)}
+                          className="group relative p-3 bg-red-50 hover:bg-red-100 rounded-2xl border-2 border-red-200 hover:border-red-300 transition-all shadow-sm hover:shadow-md hover:scale-105"
+                          title="Remove this document"
                         >
-
-                          <Eye className="w-4 h-4" />
-                          View Current File
-                        </a>
-
-
-                        ) : (
-                          <span className="text-gray-400 text-sm italic">
-                            No file selected
-                          </span>
-                        )}
+                          <Trash2 className="w-5 h-5 text-red-600 group-hover:text-red-700 transition-colors" />
+                        </button>
                       </div>
-
-                      {/* Remove Button */}
-                      <button
-                        type="button"
-                        onClick={() => removeDocument(i)}
-                        className="text-red-600 hover:text-red-800 transition"
-                        title="Remove"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
                     </div>
                   ))}
 
@@ -1872,21 +1930,16 @@ const ProfilePage = () => {
                             </p>
                           </div>
 
-                          {doc.file ? (
-                          <a
-                            href={
-                              typeof doc.file === "string"
-                                ? doc.file
-                                : doc.fileUrl ?? "#"
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
-                          >
-                            <Eye className="w-5 h-5" />
-                            <span className="text-sm">View</span>
-                          </a>
-
+                          {doc.fileUrl ? (
+                            <a
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                            >
+                              <Eye className="w-5 h-5" />
+                              <span className="text-sm">View</span>
+                            </a>
                           ) : (
                             <span className="text-gray-400 text-sm italic">
                               No file uploaded
