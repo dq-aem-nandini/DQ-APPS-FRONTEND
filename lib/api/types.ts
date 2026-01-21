@@ -1675,3 +1675,10 @@ export interface ManualInvoiceRequestDTO {
 
   items: ManualInvoiceItemRequestDTO[];
 }
+
+export interface LeaveAdjustmentRequestDTO {
+  employeeId: string;   // UUID as string
+  adjustment: number;   // +ve or -ve
+}
+
+export type LeaveAdjustmentResponse = Record<string, number>;

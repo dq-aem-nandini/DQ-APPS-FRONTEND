@@ -910,6 +910,10 @@ const EditEmployeePage = () => {
         designation: formData.designation,
         dateOfBirth: formData.dateOfBirth,
         dateOfJoining: formData.dateOfJoining,
+        dateOfOnboardingToClient: formData.dateOfOnboardingToClient,
+        dateOfOffboardingToClient: formData.dateOfOffboardingToClient,
+        clientBillingStartDate: formData.clientBillingStartDate,
+        clientBillingStopDate: formData.clientBillingStopDate,
         rateCard: formData.rateCard,
         employmentType: formData.employmentType,
         reportingManagerId: formData.reportingManagerId,
@@ -1323,11 +1327,12 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData?.gender || ""}
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
                         setFormData((prev) =>
                           prev ? { ...prev, gender: v } : prev,
-                        )
-                      }
+                        );
+                        setIsDirty(true)
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         {" "}
@@ -1384,6 +1389,7 @@ const EditEmployeePage = () => {
                             : prev,
                         );
                         setErrors((prev) => ({ ...prev, clientSelection: "" }));
+                        setIsDirty(true)
                       }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
@@ -1423,7 +1429,7 @@ const EditEmployeePage = () => {
                       }
                       onValueChange={async (v) => {
                         const department = v as Department;
-
+                        setIsDirty(true)
                         setFormData((prev) =>
                           prev
                             ? {
@@ -1497,10 +1503,12 @@ const EditEmployeePage = () => {
                     </Label>
                     <Select
                       value={formData?.reportingManagerId || ""}
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
                         setFormData((prev) =>
                           prev ? { ...prev, reportingManagerId: v } : prev,
                         )
+                        setIsDirty(true)
+                      }
                       }
                       disabled={
                         !formData?.employeeEmploymentDetailsDTO?.department
@@ -1546,12 +1554,14 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData?.designation || ""}
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         setFormData((prev) =>
                           prev
                             ? { ...prev, designation: v as Designation }
                             : prev,
                         )
+                      }
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
@@ -1693,12 +1703,14 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData.employmentType}
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         setFormData((prev) =>
                           prev
                             ? { ...prev, employmentType: v as EmploymentType }
                             : prev,
                         )
+                      }
                       }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
@@ -1760,7 +1772,8 @@ const EditEmployeePage = () => {
                     </Label>
                     <Select
                       value={formData?.employeeSalaryDTO?.payType || ""}
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         setFormData((prev) =>
                           prev
                             ? {
@@ -1782,6 +1795,7 @@ const EditEmployeePage = () => {
                             : prev,
                         )
                       }
+                    }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Type" />
@@ -1819,7 +1833,8 @@ const EditEmployeePage = () => {
 
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ""}
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         handleChange({
                           target: {
                             name: "employeeSalaryDTO.payClass",
@@ -1827,6 +1842,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
+                    }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Class" />
@@ -1852,7 +1868,8 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO?.workingModel ||
                         ""
                       }
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         handleChange({
                           target: {
                             name: "employeeEmploymentDetailsDTO.workingModel",
@@ -1860,6 +1877,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
+                    }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Working Model" />
@@ -1885,7 +1903,8 @@ const EditEmployeePage = () => {
                       value={
                         formData.employeeEmploymentDetailsDTO?.shiftTiming || ""
                       }
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         handleChange({
                           target: {
                             name: "employeeEmploymentDetailsDTO.shiftTiming",
@@ -1893,6 +1912,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
+                    }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Shift" />
@@ -1936,7 +1956,8 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO
                           ?.noticePeriodDuration || ""
                       }
-                      onValueChange={(v) =>
+                      onValueChange={(v) =>{
+                        setIsDirty(true)
                         handleChange({
                           target: {
                             name: "employeeEmploymentDetailsDTO.noticePeriodDuration",
@@ -1944,6 +1965,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
+                    }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Notice Period" />
@@ -1993,7 +2015,8 @@ const EditEmployeePage = () => {
                           formData.employeeEmploymentDetailsDTO
                             ?.probationDuration || ""
                         }
-                        onValueChange={(v) =>
+                        onValueChange={(v) =>{
+                          setIsDirty(true)
                           handleChange({
                             target: {
                               name: "employeeEmploymentDetailsDTO.probationDuration",
@@ -2001,6 +2024,7 @@ const EditEmployeePage = () => {
                             },
                           } as any)
                         }
+                      }
                       >
                         <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                           <SelectValue placeholder="Select Duration" />
@@ -2030,7 +2054,8 @@ const EditEmployeePage = () => {
                           formData.employeeEmploymentDetailsDTO
                             ?.probationNoticePeriod || ""
                         }
-                        onValueChange={(v) =>
+                        onValueChange={(v) =>{
+                          setIsDirty(true)
                           handleChange({
                             target: {
                               name: "employeeEmploymentDetailsDTO.probationNoticePeriod",
@@ -2038,6 +2063,7 @@ const EditEmployeePage = () => {
                             },
                           } as any)
                         }
+                      }
                       >
                         <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                           <SelectValue placeholder="Select Notice Period" />
@@ -2087,7 +2113,8 @@ const EditEmployeePage = () => {
                           formData.employeeEmploymentDetailsDTO?.bondDuration ||
                           ""
                         }
-                        onValueChange={(v) =>
+                        onValueChange={(v) =>{
+                          setIsDirty(true)
                           handleChange({
                             target: {
                               name: "employeeEmploymentDetailsDTO.bondDuration",
@@ -2095,6 +2122,7 @@ const EditEmployeePage = () => {
                             },
                           } as any)
                         }
+                      }
                       >
                         <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                           <SelectValue placeholder="Select Duration" />
@@ -2460,13 +2488,14 @@ const EditEmployeePage = () => {
 
                           <Select
                             value={doc.docType}
-                            onValueChange={(v) =>
+                            onValueChange={(v) =>{
+                              setIsDirty(true)
                               handleDocumentFileChange(
                                 i,
                                 "docType",
                                 v as DocumentType,
                               )
-                            }
+                            }}
                           >
                             <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                               <SelectValue placeholder="Select Type" />

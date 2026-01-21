@@ -4,12 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { leaveService } from '@/lib/api/leaveService';
+import {adminService} from '@/lib/api/adminService';
+
 import {
   PageLeaveResponseDTO,
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
   LeaveStatus,
   LeaveCategoryType,
+  EmployeeDTO
 } from '@/lib/api/types';
 import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -17,12 +20,18 @@ import Swal from 'sweetalert2';
 const Leavespage: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
-  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'adjust'>('pending');
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
   const [allLeaves, setAllLeaves] = useState<LeaveResponseDTO[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
+  const [adjustments, setAdjustments] = useState<Record<string, number>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [adjustPage, setAdjustPage] = useState(0);
+  const ADJUST_PAGE_SIZE = 6;
+
   // const [confirmation, setConfirmation] = useState<string | null>(null);
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
@@ -41,6 +50,60 @@ const Leavespage: React.FC = () => {
   });
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
 
+  const handleAdjustmentChange = (employeeId: string, value: string) => {
+    setAdjustments((prev) => ({
+      ...prev,
+      [employeeId]: Number(value),
+    }));
+  };
+
+  const handleSubmitAdjustments = async () => {
+    const payload = Object.entries(adjustments)
+      .filter(([_, value]) => value !== 0 && !isNaN(value))
+      .map(([employeeId, adjustment]) => ({
+        employeeId,
+        adjustment,
+      }));
+  
+    if (payload.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Changes',
+        text: 'Please enter leave adjustments before submitting.',
+      });
+      return;
+    }
+  
+    try {
+      setSubmitting(true);
+  
+      await leaveService.adjustLeaveCount(payload);
+  
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Leave adjustments submitted successfully.',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+  
+      // Reset input fields
+      setAdjustments({});
+  
+      // Refresh employee data
+      fetchData();
+    } catch (err: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: err.message || 'Failed to adjust leave balances.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  
   // Handle authentication redirect
   useEffect(() => {
     if (!user || !accessToken) {
@@ -86,6 +149,17 @@ const Leavespage: React.FC = () => {
         }
         setAllLeaves(response.response.content);
         setTotalPages(response.response.totalPages || 1);
+      }else if (activeTab === 'adjust') {
+          const response = await adminService.getAllEmployees();
+          if (!response.flag || !response.response) {
+            throw new Error(response.message || 'Failed to fetch employees');
+          }
+          // Show only ACTIVE employees
+          const activeEmployees = response.response.filter(
+            (emp: EmployeeDTO) => emp.status === 'ACTIVE'
+          );
+
+          setEmployees(activeEmployees);
       }
     } catch (err: any) {
       setError(
@@ -322,6 +396,14 @@ const Leavespage: React.FC = () => {
     );
   }
 
+  const paginatedEmployees = employees.slice(
+    adjustPage * ADJUST_PAGE_SIZE,
+    adjustPage * ADJUST_PAGE_SIZE + ADJUST_PAGE_SIZE
+  );
+  
+  const adjustTotalPages = Math.ceil(employees.length / ADJUST_PAGE_SIZE);
+  
+
   return (
     <div className="container mx-auto p-6">
       {/* Confirmation Message
@@ -330,7 +412,7 @@ const Leavespage: React.FC = () => {
           <span>{confirmation}</span>
           <button
             onClick={() => setConfirmation(null)}
-            className="text-green-700 hover:text-green-900"
+            className="text-green-700 hover:text-green-900"     
           >
             <XCircle size={20} />
           </button>
@@ -365,6 +447,19 @@ const Leavespage: React.FC = () => {
           }}
         >
           All Leaves
+        </button>
+        <button
+          className={`px-4 py-2 font-medium ${
+            activeTab === 'adjust'
+              ? 'border-b-2 border-indigo-600 text-indigo-600'
+              : 'text-gray-600'
+          }`}
+          onClick={() => {
+            setActiveTab('adjust');
+            setAdjustPage(0); //  reset pagination
+          }}
+        >
+          Adjust Leaves
         </button>
       </div>
 
@@ -424,10 +519,16 @@ const Leavespage: React.FC = () => {
 
       {/* Content */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">
-          {activeTab === 'pending' ? 'Pending Leave Requests' : 'All Leave Requests'}
-        </h3>
-        {(activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
+      <h3 className="text-xl font-semibold text-gray-800 mb-4">
+  {activeTab === 'pending'
+    ? 'Pending Leave Requests'
+    : activeTab === 'all'
+    ? 'All Leave Requests'
+    : 'Adjust Leaves'}
+</h3>
+
+{(activeTab === 'pending' || activeTab === 'all') && (
+  (activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-center">
               <thead className="bg-gray-50">
@@ -531,11 +632,11 @@ const Leavespage: React.FC = () => {
                     <td className="px-6 py-5 text-base text-center">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium 
-              ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                        ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
                             leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                               leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                                 'bg-gray-100 text-gray-800'}
-            `}
+                    `}
                       >
                         {leave.status ?? 'PENDING'}
                       </span>
@@ -598,7 +699,116 @@ const Leavespage: React.FC = () => {
           </div>
         ) : (
           <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
-        )}
+        )
+      )}
+
+
+  {/* ADJUST LEAVES */}
+  {activeTab === 'adjust' && (
+  <div>
+    <p className="mb-4 text-gray-700">
+      Adjust employee leave balances manually.
+    </p>
+
+    {employees.length === 0 ? (
+      <p className="text-gray-500">No active employees found.</p>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 text-center">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                Employee Name
+              </th>
+              <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                Email
+              </th>
+              <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                Available Leaves
+              </th>
+              <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                Add/Sub Leaves
+              </th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-gray-200">
+          {paginatedEmployees.map((emp) => (
+            <tr key={emp.employeeId} className="hover:bg-gray-50">
+              <td className="px-6 py-4 font-medium text-gray-900">
+                {emp.firstName} {emp.lastName}
+              </td>
+
+              <td className="px-6 py-4 text-gray-600">
+                {emp.companyEmail}
+              </td>
+
+              <td className="px-6 py-4 text-indigo-700 font-semibold">
+                {emp.availableLeaves}
+              </td>
+
+              <td className="px-6 py-4">
+                <input
+                  type="number"
+                  step="0.5"
+                  placeholder="+ / -"
+                  value={adjustments[emp.employeeId] ?? ''}
+                  onChange={(e) =>
+                    handleAdjustmentChange(emp.employeeId, e.target.value)
+                  }
+                  className="w-24 text-center border border-gray-300 rounded-md px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+
+        </table>
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={handleSubmitAdjustments}
+            disabled={submitting}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {submitting ? 'Submitting...' : 'Submit Adjustments'}
+          </button>
+        </div>
+        {adjustTotalPages > 1 && (
+  <div className="flex justify-between items-center mt-6">
+    <button
+      onClick={() => setAdjustPage((prev) => Math.max(prev - 1, 0))}
+      disabled={adjustPage === 0}
+      className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
+    >
+      <ChevronLeft size={18} />
+      Previous
+    </button>
+
+    <span className="text-sm text-gray-600">
+      Page {adjustPage + 1} of {adjustTotalPages}
+    </span>
+
+    <button
+      onClick={() =>
+        setAdjustPage((prev) =>
+          Math.min(prev + 1, adjustTotalPages - 1)
+        )
+      }
+      disabled={adjustPage >= adjustTotalPages - 1}
+      className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
+    >
+      Next
+      <ChevronRight size={18} />
+    </button>
+  </div>
+)}
+
+      </div>
+    )}
+  </div>
+)}
+
       </div>
     </div>
   );

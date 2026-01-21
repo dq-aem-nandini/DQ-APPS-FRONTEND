@@ -22,6 +22,8 @@ import {
   WebResponseDTO,
   LeaveStatusCountResponseDTO,
   WebResponseDTOLeaveStatusCount,
+  LeaveAdjustmentRequestDTO,
+  LeaveAdjustmentResponse 
 } from './types';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 function getBackendError(error: any): string {
@@ -382,6 +384,43 @@ export const leaveService = {
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
+  },
+
+  /**
+ * Adjust leave balances in bulk (ADMIN / HR only)
+ */
+async adjustLeaveCount(
+  payload: LeaveAdjustmentRequestDTO[]
+): Promise<LeaveAdjustmentResponse> {
+  try {
+    // Basic validation
+    if (!Array.isArray(payload) || payload.length === 0) {
+      throw new Error('Adjustment payload cannot be empty');
+    }
+
+    payload.forEach((item) => {
+      if (!item.employeeId || typeof item.adjustment !== 'number') {
+        throw new Error('Invalid leave adjustment payload');
+      }
+    });
+
+    const response: AxiosResponse<WebResponseDTO<LeaveAdjustmentResponse>> =
+      await api.post(
+        '/employee/leave/adjust',
+        payload
+      );
+
+    console.log('🧩 Adjust leave API response:', response.data.response);
+
+    if (response.data.flag && response.data.response) {
+      return response.data.response;
+    }
+
+    throw new Error(response.data.message || 'Failed to adjust leave balances');
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
   }
+}
+
 
 };
