@@ -265,7 +265,7 @@ const InvoiceSummaryPage = () => {
                                                         <TableCell className="font-medium">{summary.invoiceNumber}</TableCell>
                                                         <TableCell>{format(new Date(summary.invoiceDate), 'MMM dd, yyyy')}</TableCell>
 
-                                                        {/* ✅ From & To Dates */}
+                                                        {/*  From & To Dates */}
                                                         <TableCell>{format(new Date(summary.fromDate), 'MMM dd, yyyy')}</TableCell>
                                                         <TableCell>{format(new Date(summary.toDate), 'MMM dd, yyyy')}</TableCell>
 

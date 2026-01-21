@@ -167,7 +167,8 @@ export type BondDuration =
   export type UpdateRequestType = 
   | 'EMPLOYEE_UPDATE'
   | 'ADDRESS_DELETE'
-  | 'CALENDAR_UPDATE';
+  | 'CALENDAR_UPDATE'
+  | 'DOCUMENT_DELETE';
   
   export const PAY_TYPE_OPTIONS = [
   "HOURLY",
@@ -1674,3 +1675,10 @@ export interface ManualInvoiceRequestDTO {
 
   items: ManualInvoiceItemRequestDTO[];
 }
+
+export interface LeaveAdjustmentRequestDTO {
+  employeeId: string;   // UUID as string
+  adjustment: number;   // +ve or -ve
+}
+
+export type LeaveAdjustmentResponse = Record<string, number>;

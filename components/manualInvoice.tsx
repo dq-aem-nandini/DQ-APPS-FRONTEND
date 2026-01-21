@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useMemo, useState } from "react";
 import { manualInvoiceService } from "@/lib/api/manualInvoiceService";
 import {
@@ -8,9 +7,11 @@ import {
   ManualInvoiceItemRequestDTO,
   ManualInvoiceRequestDTO,
 } from "@/lib/api/types";
-
-import { toast } from "sonner";
-const YEARS = [2025, 2026, 2027, 2028];
+ 
+import Swal from "sweetalert2";
+ 
+const YEARS = [2025, 2026, 2027, 2028, 2029];
+ 
 const MONTHS = [
   { value: 1, label: "January" },
   { value: 2, label: "February" },
@@ -25,380 +26,321 @@ const MONTHS = [
   { value: 11, label: "November" },
   { value: 12, label: "December" },
 ];
+ 
 function getBackendError(error: any): string {
   return (
     error?.response?.data?.message ||
     error?.response?.data?.error ||
-    error?.response?.data?.response ||
     error?.response?.data ||
     error?.message ||
-    "Something went wrong"
+    "Something went wrong. Please try again."
   );
 }
-
+ 
 export default function ManualInvoice() {
-  /* -------------------- State -------------------- */
-
   const [clients, setClients] = useState<ClientMinDTO[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
+ 
   const [clientId, setClientId] = useState("");
   const [year, setYear] = useState<number | "">("");
   const [month, setMonth] = useState<number | "">("");
-
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState("");
-  const [dueDate, setDueDate] = useState("");
+ 
   const [items, setItems] = useState<
-  Record<
-    string,
-    { hoursWorked: number; description: string }
-  >
->({});
-
-
-  /* -------------------- Defaults -------------------- */
-
+    Record<string, { hoursWorked: number; description: string }>
+  >({});
+ 
+  const today = new Date().toISOString().split("T")[0];
+ 
+  const minDueDate = useMemo(() => {
+    if (!year || !month) return today;
+    const y = Number(year);
+    const m = Number(month);
+    let nextM = m + 1;
+    let nextY = y;
+    if (nextM > 12) {
+      nextM = 1;
+      nextY += 1;
+    }
+    return `${nextY}-${String(nextM).padStart(2, "0")}-01`;
+  }, [year, month]);
+ 
+  const [dueDate, setDueDate] = useState(today);
+ 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const due = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
-
-    setInvoiceDate(today);
-    setDueDate(due);
-  }, []);
-
-  /* -------------------- Load Clients -------------------- */
-
+    if (dueDate < minDueDate) setDueDate(minDueDate);
+  }, [minDueDate]);
+ 
   useEffect(() => {
     async function loadClients() {
       try {
         const res = await manualInvoiceService.getAllClientsMin();
         setClients(res.response ?? []);
       } catch (e: any) {
-        toast.error(e.message);
+        Swal.fire({ icon: "error", title: "Error", text: getBackendError(e) });
       }
     }
     loadClients();
   }, []);
-
-  /* -------------------- Load Employees -------------------- */
-
+ 
   useEffect(() => {
-    if (!clientId) return;
-  
+    if (!clientId) {
+      setEmployees([]);
+      setItems({});
+      return;
+    }
+ 
     async function loadEmployees() {
       try {
         const res = await manualInvoiceService.getEmployeesByClientId(clientId);
         const empList = res.response ?? [];
         setEmployees(empList);
-  
-        // initialize hours + description
+ 
         const initialItems: Record<string, { hoursWorked: number; description: string }> = {};
         empList.forEach((e) => {
-          initialItems[e.employeeId] = {
-            hoursWorked: 0,
-            description: "",
-          };
+          initialItems[e.employeeId] = { hoursWorked: 0, description: "" };
         });
-  
         setItems(initialItems);
       } catch (e: any) {
-        toast.error(e.message);
+        Swal.fire({ icon: "error", title: "Error", text: getBackendError(e) });
       }
     }
-  
     loadEmployees();
   }, [clientId]);
-  
-
-  /* -------------------- Add / Remove Rows -------------------- */
-
-  // const addRow = () => {
-  //   setItems([
-  //     ...items,
-  //     {
-  //       employeeId: "",
-  //       hoursWorked: 0,
-  //       ratePerHour: 0,
-  //       description: "",
-  //     },
-  //   ]);
-  // };
-
-  // const removeRow = (index: number) => {
-  //   setItems(items.filter((_, i) => i !== index));
-  // };
-
-  // const updateItem = (
-  //   index: number,
-  //   field: keyof ManualInvoiceItemRequestDTO,
-  //   value: any
-  // ) => {
-  //   const updated = [...items];
-  //   updated[index] = { ...updated[index], [field]: value };
-  //   setItems(updated);
-  // };
-
-  /* -------------------- Generate Invoice -------------------- */
-
+ 
   const generateInvoice = async () => {
     setApiError(null);
-
-    if (!clientId || !year || !month || !invoiceNumber) {
-      toast.error("Please fill all mandatory fields");
+ 
+    if (!clientId || !year || !month || !invoiceNumber.trim()) {
+      Swal.fire({ icon: "warning", title: "Missing Fields", text: "Please fill all required fields." });
       return;
     }
-  
+ 
     const invoiceItems: ManualInvoiceItemRequestDTO[] = employees
-      .filter(
-        (emp) =>  
-          emp.rateCard != null &&
-          items[emp.employeeId]?.hoursWorked > 0
-      )
-      .map((emp) => ({
-        employeeId: emp.employeeId,
-        hoursWorked: items[emp.employeeId].hoursWorked,
-        ratePerHour: emp.rateCard!,
-        description: items[emp.employeeId].description,
+      .filter((e) => e.rateCard != null && (items[e.employeeId]?.hoursWorked ?? 0) > 0)
+      .map((e) => ({
+        employeeId: e.employeeId,
+        hoursWorked: items[e.employeeId].hoursWorked,
+        ratePerHour: e.rateCard!,
+        description: items[e.employeeId].description.trim(),
       }));
-  
+ 
     if (invoiceItems.length === 0) {
-      toast.error("Enter hours for at least one employee");
+      Swal.fire({ icon: "warning", title: "No Hours", text: "Please enter hours for at least one employee." });
       return;
     }
-  
+ 
     const payload: ManualInvoiceRequestDTO = {
       clientId,
       year: Number(year),
       month: Number(month),
-      invoiceNumber,
-      invoiceDate,
+      invoiceNumber: invoiceNumber.trim(),
+      invoiceDate: today,
       dueDate,
       items: invoiceItems,
     };
-  
+ 
     try {
       await manualInvoiceService.generateManualInvoice(payload);
-      toast.success("Manual invoice generated successfully");
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Invoice generated successfully",
+        timer: 2200,
+        showConfirmButton: false,
+      });
     } catch (e: any) {
-      const errorMsg = getBackendError(e);
-      setApiError(errorMsg);
+      const msg = getBackendError(e);
+      setApiError(msg);
+      Swal.fire({ icon: "error", title: "Failed", text: msg });
     }
   };
-  
-
-  /* -------------------- UI -------------------- */
-
+ 
   const isFormValid = useMemo(() => {
-    if (!clientId || !year || !month || !invoiceNumber) return false;
-  
+    if (!clientId || !year || !month || !invoiceNumber.trim()) return false;
+ 
     return employees.some(
       (emp) =>
         emp.rateCard != null &&
-        items[emp.employeeId]?.hoursWorked > 0
+        (items[emp.employeeId]?.hoursWorked ?? 0) > 0
     );
   }, [clientId, year, month, invoiceNumber, employees, items]);
-  
-
+ 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-xl font-semibold">Generate Manual Invoice</h1>
-
-      {/* Client */}
-      <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-        <option value="">Select Client</option>
-        {clients.map((c) => (
-          <option key={c.clientId} value={c.clientId}>
-            {c.companyName}
-          </option>
-        ))}
-      </select>
-
-      {/* Year & Month */}
-      <div className="flex gap-4">
-      <div className="flex flex-col">
-        <label className="text-sm font-medium mb-1">
-          Invoice Month <span className="text-red-500">*</span>
-        </label>
-
-        <div className="flex gap-2">
-          <select
-            className="border px-3 py-2 rounded"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-          >
-            <option value="">Year</option>
-            {YEARS.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="border px-3 py-2 rounded"
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-          >
-            <option value="">Month</option>
-            {MONTHS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden">
+ 
+        {/* Heading */}
+        <div className="px-8 py-8 border-b border-slate-100">
+          <h1 className="text-3xl md:text-3.5xl font-semibold text-indigo-700 tracking-tight">
+            Generate Manual Invoice
+          </h1>
         </div>
-      </div>
-    </div>
-
-
-       {/* Invoice Header */}
-      <div className="flex gap-6">
-        {/* <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">
-            Invoice Number <span className="text-red-500">*</span>
-          </label>
-          <input
-            className="border px-3 py-2 rounded"
-            placeholder="INV-001"
-            value={invoiceNumber}
-            onChange={(e) => setInvoiceNumber(e.target.value)}
-          />
-        </div> */}
-        <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">
-            Invoice Number <span className="text-red-500">*</span>
-          </label>
-
-          <input
-            className={`border px-3 py-2 rounded ${
-              apiError ? "border-red-500" : ""
-            }`}
-            placeholder="INV-001"
-            value={invoiceNumber}
-            onChange={(e) => {
-              setInvoiceNumber(e.target.value);
-              setApiError(null); // clear error on change
-            }}
-          />
-
+ 
+        <div className="p-6 md:p-9 lg:p-10 space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Client <span className="text-teal-600">*</span>
+              </label>
+              <select
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-slate-800 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none transition cursor-pointer"
+              >
+                <option value="">Select client</option>
+                {clients.map((c) => (
+                  <option key={c.clientId} value={c.clientId}>
+                    {c.companyName}
+                  </option>
+                ))}
+              </select>
+            </div>
+ 
+            <div className="md:col-span-2 lg:col-span-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Invoice Month <span className="text-teal-600">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={year}
+                  onChange={(e) => setYear(e.target.value ? Number(e.target.value) : "")}
+                  className="border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                >
+                  <option value="">Year</option>
+                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value ? Number(e.target.value) : "")}
+                  className="border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                >
+                  <option value="">Month</option>
+                  {MONTHS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+ 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Invoice Number <span className="text-teal-600">*</span>
+              </label>
+              <input
+                className={`w-full border ${apiError ? "border-rose-400 ring-1 ring-rose-200" : "border-slate-200"} rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none transition`}
+                placeholder="INV-0825-001"
+                value={invoiceNumber}
+                onChange={(e) => { setInvoiceNumber(e.target.value); setApiError(null); }}
+              />
+            </div>
+ 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Due Date <span className="text-teal-600">*</span>
+              </label>
+              <input
+                type="date"
+                min={minDueDate}
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+              />
+            </div>
+          </div>
+ 
           {apiError && (
-            <span className="text-sm text-red-600 mt-1">{apiError}</span>
+            <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 text-rose-800 text-sm">
+              {apiError}
+            </div>
           )}
-        </div>
-
-        <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">
-            Invoice Date
-          </label>
-          <input
-            type="date"
-            className="border px-3 py-2 rounded bg-gray-100 cursor-not-allowed"
-            value={invoiceDate}
-            disabled
-          />
-        </div>
-
-
-        <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">
-            Due Date
-          </label>
-          <input
-            type="date"
-            className="border px-3 py-2 rounded"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-          />
+ 
+          {employees.length > 0 && (
+            <div className="space-y-5">
+              <h2 className="text-lg font-medium text-slate-800">Employees</h2>
+ 
+              <div className="overflow-x-auto border border-slate-100 rounded-lg shadow-sm">
+                <table className="w-full border-collapse min-w-[960px]">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-6 py-3.5 text-left font-medium">Employee</th>
+                      <th className="px-6 py-3.5 text-left font-medium">Company ID</th>
+                      <th className="px-6 py-3.5 text-right font-medium">Rate/hr</th>
+                      <th className="px-6 py-3.5 text-right font-medium">Hours</th>
+                      <th className="px-6 py-3.5 font-medium">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {employees.map((emp) => (
+                      <tr key={emp.employeeId} className="hover:bg-teal-50/20 transition-colors">
+                        <td className="px-6 py-3.5">{emp.employeeName}</td>
+                        <td className="px-6 py-3.5 text-slate-600">{emp.companyId || "—"}</td>
+                        <td className="px-6 py-3.5 text-right font-medium">
+                          {emp.rateCard != null ? (
+                            `₹${emp.rateCard.toFixed(2)}`
+                          ) : (
+                            <span className="text-rose-600 text-sm">Missing</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.25}
+                            className="w-20 border border-slate-200 rounded px-3 py-1.5 text-right focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                            value={items[emp.employeeId]?.hoursWorked ?? ""}
+                            onChange={(e) =>
+                              setItems((prev) => ({
+                                ...prev,
+                                [emp.employeeId]: {
+                                  ...prev[emp.employeeId],
+                                  hoursWorked: Number(e.target.value) || 0,
+                                },
+                              }))
+                            }
+                          />
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <input
+                            className="w-full border border-slate-200 rounded px-3 py-1.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                            placeholder="Project / remarks"
+                            value={items[emp.employeeId]?.description ?? ""}
+                            onChange={(e) =>
+                              setItems((prev) => ({
+                                ...prev,
+                                [emp.employeeId]: {
+                                  ...prev[emp.employeeId],
+                                  description: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+ 
+          <div className="flex justify-end pt-6">
+            <button
+              onClick={generateInvoice}
+              disabled={!isFormValid}
+              className={`
+                px-10 py-3 rounded-xl font-medium text-base transition-all duration-200 shadow-sm
+                ${isFormValid
+                  ? "bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white cursor-pointer hover:scale-105 active:scale-98 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:ring-offset-2"
+                  : "bg-slate-200 text-slate-500 cursor-not-allowed"}
+              `}
+            >
+              Generate Invoice
+            </button>
+          </div>
         </div>
       </div>
-
-
-      {/* Employees Table */}
-      {employees.length > 0 && (
-        <div className="mt-6">
-          <h2 className="font-semibold mb-2">Employees</h2>
-
-          <table className="w-full border border-gray-300">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border px-3 py-2">Employee Name</th>
-                <th className="border px-3 py-2">Company ID</th>
-                <th className="border px-3 py-2 text-right">Rate / Hour</th>
-                <th className="border px-3 py-2 text-right">Hours Worked</th>
-                <th className="border px-3 py-2">Description</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.employeeId}>
-                  <td className="border px-3 py-2">{emp.employeeName}</td>
-                  <td className="border px-3 py-2">{emp.companyId}</td>
-
-                  <td className="border px-3 py-2 text-right">
-                    {emp.rateCard != null ? `${emp.rateCard.toFixed(2)}` : (
-                      <span className="text-red-500">Not Set</span>
-                    )}
-                  </td>
-
-                  <td className="border px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      className="w-24 border px-2 py-1"
-                      value={items[emp.employeeId]?.hoursWorked ?? 0}
-                      onChange={(e) =>
-                        setItems((prev) => ({
-                          ...prev,
-                          [emp.employeeId]: {
-                            ...prev[emp.employeeId],
-                            hoursWorked: Number(e.target.value),
-                          },
-                        }))
-                      }
-                    />
-                  </td>
-
-                  <td className="border px-3 py-2">
-                    <input
-                      className="w-full border px-2 py-1"
-                      placeholder="Work description"
-                      value={items[emp.employeeId]?.description ?? ""}
-                      onChange={(e) =>
-                        setItems((prev) => ({
-                          ...prev,
-                          [emp.employeeId]: {
-                            ...prev[emp.employeeId],
-                            description: e.target.value,
-                          },
-                        }))
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <button
-        onClick={generateInvoice}
-        disabled={!isFormValid}
-        className={`px-6 py-2 rounded-md font-medium transition duration-200
-          ${
-            isFormValid
-              ? "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
-              : "bg-gray-300 text-gray-600 cursor-not-allowed"
-          }`}
-      >
-        Generate Manual Invoice
-      </button>
-
-
     </div>
   );
 }
