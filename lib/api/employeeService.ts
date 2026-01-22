@@ -204,7 +204,7 @@ class EmployeeService {
       const response: AxiosResponse<WebResponseDTOVoid> =
         await api.post("/employee/update-request/submit/delete/address", address);
 
-      console.log("📌 Submit Delete Address Request:", response.data);
+      console.log("Submit Delete Address Request:", response.data);
 
       return response.data;
     } catch (error: any) {
