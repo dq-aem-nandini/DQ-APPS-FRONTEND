@@ -105,6 +105,10 @@ export default function UpdateRequestAdminPage() {
     }
   };
 
+  useEffect(() => {
+    fetchholidayRequests();
+  }, []);
+
   const handleholidayApprove = async (requestId: string) => {
     if (processing) return;
     setProcessing(true);
@@ -123,7 +127,8 @@ export default function UpdateRequestAdminPage() {
           title: "Approved!",
           confirmButtonColor: "#2563eb",
         });
-        fetchRequests(); // refresh the list
+        // fetchRequests(); // refresh the list of profile requests
+        fetchholidayRequests(); // refresh the list of holiday requests
       }
     } catch (err: any) {
       Swal.fire({
@@ -136,10 +141,6 @@ export default function UpdateRequestAdminPage() {
       setProcessing(false);
     }
   };
-
-  useEffect(() => {
-    fetchholidayRequests();
-  }, []);
 
   const fetchRequests = async () => {
     try {
@@ -226,6 +227,7 @@ export default function UpdateRequestAdminPage() {
           confirmButtonColor: "#2563eb",
         });
         fetchRequests();
+        fetchholidayRequests();
       }
     } catch (err: any) {
       Swal.fire({
@@ -531,6 +533,7 @@ export default function UpdateRequestAdminPage() {
                       addressChanges,
                       newDocuments,
                       hasNewPhoto,
+                      oldPhotoUrl,
                       photoUrl,
                     } = extractChanges(req, profile);
                     const hasAnyChange =
@@ -727,6 +730,17 @@ export default function UpdateRequestAdminPage() {
                                         .slice(0, 2)
                                         .map((doc: any, i: number) => {
                                           const isReplacement = doc.documentId; // has documentId → it's replacing existing
+                                          const oldDoc =
+                                            profile?.documents?.find(
+                                              (d) =>
+                                                d.documentId === doc.documentId,
+                                            );
+
+                                          const oldFileUrl: string | null =
+                                            typeof oldDoc?.fileUrl === "string"
+                                              ? oldDoc.fileUrl
+                                              : null;
+                                          const newFileUrl = doc.fileUrl;
 
                                           return (
                                             <div
@@ -747,23 +761,25 @@ export default function UpdateRequestAdminPage() {
 
                                               {/* Links - show both for replacements */}
                                               <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                                                {/* OLD FILE (before replacement) */}
                                                 {isReplacement &&
-                                                  doc.fileUrl && (
+                                                  oldFileUrl && (
                                                     <a
-                                                      href={doc.fileUrl}
+                                                      href={oldFileUrl}
                                                       target="_blank"
                                                       rel="noopener noreferrer"
                                                       className="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-1"
                                                       title="Current file before replacement"
                                                     >
-                                                      <Eye className="w-3.5 h-3.5" />{" "}
+                                                      <Eye className="w-3.5 h-3.5" />
                                                       View Current File
                                                     </a>
                                                   )}
 
-                                                {doc.fileUrl && ( // new/replacement file
+                                                {/* NEW FILE */}
+                                                {newFileUrl && (
                                                   <a
-                                                    href={doc.fileUrl}
+                                                    href={newFileUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className={`font-medium flex items-center gap-1 ${
@@ -771,7 +787,7 @@ export default function UpdateRequestAdminPage() {
                                                         ? "text-purple-700"
                                                         : "text-green-700"
                                                     } hover:underline`}
-                                                    title={doc.fileUrl}
+                                                    title="New uploaded file"
                                                   >
                                                     <Eye className="w-3.5 h-3.5" />
                                                     {isReplacement
@@ -788,23 +804,37 @@ export default function UpdateRequestAdminPage() {
                                 )}
 
                                 {/* Profile Photo */}
-                                {hasNewPhoto && photoUrl && (
-                                  <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t bg-purple-50 p-2 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                      <Camera className="w-4 h-4 text-purple-600" />
-                                      <span className="font-medium">
-                                        Profile Photo
-                                      </span>
+                                {hasNewPhoto && (
+                                  <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                                    <div className="flex items-center gap-4">
+                                      <Camera className="w-8 h-8 text-purple-700" />
+                                      <div className="flex-1">
+                                        <p className="font-medium">
+                                          Profile Photo Updated
+                                        </p>
+                                        <div className="mt-2 space-y-1 text-xs">
+                                          <a
+                                            href={photoUrl}
+                                            target="_blank"
+                                            className="text-blue-600 underline block"
+                                          >
+                                            → View New Photo
+                                          </a>
+                                          {oldPhotoUrl && (
+                                            <a
+                                              href={oldPhotoUrl}
+                                              target="_blank"
+                                              className="text-gray-600 underline block"
+                                            >
+                                              → View Current Photo
+                                            </a>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <Badge className="bg-green-100 text-green-700">
+                                        New
+                                      </Badge>
                                     </div>
-
-                                    <a
-                                      href={photoUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-green-700 font-medium hover:underline"
-                                    >
-                                      View New Photo →
-                                    </a>
                                   </div>
                                 )}
 
