@@ -32,6 +32,7 @@ export default function EmployeeHolidayDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [deletedHolidayIds, setDeletedHolidayIds] = useState<string[]>([]);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [newHoliday, setNewHoliday] = useState({
     holidayDate: "",
     holidayName: "",
@@ -414,6 +415,153 @@ export default function EmployeeHolidayDashboard() {
             </CardContent>
 
             {hasChanges && (
+              <div className="max-w-5xl mx-auto mt-6 flex justify-end gap-4">
+                {/* Optional: Cancel / Reset button */}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    Swal.fire({
+                      title: "Discard Changes?",
+                      text: "All pending additions and removals will be lost.",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonColor: "#ef4444",
+                      cancelButtonColor: "#6b7280",
+                      confirmButtonText: "Yes, Discard",
+                    }).then((result) => {
+                      if (result.isConfirmed) {
+                        setAddedHolidays([]);
+                        setRemovedHolidays([]);
+                        setDeletedHolidayIds([]);
+                        setEditMode(false);
+                      }
+                    });
+                  }}
+                >
+                  Discard Changes
+                </Button>
+
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px]"
+                  disabled={submitLoading}
+                  onClick={async () => {
+                    if (!clientIdId) {
+                      Swal.fire({
+                        icon: "warning",
+                        title: "Missing Client",
+                        text: "Client ID not found. Please try again later.",
+                        confirmButtonColor: "#f59e0b",
+                      });
+                      return;
+                    }
+
+                    // Confirmation before submit
+                    const confirmResult = await Swal.fire({
+                      title: "Submit Holiday Changes?",
+                      icon: "question",
+                      showCancelButton: true,
+                      confirmButtonColor: "#10b981",
+                      cancelButtonColor: "#d33",
+                      confirmButtonText: "Yes, Submit",
+                      cancelButtonText: "Cancel",
+                      allowOutsideClick: !Swal.isVisible(),
+                    });
+
+                    if (!confirmResult.isConfirmed) return;
+
+                    setSubmitLoading(true);
+
+                    try {
+                      const payload: HolidayUpdateRequestDTO[] = [
+                        ...addedHolidays.map((h) => ({
+                          holidayDate: h.holidayDate,
+                          holidayName: h.holidayName,
+                          updateType: "ADD_HOLIDAY" as const,
+                          clientID: clientIdId,
+                        })),
+                        ...removedHolidays.map((h) => ({
+                          holidayDate: h.holidayDate,
+                          holidayName: h.holidayName,
+                          updateType: "REMOVE_HOLIDAY" as const,
+                          clientID: clientIdId,
+                        })),
+                      ];
+
+                      const response = await holidayService.submitHolidayUpdateRequest(payload);
+
+                      if (response.flag) {
+                        Swal.fire({
+                          icon: "success",
+                          title: "Success!",
+                          text: response.message,
+                          confirmButtonColor: "#10b981",
+                          timer: 2800,
+                          timerProgressBar: true,
+                        });
+
+                        // Reset UI state
+                        setAddedHolidays([]);
+                        setRemovedHolidays([]);
+                        setDeletedHolidayIds([]);
+                        setEditMode(false);
+
+                        // Refresh holidays list from backend
+                        const year = currentMonth.getFullYear();
+                        const freshRes = await holidayService.getAllHolidays(year);
+                        if (freshRes.flag && Array.isArray(freshRes.response)) {
+                          setHolidays(
+                            freshRes.response.sort((a, b) =>
+                              a.holidayDate.localeCompare(b.holidayDate)
+                            )
+                          );
+                        }
+                      } else {
+                        Swal.fire({
+                          icon: "error",
+                          title: "Submission Failed",
+                          text: response.message || "The server rejected the request.",
+                          confirmButtonColor: "#ef4444",
+                        });
+                      }
+                    } catch (err: any) {
+                      Swal.fire("Error", err.message || "Failed to load data", "error");
+                    } finally {
+                      setSubmitLoading(false);
+                    }
+                  }}
+                >
+                  {submitLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Submitting...
+                    </div>
+                  ) : (
+                    "Submit Changes"
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* {hasChanges && (
               <div className="max-w-5xl mx-auto mt-4 flex justify-end">
                 <Button
                   className="bg-indigo-600 hover:bg-indigo-700"
@@ -447,7 +595,7 @@ export default function EmployeeHolidayDashboard() {
                   Submit Changes
                 </Button>
               </div>
-            )}
+            )} */}
           </Card>
         )}
 

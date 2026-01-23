@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { leaveService } from '@/lib/api/leaveService';
-import {adminService} from '@/lib/api/adminService';
+import { adminService } from '@/lib/api/adminService';
 
 import {
-  PageLeaveResponseDTO,
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
   LeaveStatus,
   LeaveCategoryType,
   EmployeeDTO
 } from '@/lib/api/types';
-import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const Leavespage: React.FC = () => {
@@ -31,13 +30,22 @@ const Leavespage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [adjustPage, setAdjustPage] = useState(0);
   const ADJUST_PAGE_SIZE = 6;
+  const searchParams = useSearchParams();
+  const hasAutoOpenedRef = useRef(false);
+  // Near other state declarations
+  const [allEmployees, setAllEmployees] = useState<EmployeeDTO[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
+  const openLeaveId =
+    searchParams.get("open") ||
+    searchParams.get("highlight") ||
+    searchParams.get("requestId");
 
-  // const [confirmation, setConfirmation] = useState<string | null>(null);
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
     month?: string;
     futureApproved?: boolean;
+    employeeId?: string;
   }>({});
   const [pagination, setPagination] = useState<{
     page: number;
@@ -56,6 +64,56 @@ const Leavespage: React.FC = () => {
       [employeeId]: Number(value),
     }));
   };
+  useEffect(() => {
+    // If no param → do nothing
+    if (!openLeaveId) return;
+
+    // Already handled in this mount → skip
+    if (hasAutoOpenedRef.current) return;
+
+    // Still loading data → wait
+    if (loading) return;
+
+    // No leaves loaded yet → can't find anything
+    if (pendingLeaves.length === 0 && allLeaves.length === 0) return;
+
+    // Find the leave
+    const targetLeave =
+      pendingLeaves.find((l) => l.leaveId === openLeaveId) ||
+      allLeaves.find((l) => l.leaveId === openLeaveId);
+
+    if (!targetLeave) {
+      console.log("[AUTO-OPEN] Leave not found for id:", openLeaveId);
+      return;
+    }
+
+    // Mark as handled → prevents re-trigger on re-renders / refresh
+    hasAutoOpenedRef.current = true;
+
+    // Clean the URL **right now** (remove ?open / ?highlight / ?requestId)
+    // This prevents the effect from running again after refresh
+    router.replace(window.location.pathname, { scroll: false });
+
+    console.log("[AUTO-OPEN] Opening modal for leave:", openLeaveId);
+
+    // Switch tab if needed + open modal
+    if (targetLeave.status === "PENDING" && activeTab !== "pending") {
+      setActiveTab("pending");
+      setTimeout(() => handleReviewLeave(targetLeave), 300);
+    } else if (targetLeave.status !== "PENDING" && activeTab !== "all") {
+      setActiveTab("all");
+      setTimeout(() => handleReviewLeave(targetLeave), 300);
+    } else {
+      handleReviewLeave(targetLeave);
+    }
+  }, [
+    openLeaveId,
+    loading,
+    pendingLeaves,
+    allLeaves,
+    activeTab,
+    router,           // ← important: add router to deps
+  ]);
 
   const handleSubmitAdjustments = async () => {
     const payload = Object.entries(adjustments)
@@ -64,7 +122,7 @@ const Leavespage: React.FC = () => {
         employeeId,
         adjustment,
       }));
-  
+
     if (payload.length === 0) {
       Swal.fire({
         icon: 'warning',
@@ -73,12 +131,12 @@ const Leavespage: React.FC = () => {
       });
       return;
     }
-  
+
     try {
       setSubmitting(true);
-  
+
       await leaveService.adjustLeaveCount(payload);
-  
+
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -86,10 +144,10 @@ const Leavespage: React.FC = () => {
         timer: 3000,
         showConfirmButton: false,
       });
-  
+
       // Reset input fields
       setAdjustments({});
-  
+
       // Refresh employee data
       fetchData();
     } catch (err: any) {
@@ -102,8 +160,8 @@ const Leavespage: React.FC = () => {
       setSubmitting(false);
     }
   };
-  
-  
+
+
   // Handle authentication redirect
   useEffect(() => {
     if (!user || !accessToken) {
@@ -120,7 +178,22 @@ const Leavespage: React.FC = () => {
       if (!accessToken || !user || user.role.roleName !== 'ADMIN') {
         throw new Error('Unauthorized access. Please log in as a manager.');
       }
-
+      // ────────────────────────────────────────────────
+      // Fetch employees when we are in 'all' tab
+      // ────────────────────────────────────────────────
+      if (activeTab === 'all' && allEmployees.length === 0) {
+        try {
+          const empRes = await adminService.getAllEmployees();
+          if (empRes.flag && empRes.response) {
+            // Optional: filter only ACTIVE employees
+            const active = empRes.response.filter(e => e.status === 'ACTIVE');
+            setAllEmployees(active);
+          }
+        } catch (err) {
+          console.warn("Could not load employee list for filter", err);
+          // don't block the whole page — just no dropdown
+        }
+      }
       if (activeTab === 'pending') {
         const response = await leaveService.getPendingLeaves();
         console.log('🧩 Pending leaves fetched:', response);
@@ -128,8 +201,7 @@ const Leavespage: React.FC = () => {
         setTotalPages(1); // No pagination for pending leaves
       } else if (activeTab === 'all') {
         const response = await leaveService.getLeaveSummary(
-          undefined, // Fetch all employees under manager
-          filters.month,
+          selectedEmployeeId, filters.month,
           filters.leaveCategory,
           filters.status,
           undefined, // financialType
@@ -149,17 +221,17 @@ const Leavespage: React.FC = () => {
         }
         setAllLeaves(response.response.content);
         setTotalPages(response.response.totalPages || 1);
-      }else if (activeTab === 'adjust') {
-          const response = await adminService.getAllEmployees();
-          if (!response.flag || !response.response) {
-            throw new Error(response.message || 'Failed to fetch employees');
-          }
-          // Show only ACTIVE employees
-          const activeEmployees = response.response.filter(
-            (emp: EmployeeDTO) => emp.status === 'ACTIVE'
-          );
+      } else if (activeTab === 'adjust') {
+        const response = await adminService.getAllEmployees();
+        if (!response.flag || !response.response) {
+          throw new Error(response.message || 'Failed to fetch employees');
+        }
+        // Show only ACTIVE employees
+        const activeEmployees = response.response.filter(
+          (emp: EmployeeDTO) => emp.status === 'ACTIVE'
+        );
 
-          setEmployees(activeEmployees);
+        setEmployees(activeEmployees);
       }
     } catch (err: any) {
       setError(
@@ -174,7 +246,7 @@ const Leavespage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, filters, pagination, accessToken, user]);
+  }, [activeTab, filters, pagination, accessToken, user, selectedEmployeeId, allEmployees.length]);
 
   useEffect(() => {
     if (user && accessToken) {
@@ -200,153 +272,133 @@ const Leavespage: React.FC = () => {
     }));
   };
 
-  // Handle review leave request
-  // const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
-  //   Swal.fire({
-  //     title: 'Review Leave Request',
-  //     html: `
-  //       <div class="text-left text-sm text-gray-600 space-y-3">
-  //         <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
-  //         <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
-  //         <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
-  //         <p><strong>From Date:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
-  //         <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
-  //         <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
-  //         <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
-  //         ${leave.attachmentUrl
-  //         ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-  //         : '<p><strong>Attachment:</strong> None</p>'
-  //       }
-  //         <div>
-  //           <label for="reason" class="block text-sm font-medium text-gray-700">Comment (optional)</label>
-  //           <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
-  //         </div>
-  //       </div>
-  //     `,
-  //     showCancelButton: true,
-  //     showDenyButton: true,
-  //     showConfirmButton: true,
-  //     cancelButtonText: 'Cancel',
-  //     denyButtonText: 'Reject',
-  //     confirmButtonText: 'Approve',
-  //     customClass: {
-  //       popup: 'rounded-lg',
-  //       confirmButton: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700',
-  //       denyButton: 'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700',
-  //       cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300',
-  //     },
-  //     preConfirm: () => {
-  //       const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
-  //       return { action: 'approve', reason };
-  //     },
-  //     preDeny: () => {
-  //       const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value || '';
-  //       return { action: 'reject', reason };
-  //     },
-  //   }).then(async (result) => {
-  //     if (result.isConfirmed) {
-  //       const { reason } = result.value;
-  //       try {
-  //         await leaveService.updateLeaveStatus(leave.leaveId!, 'APPROVED', reason);
-  //         setConfirmation(`Leave ${leave.leaveId} approved successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-  //         updateLeaveStatus(leave.leaveId!, 'APPROVED');
-  //       } catch (err: any) {
-  //         setError(err.message || 'Failed to approve leave');
-  //       }
-  //     } else if (result.isDenied) {
-  //       const { reason } = result.value;
-  //       try {
-  //         await leaveService.updateLeaveStatus(leave.leaveId!, 'REJECTED', reason);
-  //         setConfirmation(`Leave ${leave.leaveId} rejected successfully${reason ? ` with reason: "${reason}"` : ''}.`);
-  //         updateLeaveStatus(leave.leaveId!, 'REJECTED');
-  //       } catch (err: any) {
-  //         setError(err.message || 'Failed to reject leave');
-  //       }
-  //     }
-  //     setTimeout(() => setConfirmation(null), 3000);
-  //   });
-  // };
+  // Handle review leave
+  const handleReviewLeave = (
+    leave: LeaveResponseDTO | PendingLeavesResponseDTO
+  ) => {
+    // Close any existing SweetAlert
+    if (Swal.isVisible()) {
+      Swal.close();
+    }
 
-  const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
-    Swal.fire({
-      title: 'Review Leave Request',
-      html: `
-        <div class="text-left text-sm text-gray-600 space-y-3">
-          <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
-          <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
-          <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
-          <p><strong>From Date:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>To Date:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
-          <p><strong>Status:</strong> ${leave.status ?? 'PENDING'}</p>
-          ${leave.attachmentUrl
-            ? `<p><strong>Attachment:</strong> <a href="${leave.attachmentUrl}" target="_blank" class="text-indigo-600 hover:underline">View Attachment</a></p>`
-            : '<p><strong>Attachment:</strong> None</p>'
-          }
-          <div>
-            <label for="reason" class="block text-sm font-medium text-gray-700 mt-4">Comment (optional)</label>
-            <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows="4" placeholder="Enter reason for approval or rejection"></textarea>
-          </div>
-        </div>
-      `,
-      showCancelButton: true,
-      showDenyButton: true,
-      confirmButtonText: 'Approve',
-      denyButtonText: 'Reject',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4f46e5', // indigo-600
-      denyButtonColor: '#dc2626',    // red-600
-      cancelButtonColor: '#6b7280',
-      allowOutsideClick: false,
-      preConfirm: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value?.trim() || '';
-        return { action: 'approve', reason };
-      },
-      preDeny: () => {
-        const reason = (document.getElementById('reason') as HTMLTextAreaElement)?.value?.trim() || '';
-        return { action: 'reject', reason };
-      },
-    }).then(async (result) => {
-      if (result.isConfirmed || result.isDenied) {
-        const { action, reason } = result.value;
-        const status = action === 'approve' ? 'APPROVED' : 'REJECTED';
+    // Small delay required for SweetAlert + DOM reset
+    setTimeout(() => {
+      Swal.fire({
+        title: "Review Leave Request",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+
+        html: `
+          <div class="text-left text-sm text-gray-600 space-y-3">
+            <p><strong>Employee:</strong> ${leave.employeeName ?? "Unknown"}</p>
+            <p><strong>Type:</strong> ${leave.leaveCategoryType
+            ? getLabel(leave.leaveCategoryType)
+            : "N/A"
+          }</p>
+            <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
+            <p><strong>From Date:</strong> ${leave.fromDate
+            ? new Date(leave.fromDate).toLocaleDateString()
+            : "N/A"
+          }</p>
+            <p><strong>To Date:</strong> ${leave.toDate
+            ? new Date(leave.toDate).toLocaleDateString()
+            : "N/A"
+          }</p>
+            <p><strong>Reason:</strong> ${leave.context ?? "No reason provided"
+          }</p>
+            <p><strong>Status:</strong> ${leave.status ?? "PENDING"}</p>
   
-        // Show loading state
+            ${leave.attachmentUrl
+            ? `<p><strong>Attachment:</strong>
+                     <a href="${leave.attachmentUrl}" target="_blank"
+                        class="text-indigo-600 hover:underline">
+                       View Attachment
+                     </a>
+                   </p>`
+            : "<p><strong>Attachment:</strong> None</p>"
+          }
+  
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mt-4">
+                Comment (optional)
+              </label>
+              <textarea
+                id="reason"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm
+                       focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                rows="4"
+                placeholder="Enter reason for approval or rejection"
+              ></textarea>
+            </div>
+          </div>
+        `,
+
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: "Approve",
+        denyButtonText: "Reject",
+        cancelButtonText: "Cancel",
+
+        confirmButtonColor: "#4f46e5",
+        denyButtonColor: "#dc2626",
+        cancelButtonColor: "#6b7280",
+
+        preConfirm: () => ({
+          action: "approve",
+          reason:
+            (document.getElementById("reason") as HTMLTextAreaElement)
+              ?.value?.trim() || "",
+        }),
+
+        preDeny: () => ({
+          action: "reject",
+          reason:
+            (document.getElementById("reason") as HTMLTextAreaElement)
+              ?.value?.trim() || "",
+        }),
+      }).then(async (result) => {
+        if (!result.isConfirmed && !result.isDenied) return;
+
+        const { action, reason } = result.value;
+        const status = action === "approve" ? "APPROVED" : "REJECTED";
+
         Swal.fire({
-          title: `${action === 'approve' ? 'Approving' : 'Rejecting'} leave...`,
+          title: action === "approve" ? "Approving leave..." : "Rejecting leave...",
           allowOutsideClick: false,
           allowEscapeKey: false,
-          didOpen: () => {
-            Swal.showLoading();
-          },
+          didOpen: () => Swal.showLoading(),
         });
-  
+
         try {
-          await leaveService.updateLeaveStatus(leave.leaveId!, status, reason);
-  
-          // Update UI immediately
+          await leaveService.updateLeaveStatus(
+            leave.leaveId!,
+            status,
+            reason
+          );
+
           updateLeaveStatus(leave.leaveId!, status);
-  
-          // Show success message
+
           Swal.fire({
-            icon: 'success',
-            title: 'Success!',
-            text: `Leave request has been ${status.toLowerCase()}${reason ? ` with comment: "${reason}"` : ''}.`,
-            timer: 3000,
+            icon: "success",
+            title: "Success!",
+            text: `Leave request ${status.toLowerCase()} successfully.`,
+            timer: 2500,
             showConfirmButton: false,
           });
         } catch (err: any) {
-          // Show error message
           Swal.fire({
-            icon: 'error',
-            title: 'Failed',
-            text: err.message || `Failed to ${action} leave request. Please try again.`,
+            icon: "error",
+            title: "Failed",
+            text:
+              err.message ||
+              `Failed to ${action} leave request. Please try again.`,
           });
         }
-      }
-    });
+      });
+    }, 250); // ⛔ REQUIRED — DO NOT REMOVE
   };
 
+  // Update leave status in state after review
   const updateLeaveStatus = (leaveId: string, status: LeaveStatus) => {
     if (activeTab === 'pending') {
       setPendingLeaves((prev) =>
@@ -400,9 +452,9 @@ const Leavespage: React.FC = () => {
     adjustPage * ADJUST_PAGE_SIZE,
     adjustPage * ADJUST_PAGE_SIZE + ADJUST_PAGE_SIZE
   );
-  
+
   const adjustTotalPages = Math.ceil(employees.length / ADJUST_PAGE_SIZE);
-  
+
 
   return (
     <div className="container mx-auto p-6">
@@ -449,11 +501,10 @@ const Leavespage: React.FC = () => {
           All Leaves
         </button>
         <button
-          className={`px-4 py-2 font-medium ${
-            activeTab === 'adjust'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600'
-          }`}
+          className={`px-4 py-2 font-medium ${activeTab === 'adjust'
+            ? 'border-b-2 border-indigo-600 text-indigo-600'
+            : 'text-gray-600'
+            }`}
           onClick={() => {
             setActiveTab('adjust');
             setAdjustPage(0); //  reset pagination
@@ -467,7 +518,7 @@ const Leavespage: React.FC = () => {
       {activeTab === 'all' && (
         <div className="mb-6 bg-white shadow-md rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Filters</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600">Status</label>
               <select
@@ -482,6 +533,27 @@ const Leavespage: React.FC = () => {
                 <option value="WITHDRAWN">Withdrawn</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600">Employee</label>
+              <select
+                value={selectedEmployeeId || ''}
+                onChange={(e) => {
+                  const value = e.target.value || undefined;
+                  setSelectedEmployeeId(value);
+                  setFilters(prev => ({ ...prev, employeeId: value }));
+                  setPagination(prev => ({ ...prev, page: 0 }));
+                }}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
+              >
+                <option value="">All Employees</option>
+                {allEmployees.map(emp => (
+                  <option key={emp.employeeId} value={emp.employeeId}>
+                    {emp.firstName} {emp.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-600">Leave Category</label>
               <select
@@ -519,295 +591,295 @@ const Leavespage: React.FC = () => {
 
       {/* Content */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">
-  {activeTab === 'pending'
-    ? 'Pending Leave Requests'
-    : activeTab === 'all'
-    ? 'All Leave Requests'
-    : 'Adjust Leaves'}
-</h3>
+        <h3 className="text-xl font-semibold text-gray-800 mb-4">
+          {activeTab === 'pending'
+            ? 'Pending Leave Requests'
+            : activeTab === 'all'
+              ? 'All Leave Requests'
+              : 'Adjust Leaves'}
+        </h3>
 
-{(activeTab === 'pending' || activeTab === 'all') && (
-  (activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-center">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Employee
-                  </th>
+        {(activeTab === 'pending' || activeTab === 'all') && (
+          (activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-center">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      Employee
+                    </th>
 
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSortChange('leaveCategoryType,desc')}
-                      className="flex justify-center items-center gap-1 w-full"
-                    >
-                      Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' :
-                        pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
-                    </button>
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSortChange('leaveDuration,desc')}
-                      className="flex justify-center items-center gap-1 w-full"
-                    >
-                      Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' :
-                        pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
-                    </button>
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Financial Type
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSortChange('fromDate,desc')}
-                      className="flex justify-center items-center gap-1 w-full"
-                    >
-                      From Date {pagination.sort.includes('fromDate,desc') ? '↓' :
-                        pagination.sort.includes('fromDate,asc') ? '↑' : ''}
-                    </button>
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSortChange('toDate,desc')}
-                      className="flex justify-center items-center gap-1 w-full"
-                    >
-                      To Date {pagination.sort.includes('toDate,desc') ? '↓' :
-                        pagination.sort.includes('toDate,asc') ? '↑' : ''}
-                    </button>
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSortChange('status,desc')}
-                      className="flex justify-center items-center gap-1 w-full"
-                    >
-                      Status {pagination.sort.includes('status,desc') ? '↓' :
-                        pagination.sort.includes('status,asc') ? '↑' : ''}
-                    </button>
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Attachment
-                  </th>
-
-                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-200 text-center">
-                {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
-                  <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors text-center">
-
-                    <td className="px-6 py-5 text-base font-medium text-gray-900 text-center">
-                      {leave.employeeName ?? 'Unknown'}
-                    </td>
-
-                    <td className="px-6 py-5 text-base text-gray-500 text-center">
-                      {leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}
-                    </td>
-
-                    <td className="px-6 py-5 text-base text-gray-500 text-center">
-                      {leave.leaveDuration ?? 0} days
-                    </td>
-
-                    <td className="px-6 py-5 text-base text-gray-500 text-center">
-                      {leave.financialType ? getLabel(leave.financialType) : 'N/A'}
-                    </td>
-
-                    <td className="px-6 py-5 text-base text-gray-500 text-center">
-                      {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
-                    </td>
-
-                    <td className="px-6 py-5 text-base text-gray-500 text-center">
-                      {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
-                    </td>
-
-                    <td className="px-6 py-5 text-base text-center">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium 
-                        ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                            leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                              leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'}
-                    `}
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      <button
+                        onClick={() => handleSortChange('leaveCategoryType,desc')}
+                        className="flex justify-center items-center gap-1 w-full"
                       >
-                        {leave.status ?? 'PENDING'}
-                      </span>
-                    </td>
+                        Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' :
+                          pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
+                      </button>
+                    </th>
 
-                    <td className="px-6 py-5 text-base text-center">
-                      {leave.attachmentUrl ? (
-                        <a
-                          href={leave.attachmentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-indigo-600 hover:underline"
-                        >
-                          View
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">None</span>
-                      )}
-                    </td>
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      <button
+                        onClick={() => handleSortChange('leaveDuration,desc')}
+                        className="flex justify-center items-center gap-1 w-full"
+                      >
+                        Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' :
+                          pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
+                      </button>
+                    </th>
 
-                    <td className="px-6 py-5 text-base text-center">
-                      {leave.status === 'PENDING' ? (
-                        <button
-                          onClick={() => handleReviewLeave(leave)}
-                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                        >
-                          Review
-                        </button>
-                      ) : (
-                        <span className="text-gray-500 text-sm">-</span>
-                      )}
-                    </td>
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      Financial Type
+                    </th>
 
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      <button
+                        onClick={() => handleSortChange('fromDate,desc')}
+                        className="flex justify-center items-center gap-1 w-full"
+                      >
+                        From Date {pagination.sort.includes('fromDate,desc') ? '↓' :
+                          pagination.sort.includes('fromDate,asc') ? '↑' : ''}
+                      </button>
+                    </th>
+
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      <button
+                        onClick={() => handleSortChange('toDate,desc')}
+                        className="flex justify-center items-center gap-1 w-full"
+                      >
+                        To Date {pagination.sort.includes('toDate,desc') ? '↓' :
+                          pagination.sort.includes('toDate,asc') ? '↑' : ''}
+                      </button>
+                    </th>
+
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      <button
+                        onClick={() => handleSortChange('status,desc')}
+                        className="flex justify-center items-center gap-1 w-full"
+                      >
+                        Status {pagination.sort.includes('status,desc') ? '↓' :
+                          pagination.sort.includes('status,asc') ? '↑' : ''}
+                      </button>
+                    </th>
+
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      Attachment
+                    </th>
+
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
 
-            {activeTab === 'all' && (
-              <div className="flex justify-between items-center mt-4">
-                <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))}
-                  disabled={pagination.page === 0}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <ChevronLeft size={20} />
-                  <span>Previous</span>
-                </button>
-                <span className="text-sm text-gray-600">Page {pagination.page + 1} of {totalPages}</span>
-                <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
-                  disabled={pagination.page >= totalPages - 1}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <span>Next</span>
-                  <ChevronRight size={20} />
-                </button>
+                <tbody className="divide-y divide-gray-200 text-center">
+                  {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
+                    <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors text-center">
+
+                      <td className="px-6 py-5 text-base font-medium text-gray-900 text-center">
+                        {leave.employeeName ?? 'Unknown'}
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-gray-500 text-center">
+                        {leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-gray-500 text-center">
+                        {leave.leaveDuration ?? 0} days
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-gray-500 text-center">
+                        {leave.financialType ? getLabel(leave.financialType) : 'N/A'}
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-gray-500 text-center">
+                        {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-gray-500 text-center">
+                        {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-center">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium 
+                        ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                              leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'}
+                    `}
+                        >
+                          {leave.status ?? 'PENDING'}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-center">
+                        {leave.attachmentUrl ? (
+                          <a
+                            href={leave.attachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 hover:underline"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">None</span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-5 text-base text-center">
+                        {leave.status === 'PENDING' ? (
+                          <button
+                            onClick={() => handleReviewLeave(leave)}
+                            className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                          >
+                            Review
+                          </button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">-</span>
+                        )}
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {activeTab === 'all' && (
+                <div className="flex justify-between items-center mt-4">
+                  <button
+                    onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))}
+                    disabled={pagination.page === 0}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+                  >
+                    <ChevronLeft size={20} />
+                    <span>Previous</span>
+                  </button>
+                  <span className="text-sm text-gray-600">Page {pagination.page + 1} of {totalPages}</span>
+                  <button
+                    onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page >= totalPages - 1}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
+          )
+        )}
+
+
+        {/* ADJUST LEAVES */}
+        {activeTab === 'adjust' && (
+          <div>
+            <p className="mb-4 text-gray-700">
+              Adjust employee leave balances manually.
+            </p>
+
+            {employees.length === 0 ? (
+              <p className="text-gray-500">No active employees found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-center">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                        Employee Name
+                      </th>
+                      <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                        Email
+                      </th>
+                      <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                        Available Leaves
+                      </th>
+                      <th className="px-6 py-4 text-sm font-medium text-gray-700">
+                        Add/Sub Leaves
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedEmployees.map((emp) => (
+                      <tr key={emp.employeeId} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          {emp.firstName} {emp.lastName}
+                        </td>
+
+                        <td className="px-6 py-4 text-gray-600">
+                          {emp.companyEmail}
+                        </td>
+
+                        <td className="px-6 py-4 text-indigo-700 font-semibold">
+                          {emp.availableLeaves}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <input
+                            type="number"
+                            step="0.5"
+                            placeholder="+ / -"
+                            value={adjustments[emp.employeeId] ?? ''}
+                            onChange={(e) =>
+                              handleAdjustmentChange(emp.employeeId, e.target.value)
+                            }
+                            className="w-24 text-center border border-gray-300 rounded-md px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+
+                </table>
+
+                <div className="flex justify-end mt-6">
+                  <button
+                    onClick={handleSubmitAdjustments}
+                    disabled={submitting}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {submitting ? 'Submitting...' : 'Submit Adjustments'}
+                  </button>
+                </div>
+                {adjustTotalPages > 1 && (
+                  <div className="flex justify-between items-center mt-6">
+                    <button
+                      onClick={() => setAdjustPage((prev) => Math.max(prev - 1, 0))}
+                      disabled={adjustPage === 0}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <ChevronLeft size={18} />
+                      Previous
+                    </button>
+
+                    <span className="text-sm text-gray-600">
+                      Page {adjustPage + 1} of {adjustTotalPages}
+                    </span>
+
+                    <button
+                      onClick={() =>
+                        setAdjustPage((prev) =>
+                          Math.min(prev + 1, adjustTotalPages - 1)
+                        )
+                      }
+                      disabled={adjustPage >= adjustTotalPages - 1}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
+                    >
+                      Next
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+
               </div>
             )}
           </div>
-        ) : (
-          <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
-        )
-      )}
-
-
-  {/* ADJUST LEAVES */}
-  {activeTab === 'adjust' && (
-  <div>
-    <p className="mb-4 text-gray-700">
-      Adjust employee leave balances manually.
-    </p>
-
-    {employees.length === 0 ? (
-      <p className="text-gray-500">No active employees found.</p>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-center">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-4 text-sm font-medium text-gray-700">
-                Employee Name
-              </th>
-              <th className="px-6 py-4 text-sm font-medium text-gray-700">
-                Email
-              </th>
-              <th className="px-6 py-4 text-sm font-medium text-gray-700">
-                Available Leaves
-              </th>
-              <th className="px-6 py-4 text-sm font-medium text-gray-700">
-                Add/Sub Leaves
-              </th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-gray-200">
-          {paginatedEmployees.map((emp) => (
-            <tr key={emp.employeeId} className="hover:bg-gray-50">
-              <td className="px-6 py-4 font-medium text-gray-900">
-                {emp.firstName} {emp.lastName}
-              </td>
-
-              <td className="px-6 py-4 text-gray-600">
-                {emp.companyEmail}
-              </td>
-
-              <td className="px-6 py-4 text-indigo-700 font-semibold">
-                {emp.availableLeaves}
-              </td>
-
-              <td className="px-6 py-4">
-                <input
-                  type="number"
-                  step="0.5"
-                  placeholder="+ / -"
-                  value={adjustments[emp.employeeId] ?? ''}
-                  onChange={(e) =>
-                    handleAdjustmentChange(emp.employeeId, e.target.value)
-                  }
-                  className="w-24 text-center border border-gray-300 rounded-md px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-
-        </table>
-
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={handleSubmitAdjustments}
-            disabled={submitting}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {submitting ? 'Submitting...' : 'Submit Adjustments'}
-          </button>
-        </div>
-        {adjustTotalPages > 1 && (
-  <div className="flex justify-between items-center mt-6">
-    <button
-      onClick={() => setAdjustPage((prev) => Math.max(prev - 1, 0))}
-      disabled={adjustPage === 0}
-      className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
-    >
-      <ChevronLeft size={18} />
-      Previous
-    </button>
-
-    <span className="text-sm text-gray-600">
-      Page {adjustPage + 1} of {adjustTotalPages}
-    </span>
-
-    <button
-      onClick={() =>
-        setAdjustPage((prev) =>
-          Math.min(prev + 1, adjustTotalPages - 1)
-        )
-      }
-      disabled={adjustPage >= adjustTotalPages - 1}
-      className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
-    >
-      Next
-      <ChevronRight size={18} />
-    </button>
-  </div>
-)}
-
-      </div>
-    )}
-  </div>
-)}
+        )}
 
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { employeeService } from "@/lib/api/employeeService";
 import {
   EmployeeUpdateRequestDTO,
@@ -44,7 +44,8 @@ import {
   MapPin,
   Eye,
 } from "lucide-react";
-
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 const formatKey = (key: string) =>
   key
     .replace(/([A-Z])/g, " $1")
@@ -70,7 +71,14 @@ export default function UpdateRequestAdminPage() {
   const hasProfileRequests = requests.length > 0;
   const hasHolidayRequests = holidayRequests.length > 0;
   const hasAnyRequests = hasProfileRequests || hasHolidayRequests;
-
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const highlightedRequestId = searchParams.get("requestId");
+  console.log("[HIGHLIGHT] URL param requestId =", highlightedRequestId);
+  console.log("[HIGHLIGHT] Type of URL param =", typeof highlightedRequestId);
+  const handledIdsRef = useRef(new Set<string>());
+  const openRequestId = searchParams.get("requestId");
+  const [tempHighlightId, setTempHighlightId] = useState<string | null>(null);
   const isLongText = (val: any, limit = 18) => String(val).length > limit;
   const loadOldProfile = async (employeeId: string) => {
     if (oldProfiles[employeeId]) return oldProfiles[employeeId];
@@ -104,7 +112,6 @@ export default function UpdateRequestAdminPage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchholidayRequests();
   }, []);
@@ -166,6 +173,42 @@ export default function UpdateRequestAdminPage() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useEffect(() => {
+    if (!highlightedRequestId) return;
+
+    console.log("[HIGHLIGHT] Found requestId in URL →", highlightedRequestId);
+
+    // Set highlight
+    setTempHighlightId(highlightedRequestId);
+
+    // Remove ?requestId from URL (without full reload)
+    router.replace(
+      window.location.pathname,   // keep only the path, remove all query params
+      { scroll: false }           // don't scroll to top
+    );
+
+    // Auto-remove highlight after 8 seconds
+    const timer = setTimeout(() => {
+      setTempHighlightId(null);
+      console.log("[HIGHLIGHT] Auto-removed highlight after 8s");
+    }, 8000);
+
+    return () => clearTimeout(timer);
+  }, [highlightedRequestId, router]);
+
+  // Optional: smooth scroll to the highlighted card
+  useEffect(() => {
+    if (highlightedRequestId) {
+      const element = document.getElementById(`request-card-${highlightedRequestId}`);
+      if (element) {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",   // or "nearest"
+        });
+      }
+    }
+  }, [highlightedRequestId, requests, holidayRequests]); // re-run when lists load
 
   const handleApprove = async (requestId: string) => {
     if (processing) return;
@@ -527,6 +570,12 @@ export default function UpdateRequestAdminPage() {
                 </h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                   {requests.map((req) => {
+                    console.log(
+                      "[HIGHLIGHT] Comparing → URL:", highlightedRequestId,
+                      " vs Card:", req.requestId,
+                      " equal?", highlightedRequestId === req.requestId,
+                      " types:", typeof highlightedRequestId, typeof req.requestId
+                    );
                     const profile = oldProfiles[req.employeeId];
                     const {
                       scalarChanges,
@@ -544,8 +593,15 @@ export default function UpdateRequestAdminPage() {
 
                     return (
                       <Card
+                        id={`request-card-${req.requestId}`}           // ← good for scrolling
                         key={req.requestId}
-                        className="h-full flex flex-col hover:shadow-xl transition-shadow"
+                        className={`
+        h-full flex flex-col transition-all duration-400
+        ${tempHighlightId === req.requestId
+                            ? "ring-2 ring-blue-600 ring-offset-4 bg-blue-50/70 border-blue-500 shadow-2xl scale-[1.015] z-10"
+                            : "hover:shadow-xl hover:scale-[1.01]"
+                          }
+      `}
                       >
                         <CardHeader className="pb-4">
                           <div className="grid grid-cols-[1fr_auto] items-start gap-3 w-full">
@@ -693,115 +749,114 @@ export default function UpdateRequestAdminPage() {
                                 {/* Documents - Enhanced for New + Replacements (show old & new) */}
                                 {(newDocuments.length > 0 ||
                                   req.requestType === "DOCUMENT_DELETE") && (
-                                  <div className="space-y-3 pt-2 border-t">
-                                    <p className="font-medium text-indigo-700">
-                                      {req.requestType === "DOCUMENT_DELETE"
-                                        ? "Document Delete Request"
-                                        : "Uploaded Documents"}
-                                    </p>
+                                    <div className="space-y-3 pt-2 border-t">
+                                      <p className="font-medium text-indigo-700">
+                                        {req.requestType === "DOCUMENT_DELETE"
+                                          ? "Document Delete Request"
+                                          : "Uploaded Documents"}
+                                      </p>
 
-                                    {req.requestType === "DOCUMENT_DELETE" ? (
-                                      // Delete request (unchanged)
-                                      <div className="flex items-center justify-between gap-3 text-xs bg-red-50 border border-red-200 rounded-lg p-3">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                          <FileText className="w-4 h-4 text-red-600 shrink-0" />
-                                          <span className="font-medium truncate">
-                                            {req.updatedData?.docType?.replace(
-                                              /_/g,
-                                              " ",
-                                            ) || "Unknown Document"}
-                                          </span>
-                                        </div>
-                                        {req.updatedData?.fileUrl && (
-                                          <a
-                                            href={req.updatedData.fileUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-red-700 font-medium hover:underline flex items-center gap-1 whitespace-nowrap"
-                                          >
-                                            <Eye className="w-3.5 h-3.5" /> View
-                                            Attached File →
-                                          </a>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      // New uploads + replacements
-                                      newDocuments
-                                        .slice(0, 2)
-                                        .map((doc: any, i: number) => {
-                                          const isReplacement = doc.documentId; // has documentId → it's replacing existing
-                                          const oldDoc =
-                                            profile?.documents?.find(
-                                              (d) =>
-                                                d.documentId === doc.documentId,
-                                            );
-
-                                          const oldFileUrl: string | null =
-                                            typeof oldDoc?.fileUrl === "string"
-                                              ? oldDoc.fileUrl
-                                              : null;
-                                          const newFileUrl = doc.fileUrl;
-
-                                          return (
-                                            <div
-                                              key={i}
-                                              className="flex flex-col gap-2 text-xs bg-blue-50 border border-blue-200 rounded-lg p-3"
+                                      {req.requestType === "DOCUMENT_DELETE" ? (
+                                        // Delete request (unchanged)
+                                        <div className="flex items-center justify-between gap-3 text-xs bg-red-50 border border-red-200 rounded-lg p-3">
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            <FileText className="w-4 h-4 text-red-600 shrink-0" />
+                                            <span className="font-medium truncate">
+                                              {req.updatedData?.docType?.replace(
+                                                /_/g,
+                                                " ",
+                                              ) || "Unknown Document"}
+                                            </span>
+                                          </div>
+                                          {req.updatedData?.fileUrl && (
+                                            <a
+                                              href={req.updatedData.fileUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-red-700 font-medium hover:underline flex items-center gap-1 whitespace-nowrap"
                                             >
-                                              <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                  <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                                                  <span className="truncate font-medium">
-                                                    {doc.docType.replace(
-                                                      /_/g,
-                                                      " ",
-                                                    )}
-                                                  </span>
-                                                </div>
-                                              </div>
+                                              <Eye className="w-3.5 h-3.5" /> View
+                                              Attached File →
+                                            </a>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        // New uploads + replacements
+                                        newDocuments
+                                          .slice(0, 2)
+                                          .map((doc: any, i: number) => {
+                                            const isReplacement = doc.documentId; // has documentId → it's replacing existing
+                                            const oldDoc =
+                                              profile?.documents?.find(
+                                                (d) =>
+                                                  d.documentId === doc.documentId,
+                                              );
 
-                                              {/* Links - show both for replacements */}
-                                              <div className="flex flex-col sm:flex-row gap-2 mt-1">
-                                                {/* OLD FILE (before replacement) */}
-                                                {isReplacement &&
-                                                  oldFileUrl && (
+                                            const oldFileUrl: string | null =
+                                              typeof oldDoc?.fileUrl === "string"
+                                                ? oldDoc.fileUrl
+                                                : null;
+                                            const newFileUrl = doc.fileUrl;
+
+                                            return (
+                                              <div
+                                                key={i}
+                                                className="flex flex-col gap-2 text-xs bg-blue-50 border border-blue-200 rounded-lg p-3"
+                                              >
+                                                <div className="flex items-center justify-between">
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                                                    <span className="truncate font-medium">
+                                                      {doc.docType.replace(
+                                                        /_/g,
+                                                        " ",
+                                                      )}
+                                                    </span>
+                                                  </div>
+                                                </div>
+
+                                                {/* Links - show both for replacements */}
+                                                <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                                                  {/* OLD FILE (before replacement) */}
+                                                  {isReplacement &&
+                                                    oldFileUrl && (
+                                                      <a
+                                                        href={oldFileUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-1"
+                                                        title="Current file before replacement"
+                                                      >
+                                                        <Eye className="w-3.5 h-3.5" />
+                                                        View Current File
+                                                      </a>
+                                                    )}
+
+                                                  {/* NEW FILE */}
+                                                  {newFileUrl && (
                                                     <a
-                                                      href={oldFileUrl}
+                                                      href={newFileUrl}
                                                       target="_blank"
                                                       rel="noopener noreferrer"
-                                                      className="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-1"
-                                                      title="Current file before replacement"
+                                                      className={`font-medium flex items-center gap-1 ${isReplacement
+                                                          ? "text-purple-700"
+                                                          : "text-green-700"
+                                                        } hover:underline`}
+                                                      title="New uploaded file"
                                                     >
                                                       <Eye className="w-3.5 h-3.5" />
-                                                      View Current File
+                                                      {isReplacement
+                                                        ? "View New Replacement →"
+                                                        : "View New File →"}
                                                     </a>
                                                   )}
-
-                                                {/* NEW FILE */}
-                                                {newFileUrl && (
-                                                  <a
-                                                    href={newFileUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className={`font-medium flex items-center gap-1 ${
-                                                      isReplacement
-                                                        ? "text-purple-700"
-                                                        : "text-green-700"
-                                                    } hover:underline`}
-                                                    title="New uploaded file"
-                                                  >
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                    {isReplacement
-                                                      ? "View New Replacement →"
-                                                      : "View New File →"}
-                                                  </a>
-                                                )}
+                                                </div>
                                               </div>
-                                            </div>
-                                          );
-                                        })
-                                    )}
-                                  </div>
-                                )}
+                                            );
+                                          })
+                                      )}
+                                    </div>
+                                  )}
 
                                 {/* Profile Photo */}
                                 {hasNewPhoto && (
@@ -846,17 +901,17 @@ export default function UpdateRequestAdminPage() {
                                   addressChanges.length > 0 ||
                                   newDocuments.length > 2 ||
                                   hasNewPhoto) && (
-                                  <button
-                                    className="text-center text-xs text-blue-600 underline pt-2 block w-full"
-                                    onClick={() => {
-                                      setViewAllChanges({ req, profile });
-                                      setSelectedRequest(req);
-                                      setIsViewAllOpen(true);
-                                    }}
-                                  >
-                                    View all changes
-                                  </button>
-                                )}
+                                    <button
+                                      className="text-center text-xs text-blue-600 underline pt-2 block w-full"
+                                      onClick={() => {
+                                        setViewAllChanges({ req, profile });
+                                        setSelectedRequest(req);
+                                        setIsViewAllOpen(true);
+                                      }}
+                                    >
+                                      View all changes
+                                    </button>
+                                  )}
                               </div>
                             )}
                           </div>
@@ -911,6 +966,11 @@ export default function UpdateRequestAdminPage() {
                 </h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                   {holidayRequests.map((req) => {
+                    console.log(
+                      "[HOLIDAY HIGHLIGHT] Comparing → URL:", highlightedRequestId,
+                      " vs Holiday Card:", req.requestId,
+                      " equal?", highlightedRequestId === req.requestId
+                    );
                     const profile = oldProfiles[req.employeeId];
                     const {
                       scalarChanges,
@@ -926,8 +986,15 @@ export default function UpdateRequestAdminPage() {
 
                     return (
                       <Card
+                        id={`request-card-${req.requestId}`}
                         key={req.requestId}
-                        className="h-full flex flex-col hover:shadow-xl transition-shadow"
+                        className={`
+                        h-full flex flex-col transition-all duration-400
+                        ${tempHighlightId === req.requestId
+                            ? "ring-2 ring-indigo-600 ring-offset-4 bg-indigo-50/60 border-indigo-500 shadow-2xl scale-[1.015] z-10"
+                            : "hover:shadow-xl hover:scale-[1.01]"
+                          }
+                      `}
                       >
                         <CardHeader className="pb-4">
                           <div className="grid grid-cols-[1fr_auto] items-start gap-3 w-full">
@@ -975,11 +1042,10 @@ export default function UpdateRequestAdminPage() {
                                   return (
                                     <div
                                       key={index}
-                                      className={`p-3 rounded-lg border flex items-start gap-3 ${
-                                        isAdd
+                                      className={`p-3 rounded-lg border flex items-start gap-3 ${isAdd
                                           ? "bg-green-50 border-green-200"
                                           : "bg-red-50 border-red-200"
-                                      }`}
+                                        }`}
                                     >
                                       {/* Icon */}
                                       <div className="mt-1">
@@ -1091,155 +1157,195 @@ export default function UpdateRequestAdminPage() {
                 {selectedRequest?.employeeName}
               </p>
             </div>
+            {/* Holiday-specific content (only when it's a holiday request) */}
+            {Array.isArray(selectedRequest?.updatedData) ? (
+              <div className="max-h-64 overflow-y-auto border rounded-lg bg-gray-50 p-4 text-xs space-y-4">
+                <p className="font-semibold text-gray-800">Holiday Changes:</p>
+                {selectedRequest.updatedData.map((item: any, index: number) => {
+                  const isAdd = item.updateType === "ADD_HOLIDAY";
+                  const isRemove = item.updateType === "REMOVE_HOLIDAY";
 
-            <div className="max-h-64 overflow-y-auto border rounded-lg bg-gray-50 p-4 text-xs">
-              {(() => {
-                if (
-                  !selectedRequest ||
-                  !oldProfiles[selectedRequest.employeeId]
-                )
                   return (
-                    <p className="text-center text-gray-500">Loading...</p>
-                  );
+                    <div
+                      key={index}
+                      className={`p-3 rounded-lg border flex items-start gap-3 ${isAdd ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+                        }`}
+                    >
+                      <div className="mt-1">
+                        {isAdd ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-600" />
+                        )}
+                      </div>
 
-                const {
-                  scalarChanges,
-                  addressChanges,
-                  newDocuments,
-                  hasNewPhoto,
-                  photoUrl,
-                  oldPhotoUrl,
-                } = extractChanges(
-                  selectedRequest,
-                  oldProfiles[selectedRequest.employeeId],
-                );
-                const hasAny =
-                  scalarChanges.length > 0 ||
-                  addressChanges.length > 0 ||
-                  newDocuments.length > 0 ||
-                  hasNewPhoto;
-
-                if (!hasAny)
-                  return (
-                    <p className="text-center text-gray-500 py-4">
-                      No changes detected
-                    </p>
-                  );
-
-                return (
-                  <div className="space-y-4">
-                    {scalarChanges.map(([key, newValue]) => {
-                      const oldValue =
-                        oldProfiles[selectedRequest.employeeId]?.[
-                          key as keyof EmployeeDTO
-                        ] ?? "—";
-                      return (
-                        <div
-                          key={key}
-                          className="grid grid-cols-3 py-2 border-b"
-                        >
-                          <span className="font-medium">{formatKey(key)}</span>
-                          <span className="text-center text-red-600">
-                            {String(oldValue)}
-                          </span>
-                          <span className="text-right text-green-700">
-                            {String(newValue)}
-                          </span>
-                        </div>
-                      );
-                    })}
-
-                    {addressChanges.length > 0 && (
-                      <div className="space-y-3">
-                        <p className="font-semibold text-purple-700">
-                          {addressChanges[0].type} Address Changes:
+                      <div className="flex-1">
+                        <p className={`font-semibold ${isAdd ? "text-green-700" : "text-red-700"}`}>
+                          {isAdd ? "Add Holiday" : "Remove Holiday"}
                         </p>
-                        {addressChanges.map((change, i) => (
+                        <p className="text-gray-800 mt-1">
+                          <span className="font-medium">Name:</span> {item.holidayName || "—"}
+                        </p>
+                        <p className="text-gray-600">
+                          <span className="font-medium">Date:</span>{" "}
+                          {item.holidayDate
+                            ? format(new Date(item.holidayDate), "dd MMM yyyy")
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto border rounded-lg bg-gray-50 p-4 text-xs">
+                {(() => {
+                  if (
+                    !selectedRequest ||
+                    !oldProfiles[selectedRequest.employeeId]
+                  )
+                    return (
+                      <p className="text-center text-gray-500">Loading...</p>
+                    );
+
+                  const {
+                    scalarChanges,
+                    addressChanges,
+                    newDocuments,
+                    hasNewPhoto,
+                    photoUrl,
+                    oldPhotoUrl,
+                  } = extractChanges(
+                    selectedRequest,
+                    oldProfiles[selectedRequest.employeeId],
+                  );
+                  const hasAny =
+                    scalarChanges.length > 0 ||
+                    addressChanges.length > 0 ||
+                    newDocuments.length > 0 ||
+                    hasNewPhoto;
+
+                  if (!hasAny)
+                    return (
+                      <p className="text-center text-gray-500 py-4">
+                        No changes detected
+                      </p>
+                    );
+
+                  return (
+                    <div className="space-y-4">
+                      {scalarChanges.map(([key, newValue]) => {
+                        const oldValue =
+                          oldProfiles[selectedRequest.employeeId]?.[
+                          key as keyof EmployeeDTO
+                          ] ?? "—";
+                        return (
                           <div
-                            key={i}
+                            key={key}
                             className="grid grid-cols-3 py-2 border-b"
                           >
-                            <span className="font-medium">{change.field}</span>
+                            <span className="font-medium">{formatKey(key)}</span>
                             <span className="text-center text-red-600">
-                              {change.old}
+                              {String(oldValue)}
                             </span>
                             <span className="text-right text-green-700">
-                              {change.new}
+                              {String(newValue)}
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
 
-                    {newDocuments.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="font-semibold text-indigo-700">
-                          Uploaded Documents:
-                        </p>
-                        {newDocuments.map((doc: any, i: number) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between py-2 border rounded bg-blue-50 p-3"
-                          >
-                            <div className="flex items-center gap-3">
-                              <FileText className="w-5 h-5 text-blue-600" />
-                              <div>
-                                <p className="font-medium">
-                                  {doc.docType.replace(/_/g, " ")}
-                                </p>
-                                {doc.fileUrl && (
-                                  <a
-                                    href={doc.fileUrl}
-                                    target="_blank"
-                                    className="text-blue-600 text-xs underline"
-                                  >
-                                    Open File →
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            <Badge className="bg-green-100 text-green-700">
-                              New
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {hasNewPhoto && (
-                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <Camera className="w-6 h-6 text-purple-700" />
-                          <div>
-                            <p className="font-medium">Profile Photo Updated</p>
-                            <a
-                              href={photoUrl}
-                              target="_blank"
-                              className="text-blue-600 text-xs underline"
+                      {addressChanges.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="font-semibold text-purple-700">
+                            {addressChanges[0].type} Address Changes:
+                          </p>
+                          {addressChanges.map((change, i) => (
+                            <div
+                              key={i}
+                              className="grid grid-cols-3 py-2 border-b"
                             >
-                              View New Photo →
-                            </a>
-                            {oldPhotoUrl && (
-                              <p className="text-xs text-gray-600 mt-1">
-                                Old:{" "}
-                                <a
-                                  href={oldPhotoUrl}
-                                  target="_blank"
-                                  className="text-gray-500 underline"
-                                >
-                                  View Old
-                                </a>
-                              </p>
-                            )}
+                              <span className="font-medium">{change.field}</span>
+                              <span className="text-center text-red-600">
+                                {change.old}
+                              </span>
+                              <span className="text-right text-green-700">
+                                {change.new}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {newDocuments.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="font-semibold text-indigo-700">
+                            Uploaded Documents:
+                          </p>
+                          {newDocuments.map((doc: any, i: number) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between py-2 border rounded bg-blue-50 p-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                                <div>
+                                  <p className="font-medium">
+                                    {doc.docType.replace(/_/g, " ")}
+                                  </p>
+                                  {doc.fileUrl && (
+                                    <a
+                                      href={doc.fileUrl}
+                                      target="_blank"
+                                      className="text-blue-600 text-xs underline"
+                                    >
+                                      Open File →
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              <Badge className="bg-green-100 text-green-700">
+                                New
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {hasNewPhoto && (
+                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <Camera className="w-6 h-6 text-purple-700" />
+                            <div>
+                              <p className="font-medium">Profile Photo Updated</p>
+                              <a
+                                href={photoUrl}
+                                target="_blank"
+                                className="text-blue-600 text-xs underline"
+                              >
+                                View New Photo →
+                              </a>
+                              {oldPhotoUrl && (
+                                <p className="text-xs text-gray-600 mt-1">
+                                  Old:{" "}
+                                  <a
+                                    href={oldPhotoUrl}
+                                    target="_blank"
+                                    className="text-gray-500 underline"
+                                  >
+                                    View Old
+                                  </a>
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             <div>
               <Label htmlFor="comment">
                 Comment <span className="text-red-600">*</span>
@@ -1275,7 +1381,20 @@ export default function UpdateRequestAdminPage() {
       </Dialog>
 
       {/* View All Changes Dialog */}
-      <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}>
+      {/* <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}> */}
+      <Dialog
+        key={isViewAllOpen ? "modal-open" : "modal-closed"} // forces remount on open/close
+        open={isViewAllOpen}
+        onOpenChange={(open) => {
+          console.log("[DIALOG] open changed to:", open);
+          if (!open) {
+            console.log("[DIALOG] Cleaning up on close");
+            setViewAllChanges(null);
+            setSelectedRequest(null);
+          }
+          setIsViewAllOpen(open);
+        }}
+      >
         <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-xl">
           <DialogHeader>
             <DialogTitle>All Changes</DialogTitle>
@@ -1414,11 +1533,10 @@ export default function UpdateRequestAdminPage() {
                                   <a
                                     href={doc.fileUrl}
                                     target="_blank"
-                                    className={`flex items-center gap-1 font-medium ${
-                                      isReplacement
+                                    className={`flex items-center gap-1 font-medium ${isReplacement
                                         ? "text-purple-700"
                                         : "text-green-700"
-                                    } hover:underline`}
+                                      } hover:underline`}
                                   >
                                     <Eye className="w-4 h-4" />
                                     {isReplacement

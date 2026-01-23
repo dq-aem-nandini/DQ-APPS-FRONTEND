@@ -6,8 +6,6 @@ import { NotificationDTO } from "@/lib/api/types";
 import { Bell, MoreVertical, X, Check, CheckCheck, Trash2 } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
-import { timesheetService } from "@/lib/api/timeSheetService";
-import dayjs from "dayjs";
 import { useAuth } from "@/context/AuthContext";
 import { leaveService } from "@/lib/api/leaveService";
 import {
@@ -242,109 +240,86 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   // ⭐ ROLE-BASED NOTIFICATION ACTIONS
   // ------------------------------------------------------------
   const handleOpenNotification = async (notification: NotificationDTO) => {
-    // console.log("===== NOTIFICATION CLICK START =====");
-    // console.log("Role:", userRole);
-    // console.log("Notification Type:", notification.notificationType);
-    // console.log("ID:", notification.id);
-    // console.log("Reference ID:", notification.referenceId);
-    // console.log("Employee ID:", notification.employeeId);
-    // console.log("Already read?", notification.read);
+    console.log("[NOTIF CLICK] Starting handler for notification:", {
+      id: notification.id,
+      type: notification.notificationType,
+      referenceId: notification.referenceId,
+      read: notification.read,
+      userRole,
+    });
 
     try {
-      // Mark as read → double tick appears immediately
+      // ✅ Mark as read
       if (!notification.read) {
-        // console.log("→ Marking as read...");
         await notificationService.markAsRead([notification.id]);
         setNotifications((prev) =>
-          prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
+          prev.map((n) =>
+            n.id === notification.id ? { ...n, read: true } : n
+          )
         );
-        // console.log("→ Marked as read successfully");
-      } else {
-        // console.log("→ Already read, skipping mark");
       }
 
-      // Close dropdown immediately
       setDropdownOpen(false);
-      // console.log("→ Dropdown closed");
 
-      // Determine base path by role
-      let basePath = "/admin-dashboard"; // default for ADMIN, HR, FINANCE
-      if (userRole === "MANAGER") {
-        basePath = "/manager";
-        // console.log("→ Manager path selected:", basePath);
-      } else if (userRole === "EMPLOYEE") {
-        basePath = "/dashboard"; // your common paths
-        // console.log("→ Employee path selected:", basePath);
-      } else {
-        // console.log("→ Admin/HR/Finance path selected:", basePath);
-      }
+      // ✅ BASE PATH
+      const isAdmin = userRole === "ADMIN";
+      const basePath = isAdmin ? "/admin-dashboard" : "/dashboard";
 
-      let targetUrl = basePath; // fallback
-
+      // ✅ TARGET PATH
+      let targetPath = basePath;
       const type = (notification.notificationType || "").toUpperCase().trim();
-      // console.log("→ Normalized type:", type);
 
-      // Role-based redirection
-      if (["MANAGER", "ADMIN", "HR", "FINANCE"].includes(userRole || "")) {
-        if (type.includes("LEAVE")) {
-          targetUrl = `${basePath}/leaves`;
-          // console.log("→ LEAVE detected → redirecting to:", targetUrl);
-        } else if (type.includes("TIMESHEET")) {
-          targetUrl = `${basePath}/timesheet`;
-          // console.log("→ TIMESHEET detected → redirecting to:", targetUrl);
-        } else if (type.includes("HOLIDAY")) {
-          targetUrl = `${basePath}/holiday`;
-          // console.log("→ HOLIDAY detected → redirecting to:", targetUrl);
-        } else if (type.includes("INVOICE")) {
-          targetUrl = `${basePath}/invoice`;
-          // console.log("→ INVOICE detected → redirecting to:", targetUrl);
-        } else if (type.includes("SALARY")) {
-          targetUrl = `${basePath}/salaries`;
-          // console.log("→ SALARY detected → redirecting to:", targetUrl);
-        } else if (type.includes("UPDATEREQUEST") || type.includes("UPDATE_REQUEST") || type.includes("PROFILE")) {
-          targetUrl = `${basePath}/updaterequest`;
-          // console.log("→ UPDATE_REQUEST detected → redirecting to:", targetUrl);
-        } else {
-          targetUrl = basePath;
-          // console.log("→ Unknown type → fallback to dashboard:", targetUrl);
-        }
-      } else if (userRole === "EMPLOYEE") {
-        if (type.includes("LEAVE")) {
-          targetUrl = "/dashboard/leaves";
-          // console.log("→ EMPLOYEE LEAVE → redirecting to:", targetUrl);
-        } else if (type.includes("TIMESHEET")) {
-          targetUrl = "/dashboard/TimeSheetRegister";
-          // console.log("→ EMPLOYEE TIMESHEET → redirecting to:", targetUrl);
-        } else if (type.includes("HOLIDAY")) {
-          targetUrl = "/dashboard/holiday";
-          // console.log("→ EMPLOYEE HOLIDAY → redirecting to:", targetUrl);
-        } else if (type.includes("UPDATEREQUEST") || type.includes("UPDATE_REQUEST")) {
-          targetUrl = "/dashboard/updaterequest";
-          // console.log("→ EMPLOYEE UPDATE_REQUEST → redirecting to:", targetUrl);
-        } else if (type.includes("SALARY")) {
-          targetUrl = "/dashboard/salary";
-          // console.log("→ EMPLOYEE SALARY → redirecting to:", targetUrl);
-        } else {
-          targetUrl = "/dashboard";
-          // console.log("→ EMPLOYEE fallback → redirecting to:", targetUrl);
-        }
+      if (type.includes("LEAVE")) {
+        targetPath = `${basePath}/leaves`;
+
+      } else if (type.includes("TIMESHEET")) {
+        targetPath = isAdmin
+          ? `${basePath}/timesheet`
+          : `${basePath}/TimeSheetRegister`; // ✅ FIXED
+
+      } else if (type.includes("HOLIDAY")) {
+        targetPath = `${basePath}/holiday`;
+
+      } else if (type.includes("INVOICE")) {
+        targetPath = `${basePath}/invoice`;
+
+      } else if (type.includes("SALARY")) {
+        targetPath = isAdmin
+          ? `${basePath}/salaries` // ✅ FIXED
+          : `${basePath}/salary`;
+
+      } else if (
+        type.includes("UPDATEREQUEST") ||
+        type.includes("UPDATE_REQUEST") ||
+        type.includes("PROFILE")
+      ) {
+        targetPath = `${basePath}/updaterequest`;
       }
 
-      // console.log("===== FINAL REDIRECT =====");
-      // console.log("To:", targetUrl);
-      // console.log("=====================================");
+      // ✅ FINAL URL
+      let finalUrl = targetPath;
+      if (notification.referenceId) {
+        console.log(
+          "[NOTIF → URL] referenceId from notification:",
+          notification.referenceId,
+          "type:", typeof notification.referenceId
+        );
+        finalUrl += `?requestId=${encodeURIComponent(notification.referenceId)}`;
+      }
 
-      // Small delay for real-time feel (user sees double tick)
+      console.log("[NOTIF CLICK] Navigating to:", finalUrl);
+
       setTimeout(() => {
-        window.location.href = targetUrl;
+        window.location.href = finalUrl;
       }, 300);
 
     } catch (error) {
-      console.error("NOTIFICATION CLICK FAILED:", error);
+      console.error("[NOTIF CLICK] FAILED:", error);
       setSelectedNotification(notification);
       setShowModal(true);
     }
   };
+
   return (
     <div ref={dropdownRef} className="relative">
       <button onClick={() => setDropdownOpen(!isDropdownOpen)} className="relative">

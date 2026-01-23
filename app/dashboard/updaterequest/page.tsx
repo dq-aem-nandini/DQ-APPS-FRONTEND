@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/types';
 import Swal from 'sweetalert2';
 import { Clock, CheckCircle, XCircle, FileText, Camera, MapPin } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 // Format date
 const formatDate = (d: string) =>
@@ -25,7 +26,9 @@ export default function UpdateRequestPage() {
     const [requests, setRequests] = useState<any[]>([]);
     const [profile, setProfile] = useState<EmployeeDTO | null>(null);
     const [loading, setLoading] = useState(true);
+    const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
+    const searchParams = useSearchParams();
     const loadOldProfile = async () => {
         try {
             const res = await employeeService.getEmployeeById();
@@ -34,6 +37,49 @@ export default function UpdateRequestPage() {
             Swal.fire("Error", err.message, "error");
         }
     };
+    useEffect(() => {
+        if (requests.length === 0) return;
+
+        // ❌ Skip highlight on page refresh
+        const navEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+
+        const isReload = navEntry?.type === "reload";
+
+
+        if (isReload) {
+            console.log('[Highlight Debug] Page refreshed — skipping highlight');
+            setHighlightedId(null);
+            return;
+        }
+
+        const hl = searchParams.get('requestId');
+
+        console.log('[Highlight Debug] URL ?requestId=', hl);
+        console.log('[Highlight Debug] Requests:', requests.map(r => r.requestId));
+
+        if (hl && requests.some(r => r.requestId === hl)) {
+            setHighlightedId(hl);
+
+            const scrollTimer = setTimeout(() => {
+                const el = document.getElementById(`request-${hl}`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+
+            const clearTimer = setTimeout(() => {
+                setHighlightedId(null);
+            }, 8000);
+
+            return () => {
+                clearTimeout(scrollTimer);
+                clearTimeout(clearTimer);
+            };
+        } else {
+            setHighlightedId(null);
+        }
+    }, [requests, searchParams]);
+
+
+
 
     const loadRequests = async () => {
         try {
@@ -83,7 +129,12 @@ export default function UpdateRequestPage() {
                 return (
                     <div
                         key={req.requestId}
-                        className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow border space-y-4 sm:space-y-6 overflow-hidden"
+                        id={`request-${req.requestId}`} // ID for scrolling
+                        className={`bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow border space-y-4 sm:space-y-6 overflow-hidden transition-all duration-500
+                        ${highlightedId === req.requestId
+                                ? 'bg-indigo-50 ring-4 ring-indigo-500 ring-offset-2 shadow-2xl scale-[1.02]'
+                                : ''
+                            }`}
                     >
                         {/* Header */}
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -339,13 +390,13 @@ export default function UpdateRequestPage() {
                                                                 <div className="sm:text-center">
                                                                     {oldDoc?.file ? (
                                                                         <a
-                                                                        href={oldDoc.file instanceof File ? URL.createObjectURL(oldDoc.file) : oldDoc.file}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-red-600 hover:underline text-sm break-all block"
-                                                                        title={oldDoc.file instanceof File ? oldDoc.file.name : oldDoc.file}
+                                                                            href={oldDoc.file instanceof File ? URL.createObjectURL(oldDoc.file) : oldDoc.file}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-red-600 hover:underline text-sm break-all block"
+                                                                            title={oldDoc.file instanceof File ? oldDoc.file.name : oldDoc.file}
                                                                         >
-                                                                        View Old File →
+                                                                            View Old File →
                                                                         </a>
 
                                                                     ) : (

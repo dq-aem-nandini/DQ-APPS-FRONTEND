@@ -10,9 +10,11 @@ import {
   PendingLeavesResponseDTO,
   LeaveStatus,
   LeaveCategoryType,
+  EmployeeDTO,
 } from '@/lib/api/types';
 import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { adminService } from '@/lib/api/adminService';
 
 const Leavespage: React.FC = () => {
   const router = useRouter();
@@ -24,11 +26,14 @@ const Leavespage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [managerEmployees, setManagerEmployees] = useState<EmployeeDTO[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(''); // '' = all
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
     month?: string;
     futureApproved?: boolean;
+    employeeId?: string;
   }>({});
   const [pagination, setPagination] = useState<{
     page: number;
@@ -57,7 +62,18 @@ const Leavespage: React.FC = () => {
       if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
         throw new Error('Unauthorized access. Please log in as a manager.');
       }
-
+      // Fetch manager's employees when switching to 'all' tab (only once)
+      if (activeTab === 'all' && managerEmployees.length === 0) {
+        try {
+          const empResponse = await adminService.getAllManagerEmployees();
+          if (empResponse.flag && empResponse.response) {
+            setManagerEmployees(empResponse.response);
+          }
+        } catch (err) {
+          console.warn("Failed to load employees for filter dropdown", err);
+          // don't fail the whole page — just dropdown stays empty
+        }
+      }
       if (activeTab === 'pending') {
         const response = await leaveService.getPendingLeaves();
         console.log('🧩 Pending leaves fetched:', response);
@@ -65,7 +81,7 @@ const Leavespage: React.FC = () => {
         setTotalPages(1); // No pagination for pending leaves
       } else if (activeTab === 'all') {
         const response = await leaveService.getLeaveSummary(
-          undefined, // Fetch all employees under manager
+          selectedEmployeeId || undefined,     // pass selected employee or undefined = all
           filters.month,
           filters.leaveCategory,
           filters.status,
@@ -100,7 +116,15 @@ const Leavespage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, filters, pagination, accessToken, user]);
+  }, [
+    activeTab,
+    filters,
+    pagination,
+    accessToken,
+    user,
+    selectedEmployeeId,
+    managerEmployees.length
+  ]);
 
   useEffect(() => {
     if (user && accessToken) {
@@ -167,9 +191,9 @@ const Leavespage: React.FC = () => {
       }
     }).then(async (result) => {
       if (!result.value) return;
-  
+
       const { action, reason } = result.value;
-  
+
       // ⭐ Show loading indicator
       Swal.fire({
         title: "Processing...",
@@ -180,14 +204,14 @@ const Leavespage: React.FC = () => {
           Swal.showLoading();
         }
       });
-  
+
       try {
         // Backend call
         await leaveService.updateLeaveStatus(leave.leaveId!, action, reason);
-  
+
         // Update UI instantly
         updateLeaveStatus(leave.leaveId!, action as LeaveStatus);
-  
+
         // ⭐ Success Alert
         Swal.fire({
           icon: "success",
@@ -195,9 +219,9 @@ const Leavespage: React.FC = () => {
           text: reason ? `Reason: ${reason}` : undefined,
           confirmButtonColor: "#4f46e5"
         });
-  
+
       } catch (err: any) {
-  
+
         // ❌ Error alert
         Swal.fire({
           icon: "error",
@@ -207,8 +231,8 @@ const Leavespage: React.FC = () => {
       }
     });
   };
-  
-  
+
+
 
   const updateLeaveStatus = (leaveId: string, status: LeaveStatus) => {
     if (activeTab === 'pending') {
@@ -309,7 +333,7 @@ const Leavespage: React.FC = () => {
       {activeTab === 'all' && (
         <div className="mb-6 bg-white shadow-md rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Filters</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600">Status</label>
               <select
@@ -324,6 +348,29 @@ const Leavespage: React.FC = () => {
                 <option value="WITHDRAWN">Withdrawn</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600">Employee</label>
+              <select
+                value={selectedEmployeeId}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedEmployeeId(value);
+                  setFilters((prev) => ({ ...prev, employeeId: value || undefined }));
+                  setPagination((prev) => ({ ...prev, page: 0 }));
+                }}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
+              >
+                <option value="">All Employees</option>
+                {managerEmployees.map((emp) => (
+                  <option key={emp.employeeId} value={emp.employeeId}>
+                    {emp.firstName} {emp.lastName}
+                    {emp.companyEmail ? ` (${emp.companyEmail.split('@')[0]})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-600">Leave Category</label>
               <select
@@ -469,17 +516,17 @@ const Leavespage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-base text-center">
-  {leave.status === 'PENDING' ? (
-    <button
-      onClick={() => handleReviewLeave(leave)}
-      className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-    >
-      Review
-    </button>
-  ) : (
-    <span className="text-gray-500 text-sm">-</span>
-  )}
-</td>
+                      {leave.status === 'PENDING' ? (
+                        <button
+                          onClick={() => handleReviewLeave(leave)}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <span className="text-gray-500 text-sm">-</span>
+                      )}
+                    </td>
 
                   </tr>
                 ))}
