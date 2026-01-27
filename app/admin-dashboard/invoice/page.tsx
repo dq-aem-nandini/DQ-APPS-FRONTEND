@@ -122,10 +122,9 @@ export default function InvoicesPage() {
       let data: InvoiceDTO[] = [];
 
       if (filters.clientId) {
-        data = await invoiceService.getInvoicesByClient(
-          filters.clientId,
-          filters.status || undefined
-        );
+        data = await invoiceService.getInvoicesByClient(filters.clientId, {
+          status: filters.status || undefined
+        });
       } else {
         data = await invoiceService.getAllInvoices();
       }

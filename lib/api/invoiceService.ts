@@ -1,4 +1,4 @@
-// /lib/api/invoiceService.ts - Fix getInvoiceById to return WebResponseDTOInvoiceDTO
+// /lib/api/invoiceService.ts
 import api from './axios';
 import {
   ClientInvoiceSummaryDTO,
@@ -22,7 +22,7 @@ class InvoiceService {
     try {
       const response: AxiosResponse<WebResponseDTOInvoiceDTO> = await api.post(
         '/invoice/generateInvoice',
-        null, // no request body, only query params
+        null,
         {
           params: { clientId, month, year },
         }
@@ -30,7 +30,6 @@ class InvoiceService {
 
       console.log('Full generate invoice API response:', response.data);
 
-      // Validate API response
       if (response.data?.flag && response.data.response) {
         return response.data.response;
       }
@@ -46,21 +45,22 @@ class InvoiceService {
   /**
    * Get all invoices for a specific client with optional filters
    * Endpoint: GET /web/api/v1/invoice/view/client/{clientId}
+   * 
+   * Now uses named filters object to prevent argument order mistakes
    */
   async getInvoicesByClient(
     clientId: string,
-    fromDate?: string,
-    toDate?: string,
-    status?: string
-  ): Promise<InvoiceDTO[]> {
-    try {
-      const response: AxiosResponse<WebResponseDTOListInvoiceDTO> = await api.get(
-        `/invoice/view/client/${clientId}`,
-        {
-          params: { fromDate, toDate, status },
-        }
-      );
-
+    params?: {
+      fromDate?: string;
+      toDate?: string;
+      status?: string;
+    }
+  ): Promise<InvoiceDTO[]>{
+    const response = await api.get(
+      `/invoice/view/client/${clientId}`,
+      { params }
+    );
+    try{
       console.log('Full get invoices by client API response:', response.data);
 
       if (response.data?.flag && Array.isArray(response.data.response)) {
@@ -100,9 +100,9 @@ class InvoiceService {
   }
 
   /**
-    * ✅ Get client invoice summary
-    * Endpoint: GET /web/api/v1/invoice/view/summary/client/{clientId}
-    */
+   * Get client invoice summary
+   * Endpoint: GET /web/api/v1/invoice/view/summary/invoice/{invoiceId}
+   */
   async getClientInvoiceSummary(
     invoiceId: string
   ): Promise<ClientInvoiceSummaryDTO[]> {
@@ -110,10 +110,7 @@ class InvoiceService {
       const response: AxiosResponse<WebResponseDTOListClientInvoiceSummaryDTO> =
         await api.get(`/invoice/view/summary/invoice/${invoiceId}`);
 
-      console.log(
-        'Full get client invoice summary API response:',
-        response.data
-      );
+      console.log('Full get client invoice summary API response:', response.data);
 
       if (response.data?.flag && Array.isArray(response.data.response)) {
         return response.data.response;
@@ -125,14 +122,13 @@ class InvoiceService {
       );
     } catch (error: unknown) {
       console.error('Error fetching client invoice summary:', error);
-      const errorMessage = this.getErrorMessage(
-        error
-      );
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
+
   /**
-   * ✅ Delete an invoice by invoiceId
+   * Delete an invoice by invoiceId
    * Endpoint: DELETE /web/api/v1/invoice/delete/{invoiceId}
    */
   async deleteInvoice(invoiceId: string): Promise<string> {
@@ -149,17 +145,15 @@ class InvoiceService {
       throw new Error(response.data?.message || 'Failed to delete invoice');
     } catch (error: unknown) {
       console.error('Error deleting invoice:', error);
-      const errorMessage = this.getErrorMessage(
-        error
-      );
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
 
   /**
-  * ✅ Update invoice status (Approve / Reject / Draft / Sent / Paid / Overdue)
-  * Endpoint: PATCH /web/api/v1/invoice/approve/{invoiceId}/status/{status}
-  */
+   * Update invoice status (Approve / Reject / Draft / Sent / Paid / Overdue)
+   * Endpoint: PATCH /web/api/v1/invoice/approve/{invoiceId}/status/{status}
+   */
   async updateInvoiceStatus(
     invoiceId: string,
     status: string
@@ -177,27 +171,23 @@ class InvoiceService {
       throw new Error(response.data?.message || 'Failed to update invoice status');
     } catch (error: unknown) {
       console.error('Error updating invoice status:', error);
-      const errorMessage = this.getErrorMessage(
-        error
-      );
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
 
   /**
-  * ✅ Download invoice as PDF (returns Blob)
-  * Endpoint: GET /web/api/v1/invoice/{invoiceId}/pdf
-  */
+   * Download invoice as PDF (returns Blob)
+   * Endpoint: GET /web/api/v1/invoice/{invoiceId}/pdf
+   */
   async downloadInvoicePDF(invoiceId: string): Promise<Blob> {
     try {
       const response: AxiosResponse<Blob> = await api.get(
         `/invoice/${invoiceId}/pdf`,
         {
-          responseType: 'blob', // Return binary PDF data
+          responseType: 'blob',
         }
       );
-
-      console.log('Full download invoice PDF API response:', response);
 
       if (response.data instanceof Blob) {
         return response.data;
@@ -206,60 +196,44 @@ class InvoiceService {
       throw new Error('Invalid response: Expected Blob data');
     } catch (error: unknown) {
       console.error('Error downloading invoice PDF:', error);
-
-      let errorMessage = 'Failed to download invoice PDF';
-      if (error instanceof AxiosError) {
-        errorMessage =
-          error.response?.data?.message ||
-          error.message ||
-          'Failed to download invoice PDF';
-      }
-
+      const errorMessage = this.getErrorMessage(error);
       throw new Error(errorMessage);
     }
   }
 
-
-      /**
-  * Endpoint: GET /web/api/v1/invoice/{invoiceId}/excel
-  */
-      async downloadInvoiceExcel(invoiceId: string): Promise<Blob> {
-        try {
-          const response: AxiosResponse<Blob> = await api.get(
-            `/invoice/${invoiceId}/excel`,
-            {
-              responseType: 'blob', // Return binary Excel data
-            }
-          );
-      
-          console.log('Full download invoice Excel API response:', response);
-      
-          if (response.data instanceof Blob) {
-            return response.data;
-          }
-      
-          throw new Error('Invalid response: Expected Blob data');
-        } catch (error: unknown) {
-          console.error('Error downloading invoice Excel:', error);
-      
-          let errorMessage = 'Failed to download invoice Excel';
-          if (error instanceof AxiosError) {
-            errorMessage =
-              error.response?.data?.message ||
-              error.message ||
-              'Failed to download invoice Excel';
-          }
-      
-          throw new Error(errorMessage);
-          }
-        }
-        
   /**
-   * ✅ Lock or Unlock an invoice
-   * Endpoint: PATCH /web/api/v1/invoice/{invoiceId}/action/{action}
-   * Available actions: LOCK | UNLOCK
+   * Download invoice as Excel (returns Blob)
+   * Endpoint: GET /web/api/v1/invoice/{invoiceId}/excel
    */
-  async updateInvoiceLockStatus(invoiceId: string, action: 'LOCK' | 'UNLOCK'): Promise<InvoiceDTO> {
+  async downloadInvoiceExcel(invoiceId: string): Promise<Blob> {
+    try {
+      const response: AxiosResponse<Blob> = await api.get(
+        `/invoice/${invoiceId}/excel`,
+        {
+          responseType: 'blob',
+        }
+      );
+
+      if (response.data instanceof Blob) {
+        return response.data;
+      }
+
+      throw new Error('Invalid response: Expected Blob data');
+    } catch (error: unknown) {
+      console.error('Error downloading invoice Excel:', error);
+      const errorMessage = this.getErrorMessage(error);
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Lock or Unlock an invoice
+   * Endpoint: PATCH /web/api/v1/invoice/{invoiceId}/action/{action}
+   */
+  async updateInvoiceLockStatus(
+    invoiceId: string,
+    action: 'LOCK' | 'UNLOCK'
+  ): Promise<InvoiceDTO> {
     try {
       const response: AxiosResponse<WebResponseDTOInvoiceDTO> = await api.patch(
         `/invoice/${invoiceId}/action/${action}`
@@ -279,20 +253,20 @@ class InvoiceService {
     }
   }
 
-
   /**
    * Helper: Extract readable error message
    */
   private getErrorMessage(error: any): string {
-    return (
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      JSON.stringify(error?.response?.data) ||
-      error?.message ||
-      "Something went wrong"
-    );
+    if (error instanceof AxiosError) {
+      return (
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Something went wrong'
+      );
+    }
+    return error?.message || 'Something went wrong';
   }
-  
 }
 
 export const invoiceService = new InvoiceService();
