@@ -214,7 +214,14 @@ const EditEmployeePage = () => {
       setDepartmentEmployees([]);
     }
   };
-
+  const realManagers = departmentEmployees.filter(
+    (emp) => emp.employeeId && emp.designation
+  );
+  
+  const hasNoManagerOption = departmentEmployees.some(
+    (emp) => emp.employeeId === null
+  );
+  
   const checkUniqueness = async (
     field: UniqueField,
     value: string,
@@ -916,7 +923,8 @@ const EditEmployeePage = () => {
         clientBillingStopDate: formData.clientBillingStopDate,
         rateCard: formData.rateCard,
         employmentType: formData.employmentType,
-        reportingManagerId: formData.reportingManagerId,
+        // reportingManagerId: formData.reportingManagerId ?? null,
+        reportingManagerId:formData.reportingManagerId === "NO_MANAGER"? null: formData.reportingManagerId,
         clientId: formData.clientId ?? null,
         clientSelection: formData.clientSelection,
         panNumber: formData.panNumber,
@@ -1504,7 +1512,7 @@ const EditEmployeePage = () => {
                     <Select
                       value={formData?.reportingManagerId || ""}
                       onValueChange={(v) =>{
-                        setFormData((prev) =>
+                      setFormData((prev) =>
                           prev ? { ...prev, reportingManagerId: v } : prev,
                         )
                         setIsDirty(true)
@@ -1524,24 +1532,37 @@ const EditEmployeePage = () => {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {departmentEmployees.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            {formData?.employeeEmploymentDetailsDTO?.department
-                              ? "No managers in this department"
-                              : "Select department first"}
-                          </SelectItem>
-                        ) : (
-                          departmentEmployees.map((emp) => (
+                      {/* No department selected */}
+                      {!formData?.employeeEmploymentDetailsDTO?.department ? (
+                        <SelectItem value="none" disabled>
+                          First select Department
+                        </SelectItem>
+                      ) : realManagers.length === 0 && hasNoManagerOption ? (
+                        /* Only N/A came from backend */
+                        <SelectItem value="NO_MANAGER" disabled>
+                          No manager
+                        </SelectItem>
+                      ) : (
+                        <>
+                          {/* Real managers */}
+                          {realManagers.map((emp) => (
                             <SelectItem
                               key={emp.employeeId}
                               value={emp.employeeId}
                             >
-                              {emp.fullName} (
-                              {emp.designation.replace(/_/g, " ")})
+                              {emp.fullName}
                             </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
+                          ))}
+
+                          {/* Explicit "No manager" option */}
+                          {hasNoManagerOption && (
+                            <SelectItem value="NO_MANAGER">
+                              No manager
+                            </SelectItem>
+                          )}
+                        </>
+                      )}
+                    </SelectContent>
                     </Select>
                   </div>
 
