@@ -1,54 +1,44 @@
-// File: app/admin-dashboard/layout.tsx
-import Header from "@/components/admin/Header";
-import AdminSidebar from "@/components/admin/Sidebar";
+'use client';
+
+import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+
+// Admin UI
+import AdminSidebar from "@/components/admin/Sidebar";
+import AdminHeader from "@/components/admin/Header";
+
+// HR / Normal UI
+import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
 
 export default function AdminDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { state } = useAuth();
+  const role = state.user?.role.roleName;
+
   return (
-    <ProtectedRoute allowedRoles={["ADMIN"]}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
       <div className="flex h-screen overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className="
-  h-full 
-  w-64 
-  flex-shrink-0 
-  border-r border-gray-200 
-  bg-white 
-  shadow-sm
-"
-        >
-          <div
-            className="
-    h-full 
-    overflow-y-auto 
-    overflow-x-hidden 
-    scrollbar-thin 
-    scrollbar-thumb-gray-400 
-    scrollbar-track-transparent 
-    hover:scrollbar-thumb-gray-500
-  "
-          >
-            <AdminSidebar />
-          </div>
+
+        {/* SIDEBAR */}
+        <div className="h-full w-64 flex-shrink-0 border-r bg-white">
+          {role === "ADMIN" ? <AdminSidebar /> : <Sidebar />}
         </div>
 
-        {/* Right section */}
+        {/* CONTENT */}
         <div className="flex flex-col flex-1 h-full overflow-hidden">
-          {/* Header (no scroll) */}
           <div className="shrink-0">
-            <Header />
+            {role === "ADMIN" ? <AdminHeader /> : <Header />}
           </div>
 
-          {/* MAIN CONTENT (THIS MUST SCROLL) */}
-          <main className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50">
+          <main className="flex-1 overflow-y-auto p-4 bg-gray-50">
             {children}
           </main>
         </div>
+
       </div>
     </ProtectedRoute>
   );

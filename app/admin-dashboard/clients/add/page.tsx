@@ -454,7 +454,7 @@ const isIndia = (country?: string) =>
 
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="relative flex items-center justify-center mb-8">
           <div className="absolute left-0">

@@ -153,7 +153,7 @@ export default function OrganizationListPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="flex items-center justify-center h-[80vh] p-4 sm:p-6 md:p-8 text-center text-gray-600">
           <div className="w-10 h-10 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
         </div>
@@ -163,7 +163,7 @@ export default function OrganizationListPage() {
 
   if (error) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="p-8 text-center">
           <Alert variant="destructive" className="max-w-md mx-auto">
             <AlertCircle className="h-5 w-5" />
@@ -178,7 +178,7 @@ export default function OrganizationListPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
 

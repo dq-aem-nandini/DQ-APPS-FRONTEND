@@ -176,26 +176,23 @@ export default function UpdateRequestAdminPage() {
 
   useEffect(() => {
     if (!highlightedRequestId) return;
-
-    console.log("[HIGHLIGHT] Found requestId in URL →", highlightedRequestId);
-
-    // Set highlight
+  
+    // Apply highlight FIRST
     setTempHighlightId(highlightedRequestId);
-
-    // Remove ?requestId from URL (without full reload)
-    router.replace(
-      window.location.pathname,   // keep only the path, remove all query params
-      { scroll: false }           // don't scroll to top
-    );
-
-    // Auto-remove highlight after 8 seconds
+  
+    // Remove highlight after 8s
     const timer = setTimeout(() => {
       setTempHighlightId(null);
-      console.log("[HIGHLIGHT] Auto-removed highlight after 8s");
     }, 8000);
-
+  
+    // Remove URL param AFTER highlight is applied
+    setTimeout(() => {
+      router.replace(window.location.pathname, { scroll: false });
+    }, 300);
+  
     return () => clearTimeout(timer);
   }, [highlightedRequestId, router]);
+  
 
   // Optional: smooth scroll to the highlighted card
   useEffect(() => {

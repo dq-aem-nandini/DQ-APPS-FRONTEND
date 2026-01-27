@@ -41,7 +41,7 @@ const ViewEmployee = () => {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600"></div>
         </div>
@@ -51,7 +51,7 @@ const ViewEmployee = () => {
 
   if (!employee) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="text-center py-12 text-gray-500">Employee not found</div>
       </ProtectedRoute>
     );
@@ -70,7 +70,7 @@ const ViewEmployee = () => {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">

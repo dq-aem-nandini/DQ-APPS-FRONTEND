@@ -60,7 +60,7 @@ export default function ViewOrganizationPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
         </div>
@@ -70,7 +70,7 @@ export default function ViewOrganizationPage() {
 
   if (!org) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500 text-lg">
           Organization not found
         </div>
@@ -79,7 +79,7 @@ export default function ViewOrganizationPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b">

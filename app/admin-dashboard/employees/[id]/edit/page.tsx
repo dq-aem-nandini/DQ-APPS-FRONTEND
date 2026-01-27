@@ -1040,7 +1040,7 @@ const EditEmployeePage = () => {
   // LOADING STATES
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={["ADMIN"]}>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
           <div className="flex flex-col items-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
@@ -1055,7 +1055,7 @@ const EditEmployeePage = () => {
 
   if (!formData) {
     return (
-      <ProtectedRoute allowedRoles={["ADMIN"]}>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
         <div className="text-center py-20 text-gray-500 text-xl">
           Employee not found
         </div>
@@ -1069,7 +1069,7 @@ const EditEmployeePage = () => {
 
   const getError = (key: string) => errors[key] || "";
   return (
-    <ProtectedRoute allowedRoles={["ADMIN"]}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-10 flex items-center justify-between">

@@ -7,7 +7,12 @@ export type Role =
   | "HR"
   | "FINANCE";
 
-
+  export interface SidebarItem {
+    label: string;
+    href: string;
+    permission?: string;
+  }
+  export type SidebarRole = Extract<Role, "MANAGER" | "FINANCE" >;
 export type Designation =
   | "INTERN"
   | "TRAINEE"

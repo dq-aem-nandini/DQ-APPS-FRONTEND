@@ -195,15 +195,17 @@ export default function UpdateRequestPage() {
                                         updatedData = {};
                                     }
                                 }
-
+                                const isApproved = req.status === "APPROVED";
                                 // 1. Scalar field changes
                                 const scalarChanges = Object.entries(updatedData)
-                                    .filter(([key]) => !['documents', 'addresses', 'employeePhotoUrl', 'employeePhotoUrlString'].includes(key))
-                                    .filter(([_, newValue]) => newValue != null && newValue !== '' && newValue !== 'null')
-                                    .filter(([key, newValue]) => {
-                                        const oldValue = profile[key as keyof EmployeeDTO];
-                                        return String(oldValue ?? '') !== String(newValue);
-                                    });
+                                .filter(([key]) => !['documents', 'addresses', 'employeePhotoUrl', 'employeePhotoUrlString'].includes(key))
+                                .filter(([_, newValue]) => newValue != null && newValue !== '' && newValue !== 'null')
+                                .filter(([key, newValue]) => {
+                                  if (isApproved) return true; // 👈 show all new fields
+                                  const oldValue = profile[key as keyof EmployeeDTO];
+                                  return String(oldValue ?? '') !== String(newValue);
+                                });
+                              
 
                                 // 2. Address changes
                                 const addressChanges: { field: string; old: string; new: string; type: string }[] = [];
@@ -253,12 +255,20 @@ export default function UpdateRequestPage() {
                                     <div className="space-y-6">
                                         {/* Table Header - Only shown if there are grid changes */}
                                         {(scalarChanges.length > 0 || addressChanges.length > 0 || hasNewPhoto) && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 font-semibold text-gray-700 text-sm border-b border-gray-300 pb-2 mb-4">
-                                                <div>Field</div>
-                                                <div className="sm:text-center text-red-600">Previous</div>
-                                                <div className="text-right text-green-700">Updated</div>
-                                            </div>
-                                        )}
+  isApproved ? (
+    <div className="grid grid-cols-1 sm:grid-cols-2 font-semibold text-gray-700 text-sm border-b pb-2 mb-4">
+      <div>Field</div>
+      <div className="text-right text-green-700">Updated Value</div>
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 sm:grid-cols-3 font-semibold text-gray-700 text-sm border-b pb-2 mb-4">
+      <div>Field</div>
+      <div className="sm:text-center text-red-600">Previous</div>
+      <div className="text-right text-green-700">Updated</div>
+    </div>
+  )
+)}
+
 
                                         {/* Scalar Changes */}
                                         {scalarChanges.length > 0 && (
@@ -267,23 +277,30 @@ export default function UpdateRequestPage() {
                                                     const oldValue = profile[key as keyof EmployeeDTO] ?? "—";
                                                     return (
                                                         <div
-                                                            key={key}
-                                                            className="grid grid-cols-1 sm:grid-cols-3 items-start p-3 border rounded-xl bg-gray-50 gap-2"
-                                                        >
-                                                            <div className="font-medium text-gray-800 text-sm">
-                                                                {formatKey(key)}
-                                                            </div>
-                                                            <div className="sm:text-center">
-                                                                <span className="text-red-600 font-medium text-sm">
-                                                                    {String(oldValue)}
-                                                                </span>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-green-700 font-medium text-sm">
-                                                                    {String(newValue)}
-                                                                </span>
-                                                            </div>
+                                                        key={key}
+                                                        className={`grid ${
+                                                          isApproved ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'
+                                                        } items-start p-3 border rounded-xl bg-gray-50 gap-2`}
+                                                      >
+                                                        <div className="font-medium text-gray-800 text-sm">
+                                                          {formatKey(key)}
                                                         </div>
+                                                      
+                                                        {!isApproved && (
+                                                          <div className="sm:text-center">
+                                                            <span className="text-red-600 font-medium text-sm">
+                                                              {String(oldValue)}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      
+                                                        <div className="text-right">
+                                                          <span className="text-green-700 font-medium text-sm">
+                                                            {String(newValue)}
+                                                          </span>
+                                                        </div>
+                                                      </div>
+                                                      
                                                     );
                                                 })}
                                             </div>
