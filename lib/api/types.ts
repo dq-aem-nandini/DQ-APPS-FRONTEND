@@ -694,8 +694,8 @@ export interface EmployeeModel {
   skillsAndCertification: string;
   clientId: string | null;
   clientSelection: string;
-  reportingManagerId: string; // UUID
-  designation: Designation;
+  reportingManagerId: string | null;// UUID
+  designation: Designation | null;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
   dateOfOnboardingToClient: string;
