@@ -318,7 +318,13 @@ const AddEmployeePage = () => {
   ];
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
   const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
-
+  const realManagers = departmentEmployees.filter(
+    (emp) => emp.employeeId && emp.designation
+  );
+  
+  const hasNoManagerOption = departmentEmployees.some(
+    (emp) => emp.employeeId === null
+  );
   // ⭐ VALIDATION: Debounce timeouts per field
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const debouncedValidate = useCallback(async (key: string, value: string, field: UniqueField) => {
@@ -541,6 +547,17 @@ const AddEmployeePage = () => {
         { value: formData.employmentType, name: 'employmentType', label: 'Employment Type' },
         { value: formData.employeeSalaryDTO?.ctc, name: 'employeeSalaryDTO.ctc', label: 'CTC' },
       ];
+      const payload = {
+        ...formData,
+        // Convert "NO_MANAGER" / "none" → null
+        reportingManagerId:
+          formData.reportingManagerId === "NO_MANAGER" ||
+          formData.reportingManagerId === "none" ||
+          formData.reportingManagerId === ""
+            ? null
+            : formData.reportingManagerId,
+        // ... you can add similar normalization for other optional IDs if needed
+      };
       const missingField = requiredFields.find(f => !f.value);
       if (missingField) {
         setErrors({ [missingField.name]: 'This field is required' });
@@ -555,7 +572,7 @@ const AddEmployeePage = () => {
       }
       // === CALL BACKEND ===
       const response = await adminService.addEmployee(
-        formData,
+        payload,
         documentFilesList.filter((f): f is File => f !== null)
       );
       if (!response.flag) {
@@ -912,7 +929,7 @@ const AddEmployeePage = () => {
                       <TooltipHint hint="Select the employee's direct reporting manager from the same department." />
                     </Label>
                     <Select
-                      value={formData.reportingManagerId}
+                      value={formData.reportingManagerId ?? undefined}
                       onValueChange={v => setFormData(p => ({ ...p, reportingManagerId: v }))}
                       disabled={!formData.employeeEmploymentDetailsDTO?.department}
                     >
@@ -920,16 +937,37 @@ const AddEmployeePage = () => {
                         <SelectValue placeholder={formData.employeeEmploymentDetailsDTO?.department ? "Select Manager" : "Select Department First"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {departmentEmployees.length === 0 ? (
-                          <SelectItem value="none" disabled>No managers available</SelectItem>
-                        ) : (
-                          departmentEmployees.map(emp => (
-                            <SelectItem key={emp.employeeId} value={emp.employeeId}>
-                              {emp.fullName} ({emp.designation.replace(/_/g, ' ')})
+                      {/* No department selected */}
+                      {!formData?.employeeEmploymentDetailsDTO?.department ? (
+                        <SelectItem value="none" disabled>
+                          First select Department
+                        </SelectItem>
+                      ) : realManagers.length === 0 && hasNoManagerOption ? (
+                        /* Only N/A came from backend */
+                        <SelectItem value="NO_MANAGER" disabled>
+                          No manager
+                        </SelectItem>
+                      ) : (
+                        <>
+                          {/* Real managers */}
+                          {realManagers.map((emp) => (
+                            <SelectItem
+                              key={emp.employeeId}
+                              value={emp.employeeId}
+                            >
+                              {emp.fullName}
                             </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
+                          ))}
+
+                          {/* Explicit "No manager" option */}
+                          {hasNoManagerOption && (
+                            <SelectItem value="NO_MANAGER">
+                              No manager
+                            </SelectItem>
+                          )}
+                        </>
+                      )}
+                    </SelectContent>
                     </Select>
                   </div>
                   {/* Designation */}
@@ -938,7 +976,7 @@ const AddEmployeePage = () => {
                       Designation <span className="text-red-500">*</span>
                       <TooltipHint hint="Employee's job title. Example: Software Engineer, Senior Developer" />
                     </Label>
-                    <Select required value={formData.designation} onValueChange={v => setFormData(p => ({ ...p, designation: v as Designation }))}>
+                    <Select required value={formData.designation ?? ''} onValueChange={v => setFormData(p => ({ ...p, designation: v as Designation }))}>
                       <SelectTrigger className="w-full min-w-[200px] !h-12">
                         <SelectValue placeholder="Select Designation" />
                       </SelectTrigger>
