@@ -14,7 +14,6 @@ import { organizationService } from '@/lib/api/organizationService';
 import { employeeService } from '@/lib/api/employeeService';
 import { validationService, UniqueField } from '@/lib/api/validationService';
 import {adminService} from '@/lib/api/adminService';
-// deleteEmployeeAddress
 import {
   Domain,
   CurrencyCode,
@@ -158,36 +157,10 @@ export default function EditOrganizationPage() {
        return JSON.stringify(formData) !== JSON.stringify(originalData);
      }, [formData, originalData]);
 
-  const handleDeleteAddress = async (idx: number, addressId: string | null) => {
-    // If address is not yet saved in backend (newly added)
-    if (!addressId) {
-      removeAddress(idx);
-      return;
-    }
-  
-    if (!currentOrgId) {
-      console.error("Organization ID missing");
-      return;
-    }
-  
-    try {
-      setLoading(true);
-  
-      await adminService.deleteEmployeeAddress(
-        currentOrgId,   // entityId
-        addressId       // addressId
-      );
-  
-      // Remove from UI after successful delete
-      removeAddress(idx);
-    } catch (err: any) {
-      setError(err?.message || "Failed to delete address");
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteAddress = (idx: number, addressId: string | null) => {
+    // Only remove from local state — backend will delete missing addresses on update
+    removeAddress(idx);
   };
-  
-
 
   // ---------- Handlers ----------
 
