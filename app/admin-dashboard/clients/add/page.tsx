@@ -458,7 +458,7 @@ const isIndia = (country?: string) =>
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="relative flex items-center justify-center mb-8">
           <div className="absolute left-0">
-            <BackButton to="/admin-dashboard/clients/list" />
+            <BackButton to="/admin-dashboard/clients" />
           </div>
           <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             Add Client
@@ -1147,7 +1147,7 @@ const isIndia = (country?: string) =>
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => router.push('/admin/clients')}
+                onClick={() => router.push('/admin-dashboard/clients')}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
               >
                 Cancel

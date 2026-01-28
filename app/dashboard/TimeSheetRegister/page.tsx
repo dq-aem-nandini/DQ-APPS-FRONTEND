@@ -328,18 +328,12 @@ const TimeSheetRegister: React.FC = () => {
       entriesWithMeta.forEach(item => {
         const dateKey = item.dateKey;
 
-        const row: TaskRow = {
-          id: item.timesheetId
-            ? `ts_${item.timesheetId}`
-            : `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          taskName: item.taskName?.trim() || 'Untitled',
-          hours: { [dateKey]: Number(item.workedHours || 0) },
-          timesheetIds: item.timesheetId ? { [dateKey]: item.timesheetId } : {},
-          statuses: item.status ? { [dateKey]: item.status as any } : {},
-          order: orderCounter++,
-        };
-
-        rowsFromBackend.push(row);
+        const row = grouped.get(task)!;
+        row.hours[item.dateKey] = Number(item.workedHours || 0);
+        if (item.timesheetId) {
+          row.timesheetIds![item.dateKey] = item.timesheetId;
+          row.statuses![item.dateKey] = (item.status as any) || 'DRAFT';  
+        }
       });
 
       if (rowsFromBackend.length === 0) {
@@ -604,6 +598,30 @@ const TimeSheetRegister: React.FC = () => {
       hasAnyWorkInSecondMonth,
     };
   }, [isSplitWeek, weekDates, rows, isDayLocked]);
+
+  const canAddNewTask = useMemo(() => {
+    // Normal (non-split) week: allow only if NOTHING is submitted yet
+    if (!isSplitWeek) {
+      return !rows.some(isRowLocked);
+    }
+  
+    // Split week: we need splitWeekInfo
+    if (!splitWeekInfo) return false;
+  
+    // Check if second month already has ANY PENDING or APPROVED entry
+    const secondMonthHasSubmission = weekDates
+      .filter(d => d.format('YYYY-MM') === splitWeekInfo.secondMonth)
+      .some(d => {
+        const dateKey = d.format('YYYY-MM-DD');
+        return rows.some(r => {
+          const status = r.statuses?.[dateKey];
+          return status === 'PENDING' || status === 'APPROVED';
+        });
+      });
+  
+    // Allow adding new tasks ONLY if second month is still clean
+    return !secondMonthHasSubmission;
+  }, [isSplitWeek, splitWeekInfo, rows, weekDates, isRowLocked]);
 
   const saveAll = async () => {
     if (loading || !hasUnsubmittedChanges || !hasEditableDay) return;
@@ -927,8 +945,17 @@ const TimeSheetRegister: React.FC = () => {
                   Task
                   <button
                     onClick={addRow}
-                    disabled={loading || !hasEditableDay || weekStatus === 'PENDING' || weekStatus === 'APPROVED'}
-                    className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={loading || !hasEditableDay || !canAddNewTask}
+                    className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title={
+                      !canAddNewTask
+                        ? isSplitWeek
+                          ? "Cannot add new tasks: the later part of the split week already has submitted entries"
+                          : "Cannot add new tasks: this week contains submitted (pending/approved) entries"
+                        : !hasEditableDay
+                        ? "No editable days available in this week"
+                        : ""
+                    }
                   >
                     <Plus size={14} />
                   </button>
@@ -1157,51 +1184,42 @@ const TimeSheetRegister: React.FC = () => {
             <div className="flex justify-end space-x-3">
               <button className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300" onClick={() => setConfirmDelete({ open: false, rowIndex: null })}>Cancel</button>
               <button
-                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700"
-                disabled={deletingRowIndex !== null}
-                onClick={async () => {
-                  const idx = confirmDelete.rowIndex!;
-                  const rowToDelete = rows[idx];
-
-                  const idsToDelete = Object.values(rowToDelete.timesheetIds || {})
-                    .filter(Boolean) as string[];
-
-                  console.log("Deleting row index:", idx);
-                  console.log("Row data:", rowToDelete);
-                  console.log("Timesheet IDs to delete:", idsToDelete);
-
-                  if (idsToDelete.length === 0) {
-                    setRows(prev => prev.filter((_, i) => i !== idx));
-                    setConfirmDelete({ open: false, rowIndex: null });
-                    pushMessage('success', 'Empty row removed');
-                    return;
-                  }
-
-                  setDeletingRowIndex(idx);
-
-                  try {
-                    setRows(prev => prev.filter((_, i) => i !== idx));
-
-                    await timesheetService.deleteTimesheet(idsToDelete);
-
-                    await fetchData();
-                    pushMessage('success', `Deleted ${idsToDelete.length} entry(ies)`);
-                  } catch (err) {
-                    console.error("Delete failed:", err);
-                    setRows(prev => {
-                      const restored = [...prev];
-                      restored.splice(idx, 0, rowToDelete);
-                      return restored;
-                    });
-                    pushMessage('error', 'Delete failed – check console');
-                  } finally {
-                    setDeletingRowIndex(null);
-                    setConfirmDelete({ open: false, rowIndex: null });
-                  }
-                }}
-              >
-                {deletingRowIndex !== null ? 'Deleting...' : 'Delete'}
-              </button>
+                  className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700"
+                  disabled={deletingRowIndex !== null}
+                  onClick={async () => {
+                    const idx = confirmDelete.rowIndex!;
+                    const row = rows[idx];
+                    setDeletingRowIndex(idx);
+                  
+                    try {
+                      // Optimistic UI update
+                      setRows(prev => prev.filter((_, i) => i !== idx));
+                  
+                      const ids = Object.values(row.timesheetIds || {}).filter(Boolean) as string[];
+                  
+                      // ✅ IMPORTANT FIX
+                      if (ids.length > 0) {
+                        await timesheetService.deleteTimesheet(ids);
+                        await fetchData();
+                      }
+                  
+                      pushMessage('success', 'Row deleted');
+                    } catch {
+                      // Restore UI on failure
+                      setRows(prev => [
+                        ...prev.slice(0, idx),
+                        row,
+                        ...prev.slice(idx)
+                      ]);
+                      pushMessage('error', 'Delete failed');
+                    } finally {
+                      setDeletingRowIndex(null);
+                      setConfirmDelete({ open: false, rowIndex: null });
+                    }
+                  }}
+                >
+                  {deletingRowIndex !== null ? 'Deleting...' : 'Delete'}
+                </button>
 
             </div>
           </div>
