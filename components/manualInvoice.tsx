@@ -6,6 +6,7 @@ import {
   EmployeeMinDTO,
   ManualInvoiceItemRequestDTO,
   ManualInvoiceRequestDTO,
+  ClientEmployeeMinResponseDTO,
 } from "@/lib/api/types";
  
 import Swal from "sweetalert2";
@@ -41,7 +42,7 @@ export default function ManualInvoice() {
   const [clients, setClients] = useState<ClientMinDTO[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
- 
+  const [currency, setCurrency] = useState<'INR' | 'USD' | null>(null);
   const [clientId, setClientId] = useState("");
   const [year, setYear] = useState<number | "">("");
   const [month, setMonth] = useState<number | "">("");
@@ -94,25 +95,45 @@ export default function ManualInvoice() {
     async function loadEmployees() {
       try {
         const res = await manualInvoiceService.getEmployeesByClientId(clientId);
-        const empList = res.response ?? [];
-        setEmployees(empList);
- 
-        const initialItems: Record<string, { hoursWorked: number; description: string }> = {};
-        empList.forEach((e) => {
-          initialItems[e.employeeId] = { hoursWorked: 0, description: "" };
+    
+        const data: ClientEmployeeMinResponseDTO | null = Array.isArray(res.response) ? res.response[0] : res.response ?? null;
+        if (!data) return;
+    
+        setCurrency(data.currency);          // ✅ currency
+        setEmployees(data.employees);        // ✅ employees array
+    
+        const initialItems: Record<
+          string,
+          { hoursWorked: number; description: string }
+        > = {};
+    
+        data.employees.forEach((e) => {
+          initialItems[e.employeeId] = {
+            hoursWorked: 0,
+            description: "",
+          };
         });
+    
         setItems(initialItems);
       } catch (e: any) {
-        Swal.fire({ icon: "error", title: "Error", text: getBackendError(e) });
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: getBackendError(e),
+        });
       }
     }
+    
     loadEmployees();
   }, [clientId]);
  
   const generateInvoice = async () => {
     setApiError(null);
  
-    if (!clientId || !year || !month || !invoiceNumber.trim()) {
+    if (!clientId || !year || !month
+      //  || !invoiceNumber.trim()
+      )
+        {
       Swal.fire({ icon: "warning", title: "Missing Fields", text: "Please fill all required fields." });
       return;
     }
@@ -158,14 +179,18 @@ export default function ManualInvoice() {
   };
  
   const isFormValid = useMemo(() => {
-    if (!clientId || !year || !month || !invoiceNumber.trim()) return false;
+    if (!clientId || !year || !month 
+      // || !invoiceNumber.trim()
+    ) return false;
  
     return employees.some(
       (emp) =>
         emp.rateCard != null &&
         (items[emp.employeeId]?.hoursWorked ?? 0) > 0
     );
-  }, [clientId, year, month, invoiceNumber, employees, items]);
+  }, [clientId, year, month,
+    //  invoiceNumber, 
+     employees, items]);
  
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -224,7 +249,7 @@ export default function ManualInvoice() {
               </div>
             </div>
  
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Invoice Number <span className="text-teal-600">*</span>
               </label>
@@ -234,7 +259,7 @@ export default function ManualInvoice() {
                 value={invoiceNumber}
                 onChange={(e) => { setInvoiceNumber(e.target.value); setApiError(null); }}
               />
-            </div>
+            </div> */}
  
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -266,7 +291,9 @@ export default function ManualInvoice() {
                     <tr>
                       <th className="px-6 py-3.5 text-left font-medium">Employee</th>
                       <th className="px-6 py-3.5 text-left font-medium">Company ID</th>
-                      <th className="px-6 py-3.5 text-right font-medium">Rate/hr</th>
+                      {/* <th className="px-6 py-3.5 text-right font-medium">Rate/hr</th> */}
+                      <th className="px-6 py-3.5 text-right font-medium">
+                        Rate / hr {currency && `(${currency})`}</th>
                       <th className="px-6 py-3.5 text-right font-medium">Hours</th>
                       <th className="px-6 py-3.5 font-medium">Description</th>
                     </tr>
@@ -278,7 +305,7 @@ export default function ManualInvoice() {
                         <td className="px-6 py-3.5 text-slate-600">{emp.companyId || "—"}</td>
                         <td className="px-6 py-3.5 text-right font-medium">
                           {emp.rateCard != null ? (
-                            `₹${emp.rateCard.toFixed(2)}`
+                            `${emp.rateCard.toFixed(2)}`
                           ) : (
                             <span className="text-rose-600 text-sm">Missing</span>
                           )}
