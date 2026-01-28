@@ -336,7 +336,7 @@ function getBackendError(error: any): string {
         row.hours[item.dateKey] = Number(item.workedHours || 0);
         if (item.timesheetId) {
           row.timesheetIds![item.dateKey] = item.timesheetId;
-          row.statuses![item.dateKey] = (item.status as any) || 'DRAFT';
+          row.statuses![item.dateKey] = (item.status as any) || 'DRAFT';  
         }
       });
 
@@ -595,6 +595,30 @@ useEffect(() => {
       hasAnyWorkInSecondMonth,
     };
   }, [isSplitWeek, weekDates, rows, isDayLocked]);
+
+  const canAddNewTask = useMemo(() => {
+    // Normal (non-split) week: allow only if NOTHING is submitted yet
+    if (!isSplitWeek) {
+      return !rows.some(isRowLocked);
+    }
+  
+    // Split week: we need splitWeekInfo
+    if (!splitWeekInfo) return false;
+  
+    // Check if second month already has ANY PENDING or APPROVED entry
+    const secondMonthHasSubmission = weekDates
+      .filter(d => d.format('YYYY-MM') === splitWeekInfo.secondMonth)
+      .some(d => {
+        const dateKey = d.format('YYYY-MM-DD');
+        return rows.some(r => {
+          const status = r.statuses?.[dateKey];
+          return status === 'PENDING' || status === 'APPROVED';
+        });
+      });
+  
+    // Allow adding new tasks ONLY if second month is still clean
+    return !secondMonthHasSubmission;
+  }, [isSplitWeek, splitWeekInfo, rows, weekDates, isRowLocked]);
 
   const saveAll = async () => {
     if (loading || !hasUnsubmittedChanges || !hasEditableDay) return;
@@ -898,7 +922,20 @@ useEffect(() => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                   Task
-                  <button onClick={addRow} disabled={loading || !hasEditableDay} className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50">
+                  <button
+                    onClick={addRow}
+                    disabled={loading || !hasEditableDay || !canAddNewTask}
+                    className="ml-2 p-1 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title={
+                      !canAddNewTask
+                        ? isSplitWeek
+                          ? "Cannot add new tasks: the later part of the split week already has submitted entries"
+                          : "Cannot add new tasks: this week contains submitted (pending/approved) entries"
+                        : !hasEditableDay
+                        ? "No editable days available in this week"
+                        : ""
+                    }
+                  >
                     <Plus size={14} />
                   </button>
                 </th>
@@ -1132,17 +1169,19 @@ useEffect(() => {
                     const idx = confirmDelete.rowIndex!;
                     const row = rows[idx];
                     setDeletingRowIndex(idx);
-
+                  
                     try {
                       // Optimistic UI update
                       setRows(prev => prev.filter((_, i) => i !== idx));
-
+                  
                       const ids = Object.values(row.timesheetIds || {}).filter(Boolean) as string[];
-
-                      // ⬅️ SINGLE CALL — backend accepts list
-                      await timesheetService.deleteTimesheet(ids);
-
-                      await fetchData();
+                  
+                      // ✅ IMPORTANT FIX
+                      if (ids.length > 0) {
+                        await timesheetService.deleteTimesheet(ids);
+                        await fetchData();
+                      }
+                  
                       pushMessage('success', 'Row deleted');
                     } catch {
                       // Restore UI on failure
