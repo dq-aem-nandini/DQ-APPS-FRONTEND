@@ -1,11 +1,11 @@
 'use client';
-
+ 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { leaveService } from '@/lib/api/leaveService';
 import { adminService } from '@/lib/api/adminService';
-
+ 
 import {
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
@@ -15,10 +15,12 @@ import {
 } from '@/lib/api/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
-
+ 
 const Leavespage: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
+  const isHR = user?.role?.roleName === 'HR';
+  const isAdmin = user?.role?.roleName === 'ADMIN';
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'adjust'>('pending');
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
   const [allLeaves, setAllLeaves] = useState<LeaveResponseDTO[]>([]);
@@ -39,7 +41,7 @@ const Leavespage: React.FC = () => {
     searchParams.get("open") ||
     searchParams.get("highlight") ||
     searchParams.get("requestId");
-
+ 
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
@@ -57,7 +59,7 @@ const Leavespage: React.FC = () => {
     sort: 'fromDate,desc',
   });
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
-
+ 
   const handleAdjustmentChange = (employeeId: string, value: string) => {
     setAdjustments((prev) => ({
       ...prev,
@@ -65,56 +67,68 @@ const Leavespage: React.FC = () => {
     }));
   };
   useEffect(() => {
-    // If no param → do nothing
-    if (!openLeaveId) return;
-
-    // Already handled in this mount → skip
-    if (hasAutoOpenedRef.current) return;
-
-    // Still loading data → wait
-    if (loading) return;
-
-    // No leaves loaded yet → can't find anything
-    if (pendingLeaves.length === 0 && allLeaves.length === 0) return;
-
-    // Find the leave
-    const targetLeave =
-      pendingLeaves.find((l) => l.leaveId === openLeaveId) ||
-      allLeaves.find((l) => l.leaveId === openLeaveId);
-
-    if (!targetLeave) {
-      console.log("[AUTO-OPEN] Leave not found for id:", openLeaveId);
+    if (!openLeaveId) {
+      console.log("[AUTO-OPEN] No openLeaveId");
       return;
     }
-
-    // Mark as handled → prevents re-trigger on re-renders / refresh
+  
+    if (hasAutoOpenedRef.current) {
+      console.log("[AUTO-OPEN] Already handled");
+      return;
+    }
+  
+    if (loading) {
+      console.log("[AUTO-OPEN] Still loading, waiting");
+      return;
+    }
+  
+    if (allLeaves.length === 0) {
+      console.log("[AUTO-OPEN] ALL leaves not loaded yet");
+      return;
+    }
+  
+    const targetLeave = allLeaves.find(
+      (l) => l.leaveId === openLeaveId
+    );
+  
+    if (!targetLeave) {
+      console.log("[AUTO-OPEN] Leave NOT found in ALL leaves:", openLeaveId);
+      return;
+    }
+  
+    console.log("[AUTO-OPEN] Leave found in ALL:", {
+      leaveId: targetLeave.leaveId,
+      status: targetLeave.status,
+      activeTab
+    });
+  
     hasAutoOpenedRef.current = true;
-
-    // Clean the URL **right now** (remove ?open / ?highlight / ?requestId)
-    // This prevents the effect from running again after refresh
+  
+    // Clean URL immediately
     router.replace(window.location.pathname, { scroll: false });
-
-    console.log("[AUTO-OPEN] Opening modal for leave:", openLeaveId);
-
-    // Switch tab if needed + open modal
-    if (targetLeave.status === "PENDING" && activeTab !== "pending") {
-      setActiveTab("pending");
-      setTimeout(() => handleReviewLeave(targetLeave), 300);
-    } else if (targetLeave.status !== "PENDING" && activeTab !== "all") {
+  
+    // ✅ WITHDRAWN / APPROVED / REJECTED → ALWAYS ALL
+    if (activeTab !== "all") {
+      console.log("[AUTO-OPEN] Switching to ALL tab");
       setActiveTab("all");
-      setTimeout(() => handleReviewLeave(targetLeave), 300);
+  
+      setTimeout(() => {
+        console.log("[AUTO-OPEN] Opening modal after ALL tab switch");
+        handleReviewLeave(targetLeave);
+      }, 400);
     } else {
+      console.log("[AUTO-OPEN] Already on ALL tab, opening modal");
       handleReviewLeave(targetLeave);
     }
   }, [
     openLeaveId,
     loading,
-    pendingLeaves,
     allLeaves,
     activeTab,
-    router,           // ← important: add router to deps
+    router,
   ]);
-
+  
+ 
   const handleSubmitAdjustments = async () => {
     const payload = Object.entries(adjustments)
       .filter(([_, value]) => value !== 0 && !isNaN(value))
@@ -122,7 +136,7 @@ const Leavespage: React.FC = () => {
         employeeId,
         adjustment,
       }));
-
+ 
     if (payload.length === 0) {
       Swal.fire({
         icon: 'warning',
@@ -131,12 +145,12 @@ const Leavespage: React.FC = () => {
       });
       return;
     }
-
+ 
     try {
       setSubmitting(true);
-
+ 
       await leaveService.adjustLeaveCount(payload);
-
+ 
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -144,10 +158,10 @@ const Leavespage: React.FC = () => {
         timer: 3000,
         showConfirmButton: false,
       });
-
+ 
       // Reset input fields
       setAdjustments({});
-
+ 
       // Refresh employee data
       fetchData();
     } catch (err: any) {
@@ -160,8 +174,8 @@ const Leavespage: React.FC = () => {
       setSubmitting(false);
     }
   };
-
-
+ 
+ 
   // Handle authentication redirect
   useEffect(() => {
     if (!user || !accessToken) {
@@ -169,15 +183,27 @@ const Leavespage: React.FC = () => {
       router.push('/auth/login');
     }
   }, [user, accessToken, router]);
-
+  
+  useEffect(() => {
+    if (openLeaveId && activeTab !== "all") {
+      console.log("[AUTO-OPEN] requestId detected → forcing ALL tab immediately");
+      setActiveTab("all");
+    }
+  }, [openLeaveId]); // ⛔ DO NOT add activeTab here
+  
   // Fetch data
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      if (!accessToken || !user || user.role.roleName !== 'ADMIN') {
-        throw new Error('Unauthorized access. Please log in as a manager.');
+      if (
+        !accessToken ||
+        !user ||
+        !['ADMIN', 'HR'].includes(user.role.roleName)
+      ) {
+        throw new Error('Unauthorized access. Please log in as an admin or HR.');
       }
+
       // ────────────────────────────────────────────────
       // Fetch employees when we are in 'all' tab
       // ────────────────────────────────────────────────
@@ -222,17 +248,28 @@ const Leavespage: React.FC = () => {
         setAllLeaves(response.response.content);
         setTotalPages(response.response.totalPages || 1);
       } else if (activeTab === 'adjust') {
-        const response = await adminService.getAllEmployees();
+        let response;
+      
+        if (isHR) {
+          response = await leaveService.getAllEmployeesExceptLoginHR();
+        } else if (isAdmin) {
+          response = await adminService.getAllEmployees();
+        } else {
+          throw new Error('Unauthorized access');
+        }
+      
         if (!response.flag || !response.response) {
           throw new Error(response.message || 'Failed to fetch employees');
         }
+      
         // Show only ACTIVE employees
         const activeEmployees = response.response.filter(
           (emp: EmployeeDTO) => emp.status === 'ACTIVE'
         );
-
+      
         setEmployees(activeEmployees);
       }
+      
     } catch (err: any) {
       setError(
         err.message.includes('assignedManager')
@@ -247,13 +284,13 @@ const Leavespage: React.FC = () => {
       setLoading(false);
     }
   }, [activeTab, filters, pagination, accessToken, user, selectedEmployeeId, allEmployees.length]);
-
+ 
   useEffect(() => {
     if (user && accessToken) {
       fetchData();
     }
   }, [fetchData, user, accessToken]);
-
+ 
   // Handle filter changes
   const handleFilterChange = (key: keyof typeof filters, value: string | boolean | undefined) => {
     setFilters((prev) => ({
@@ -262,7 +299,7 @@ const Leavespage: React.FC = () => {
     }));
     setPagination((prev) => ({ ...prev, page: 0 }));
   };
-
+ 
   // Handle sort changes
   const handleSortChange = (newSort: string) => {
     setPagination((prev) => ({
@@ -271,7 +308,7 @@ const Leavespage: React.FC = () => {
       page: 0,
     }));
   };
-
+ 
   // Handle review leave
   const handleReviewLeave = (
     leave: LeaveResponseDTO | PendingLeavesResponseDTO
@@ -280,14 +317,14 @@ const Leavespage: React.FC = () => {
     if (Swal.isVisible()) {
       Swal.close();
     }
-
+ 
     // Small delay required for SweetAlert + DOM reset
     setTimeout(() => {
       Swal.fire({
         title: "Review Leave Request",
         allowOutsideClick: false,
         allowEscapeKey: false,
-
+ 
         html: `
           <div class="text-left text-sm text-gray-600 space-y-3">
             <p><strong>Employee:</strong> ${leave.employeeName ?? "Unknown"}</p>
@@ -332,24 +369,24 @@ const Leavespage: React.FC = () => {
             </div>
           </div>
         `,
-
+ 
         showCancelButton: true,
         showDenyButton: true,
         confirmButtonText: "Approve",
         denyButtonText: "Reject",
         cancelButtonText: "Cancel",
-
+ 
         confirmButtonColor: "#4f46e5",
         denyButtonColor: "#dc2626",
         cancelButtonColor: "#6b7280",
-
+ 
         preConfirm: () => ({
           action: "approve",
           reason:
             (document.getElementById("reason") as HTMLTextAreaElement)
               ?.value?.trim() || "",
         }),
-
+ 
         preDeny: () => ({
           action: "reject",
           reason:
@@ -358,26 +395,26 @@ const Leavespage: React.FC = () => {
         }),
       }).then(async (result) => {
         if (!result.isConfirmed && !result.isDenied) return;
-
+ 
         const { action, reason } = result.value;
         const status = action === "approve" ? "APPROVED" : "REJECTED";
-
+ 
         Swal.fire({
           title: action === "approve" ? "Approving leave..." : "Rejecting leave...",
           allowOutsideClick: false,
           allowEscapeKey: false,
           didOpen: () => Swal.showLoading(),
         });
-
+ 
         try {
           await leaveService.updateLeaveStatus(
             leave.leaveId!,
             status,
             reason
           );
-
+ 
           updateLeaveStatus(leave.leaveId!, status);
-
+ 
           Swal.fire({
             icon: "success",
             title: "Success!",
@@ -397,7 +434,7 @@ const Leavespage: React.FC = () => {
       });
     }, 250); // ⛔ REQUIRED — DO NOT REMOVE
   };
-
+ 
   // Update leave status in state after review
   const updateLeaveStatus = (leaveId: string, status: LeaveStatus) => {
     if (activeTab === 'pending') {
@@ -410,13 +447,13 @@ const Leavespage: React.FC = () => {
       );
     }
   };
-
+ 
   // Dynamic label generation for leave types
   const getLabel = (value: string): string => {
     const words = value.toLowerCase().split('_');
     return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + ' Leave';
   };
-
+ 
   if (loading) {
     return (
       <div className="container mx-auto p-6 flex justify-center items-center min-h-screen">
@@ -437,7 +474,7 @@ const Leavespage: React.FC = () => {
       </div>
     );
   }
-
+ 
   if (error) {
     return (
       <div className="container mx-auto p-6">
@@ -447,15 +484,15 @@ const Leavespage: React.FC = () => {
       </div>
     );
   }
-
+ 
   const paginatedEmployees = employees.slice(
     adjustPage * ADJUST_PAGE_SIZE,
     adjustPage * ADJUST_PAGE_SIZE + ADJUST_PAGE_SIZE
   );
-
+ 
   const adjustTotalPages = Math.ceil(employees.length / ADJUST_PAGE_SIZE);
-
-
+ 
+ 
   return (
     <div className="container mx-auto p-6">
       {/* Confirmation Message
@@ -478,8 +515,8 @@ const Leavespage: React.FC = () => {
           </h1>
         </div>
       </div>
-
-
+ 
+ 
       {/* Tabs */}
       <div className="flex space-x-0 border-b border-gray-200 mb-6">
         <button
@@ -513,7 +550,7 @@ const Leavespage: React.FC = () => {
           Adjust Leaves
         </button>
       </div>
-
+ 
       {/* Filters for All Leaves */}
       {activeTab === 'all' && (
         <div className="mb-6 bg-white shadow-md rounded-lg p-6">
@@ -553,7 +590,7 @@ const Leavespage: React.FC = () => {
                 ))}
               </select>
             </div>
-
+ 
             <div>
               <label className="block text-sm font-medium text-gray-600">Leave Category</label>
               <select
@@ -588,7 +625,7 @@ const Leavespage: React.FC = () => {
           </div>
         </div>
       )}
-
+ 
       {/* Content */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
         <h3 className="text-xl font-semibold text-gray-800 mb-4">
@@ -598,7 +635,7 @@ const Leavespage: React.FC = () => {
               ? 'All Leave Requests'
               : 'Adjust Leaves'}
         </h3>
-
+ 
         {(activeTab === 'pending' || activeTab === 'all') && (
           (activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
             <div className="overflow-x-auto">
@@ -608,7 +645,7 @@ const Leavespage: React.FC = () => {
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Employee
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       <button
                         onClick={() => handleSortChange('leaveCategoryType,desc')}
@@ -618,7 +655,7 @@ const Leavespage: React.FC = () => {
                           pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
                       </button>
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       <button
                         onClick={() => handleSortChange('leaveDuration,desc')}
@@ -628,11 +665,11 @@ const Leavespage: React.FC = () => {
                           pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
                       </button>
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Financial Type
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       <button
                         onClick={() => handleSortChange('fromDate,desc')}
@@ -642,7 +679,7 @@ const Leavespage: React.FC = () => {
                           pagination.sort.includes('fromDate,asc') ? '↑' : ''}
                       </button>
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       <button
                         onClick={() => handleSortChange('toDate,desc')}
@@ -652,7 +689,7 @@ const Leavespage: React.FC = () => {
                           pagination.sort.includes('toDate,asc') ? '↑' : ''}
                       </button>
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       <button
                         onClick={() => handleSortChange('status,desc')}
@@ -662,48 +699,51 @@ const Leavespage: React.FC = () => {
                           pagination.sort.includes('status,asc') ? '↑' : ''}
                       </button>
                     </th>
-
+ 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Attachment
                     </th>
+ 
+                    {!isHR && (
+                      <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
 
-                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      Actions
-                    </th>
                   </tr>
                 </thead>
-
+ 
                 <tbody className="divide-y divide-gray-200 text-center">
                   {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
                     <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors text-center">
-
+ 
                       <td className="px-6 py-5 text-base font-medium text-gray-900 text-center">
                         {leave.employeeName ?? 'Unknown'}
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-gray-500 text-center">
                         {leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-gray-500 text-center">
                         {leave.leaveDuration ?? 0} days
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-gray-500 text-center">
                         {leave.financialType ? getLabel(leave.financialType) : 'N/A'}
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-gray-500 text-center">
                         {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-gray-500 text-center">
                         {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-center">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium 
+                          className={`px-2 py-1 rounded-full text-xs font-medium
                         ${leave.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
                               leave.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                                 leave.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
@@ -713,7 +753,7 @@ const Leavespage: React.FC = () => {
                           {leave.status ?? 'PENDING'}
                         </span>
                       </td>
-
+ 
                       <td className="px-6 py-5 text-base text-center">
                         {leave.attachmentUrl ? (
                           <a
@@ -728,25 +768,26 @@ const Leavespage: React.FC = () => {
                           <span className="text-gray-400">None</span>
                         )}
                       </td>
-
-                      <td className="px-6 py-5 text-base text-center">
-                        {leave.status === 'PENDING' ? (
-                          <button
-                            onClick={() => handleReviewLeave(leave)}
-                            className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                          >
-                            Review
-                          </button>
-                        ) : (
-                          <span className="text-gray-500 text-sm">-</span>
-                        )}
-                      </td>
+                        
+                      {!isHR && (
+                        <td className="px-6 py-5 text-base text-center">
+                          {leave.status === 'PENDING' ? (
+                            <button
+                              onClick={() => handleReviewLeave(leave)}
+                              className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                            >
+                              Review
+                            </button>
+                          ) : (
+                            <span className="text-gray-500 text-sm">-</span>
+                          )}
+                        </td>
+                      )}
 
                     </tr>
                   ))}
                 </tbody>
               </table>
-
               {activeTab === 'all' && (
                 <div className="flex justify-between items-center mt-4">
                   <button
@@ -773,15 +814,15 @@ const Leavespage: React.FC = () => {
             <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
           )
         )}
-
-
+ 
+ 
         {/* ADJUST LEAVES */}
         {activeTab === 'adjust' && (
           <div>
             <p className="mb-4 text-gray-700">
               Adjust employee leave balances manually.
             </p>
-
+ 
             {employees.length === 0 ? (
               <p className="text-gray-500">No active employees found.</p>
             ) : (
@@ -803,22 +844,22 @@ const Leavespage: React.FC = () => {
                       </th>
                     </tr>
                   </thead>
-
+ 
                   <tbody className="divide-y divide-gray-200">
                     {paginatedEmployees.map((emp) => (
                       <tr key={emp.employeeId} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-medium text-gray-900">
                           {emp.firstName} {emp.lastName}
                         </td>
-
+ 
                         <td className="px-6 py-4 text-gray-600">
                           {emp.companyEmail}
                         </td>
-
+ 
                         <td className="px-6 py-4 text-indigo-700 font-semibold">
                           {emp.availableLeaves}
                         </td>
-
+ 
                         <td className="px-6 py-4">
                           <input
                             type="number"
@@ -834,9 +875,9 @@ const Leavespage: React.FC = () => {
                       </tr>
                     ))}
                   </tbody>
-
+ 
                 </table>
-
+ 
                 <div className="flex justify-end mt-6">
                   <button
                     onClick={handleSubmitAdjustments}
@@ -856,11 +897,11 @@ const Leavespage: React.FC = () => {
                       <ChevronLeft size={18} />
                       Previous
                     </button>
-
+ 
                     <span className="text-sm text-gray-600">
                       Page {adjustPage + 1} of {adjustTotalPages}
                     </span>
-
+ 
                     <button
                       onClick={() =>
                         setAdjustPage((prev) =>
@@ -875,15 +916,15 @@ const Leavespage: React.FC = () => {
                     </button>
                   </div>
                 )}
-
+ 
               </div>
             )}
           </div>
         )}
-
+ 
       </div>
     </div>
   );
 };
-
+ 
 export default Leavespage;

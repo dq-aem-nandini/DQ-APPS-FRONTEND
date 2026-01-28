@@ -23,7 +23,8 @@ import {
   LeaveStatusCountResponseDTO,
   WebResponseDTOLeaveStatusCount,
   LeaveAdjustmentRequestDTO,
-  LeaveAdjustmentResponse 
+  LeaveAdjustmentResponse,
+  WebResponseDTOListEmployeeDTO
 } from './types';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 function getBackendError(error: any): string {
@@ -420,7 +421,19 @@ async adjustLeaveCount(
   } catch (error: any) {
     throw new Error(getBackendError(error));
   }
-}
+},
 
+  /**
+ * Get all employees except logged-in HR ( HR only)
+ */
+ // ✅ Get all employees
+ async getAllEmployeesExceptLoginHR(): Promise<WebResponseDTOListEmployeeDTO> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get('employee/emp/all/except/loginHR');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
 
 };
