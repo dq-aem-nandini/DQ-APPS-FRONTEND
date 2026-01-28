@@ -9,7 +9,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function OrganizationPage() {
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6 md:p-8">
         {/* Header */}
         <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10 text-center">

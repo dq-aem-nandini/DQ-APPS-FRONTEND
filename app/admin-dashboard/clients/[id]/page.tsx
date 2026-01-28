@@ -129,7 +129,7 @@ const ViewClientPage = () => {
 
   if (loading && !client) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
           <Spinner size="lg" />
         </div>
@@ -138,7 +138,7 @@ const ViewClientPage = () => {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
           {loading && (

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { format } from "date-fns";
+import { format, getMonth, getYear } from "date-fns";
 import { useRouter } from "next/navigation";
 import Swal from 'sweetalert2';
 import { adminService } from "@/lib/api/adminService";
@@ -46,8 +46,8 @@ interface Filters {
   clientId: string;
   search: string;
   status: string;
-  fromDate: string;
-  toDate: string;
+  // fromDate: string;
+  // toDate: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -60,14 +60,37 @@ export default function InvoicesPage() {
   const [loadingClients, setLoadingClients] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [lockingInvoices, setLockingInvoices] = useState<Set<string>>(new Set());
+  // 1. Add these states (replace old fromDate/toDate)
+  const [selectedYear, setSelectedYear] = useState<number | ''>('');
+  const [selectedMonth, setSelectedMonth] = useState<number | ''>('');
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
+  // 2. Year & Month options
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 11 }, (_, i) => currentYear - i);
+  }, []);
+
+  const availableMonths = useMemo(() => [
+    { value: 1, label: "January" },
+    { value: 2, label: "February" },
+    { value: 3, label: "March" },
+    { value: 4, label: "April" },
+    { value: 5, label: "May" },
+    { value: 6, label: "June" },
+    { value: 7, label: "July" },
+    { value: 8, label: "August" },
+    { value: 9, label: "September" },
+    { value: 10, label: "October" },
+    { value: 11, label: "November" },
+    { value: 12, label: "December" },
+  ], []);
   const [filters, setFilters] = useState<Filters>({
     clientId: "",
     search: "",
     status: "",
-    fromDate: "",
-    toDate: "",
+    // fromDate: "",
+    // toDate: "",
   });
 
   /* -------------------------- FETCH CLIENTS -------------------------- */
@@ -100,28 +123,24 @@ export default function InvoicesPage() {
       let data: InvoiceDTO[] = [];
 
       if (filters.clientId) {
-        data = await invoiceService.getInvoicesByClient(
-          filters.clientId,
-          filters.fromDate || undefined,
-          filters.toDate || undefined,
-          filters.status || undefined
-        );
+        data = await invoiceService.getInvoicesByClient(filters.clientId, {
+          status: filters.status || undefined
+        });
       } else {
         data = await invoiceService.getAllInvoices();
       }
 
-      setInvoices(data);
+      setInvoices(data || []);
     } catch (e: any) {
-      console.error(e);
       Swal.fire({
         icon: 'error',
         title: 'Oops...',
-        text: e.message || 'Failed to load invoices. Please try again.',
+        text: e.message || 'Failed to load invoices.',
       });
     } finally {
       setLoadingInvoices(false);
     }
-  }, [filters.clientId, filters.fromDate, filters.toDate, filters.status]);
+  }, [filters.clientId, filters.status]);
 
   useEffect(() => {
     fetchInvoices();
@@ -130,18 +149,30 @@ export default function InvoicesPage() {
   /* -------------------------- LOCAL FILTERING -------------------------- */
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
-      const matchesStatus = !filters.status || inv.status === filters.status;
-      const matchesSearch =
+      const dateField = inv.fromDate || inv.invoiceDate;
+      const invDate = dateField ? new Date(dateField) : null;
+
+      if (!invDate || isNaN(invDate.getTime())) return true;
+
+      const yearMatch = !selectedYear || getYear(invDate) === selectedYear;
+      const monthMatch = !selectedMonth || (getMonth(invDate) + 1) === selectedMonth;
+
+      const statusMatch = !filters.status || inv.status === filters.status;
+      const searchMatch =
         !filters.search ||
         inv.invoiceNumber.toLowerCase().includes(filters.search.toLowerCase()) ||
         inv.clientName.toLowerCase().includes(filters.search.toLowerCase());
-      const matchesDateRange =
-        (!filters.fromDate || new Date(inv.invoiceDate) >= new Date(filters.fromDate)) &&
-        (!filters.toDate || new Date(inv.invoiceDate) <= new Date(filters.toDate));
-      return matchesStatus && matchesSearch && matchesDateRange;
-    });
-  }, [invoices, filters.status, filters.search, filters.fromDate, filters.toDate]);
 
+      return yearMatch && monthMatch && statusMatch && searchMatch;
+    });
+  }, [invoices, selectedYear, selectedMonth, filters.status, filters.search]);
+
+
+  useEffect(() => {
+    const now = new Date();
+    setSelectedYear(getYear(now));
+    setSelectedMonth(getMonth(now) + 1);
+  }, []);
   /* -------------------------- STATS -------------------------- */
   const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
   const overdueCount = filteredInvoices.filter((i) => i.status === "OVERDUE").length;
@@ -361,7 +392,7 @@ export default function InvoicesPage() {
               <Label htmlFor="client">Client</Label>
               <select
                 id="client"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                 value={filters.clientId}
                 onChange={(e) => setFilters(f => ({ ...f, clientId: e.target.value }))}
                 disabled={loadingClients}
@@ -380,7 +411,7 @@ export default function InvoicesPage() {
                 <Input
                   id="search"
                   placeholder="Invoice # or Client"
-                  className="pl-8"
+                  className="pl-8 cursor-pointer"
                   value={filters.search}
                   onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
                 />
@@ -391,7 +422,7 @@ export default function InvoicesPage() {
               <Label htmlFor="status">Status</Label>
               <select
                 id="status"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                 value={filters.status}
                 onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
               >
@@ -405,30 +436,37 @@ export default function InvoicesPage() {
                 <option value="OVERDUE">Overdue</option>
               </select>
             </div>
-            {/* From Date */}
+            {/* Year */}
             <div className="space-y-2">
-              <Label htmlFor="from">From</Label>
-              <Input
-                id="from"
-                type="date"
-                value={filters.fromDate}
-                onChange={(e) => setFilters(f => ({ ...f, fromDate: e.target.value }))}
-              />
+              <Label htmlFor="year">Year</Label>
+              <select
+                id="year"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">All Years</option>
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
-            {/* To Date */}
+
+            {/* Month */}
             <div className="space-y-2">
-              <Label htmlFor="to">To</Label>
-              <div className="relative">
-                <Input
-                  id="to"
-                  type="date"
-                  value={filters.toDate}
-                  onChange={(e) => setFilters(f => ({ ...f, toDate: e.target.value }))}
-                />
-                {loadingInvoices && (
-                  <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-              </div>
+              <Label htmlFor="month">Month</Label>
+              <select
+                id="month"
+                className="w-full rounded-md border cursor-pointer border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value ? Number(e.target.value) : '')}
+              // disabled={!selectedYear}
+              >
+                <option value="">All Months</option>
+                {availableMonths.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
             </div>
           </div>
         </CardContent>
@@ -549,7 +587,7 @@ export default function InvoicesPage() {
                                 handleLockToggle(inv.invoiceId, isLocked);
                               }}
                               disabled={isLocking}
-                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0 transition-all ${isLocked
+                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0 transition-all cursor-pointer ${isLocked
                                 ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
                                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                                 } ${isLocking ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -570,7 +608,7 @@ export default function InvoicesPage() {
                                 e.stopPropagation();
                                 handleDelete(inv.invoiceId);
                               }}
-                              className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-destructive hover:text-destructive-foreground h-8 w-8 p-0"
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-destructive hover:text-destructive-foreground h-8 w-8 p-0 cursor-pointer"
                               title="Delete Invoice"
                             >
                               <Trash2 className="h-4 w-4" />

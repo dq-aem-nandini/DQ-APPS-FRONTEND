@@ -10,9 +10,15 @@ export const sidebarConfig = {
       { label: 'Update Request',  href: '/dashboard/updaterequest', },
       { label: 'Timesheet',href: '/dashboard/TimeSheetRegister',},
       { label: "Settings", href: "/dashboard/settings" },
-      { label: 'Notifications',href: '/dashboard/notifications', },
     ],
-  
+    HR_COMMON: [
+      { label: "Employees", href: "/admin-dashboard/employees" },
+      { label: "Clients", href: "/admin-dashboard/clients" },
+      // { label: "Organization", href: "/admin-dashboard/organization" },
+      { label: "Leave Calendar", href: "/admin-dashboard/leaveCalendar" },
+      { label: "Employee Leaves", href: "/admin-dashboard/leaves" },
+      { label: "Add Holiday", href: "/admin-dashboard/holiday" },
+    ],
     // EMPLOYEE: [
     //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },
     // ],
@@ -24,12 +30,12 @@ export const sidebarConfig = {
       { permission: "LEAVE_CALENDAR", label: "Leave Calendar", href: '/manager/leaveCalendar' },
     ],
   
-    HR: [
-      { permission: "VIEW_EMP_DASHBOARD", label: "Employee Records", href: "/hr/employees" },
-      { permission: "VIEW_PAYROLL", label: "Payroll", href: "/hr/payroll" },
-      { permission: "VIEW_INVOICE", label: "Invoices", href: "/hr/invoices" },
-      { permission: "LEAVE_CALENDAR", label: "Leave Calendar", href: '/hr/leaveCalendar' },
-    ],
+    // HR: [
+    //   { permission: "VIEW_EMP_DASHBOARD", label: "Employee Records", href: "/hr/employees" },
+    //   { permission: "VIEW_PAYROLL", label: "Payroll", href: "/hr/payroll" },
+    //   { permission: "VIEW_INVOICE", label: "Invoices", href: "/hr/invoices" },
+    //   { permission: "LEAVE_CALENDAR", label: "Leave Calendar", href: '/hr/leaveCalendar' },
+    // ],
   
     FINANCE: [
       { permission: "VIEW_PAYROLL", label: "Payroll", href: "/finance/payroll" },

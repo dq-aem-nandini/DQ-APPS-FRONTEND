@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { invoiceService } from '@/lib/api/invoiceService';
-import { ClientInvoiceSummaryDTO,InvoiceStatus } from '@/lib/api/types';
+import { ClientInvoiceSummaryDTO, InvoiceStatus } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Spinner from '@/components/ui/Spinner';
-import {Download, FileText, DollarSign, Clock, CheckCircle, XCircle, Check, X } from 'lucide-react';
+import { Download, FileText, DollarSign, Clock, CheckCircle, XCircle, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -107,7 +107,7 @@ const InvoiceSummaryPage = () => {
 
         if (result.isConfirmed) {
             Swal.fire({
-                title:'Processing......',
+                title: 'Processing......',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -276,12 +276,13 @@ const InvoiceSummaryPage = () => {
                                                         </TableCell>
                                                         <TableCell className="text-right font-bold">{summary.totalAmount.toFixed(2)}</TableCell>
                                                         <TableCell className="text-right">
-                                                            <div className="flex gap-2 justify-end">
+                                                            <div className="flex gap-2 justify-end ">
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     onClick={() => handleDownloadPDF(summary.invoiceId)}
                                                                     title="Download PDF"
+                                                                    className='cursor-pointer'
                                                                 >
                                                                     <Download className="w-4 h-4" />
                                                                 </Button>
@@ -290,7 +291,7 @@ const InvoiceSummaryPage = () => {
                                                                         <Button
                                                                             size="sm"
                                                                             onClick={() => handleStatusUpdate(summary.invoiceId, 'APPROVED')}
-                                                                            className="bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                                                                            className="bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
                                                                             title="Approve"
                                                                         >
                                                                             <Check className="w-3 h-3 mr-1" />
@@ -301,7 +302,7 @@ const InvoiceSummaryPage = () => {
                                                                             variant="destructive"
                                                                             onClick={() => handleStatusUpdate(summary.invoiceId, 'REJECTED')}
                                                                             title="Reject"
-                                                                            className="bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                                                                            className="bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
                                                                         >
                                                                             <X className="w-3 h-3 mr-1" />
                                                                             Reject

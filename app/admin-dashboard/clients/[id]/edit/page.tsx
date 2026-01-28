@@ -506,7 +506,7 @@ if (
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
         </div>
@@ -515,7 +515,7 @@ if (
   }
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">

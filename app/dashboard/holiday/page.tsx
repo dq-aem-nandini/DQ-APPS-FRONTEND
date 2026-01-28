@@ -8,7 +8,7 @@ import {
   isSameDay,
   isToday,
 } from "date-fns";
-import { Calendar, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, X, Edit2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -32,6 +32,7 @@ export default function EmployeeHolidayDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [deletedHolidayIds, setDeletedHolidayIds] = useState<string[]>([]);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [newHoliday, setNewHoliday] = useState({
     holidayDate: "",
     holidayName: "",
@@ -45,7 +46,7 @@ export default function EmployeeHolidayDashboard() {
     { holidayDate: string; holidayName: string }[]
   >([]);
   const hasChanges =
-  addedHolidays.length > 0 || removedHolidays.length > 0;
+    addedHolidays.length > 0 || removedHolidays.length > 0;
 
 
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -56,23 +57,23 @@ export default function EmployeeHolidayDashboard() {
   const [clientIdId, setClientId] = useState<string | null>(null);
 
 
-    useEffect(() => {
-      const fetchEmployeeId = async () => {
-        try {
-          setLoading(true);
-          const employee = await employeeService.getEmployeeById();
-          setClientId(employee.clientId); // from API response
-          console.log('Fetched Employee ID:', employee.employeeId);
-        } catch (error) {
-          console.error('Failed to fetch employee ID:', error);
-          setClientId(null);
-        } finally {
-          setLoading(false);
-        }
-      };
-  
-      fetchEmployeeId();
-    }, []);
+  useEffect(() => {
+    const fetchEmployeeId = async () => {
+      try {
+        setLoading(true);
+        const employee = await employeeService.getEmployeeById();
+        setClientId(employee.clientId); // from API response
+        console.log('Fetched Employee ID:', employee.employeeId);
+      } catch (error) {
+        console.error('Failed to fetch employee ID:', error);
+        setClientId(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployeeId();
+  }, []);
 
   // useEffect(() => {
   //   const fetchHolidays = async () => {
@@ -99,11 +100,11 @@ export default function EmployeeHolidayDashboard() {
     const fetchHolidays = async () => {
       try {
         setLoading(true);
-  
+
         const year = currentMonth.getFullYear(); // 👈 IMPORTANT
-  
+
         const res = await holidayService.getAllHolidays(year);
-  
+
         if (res.flag && Array.isArray(res.response)) {
           setHolidays(
             res.response.sort((a, b) =>
@@ -117,10 +118,10 @@ export default function EmployeeHolidayDashboard() {
         setLoading(false);
       }
     };
-  
+
     fetchHolidays();
   }, [currentMonth.getFullYear()]);
-  
+
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -221,7 +222,7 @@ export default function EmployeeHolidayDashboard() {
                   {editMode ? (
                     <X className="w-4 h-4" />
                   ) : (
-                    <Search className="w-4 h-4" />
+                    <Edit2 className="w-4 h-4" />
                   )}
                 </Button>
 
@@ -249,14 +250,14 @@ export default function EmployeeHolidayDashboard() {
                 ))}
               </div>
             ) : allUpcomingHolidays.length === 0 ? (
-              console.log("hiofjfo",uppcomingHolidays),
+              console.log("hiofjfo", uppcomingHolidays),
               <p className="text-center text-gray-500 py-6">
                 No upcoming holidays
               </p>
             ) : (
               <div className="space-y-3">
                 {uppcomingHolidays.map((holiday) => (
-                  console.log("hiofjfo",uppcomingHolidays),
+                  console.log("hiofjfo", uppcomingHolidays),
                   <div
                     key={holiday.holidayId}
                     className="group flex items-center justify-between p-3 border rounded-md hover:bg-gray-50 transition"
@@ -269,9 +270,9 @@ export default function EmployeeHolidayDashboard() {
                       <p className="text-xs text-gray-500">
                         {holiday.holidayDate
                           ? format(
-                              new Date(holiday.holidayDate),
-                              "EEE, d MMM yyyy",
-                            )
+                            new Date(holiday.holidayDate),
+                            "EEE, d MMM yyyy",
+                          )
                           : "—"}
                       </p>
                     </div>
@@ -324,7 +325,7 @@ export default function EmployeeHolidayDashboard() {
                           }}
                           className="text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-8 h-8 cursor-pointer" />
                         </button>
                       )}
                     </div>
@@ -366,92 +367,239 @@ export default function EmployeeHolidayDashboard() {
         </Card>
 
         {hasChanges && (
-        <Card className="mb-8 max-w-5xl mx-auto mt-6 border-indigo-200 bg-indigo-50">
-          <CardHeader>
-            <CardTitle className="text-lg text-indigo-700">
-              Pending Changes
-            </CardTitle>
-          </CardHeader>
+          <Card className="mb-8 max-w-5xl mx-auto mt-6 border-indigo-200 bg-indigo-50">
+            <CardHeader>
+              <CardTitle className="text-lg text-indigo-700">
+                Pending Changes
+              </CardTitle>
+            </CardHeader>
 
-          <CardContent className="space-y-4">
-            {/* Added Holidays */}
-            {addedHolidays.length > 0 && (
-              <div>
-                <p className="font-semibold text-green-700 mb-2">
-                  Added Holidays
-                </p>
-                <ul className="space-y-1">
-                  {addedHolidays.map((h, i) => (
-                    <li
-                      key={i}
-                      className="text-sm bg-green-100 border border-green-200 rounded px-3 py-1"
-                    >
-                      {h.holidayName} — {format(new Date(h.holidayDate), "dd MMM yyyy")}
-                    </li>
-                  ))}
-                </ul>
+            <CardContent className="space-y-4">
+              {/* Added Holidays */}
+              {addedHolidays.length > 0 && (
+                <div>
+                  <p className="font-semibold text-green-700 mb-2">
+                    Added Holidays
+                  </p>
+                  <ul className="space-y-1">
+                    {addedHolidays.map((h, i) => (
+                      <li
+                        key={i}
+                        className="text-sm bg-green-100 border border-green-200 rounded px-3 py-1"
+                      >
+                        {h.holidayName} — {format(new Date(h.holidayDate), "dd MMM yyyy")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Removed Holidays */}
+              {removedHolidays.length > 0 && (
+                <div>
+                  <p className="font-semibold text-red-700 mb-2">
+                    Removed Holidays
+                  </p>
+                  <ul className="space-y-1">
+                    {removedHolidays.map((h, i) => (
+                      <li
+                        key={i}
+                        className="text-sm bg-red-100 border border-red-200 rounded px-3 py-1"
+                      >
+                        {h.holidayName} — {format(new Date(h.holidayDate), "dd MMM yyyy")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+
+            {hasChanges && (
+              <div className="max-w-5xl mx-auto mt-6 flex justify-end gap-4">
+                {/* Optional: Cancel / Reset button */}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    Swal.fire({
+                      title: "Discard Changes?",
+                      text: "All pending additions and removals will be lost.",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonColor: "#ef4444",
+                      cancelButtonColor: "#6b7280",
+                      confirmButtonText: "Yes, Discard",
+                    }).then((result) => {
+                      if (result.isConfirmed) {
+                        setAddedHolidays([]);
+                        setRemovedHolidays([]);
+                        setDeletedHolidayIds([]);
+                        setEditMode(false);
+                      }
+                    });
+                  }}
+                >
+                  Discard Changes
+                </Button>
+
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px]"
+                  disabled={submitLoading}
+                  onClick={async () => {
+                    if (!clientIdId) {
+                      Swal.fire({
+                        icon: "warning",
+                        title: "Missing Client",
+                        text: "Client ID not found. Please try again later.",
+                        confirmButtonColor: "#f59e0b",
+                      });
+                      return;
+                    }
+
+                    // Confirmation before submit
+                    const confirmResult = await Swal.fire({
+                      title: "Submit Holiday Changes?",
+                      icon: "question",
+                      showCancelButton: true,
+                      confirmButtonColor: "#10b981",
+                      cancelButtonColor: "#d33",
+                      confirmButtonText: "Yes, Submit",
+                      cancelButtonText: "Cancel",
+                      allowOutsideClick: !Swal.isVisible(),
+                    });
+
+                    if (!confirmResult.isConfirmed) return;
+
+                    setSubmitLoading(true);
+
+                    try {
+                      const payload: HolidayUpdateRequestDTO[] = [
+                        ...addedHolidays.map((h) => ({
+                          holidayDate: h.holidayDate,
+                          holidayName: h.holidayName,
+                          updateType: "ADD_HOLIDAY" as const,
+                          clientID: clientIdId,
+                        })),
+                        ...removedHolidays.map((h) => ({
+                          holidayDate: h.holidayDate,
+                          holidayName: h.holidayName,
+                          updateType: "REMOVE_HOLIDAY" as const,
+                          clientID: clientIdId,
+                        })),
+                      ];
+
+                      const response = await holidayService.submitHolidayUpdateRequest(payload);
+
+                      if (response.flag) {
+                        Swal.fire({
+                          icon: "success",
+                          title: "Success!",
+                          text: response.message,
+                          confirmButtonColor: "#10b981",
+                          timer: 2800,
+                          timerProgressBar: true,
+                        });
+
+                        // Reset UI state
+                        setAddedHolidays([]);
+                        setRemovedHolidays([]);
+                        setDeletedHolidayIds([]);
+                        setEditMode(false);
+
+                        // Refresh holidays list from backend
+                        const year = currentMonth.getFullYear();
+                        const freshRes = await holidayService.getAllHolidays(year);
+                        if (freshRes.flag && Array.isArray(freshRes.response)) {
+                          setHolidays(
+                            freshRes.response.sort((a, b) =>
+                              a.holidayDate.localeCompare(b.holidayDate)
+                            )
+                          );
+                        }
+                      } else {
+                        Swal.fire({
+                          icon: "error",
+                          title: "Submission Failed",
+                          text: response.message || "The server rejected the request.",
+                          confirmButtonColor: "#ef4444",
+                        });
+                      }
+                    } catch (err: any) {
+                      Swal.fire("Error", err.message || "Failed to load data", "error");
+                    } finally {
+                      setSubmitLoading(false);
+                    }
+                  }}
+                >
+                  {submitLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Submitting...
+                    </div>
+                  ) : (
+                    "Submit Changes"
+                  )}
+                </Button>
               </div>
             )}
 
-            {/* Removed Holidays */}
-            {removedHolidays.length > 0 && (
-              <div>
-                <p className="font-semibold text-red-700 mb-2">
-                  Removed Holidays
-                </p>
-                <ul className="space-y-1">
-                  {removedHolidays.map((h, i) => (
-                    <li
-                      key={i}
-                      className="text-sm bg-red-100 border border-red-200 rounded px-3 py-1"
-                    >
-                      {h.holidayName} — {format(new Date(h.holidayDate), "dd MMM yyyy")}
-                    </li>
-                  ))}
-                </ul>
+            {/* {hasChanges && (
+              <div className="max-w-5xl mx-auto mt-4 flex justify-end">
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  onClick={async () => {
+                    if (!clientIdId) return;
+
+                    const payload: HolidayUpdateRequestDTO[] = [
+                      ...addedHolidays.map(h => ({
+                        holidayDate: h.holidayDate,
+                        holidayName: h.holidayName,
+                        updateType: "ADD_HOLIDAY" as const,
+                        clientID: clientIdId,
+                      })),
+                      ...removedHolidays.map(h => ({
+                        holidayDate: h.holidayDate,
+                        holidayName: h.holidayName,
+                        updateType: "REMOVE_HOLIDAY" as const,
+                        clientID: clientIdId,
+                      })),
+                    ];
+
+                    await holidayService.submitHolidayUpdateRequest(payload);
+
+                    // Reset state after submit
+                    setAddedHolidays([]);
+                    setRemovedHolidays([]);
+                    setDeletedHolidayIds([]);
+                    setEditMode(false);
+                  }}
+                >
+                  Submit Changes
+                </Button>
               </div>
-            )}
-          </CardContent>
+            )} */}
+          </Card>
+        )}
 
-          {hasChanges && (
-        <div className="max-w-5xl mx-auto mt-4 flex justify-end">
-          <Button
-            className="bg-indigo-600 hover:bg-indigo-700"
-            onClick={async () => {
-              if (!clientIdId) return;
 
-              const payload: HolidayUpdateRequestDTO[] = [
-                ...addedHolidays.map(h => ({
-                  holidayDate: h.holidayDate,
-                  holidayName: h.holidayName,
-                  updateType: "ADD_HOLIDAY" as const,
-                  clientID: clientIdId,
-                })),
-                ...removedHolidays.map(h => ({
-                  holidayDate: h.holidayDate,
-                  holidayName: h.holidayName,
-                  updateType: "REMOVE_HOLIDAY" as const,
-                  clientID: clientIdId,
-                })),
-              ];
-
-              await holidayService.submitHolidayUpdateRequest(payload);
-
-              // Reset state after submit
-              setAddedHolidays([]);
-              setRemovedHolidays([]);
-              setDeletedHolidayIds([]);
-              setEditMode(false);
-            }}
-          >
-            Submit Changes
-          </Button>
-        </div>
-      )} 
-        </Card>
-      )}
-
-         
 
         {/* Calendar */}
         <Card>
@@ -548,7 +696,7 @@ export default function EmployeeHolidayDashboard() {
                   (h) =>
                     h.holidayDate &&
                     new Date(h.holidayDate).getFullYear() ===
-                      currentMonth.getFullYear(),
+                    currentMonth.getFullYear(),
                 ).length
               }
             </span>
@@ -618,9 +766,9 @@ export default function EmployeeHolidayDashboard() {
                         <td className="p-4 text-sm font-medium text-gray-900">
                           {holiday.holidayDate
                             ? format(
-                                new Date(holiday.holidayDate),
-                                "dd MMM yyyy",
-                              )
+                              new Date(holiday.holidayDate),
+                              "dd MMM yyyy",
+                            )
                             : "—"}
                         </td>
                         <td className="p-4 font-medium text-gray-900">
@@ -697,8 +845,8 @@ export default function EmployeeHolidayDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-      
-      
+
+
 
     </div>
   );
