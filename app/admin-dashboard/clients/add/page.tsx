@@ -91,22 +91,23 @@ const isIndia = (country?: string) =>
       else if (value.toString().length > 0 && !/^\d+$/.test(value.toString())) error = 'Only digits';
       else if (value.toString().length === 10 && !phoneRegex.test(value.toString())) error = 'Invalid mobile number';
     }
+
     if (name === 'email') {
-      if (!value) error = 'Email required';
-      else if (!emailRegex.test(value.toString())) error = 'Invalid email';
+      if (value && !emailRegex.test(value.toString()))  error = 'Invalid email';
     }
+     
     if (name === 'gst') {
-      if (!value) error = 'GSTIN is required';
-      else if (!gstRegex.test(value.toString())) error = 'Invalid GSTIN format';
+      if (value && !gstRegex.test(value.toString())) error = 'Invalid GSTIN format';
     }
+    
     if (name === 'panNumber') {
-      if (!value) error = 'PAN is required';
-      else if (!panRegex.test(value.toString())) error = 'Invalid PAN format';
+      if (value && !panRegex.test(value.toString())) error = 'Invalid PAN format';
     }
+    
     if (name === 'tanNumber') {
-      if (!value) error = 'TAN is required';
-      else if (!tanRegex.test(value.toString())) error = 'Invalid TAN format';
+      if (value && !tanRegex.test(value.toString())) error = 'Invalid TAN format';
     }
+    
 
     // Address
     if (name.includes('city') && index === 0 && !value) error = 'City required';
@@ -119,15 +120,36 @@ const isIndia = (country?: string) =>
     }
 
     // POC
-    if (name.includes('clientPocs') && name.includes('name') && index === 0 && !value) error = 'Name required';
-    if (name.includes('clientPocs') && name.includes('email')) {
-      if (index === 0 && !value) error = 'Email required';
-      else if (value && !emailRegex.test(value.toString())) error = 'Invalid email';
+    // if (name.includes('clientPocs') && name.includes('name') && index === 0 && !value) error = 'Name required';
+    // if (name.includes('clientPocs') && name.includes('email')) {
+    //   if (index === 0 && !value) error = 'Email required';
+    //   else if (value && !emailRegex.test(value.toString())) error = 'Invalid email';
+    // }
+    // if (name.includes('clientPocs') && name.includes('contactNumber')) {
+    //   if (index === 0 && !value) error = 'Contact number required';
+    //   else if (value && value.toString().length > 0 && !/^\d+$/.test(value.toString())) error = 'Only digits';
+    //   else if (value.toString().length === 10 && !phoneRegex.test(value.toString())) error = 'Invalid mobile';
+    // }
+
+    // POC
+    if (name.includes('clientPocs') && name.includes('name') && index === 0 && !value) {
+      error = 'Name required';
     }
+
+    // OPTIONAL email — validate only if present
+    if (name.includes('clientPocs') && name.includes('email')) {
+      if (value && !emailRegex.test(value.toString())) {
+        error = 'Invalid email';
+      }
+    }
+
+    // OPTIONAL contact — validate only if present
     if (name.includes('clientPocs') && name.includes('contactNumber')) {
-      if (index === 0 && !value) error = 'Contact number required';
-      else if (value && value.toString().length > 0 && !/^\d+$/.test(value.toString())) error = 'Only digits';
-      else if (value.toString().length === 10 && !phoneRegex.test(value.toString())) error = 'Invalid mobile';
+      if (value && !/^\d+$/.test(value.toString())) {
+        error = 'Only digits';
+      } else if (value && value.toString().length === 10 && !phoneRegex.test(value.toString())) {
+        error = 'Invalid mobile';
+      }
     }
 
     setErrors(prev => ({ ...prev, [name]: error }));
@@ -325,10 +347,10 @@ const isIndia = (country?: string) =>
     const requiredFields = [
       { value: formData.companyName, name: 'companyName', label: 'Company Name' },
       { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
-      { value: formData.email, name: 'email', label: 'Email' },
-      { value: formData.gst, name: 'gst', label: 'GST' },
-      { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
-      { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
+      // { value: formData.email, name: 'email', label: 'Email' },
+      // { value: formData.gst, name: 'gst', label: 'GST' },
+      // { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
+      // { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
       { value: formData.currency, name: 'currency', label: 'Currency' },
       // Address (first one only)
       { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
@@ -337,8 +359,8 @@ const isIndia = (country?: string) =>
       { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
       // POC (first one only)
       { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
-      { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
-      { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
+      // { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
+      // { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
     ];
 
     const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
@@ -386,10 +408,11 @@ const isIndia = (country?: string) =>
           clientPocs: formData.clientPocs.map(p => ({
             pocId: uuidv4(),
             name: p.name.trim(),
-            email: p.email.toLowerCase().trim(),
-            contactNumber: p.contactNumber,
+            email: p.email ? p.email.toLowerCase().trim() : '',
+            contactNumber: p.contactNumber || '',
             designation: p.designation?.trim() || '',
           })),
+          
 
           clientTaxDetails: formData.clientTaxDetails.map(t => ({
             taxId: t.taxId || uuidv4(),
