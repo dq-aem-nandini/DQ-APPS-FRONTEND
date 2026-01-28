@@ -521,7 +521,7 @@ const isIndia = (country?: string) =>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email 
                     <TooltipHint hint="Official company email. Example: info@digiquad.com" />
                   </label>
                   <input
@@ -539,7 +539,7 @@ const isIndia = (country?: string) =>
                         return newErrors;
                       });
                     }}
-                    required
+                   
                     onBlur={(e) => {
                       const val = e.target.value.trim();
                       if (val) {
@@ -561,7 +561,8 @@ const isIndia = (country?: string) =>
                 {/* GST - Now checks backend uniqueness */}
                 <div>
                   <label htmlFor="gst" className="block text-sm font-medium text-gray-700 mb-1">
-                    GST <span className="text-red-500">*</span>
+                    GST 
+                    {/* <span className="text-red-500">*</span> */}
                     <TooltipHint hint="15-character GSTIN. Format: 27AABCU9603R1ZX (2 digits state code + PAN + entity code + Z + checksum)" />                  </label>
                   <div className="relative">
                     <input
@@ -593,7 +594,7 @@ const isIndia = (country?: string) =>
                         }
                       }}
                       maxLength={15}
-                      required
+                      // required
                       placeholder="e.g. 27ABCDE1234F1Z5"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                     />
@@ -607,7 +608,8 @@ const isIndia = (country?: string) =>
                 {/* PAN - Now checks backend uniqueness */}
                 <div>
                   <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                    PAN <span className="text-red-500">*</span>
+                    PAN 
+                    {/* <span className="text-red-500">*</span> */}
                     <TooltipHint hint="10-character PAN number. Format: ABCDE1234F (5 letters + 4 digits + 1 letter)" />
                   </label>
                   <div className="relative">
@@ -637,7 +639,7 @@ const isIndia = (country?: string) =>
                         }
                       }}
                       maxLength={10}
-                      required
+                      // required
                       placeholder="e.g. ABCDE1234F"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                     />
@@ -651,7 +653,8 @@ const isIndia = (country?: string) =>
                 {/* TAN - Now checks backend uniqueness */}
                 <div>
                   <label htmlFor="tanNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                    TAN <span className="text-red-500">*</span>
+                    TAN 
+                    {/* <span className="text-red-500">*</span> */}
                     <TooltipHint hint="10-character Tax Deduction Account Number. Format: MUMA12345B" />
                   </label>
                   <div className="relative">
@@ -681,7 +684,7 @@ const isIndia = (country?: string) =>
                         }
                       }}
                       maxLength={10}
-                      required
+                      // required
                       placeholder="e.g. MUMA12345B"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
                     />
@@ -692,7 +695,9 @@ const isIndia = (country?: string) =>
                   {errors.tanNumber && <p className="text-red-500 text-xs mt-1">{errors.tanNumber}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency <span className="text-red-500">*</span><TooltipHint hint="Primary billing currency for this client" /></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency 
+                    <span className="text-red-500">*</span>
+                    <TooltipHint hint="Primary billing currency for this client" /></label>
                   <select
                     name="currency"
                     value={formData.currency}
@@ -975,7 +980,8 @@ const isIndia = (country?: string) =>
                         {/* Email */}
                         <div className="relative">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Email {i === 0 && <span className="text-red-500">*</span>}
+                            Email 
+                            {/* {i === 0 && <span className="text-red-500">*</span>} */}
                             {i === 0 && <TooltipHint hint="Official email of the contact person" />}
                           </label>
                           <input
@@ -1013,7 +1019,7 @@ const isIndia = (country?: string) =>
                             }}
                             placeholder="anita.sharma@company.com"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                            required={i === 0}
+                            // required={i === 0}
                           />
                           {checking.has(`clientPocs.${i}.email`) && (
                             <Loader2 className="absolute right-3 top-10 h-4 w-4 animate-spin text-gray-500" />
@@ -1026,7 +1032,8 @@ const isIndia = (country?: string) =>
                         {/* Contact Number */}
                         <div className="relative">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Contact Number {i === 0 && <span className="text-red-500">*</span>}
+                            Contact Number 
+                            {/* {i === 0 && <span className="text-red-500">*</span>} */}
                             {i === 0 && <TooltipHint hint="10-digit mobile number of the contact" />}
                           </label>
                           <input
@@ -1044,7 +1051,7 @@ const isIndia = (country?: string) =>
                             maxLength={10}
                             placeholder="9876543210"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                            required={i === 0}
+                            // required={i === 0}
                           />
                           {checking.has(`clientPocs.${i}.contactNumber`) && (
                             <Loader2 className="absolute right-3 top-10 h-4 w-4 animate-spin text-gray-500" />
