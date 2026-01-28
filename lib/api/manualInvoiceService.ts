@@ -5,7 +5,7 @@ import api from "./axios";
 import {
   WebResponseDTO,
   ClientMinDTO,
-  EmployeeMinDTO,
+  ClientEmployeeMinResponseDTO,
   ManualInvoiceRequestDTO
 } from "./types";
 
@@ -36,9 +36,9 @@ export const manualInvoiceService = {
      // Get employees by client ID (minimal data) 
       async getEmployeesByClientId(
         clientId: string
-      ): Promise<WebResponseDTO<EmployeeMinDTO[]>> {
+      ): Promise<WebResponseDTO<ClientEmployeeMinResponseDTO[]>> {
         try {
-          const response: AxiosResponse<WebResponseDTO<EmployeeMinDTO[]>> =
+          const response: AxiosResponse<WebResponseDTO<ClientEmployeeMinResponseDTO[]>> =
             await api.get(`/admin/emp/all/min/${clientId}`);
       
           return response.data;

@@ -57,6 +57,9 @@ export default function AddOrganizationPage() {
     branchName: '',
     digitalSignature: null,
     addresses: [], // Initially empty
+    prefix: '',
+    sequenceNumber: undefined,
+    companyType: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checking, setChecking] = useState<Set<string>>(new Set());
@@ -408,6 +411,9 @@ export default function AddOrganizationPage() {
       form.append("bankName", formData.bankName);
       form.append("ifscCode", formData.ifscCode);
       form.append("branchName", formData.branchName);
+      form.append("prefix", formData.prefix || "");
+      form.append("sequenceNumber", String(formData.sequenceNumber ?? ""));
+      form.append("companyType", formData.companyType || "");
 
       if (formData.logo) form.append("logo", formData.logo);
       if (formData.digitalSignature) form.append("digitalSignature", formData.digitalSignature);
@@ -927,6 +933,67 @@ export default function AddOrganizationPage() {
                 {errors.branchName && <p className="text-red-500 text-xs mt-1">{errors.branchName}</p>}
               </div>
             </div>
+
+            {/* Prefix */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<div className="space-y-2">
+  <Label className="text-sm font-semibold text-gray-700">
+    Prefix <span className="text-red-500">*</span>
+    <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
+  </Label>
+  <Input
+    name="prefix"
+    value={formData.prefix}
+    onChange={handleChange}
+    onBlur={handleBlur}
+    maxLength={10}
+    className="h-12"
+    placeholder="INV"
+  />
+  {errors.prefix && <p className="text-red-500 text-xs">{errors.prefix}</p>}
+</div>
+
+{/* Sequence Number */}
+<div className="space-y-2">
+  <Label className="text-sm font-semibold text-gray-700">
+    Sequence Number <span className="text-red-500">*</span>
+    <TooltipHint hint="Starting sequence number (e.g., 1001)" />
+  </Label>
+  <Input
+    name="sequenceNumber"
+    type="number"
+    value={formData.sequenceNumber ?? ''}
+    onChange={(e) =>
+      setFormData(prev => ({
+        ...prev,
+        sequenceNumber: Number(e.target.value),
+      }))
+    }
+    onBlur={handleBlur}
+    className="h-12"
+    placeholder="1001"
+  />
+  {errors.sequenceNumber && <p className="text-red-500 text-xs">{errors.sequenceNumber}</p>}
+</div>
+
+{/* Company Type */}
+<div className="space-y-2">
+  <Label className="text-sm font-semibold text-gray-700">
+    Company Type <span className="text-red-500">*</span>
+    <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
+  </Label>
+  <Input
+    name="companyType"
+    value={formData.companyType}
+    onChange={handleChange}
+    onBlur={handleBlur}
+    maxLength={50}
+    className="h-12"
+    placeholder="Private Limited"
+  />
+  {errors.companyType && <p className="text-red-500 text-xs">{errors.companyType}</p>}
+</div>
+</div>
 
             {/* Digital Signature Upload */}
             <div className="space-y-2">

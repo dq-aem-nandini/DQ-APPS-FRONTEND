@@ -1197,6 +1197,10 @@ export interface OrganizationRequestDTO {
   digitalSignature: File | null; // binary
 
   addresses: AddressModel[];
+
+  prefix?: string;
+  sequenceNumber?: number;
+  companyType?: string;
 }
 
 
@@ -1224,6 +1228,9 @@ export interface OrganizationResponseDTO {
   branchName: string;
   digitalSignatureUrl: string;
   addresses: AddressModel[];
+  prefix?: string;
+  sequenceNumber?: number;
+  companyType?: string;
   createdAt: string;
   updatedAt: string;
   status: "ACTIVE" | "INACTIVE";
@@ -1657,6 +1664,12 @@ export interface ClientMinDTO {
   clientId: string;
   companyName: string;
 }
+
+export type ClientEmployeeMinResponseDTO = {
+  currency: 'INR' | 'USD';
+  employees: EmployeeMinDTO[];
+};
+
 export interface EmployeeMinDTO {
   employeeId: string;
   employeeName: string;
