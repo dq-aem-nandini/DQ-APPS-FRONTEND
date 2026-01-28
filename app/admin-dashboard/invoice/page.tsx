@@ -60,6 +60,7 @@ export default function InvoicesPage() {
   const [loadingClients, setLoadingClients] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [lockingInvoices, setLockingInvoices] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
   const [filters, setFilters] = useState<Filters>({
     clientId: "",
@@ -168,34 +169,49 @@ export default function InvoicesPage() {
 
   /* -------------------------- PDF DOWNLOAD HANDLER -------------------------- */
   const handleDownloadPDF = async (invoiceId: string) => {
+    const key = `${invoiceId}-PDF`;
+    if (downloading.has(key)) return;
+  
+    setDownloading(prev => new Set(prev).add(key));
+  
     try {
       const blob = await invoiceService.downloadInvoicePDF(invoiceId);
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     } catch (error: any) {
-      console.error('Failed to open PDF:', error);
+      console.error("Failed to open PDF:", error);
       Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: error.message || 'Failed to download PDF. Please try again.',
+        icon: "error",
+        title: "Oops...",
+        text: error.message || "Failed to download PDF. Please try again.",
+      });
+    } finally {
+      setDownloading(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
       });
     }
   };
+  
 
       /* -------------------------- Excel DOWNLOAD HANDLER -------------------------- */
       const handleDownloadExcel = async (invoiceId: string) => {
+        const key = `${invoiceId}-EXCEL`;
+        if (downloading.has(key)) return;
+      
+        setDownloading(prev => new Set(prev).add(key));
+      
         try {
           const blob = await invoiceService.downloadInvoiceExcel(invoiceId);
-      
           const url = URL.createObjectURL(blob);
       
           const a = document.createElement("a");
           a.href = url;
-          a.download = `invoice-${invoiceId}.xlsx`;   // file name
+          a.download = `invoice-${invoiceId}.xlsx`;
           a.click();
       
           URL.revokeObjectURL(url);
-      
         } catch (error: any) {
           console.error("Excel download failed:", error);
           Swal.fire({
@@ -203,8 +219,14 @@ export default function InvoicesPage() {
             title: "Oops...",
             text: error?.message || "Failed to download Excel. Please try again.",
           });
-          }
-        };
+        } finally {
+          setDownloading(prev => {
+            const next = new Set(prev);
+            next.delete(key);
+            return next;
+          });
+        }
+      };
 
   /* -------------------------- DELETE HANDLER -------------------------- */
   const handleDelete = async (invoiceId: string) => {
@@ -460,7 +482,9 @@ export default function InvoicesPage() {
                   {filteredInvoices.map((inv) => {
                     const isLocked = inv.locked === true;
                     const isLocking = lockingInvoices.has(`${inv.invoiceId}-LOCK`) || lockingInvoices.has(`${inv.invoiceId}-UNLOCK`);
-
+                    const isDownloadingPDF = downloading.has(`${inv.invoiceId}-PDF`);
+                    const isDownloadingExcel = downloading.has(`${inv.invoiceId}-EXCEL`);
+                  
                     return (
                       <TableRow
                         key={inv.invoiceId}
@@ -483,15 +507,22 @@ export default function InvoicesPage() {
                         <TableCell>
                           <div className="flex justify-end space-x-1">
                             {/* Download */}
+                           
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDownloadPDF(inv.invoiceId);
                               }}
-                              className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                              disabled={isDownloadingPDF}
+                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
+                                ${isDownloadingPDF ? "opacity-50 cursor-not-allowed" : "bg-background hover:bg-accent hover:text-accent-foreground"}`}
                               title="Download PDF"
                             >
-                              <Download className="h-4 w-4" />
+                              {isDownloadingPDF ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
                             </button>
 
                             <button
@@ -499,10 +530,16 @@ export default function InvoicesPage() {
                                 e.stopPropagation();
                                 handleDownloadExcel(inv.invoiceId);
                               }}
-                              className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                              disabled={isDownloadingExcel}
+                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
+                                ${isDownloadingExcel ? "opacity-50 cursor-not-allowed" : "bg-background hover:bg-accent hover:text-accent-foreground"}`}
                               title="Download Excel"
                             >
-                              <Download className="h-4 w-4" />
+                              {isDownloadingExcel ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
                             </button>
 
                             {/* Lock / Unlock */}
