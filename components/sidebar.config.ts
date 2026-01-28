@@ -14,7 +14,7 @@ export const sidebarConfig = {
     HR_COMMON: [
       { label: "Employees", href: "/admin-dashboard/employees" },
       { label: "Clients", href: "/admin-dashboard/clients" },
-      { label: "Organization", href: "/admin-dashboard/organization" },
+      // { label: "Organization", href: "/admin-dashboard/organization" },
       { label: "Leave Calendar", href: "/admin-dashboard/leaveCalendar" },
       { label: "Employee Leaves", href: "/admin-dashboard/leaves" },
       { label: "Add Holiday", href: "/admin-dashboard/holiday" },
