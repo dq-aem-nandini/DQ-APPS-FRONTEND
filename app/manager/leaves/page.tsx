@@ -1,18 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { leaveService } from '@/lib/api/leaveService';
 import {
-  PageLeaveResponseDTO,
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
   LeaveStatus,
   LeaveCategoryType,
   EmployeeDTO,
 } from '@/lib/api/types';
-import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
+import {ChevronLeft, ChevronRight} from 'lucide-react';
 import Swal from 'sweetalert2';
 import { adminService } from '@/lib/api/adminService';
 
@@ -25,8 +24,17 @@ const Leavespage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const hasAutoOpenedRef = useRef(false);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const pendingHighlightLeaveId = useRef<string | null>(null);
+  const openLeaveId =
+    searchParams.get("open") ||
+    searchParams.get("highlight") ||
+    searchParams.get("requestId");
   // const [confirmation, setConfirmation] = useState<string | null>(null);
   const [managerEmployees, setManagerEmployees] = useState<EmployeeDTO[]>([]);
+  const isAutoNavigatingRef = useRef(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(''); // '' = all
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
@@ -45,7 +53,111 @@ const Leavespage: React.FC = () => {
     sort: 'fromDate,desc',
   });
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
+ useEffect(() => {
+    if (!openLeaveId) return;
+  
+    pendingHighlightLeaveId.current = openLeaveId;
+    hasAutoOpenedRef.current = false; // reset auto open
+  
+  }, [openLeaveId]); // ✅ MUST depend on openLeaveId
+  
+  useEffect(() => {
+    if (!openLeaveId) return;
+  
+    // 🔥 Remove query params so refresh does NOTHING
+    router.replace(window.location.pathname, { scroll: false });
+  }, [openLeaveId, router]);
+  
+  useEffect(() => {
+    const targetLeaveId = pendingHighlightLeaveId.current;
+    if (!targetLeaveId) return;
+  
+    // 1️⃣ Pending tab → open modal
+    const pending = pendingLeaves.find(l => l.leaveId === targetLeaveId);
+    if (pending) {
+      hasAutoOpenedRef.current = true;
+      handleReviewLeave(pending);
+      pendingHighlightLeaveId.current = null;
+      return;
+    }
+  
+    // 2️⃣ Switch to ALL tab
+    if (activeTab !== 'all') {
+      setActiveTab('all');
+      return;
+    }
+  
+    // 3️⃣ Already on correct page → highlight
+    if (allLeaves.some(l => l.leaveId === targetLeaveId)) {
+      setTimeout(() => {
+        scrollAndHighlight(targetLeaveId);
+        pendingHighlightLeaveId.current = null;
+        hasAutoOpenedRef.current = true;
+      }, 200);
+      return;
+    }
+  
+    // 4️⃣ Find correct page
+    (async () => {
+      try {
+        const BIG_PAGE = 100;
+  
+        const res = await leaveService.getLeaveSummary(
+          selectedEmployeeId || undefined,
+          filters.month,
+          filters.leaveCategory,
+          filters.status,
+          undefined,
+          filters.futureApproved,
+          undefined,
+          0,
+          BIG_PAGE,
+          pagination.sort
+        );
+  
+        if (!res.flag || !res.response?.content) return;
+  
+        const index = res.response.content.findIndex(
+          l => l.leaveId === targetLeaveId
+        );
+  
+        if (index === -1) return;
+  
+        const targetPage = Math.floor(index / pagination.size);
+  
+        if (pagination.page !== targetPage) {
+          isAutoNavigatingRef.current = true;   // 🔒 LOCK
+          setPagination(prev => ({ ...prev, page: targetPage }));
+        }
+        
+      } catch {
+        // silent
+      }
+    })();
+  
+  }, [
+    activeTab,
+    pendingLeaves,
+    allLeaves,
+    filters,
+    selectedEmployeeId,
+    pagination.sort
+  ]);
+  
+  
+  const scrollAndHighlight = (leaveId: string) => {
+    const row = rowRefs.current[leaveId];
+    if (!row) return;
 
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    row.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+
+    setTimeout(() => {
+      row.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+      isAutoNavigatingRef.current = false; // ✅ ADD THIS
+    }, 4000);
+  };
   // Handle authentication redirect
   useEffect(() => {
     if (!user || !accessToken) {
@@ -76,7 +188,7 @@ const Leavespage: React.FC = () => {
       }
       if (activeTab === 'pending') {
         const response = await leaveService.getPendingLeaves();
-        console.log('🧩 Pending leaves fetched:', response);
+        // console.log('🧩 Pending leaves fetched:', response);
         setPendingLeaves(response);
         setTotalPages(1); // No pagination for pending leaves
       } else if (activeTab === 'all') {
@@ -92,7 +204,7 @@ const Leavespage: React.FC = () => {
           pagination.size,
           pagination.sort
         );
-        console.log('🧩 All leaves fetched:', response);
+        // console.log('🧩 All leaves fetched:', response);
         if (!response.flag || !response.response) {
           throw new Error(
             response.message.includes('assignedManager')
@@ -132,23 +244,32 @@ const Leavespage: React.FC = () => {
     }
   }, [fetchData, user, accessToken]);
 
+  useEffect(() => {
+    console.log('🟢 CURRENT PAGE:', pagination.page);
+  }, [pagination.page]);
+  
   // Handle filter changes
   const handleFilterChange = (key: keyof typeof filters, value: string | boolean | undefined) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value === '' ? undefined : value,
     }));
-    setPagination((prev) => ({ ...prev, page: 0 }));
-  };
+    if (!isAutoNavigatingRef.current) {
+      setPagination(prev => ({ ...prev, page: 0 }));
+    }
+      };
 
   // Handle sort changes
   const handleSortChange = (newSort: string) => {
-    setPagination((prev) => ({
+    setPagination(prev => ({
       ...prev,
-      sort: newSort.includes(',desc') ? newSort.replace(',desc', ',asc') : newSort.replace(',asc', ',desc'),
-      page: 0,
+      sort: newSort.includes(',desc')
+        ? newSort.replace(',desc', ',asc')
+        : newSort.replace(',asc', ',desc'),
+      page: isAutoNavigatingRef.current ? prev.page : 0,
     }));
   };
+  
 
   const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
     Swal.fire({
@@ -285,19 +406,6 @@ const Leavespage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      {/* Confirmation Message
-      {confirmation && (
-        <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-lg flex justify-between items-center mb-6">
-          <span>{confirmation}</span>
-          <button
-            onClick={() => setConfirmation(null)}
-            className="text-green-700 hover:text-green-900"
-          >
-            <XCircle size={20} />
-          </button>
-        </div>
-      )} */}
-
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-0">
         <div className="relative flex items-center justify-center mb-0">
@@ -313,7 +421,7 @@ const Leavespage: React.FC = () => {
           className={`px-4 py-2 font-medium ${activeTab === 'pending' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
           onClick={() => {
             setActiveTab('pending');
-            setPagination((prev) => ({ ...prev, page: 0 }));
+            // setPagination((prev) => ({ ...prev, page: 0 }));
           }}
         >
           Pending Leaves
@@ -322,7 +430,7 @@ const Leavespage: React.FC = () => {
           className={`px-4 py-2 font-medium ${activeTab === 'all' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
           onClick={() => {
             setActiveTab('all');
-            setPagination((prev) => ({ ...prev, page: 0 }));
+            // setPagination((prev) => ({ ...prev, page: 0 }));
           }}
         >
           All Leaves
@@ -357,8 +465,10 @@ const Leavespage: React.FC = () => {
                   const value = e.target.value;
                   setSelectedEmployeeId(value);
                   setFilters((prev) => ({ ...prev, employeeId: value || undefined }));
-                  setPagination((prev) => ({ ...prev, page: 0 }));
-                }}
+                  if (!isAutoNavigatingRef.current) {
+                    setPagination(prev => ({ ...prev, page: 0 }));
+                  }
+                                  }}
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All Employees</option>
@@ -412,8 +522,9 @@ const Leavespage: React.FC = () => {
           {activeTab === 'pending' ? 'Pending Leave Requests' : 'All Leave Requests'}
         </h3>
         {(activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+   <div className="overflow-x-auto">
+   <div className="min-w-[1100px]"> {/* 👈 force width so pagination aligns */}
+     <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
@@ -463,7 +574,15 @@ const Leavespage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
-                  <tr key={leave.leaveId} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={leave.leaveId}
+                    ref={(el) => {
+                      if (leave.leaveId) {
+                        rowRefs.current[leave.leaveId] = el;
+                      }
+                    }}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
                       {leave.employeeName ?? 'Unknown'}
                     </td>
@@ -533,26 +652,35 @@ const Leavespage: React.FC = () => {
               </tbody>
             </table>
             {activeTab === 'all' && (
-              <div className="flex justify-between items-center mt-4">
-                <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))}
-                  disabled={pagination.page === 0}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <ChevronLeft size={20} />
-                  <span>Previous</span>
-                </button>
-                <span className="text-sm text-gray-600">Page {pagination.page + 1} of {totalPages}</span>
-                <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
-                  disabled={pagination.page >= totalPages - 1}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <span>Next</span>
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            )}
+      <div className="flex justify-between items-center mt-4 px-2">
+        <button
+          onClick={() =>
+            setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))
+          }
+          disabled={pagination.page === 0}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+        >
+          <ChevronLeft size={20} />
+          <span>Previous</span>
+        </button>
+
+        <span className="text-sm text-gray-600 whitespace-nowrap">
+          Page {pagination.page + 1} of {totalPages}
+        </span>
+
+        <button
+          onClick={() =>
+            setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+          }
+          disabled={pagination.page >= totalPages - 1}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+        >
+          <span>Next</span>
+          <ChevronRight size={20} />
+        </button>
+      </div>
+    )}
+            </div>
           </div>
         ) : (
           <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>

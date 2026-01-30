@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { leaveService } from '@/lib/api/leaveService';
 import { adminService } from '@/lib/api/adminService';
-
 import {
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
@@ -33,9 +32,12 @@ const Leavespage: React.FC = () => {
   const [adjustPage, setAdjustPage] = useState(0);
   const ADJUST_PAGE_SIZE = 6;
   const searchParams = useSearchParams();
-  const hasAutoOpenedRef = useRef(false);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
-
+  const pendingHighlightLeaveId = useRef<string | null>(null);
+  const autoOpenRef = useRef<{
+    leaveId: string;
+    type: "PENDING" | "WITHDRAWN" | null;
+  } | null>(null);
   // Near other state declarations
   const [allEmployees, setAllEmployees] = useState<EmployeeDTO[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
@@ -62,6 +64,8 @@ const Leavespage: React.FC = () => {
   });
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
 
+  const hasOpenedModal = useRef(false);
+
   const handleAdjustmentChange = (employeeId: string, value: string) => {
     setAdjustments((prev) => ({
       ...prev,
@@ -69,72 +73,166 @@ const Leavespage: React.FC = () => {
     }));
   };
   useEffect(() => {
-    if (!openLeaveId) {
-      console.log("[AUTO-OPEN] No openLeaveId");
-      return;
-    }
-
-    if (hasAutoOpenedRef.current) {
-      console.log("[AUTO-OPEN] Already handled");
-      return;
-    }
-
-    if (loading) {
-      console.log("[AUTO-OPEN] Still loading, waiting");
-      return;
-    }
-
-    if (allLeaves.length === 0) {
-      console.log("[AUTO-OPEN] ALL leaves not loaded yet");
-      return;
-    }
-
-    const targetLeave = allLeaves.find(
-      (l) => l.leaveId === openLeaveId
-    );
-
-    if (!targetLeave) {
-      console.log("[AUTO-OPEN] Leave NOT found in ALL leaves:", openLeaveId);
-      return;
-    }
-
-    console.log("[AUTO-OPEN] Leave found in ALL:", {
-      leaveId: targetLeave.leaveId,
-      status: targetLeave.status,
-      activeTab
-    });
-
-    hasAutoOpenedRef.current = true;
-
-    // Clean URL immediately
+    if (!openLeaveId) return;
+  
+    autoOpenRef.current = {
+      leaveId: openLeaveId,
+      type: null,
+    };
+  
+    // 🔥 Clear URL so refresh does NOTHING
     router.replace(window.location.pathname, { scroll: false });
+  
+  }, []); // ⛔ DO NOT ADD DEPENDENCIES
+  useEffect(() => {
+    if (!openLeaveId) return;
+  
+    console.log("[INIT] Storing leaveId for auto-open/highlight:", openLeaveId);
+  
+    autoOpenRef.current = {
+      leaveId: openLeaveId,
+      type: null,
+    };
+  
+    // Store persistently so it survives URL clear + loading
+    pendingHighlightLeaveId.current = openLeaveId;
+  
+    router.replace(window.location.pathname, { scroll: false });
+  }, []);
 
-    if (activeTab !== "all") {
-      setActiveTab("all");
+  useEffect(() => {
+    if (!autoOpenRef.current) return;
+    if (activeTab !== "pending") return;
+    if (hasOpenedModal.current) return; // Prevent double open
+  
+    const found = pendingLeaves.find(
+      l => l.leaveId === autoOpenRef.current!.leaveId
+    );
+  
+    if (!found) return;
+  
+    console.log("✅ AUTO OPEN → PENDING MODAL");
+  
+    hasOpenedModal.current = true;
+  
+    setTimeout(() => {
+      handleReviewLeave(found);
+      autoOpenRef.current = null;
+    }, 5000);
+  
+  }, [activeTab]); // Removed pendingLeaves to prevent re-trigger
 
-      setTimeout(() => {
-        if (targetLeave.status === 'WITHDRAWN') {
-          scrollAndHighlight(targetLeave.leaveId!);
-        } else {
-          handleReviewLeave(targetLeave);
-        }
-      }, 1000);
-    } else {
-      if (targetLeave.status === 'WITHDRAWN') {
-        scrollAndHighlight(targetLeave.leaveId!);
-      } else {
-        handleReviewLeave(targetLeave);
+const effectRunCount = useRef(0);
+
+useEffect(() => {
+  const targetLeaveId = pendingHighlightLeaveId.current;
+  if (!targetLeaveId) return;
+
+  if (hasOpenedModal.current) return;
+
+  // ────────────────────────────────────────────────────────────────
+  // Critical: do NOT early-return on loading here anymore
+  // We want to keep running even during brief loading phases after page change
+  // ────────────────────────────────────────────────────────────────
+
+  const clearAfter = () => {
+    pendingHighlightLeaveId.current = null;
+    autoOpenRef.current = null;
+  };
+
+  // Pending modal (highest priority)
+  const pending = pendingLeaves.find(l => l.leaveId === targetLeaveId);
+  if (pending) {
+    hasOpenedModal.current = true;
+    setActiveTab("pending");
+    setTimeout(() => {
+      handleReviewLeave(pending);
+      clearAfter();
+    }, 200); // faster modal open
+    return;
+  }
+
+  // Force tab switch (only once)
+  if (activeTab !== "all") {
+    setActiveTab("all");
+    return;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Highlight if already visible (fast path)
+  // ────────────────────────────────────────────────────────────────
+  if (allLeaves.some(l => l.leaveId === targetLeaveId) && rowRefs.current[targetLeaveId]) {
+    setTimeout(() => {
+      scrollAndHighlight(targetLeaveId);
+      hasOpenedModal.current = true;
+      clearAfter();
+    }, 120);
+    return;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Only do BIG fetch if we haven't already started a jump
+  // ────────────────────────────────────────────────────────────────
+  if (pendingHighlightLeaveId.current !== targetLeaveId) return;
+
+  (async () => {
+    try {
+      const BIG_PAGE = 60;
+
+      const res = await leaveService.getLeaveSummary(
+        selectedEmployeeId,
+        filters.month,
+        filters.leaveCategory,
+        filters.status,
+        undefined,
+        filters.futureApproved,
+        undefined,
+        0,
+        BIG_PAGE,
+        pagination.sort
+      );
+
+      if (!res.flag || !res.response?.content) return;
+
+      const index = res.response.content.findIndex(l => l.leaveId === targetLeaveId);
+      if (index === -1) return;
+
+      const targetPage = Math.floor(index / pagination.size);
+
+      // Only jump if we're not already on the correct page
+      if (pagination.page !== targetPage) {
+        setPagination(prev => ({ ...prev, page: targetPage }));
       }
+
+      // Clear immediately after decision → stops duplicate calls
+      pendingHighlightLeaveId.current = null;
+
+      // Wait just long enough for most real APIs + React render
+      setTimeout(() => {
+        if (rowRefs.current[targetLeaveId]) {
+          scrollAndHighlight(targetLeaveId);
+        }
+        hasOpenedModal.current = true;
+        clearAfter();
+      }, 800); // 800 ms — sweet spot for most real apps
+
+    } catch {
+      // silent in production
+      pendingHighlightLeaveId.current = null;
     }
-
-  }, [
-    openLeaveId,
-    loading,
-    allLeaves,
-    activeTab,
-    router,
-  ]);
-
+  })();
+}, [
+  loading,               // still needed — but we no longer early return on it
+  activeTab,
+  pendingLeaves,
+  allLeaves,
+  selectedEmployeeId,
+  filters.month,
+  filters.leaveCategory,
+  filters.status,
+  filters.futureApproved,
+  pagination.sort,
+]);
 
   const handleSubmitAdjustments = async () => {
     const payload = Object.entries(adjustments)
@@ -190,16 +288,6 @@ const Leavespage: React.FC = () => {
       router.push('/auth/login');
     }
   }, [user, accessToken, router]);
-
-  useEffect(() => {
-    if (!openLeaveId) return;
-
-    // Only force ALL tab once
-    if (activeTab !== "all" && !hasAutoOpenedRef.current) {
-      setActiveTab("all");
-    }
-  }, [openLeaveId, activeTab]);
-
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -466,14 +554,29 @@ const Leavespage: React.FC = () => {
   const scrollAndHighlight = (leaveId: string) => {
     const row = rowRefs.current[leaveId];
     if (!row) return;
-
+  
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    row.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50');
-
+  
+    // Strong visual feedback
+    row.classList.add(
+      'ring-4',
+      'ring-indigo-600',
+      'ring-opacity-70',
+      'bg-indigo-50',
+      'shadow-lg',
+      'transition-all',
+      'duration-700'
+    );
+  
     setTimeout(() => {
-      row.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
-    }, 4000);
+      row.classList.remove(
+        'ring-4',
+        'ring-indigo-600',
+        'ring-opacity-70',
+        'bg-indigo-50',
+        'shadow-lg'
+      );
+    }, 8000); // 8 seconds — long enough to be noticed
   };
 
   if (loading) {
@@ -544,6 +647,8 @@ const Leavespage: React.FC = () => {
         <button
           className={`px-4 py-2 font-medium ${activeTab === 'pending' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
           onClick={() => {
+            autoOpenRef.current = null;
+
             setActiveTab('pending');
             setPagination((prev) => ({ ...prev, page: 0 }));
           }}
@@ -553,6 +658,7 @@ const Leavespage: React.FC = () => {
         <button
           className={`px-4 py-2 font-medium ${activeTab === 'all' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
           onClick={() => {
+            autoOpenRef.current = null;
             setActiveTab('all');
             setPagination((prev) => ({ ...prev, page: 0 }));
           }}
