@@ -17,6 +17,7 @@ const DASHBOARD_TITLES: Record<string, string> = {
   MANAGER: "Manager Dashboard",
   HR: "HR Dashboard",
   FINANCE: "Finance Dashboard",
+  SUPER_HR: "SuperHR Dashboard",
 };
 
 const Header = () => {

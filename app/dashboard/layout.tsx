@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute allowedRoles={['EMPLOYEE', 'MANAGER', 'HR', 'FINANCE']}>
+    <ProtectedRoute allowedRoles={['EMPLOYEE', 'MANAGER', 'HR', 'FINANCE', 'SUPER_HR']}>
       <div className="flex h-screen overflow-hidden">
         
         <div className="h-full overflow-hidden">
