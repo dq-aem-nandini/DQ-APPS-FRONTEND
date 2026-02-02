@@ -274,7 +274,7 @@ export const leaveService = {
           { params }
         );
 
-        console.log('🧩 Full leave summary API response:', response.data);
+        // console.log('🧩 Full leave summary API response:', response.data);
 
         if (response.data.flag && response.data.response) {
           return response.data;
@@ -318,7 +318,7 @@ export const leaveService = {
           '/employee/leave/pendingLeaves'
         );
 
-        console.log('🧩 Full pending leaves API response:', response.data.response);
+        // console.log('🧩 Full pending leaves API response:', response.data.response);
 
         if (response.data.flag && response.data.response) {
           return response.data.response;

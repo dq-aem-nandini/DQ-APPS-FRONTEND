@@ -241,53 +241,68 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   // ------------------------------------------------------------
   const handleOpenNotification = async (notification: NotificationDTO) => {
     console.log("[NOTIF CLICK] Starting handler for notification:", {
-      id: notification.id,
-      type: notification.notificationType,
-      referenceId: notification.referenceId,
-      read: notification.read,
-      userRole,
-    });
+    id: notification.id,
+    type: notification.notificationType,
+    referenceId: notification.referenceId,
+    read: notification.read,
+    userRole,
+  });
 
     try {
       // ✅ Mark as read
       if (!notification.read) {
         await notificationService.markAsRead([notification.id]);
-        setNotifications((prev) =>
-          prev.map((n) =>
+        setNotifications(prev =>
+          prev.map(n =>
             n.id === notification.id ? { ...n, read: true } : n
           )
         );
       }
-
+  
       setDropdownOpen(false);
-
-      // ✅ BASE PATH
+  
+            // ✅ BASE PATH
       const isAdmin = userRole === "ADMIN";
       const basePath = isAdmin ? "/admin-dashboard" : "/dashboard";
-
-      // ✅ TARGET PATH
+  
+            // ✅ TARGET PATH
       let targetPath = basePath;
-      const type = (notification.notificationType || "").toUpperCase().trim();
-
+      const type = (notification.notificationType || "").toUpperCase();
+  
       if (type.includes("LEAVE")) {
-        targetPath = `${basePath}/leaves`;
-
+        if (userRole === "MANAGER") {
+          const loggedInUserId = state.user?.userId;
+          const notifEmployeeId = notification.employeeId;
+          const message = notification.message?.toLowerCase() || "";
+  
+          if (loggedInUserId === notifEmployeeId) {
+            targetPath = "/dashboard/leaves/history";
+          } else {
+            targetPath = "/manager/leaves";
+          }
+  
+        } else if (userRole === "ADMIN") {
+          targetPath = "/admin-dashboard/leaves";
+        } else {
+          targetPath = "/dashboard/leaves/history";
+        }
+  
       } else if (type.includes("TIMESHEET")) {
         targetPath = isAdmin
           ? `${basePath}/timesheet`
-          : `${basePath}/TimeSheetRegister`; // ✅ FIXED
-
+          : `${basePath}/TimeSheetRegister`;
+  
       } else if (type.includes("HOLIDAY")) {
         targetPath = `${basePath}/holiday`;
-
+  
       } else if (type.includes("INVOICE")) {
         targetPath = `${basePath}/invoice`;
-
+  
       } else if (type.includes("SALARY")) {
         targetPath = isAdmin
-          ? `${basePath}/salaries` // ✅ FIXED
+          ? `${basePath}/salaries`
           : `${basePath}/salary`;
-
+  
       } else if (
         type.includes("UPDATEREQUEST") ||
         type.includes("UPDATE_REQUEST") ||
@@ -295,26 +310,18 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       ) {
         targetPath = `${basePath}/updaterequest`;
       }
-
-      // ✅ FINAL URL
+  
+      
       let finalUrl = targetPath;
+  
       if (notification.referenceId) {
-        console.log(
-          "[NOTIF → URL] referenceId from notification:",
-          notification.referenceId,
-          "type:", typeof notification.referenceId
-        );
         finalUrl += `?requestId=${encodeURIComponent(notification.referenceId)}`;
       }
-
-      console.log("[NOTIF CLICK] Navigating to:", finalUrl);
-
-      setTimeout(() => {
-        window.location.href = finalUrl;
-      }, 300);
-
+  
+      window.location.href = finalUrl;
+  
     } catch (error) {
-      console.error("[NOTIF CLICK] FAILED:", error);
+      console.error("Notification handling failed:", error);
       setSelectedNotification(notification);
       setShowModal(true);
     }
@@ -340,7 +347,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`group flex items-start px-5 py-4 border-b border-gray-100 last:border-none hover:bg-indigo-50/40 transition-all duration-150 cursor-pointer ${notification.read ? "bg-gray-50/70" : "bg-white"
+                  className={`group flex items-center px-5 py-4 border-b border-gray-100 last:border-none hover:bg-indigo-50/40 transition-all duration-150 cursor-pointer ${notification.read ? "bg-gray-50/70" : "bg-white"
                     }`}
                   onClick={() => handleOpenNotification(notification)}
                 >
@@ -361,7 +368,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                     </p>
                   </div>
 
-                  <div className="flex items-center space-x-3 ml-3 relative group">
+                  <div className="flex items-center space-x-3 ml-3 relative flex-shrink-0">
                     {/* Double tick (seen) / Single tick (unseen) */}
                     {notification.read ? (
                       <CheckCheck className="w-5 h-5 text-blue-600 flex-shrink-0" />
