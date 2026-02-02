@@ -1676,6 +1676,7 @@ export interface EmployeeMinDTO {
   employeeName: string;
   companyId: string;
   rateCard: number | null;
+  dateOfJoining: string;
 }
 export interface ManualInvoiceItemRequestDTO {
   employeeId: string;

@@ -37,8 +37,6 @@ const HrDashboard = () => {
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
-  const [totalTimesheets, setTotalTimesheets] = useState(0);
-  const [totalRevenue, setTotalRevenue] = useState(0);
   const [timesheetTrend, setTimesheetTrend] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,20 +57,19 @@ const HrDashboard = () => {
           employeesRes,
           pendingRes,
           timesheetsRes,
-          invoicesRes,
+          
         ] = await Promise.all([
           adminService.getAllClients(),
           adminService.getAllEmployees(),
           leaveService.getPendingLeaves(),
           timesheetService.getAllTimesheets({ startDate: monthStart, endDate: monthEnd, size: 1000 }),
-          invoiceService.getAllInvoices(),
+          
         ]);
 
         setTotalClients(clientsRes.response?.length || 0);
         setTotalEmployees(employeesRes.response?.length || 0);
         setPendingLeaves(pendingRes);
-        setTotalTimesheets(timesheetsRes.response?.length || 0);
-        setTotalRevenue(invoicesRes.reduce((sum: number, inv: any) => sum + inv.totalAmount, 0));
+        
 
         const days = eachDayOfInterval({ start: startOfMonth(today), end: endOfMonth(today) });
         const trend = days.map(day => {
@@ -166,20 +163,6 @@ const HrDashboard = () => {
           border="border-amber-200"
           badge={pendingLeaves.length > 0}
         />
-        <ResponsiveMetricCard
-          icon={<FileText className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />}
-          title="Timesheets"
-          value={totalTimesheets}
-          bg="bg-emerald-50"
-          border="border-emerald-200"
-        />
-        <ResponsiveMetricCard
-          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />}
-          title="Revenue"
-          value={`₹${totalRevenue.toLocaleString('en-IN')}`}
-          bg="bg-purple-50"
-          border="border-purple-200"
-        />
       </div>
 
       {/* Charts + Pending Leaves - Stack on Mobile */}
@@ -232,37 +215,6 @@ const HrDashboard = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Quick Actions - Stack on Mobile */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-        <ResponsiveActionCard
-          icon={<Users className="w-5 h-5 sm:w-6 sm:h-6" />}
-          title="Employees"
-          description="Manage team"
-          href="/hr/employees"
-          bg="bg-sky-50"
-          hover="hover:bg-sky-100"
-          border="border-sky-200"
-        />
-        <ResponsiveActionCard
-          icon={<Building2 className="w-5 h-5 sm:w-6 sm:h-6" />}
-          title="Clients"
-          description="View clients"
-          href="/hr/clients"
-          bg="bg-teal-50"
-          hover="hover:bg-teal-100"
-          border="border-teal-200"
-        />
-        <ResponsiveActionCard
-          icon={<FileText className="w-5 h-5 sm:w-6 sm:h-6" />}
-          title="Invoices"
-          description="Track revenue"
-          href="/hr/invoice"
-          bg="bg-emerald-50"
-          hover="hover:bg-emerald-100"
-          border="border-emerald-200"
-        />
       </div>
     </div>
   );

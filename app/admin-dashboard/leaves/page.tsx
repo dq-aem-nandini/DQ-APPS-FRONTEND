@@ -300,15 +300,6 @@ const Leavespage: React.FC = () => {
     setPagination((prev) => ({ ...prev, page: 0 }));
   };
  
-  // Handle sort changes
-  const handleSortChange = (newSort: string) => {
-    setPagination((prev) => ({
-      ...prev,
-      sort: newSort.includes(',desc') ? newSort.replace(',desc', ',asc') : newSort.replace(',asc', ',desc'),
-      page: 0,
-    }));
-  };
- 
   // Handle review leave
   const handleReviewLeave = (
     leave: LeaveResponseDTO | PendingLeavesResponseDTO
@@ -647,23 +638,11 @@ const Leavespage: React.FC = () => {
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSortChange('leaveCategoryType,desc')}
-                        className="flex justify-center items-center gap-1 w-full"
-                      >
-                        Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' :
-                          pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
-                      </button>
+                        Type 
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSortChange('leaveDuration,desc')}
-                        className="flex justify-center items-center gap-1 w-full"
-                      >
-                        Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' :
-                          pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
-                      </button>
+                        Duration 
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
@@ -671,33 +650,17 @@ const Leavespage: React.FC = () => {
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSortChange('fromDate,desc')}
-                        className="flex justify-center items-center gap-1 w-full"
-                      >
-                        From Date {pagination.sort.includes('fromDate,desc') ? '↓' :
-                          pagination.sort.includes('fromDate,asc') ? '↑' : ''}
-                      </button>
+                        From Date 
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSortChange('toDate,desc')}
-                        className="flex justify-center items-center gap-1 w-full"
-                      >
-                        To Date {pagination.sort.includes('toDate,desc') ? '↓' :
-                          pagination.sort.includes('toDate,asc') ? '↑' : ''}
-                      </button>
+                      
+                        To Date 
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSortChange('status,desc')}
-                        className="flex justify-center items-center gap-1 w-full"
-                      >
-                        Status {pagination.sort.includes('status,desc') ? '↓' :
-                          pagination.sort.includes('status,asc') ? '↑' : ''}
-                      </button>
+                     
+                        Status 
                     </th>
  
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">

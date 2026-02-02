@@ -23,36 +23,36 @@ export const sidebarConfig = {
   //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },
   // ],
   SUPER_HR: [
-    {
-      permission: "APPLY_LEAVE",
-      label: "Apply Leave",
-      href: "/superhr/applyLeave",
-    },
-    {
-      permission: "DELETE_LEAVE",
-      label: "Delete Leave",
-      href: "/superhr/deleteLeave",
-    },
+    // {
+    //   permission: "APPLY_LEAVE",
+    //   label: "Apply Leave",
+    //   href: "/superhr/applyLeave",
+    // },
+    // {
+    //   permission: "DELETE_LEAVE",
+    //   label: "Delete Leave",
+    //   href: "/superhr/deleteLeave",
+    // },
     {
       permission: "SUBMIT_TIMESHEET",
-      label: "Submit Timesheet",
-      href: "/superhr/submitTimesheet",
+      label: "Timesheet",
+      href: "/manager/SHR-Timesheet",
     },
-    {
-      permission: "DELETE_TIMESHEET",
-      label: "Delete Timesheet",
-      href: "/superhr/deleteTimesheet",
-    },
+    // {
+    //   permission: "DELETE_TIMESHEET",
+    //   label: "Delete Timesheet",
+    //   href: "/superhr/deleteTimesheet",
+    // },
     {
       permission: "ADD_HOLIDAY",
       label: "Add Holiday",
       href: "/superhr/addHoliday",
     },
-    {
-      permission: "DELETE_HOLIDAY",
-      label: "Delete Holiday",
-      href: "/superhr/deleteHoliday",
-    },
+    // {
+    //   permission: "DELETE_HOLIDAY",
+    //   label: "Delete Holiday",
+    //   href: "/superhr/deleteHoliday",
+    // },
   ],
 
 
