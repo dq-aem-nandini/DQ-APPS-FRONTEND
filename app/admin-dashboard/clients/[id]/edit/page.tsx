@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { adminService } from '@/lib/api/adminService';
 import { UniqueField, validationService } from '@/lib/api/validationService';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Trash2, Plus } from 'lucide-react';
 import Swal from 'sweetalert2';
+import isEqual from 'lodash/isEqual';
 
 type FormDataType = {
   clientId: string;
@@ -129,7 +130,7 @@ export default function EditClientPage() {
         };
 
         setFormData(loadedData);
-+       setOriginalData(loadedData);
++       setOriginalData(JSON.parse(JSON.stringify(loadedData)));
 
         if (dto.addresses && dto.addresses.length > 0) {
           dto.addresses.forEach(async (addr: any, index: number) => {
@@ -159,9 +160,10 @@ export default function EditClientPage() {
   // ──────────────────────────────────────────────────────────────
   //           Add this new memoized value
   // ──────────────────────────────────────────────────────────────
-   const hasChanges = originalData
-   ? JSON.stringify(formData) !== JSON.stringify(originalData)
-   : false;
+  const hasChanges = useMemo(() => {
+    if (!originalData) return false;
+    return !isEqual(formData, originalData);
+  }, [formData, originalData]);  
 
   // Manual validation
   const validateField = (name: string, value: string | number, index?: number) => {
@@ -384,61 +386,161 @@ if (
     }));
   };
 
+  // const onSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   // if (!hasChanges) return;
+  //   if (!hasChanges) {
+  //     await Swal.fire(
+  //       'No changes detected',
+  //       'Modify something before updating the client.',
+  //       'info'
+  //     );
+  //     return;
+  //   }
+    
+  //   setErrors({}); // Clear previous errors
+  //   const requiredFields = [
+  //     { value: formData.companyName, name: 'companyName', label: 'Company Name' },
+  //     { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
+  //     { value: formData.email, name: 'email', label: 'Email' },
+  //     { value: formData.gst, name: 'gst', label: 'GST' },
+  //     { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
+  //     { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
+  //     { value: formData.currency, name: 'currency', label: 'Currency' },
+  //     { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
+  //     { value: formData.addresses[0]?.state, name: 'addresses.0.state', label: 'State (Address)' },
+  //     { value: formData.addresses[0]?.pincode, name: 'addresses.0.pincode', label: 'Pincode (Address)' },
+  //     { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
+  //     { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
+  //     { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
+  //     { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
+  //   ];
+
+  //   const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
+  //   if (missingField) {
+  //     const errorMsg = `${missingField.label} is required`;
+  //     setErrors({ [missingField.name]: errorMsg });
+
+  //     setTimeout(() => {
+  //       const input = document.querySelector(`[name="${missingField.name}"]`) as HTMLElement;
+  //       if (input) {
+  //         input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  //         input.focus();
+  //         input.classList.add('error-field');
+  //       }
+  //     }, 100);
+
+  //     return;
+  //   }
+
+  //   // If all required fields are filled, proceed
+  //   try {
+  //     const payload = {
+  //       companyName: formData.companyName.trim(),
+  //       contactNumber: formData.contactNumber,
+  //       email: formData.email.toLowerCase().trim(),
+  //       gst: formData.gst.toUpperCase(),
+  //       panNumber: formData.panNumber.toUpperCase(),
+  //       tanNumber: formData.tanNumber.toUpperCase(),
+  //       currency: formData.currency,
+
+  //       addresses: formData.addresses.map(a => ({
+  //         // addressId: a.addressId,
+  //         addressId:
+  //           a.addressId && typeof a.addressId === "string" && a.addressId.length > 10
+  //             ? a.addressId
+  //             : null,
+  //         houseNo: a.houseNo?.trim() || '',
+  //         streetName: a.streetName?.trim() || '',
+  //         city: a.city.trim(),
+  //         state: a.state.trim(),
+  //         pincode: a.pincode,
+  //         country: a.country.trim(),
+  //         addressType: a.addressType,
+  //       })),
+
+  //       clientPocs: formData.clientPocs.map(p => ({
+  //         // pocId: p.pocId,
+  //         pocId:
+  //           p.pocId && typeof p.pocId === "string" && p.pocId.length > 10
+  //             ? p.pocId
+  //             : null,
+  //         name: p.name.trim(),
+  //         email: p.email.toLowerCase().trim(),
+  //         contactNumber: p.contactNumber,
+  //         designation: p.designation?.trim() || '',
+  //       })),
+
+  //       clientTaxDetails: formData.clientTaxDetails
+  //         .filter(t => t.taxName?.trim())  // ← Only include if taxName exists
+  //         .map(t => ({
+  //           taxId:
+  //             t.taxId && typeof t.taxId === "string" && t.taxId.length > 10
+  //               ? t.taxId
+  //               : null, taxName: t.taxName!.trim(),
+  //           taxPercentage: Number(t.taxPercentage) || 0,
+  //         })),
+  //     };
+
+  //     await adminService.updateClient(id, payload);
+  //     await Swal.fire('Success!', `${formData.companyName} has been updated Successfully.`, 'success');
+
+  //     router.push('/admin-dashboard/clients/list');
+
+  //   } catch (err: any) {
+  //     let backendMessage = 'Failed to update client';
+
+  //     if (err.response?.data) {
+  //       const data = err.response.data;
+  //       if (data.message) {
+  //         backendMessage = data.message;
+  //       }
+  //       else if (data.errors && typeof data.errors === 'object') {
+  //         const firstError = Object.values(data.errors)[0];
+  //         backendMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
+  //       }
+  //     } else if (err.message) {
+  //       backendMessage = err.message;
+  //     }
+  //     await Swal.fire({
+  //       icon: 'error',
+  //       title: 'Error',
+  //       text: backendMessage,
+  //       confirmButtonColor: '#ef4444',
+  //       background: '#fef2f2',
+  //       customClass: {
+  //         popup: 'animate__animated animate__shakeX',
+  //       },
+  //     });
+  //   }
+  // };
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasChanges) return;
-    setErrors({}); // Clear previous errors
-    const requiredFields = [
-      { value: formData.companyName, name: 'companyName', label: 'Company Name' },
-      { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
-      { value: formData.email, name: 'email', label: 'Email' },
-      { value: formData.gst, name: 'gst', label: 'GST' },
-      { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
-      { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
-      { value: formData.currency, name: 'currency', label: 'Currency' },
-      { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
-      { value: formData.addresses[0]?.state, name: 'addresses.0.state', label: 'State (Address)' },
-      { value: formData.addresses[0]?.pincode, name: 'addresses.0.pincode', label: 'Pincode (Address)' },
-      { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
-      { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
-      { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
-      { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
-    ];
-
-    const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
-    if (missingField) {
-      const errorMsg = `${missingField.label} is required`;
-      setErrors({ [missingField.name]: errorMsg });
-
-      setTimeout(() => {
-        const input = document.querySelector(`[name="${missingField.name}"]`) as HTMLElement;
-        if (input) {
-          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          input.focus();
-          input.classList.add('error-field');
-        }
-      }, 100);
-
+  
+    if (!hasChanges) {
+      await Swal.fire(
+        'No changes detected',
+        'Modify something before updating the client.',
+        'info'
+      );
       return;
     }
-
-    // If all required fields are filled, proceed
+  
+    setErrors({});
+  
     try {
       const payload = {
         companyName: formData.companyName.trim(),
         contactNumber: formData.contactNumber,
-        email: formData.email.toLowerCase().trim(),
-        gst: formData.gst.toUpperCase(),
-        panNumber: formData.panNumber.toUpperCase(),
-        tanNumber: formData.tanNumber.toUpperCase(),
+        email: formData.email?.toLowerCase().trim() || '',
+        gst: formData.gst?.toUpperCase().trim() || '',
+        panNumber: formData.panNumber?.toUpperCase().trim() || '',
+        tanNumber: formData.tanNumber?.toUpperCase().trim() || '',
         currency: formData.currency,
-
+  
         addresses: formData.addresses.map(a => ({
-          // addressId: a.addressId,
           addressId:
-            a.addressId && typeof a.addressId === "string" && a.addressId.length > 10
-              ? a.addressId
-              : null,
+            a.addressId && a.addressId.length > 10 ? a.addressId : null,
           houseNo: a.houseNo?.trim() || '',
           streetName: a.streetName?.trim() || '',
           city: a.city.trim(),
@@ -447,62 +549,46 @@ if (
           country: a.country.trim(),
           addressType: a.addressType,
         })),
-
+  
         clientPocs: formData.clientPocs.map(p => ({
-          // pocId: p.pocId,
           pocId:
-            p.pocId && typeof p.pocId === "string" && p.pocId.length > 10
-              ? p.pocId
-              : null,
+            p.pocId && p.pocId.length > 10 ? p.pocId : null,
           name: p.name.trim(),
-          email: p.email.toLowerCase().trim(),
-          contactNumber: p.contactNumber,
+          email: p.email?.toLowerCase().trim() || '',
+          contactNumber: p.contactNumber || '',
           designation: p.designation?.trim() || '',
         })),
-
+  
         clientTaxDetails: formData.clientTaxDetails
-          .filter(t => t.taxName?.trim())  // ← Only include if taxName exists
+          .filter(t => t.taxName?.trim())
           .map(t => ({
             taxId:
-              t.taxId && typeof t.taxId === "string" && t.taxId.length > 10
-                ? t.taxId
-                : null, taxName: t.taxName!.trim(),
+              t.taxId && t.taxId.length > 10 ? t.taxId : null,
+            taxName: t.taxName!.trim(),
             taxPercentage: Number(t.taxPercentage) || 0,
           })),
       };
-
+  
       await adminService.updateClient(id, payload);
-      await Swal.fire('Success!', `${formData.companyName} has been updated Successfully.`, 'success');
-
+  
+      await Swal.fire(
+        'Success!',
+        `${formData.companyName} updated successfully.`,
+        'success'
+      );
+  
       router.push('/admin-dashboard/clients/list');
-
+  
     } catch (err: any) {
-      let backendMessage = 'Failed to update client';
-
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (data.message) {
-          backendMessage = data.message;
-        }
-        else if (data.errors && typeof data.errors === 'object') {
-          const firstError = Object.values(data.errors)[0];
-          backendMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
-        }
-      } else if (err.message) {
-        backendMessage = err.message;
-      }
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: backendMessage,
-        confirmButtonColor: '#ef4444',
-        background: '#fef2f2',
-        customClass: {
-          popup: 'animate__animated animate__shakeX',
-        },
-      });
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to update client';
+  
+      await Swal.fire('Error', msg, 'error');
     }
   };
+  
 
   if (loading) {
     return (
