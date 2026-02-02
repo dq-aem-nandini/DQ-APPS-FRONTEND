@@ -1631,7 +1631,7 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Onboarding To Client
-                      {/* <span className="text-red-500">*</span> */}
+                      <span className="text-red-500">*</span>
                       {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input

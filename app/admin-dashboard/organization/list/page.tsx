@@ -109,9 +109,9 @@ export default function OrganizationListPage() {
       cancelButtonText: 'Cancel',
       reverseButtons: true,
     });
-  
+
     if (!result.isConfirmed) return;
-  
+
     // Show loading
     Swal.fire({
       title: 'Deleting...',
@@ -122,14 +122,14 @@ export default function OrganizationListPage() {
         Swal.showLoading();
       },
     });
-  
+
     try {
       const res = await organizationService.delete(id);
-  
+
       if (res.flag) {
         setOrganizations(prev => prev.filter(o => o.organizationId !== id));
         setFiltered(prev => prev.filter(o => o.organizationId !== id));
-  
+
         Swal.fire({
           icon: 'success',
           title: 'Deleted!',
@@ -225,108 +225,108 @@ export default function OrganizationListPage() {
           </div>
 
           {/* Responsive Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+          <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-auto max-h-[70vh]">
+            {/* <div className="overflow-x-auto"> */}
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-4 py-3 text-center  text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Organization
+                  </th>
+                  <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                    Email
+                  </th>
+                  <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                    Contact
+                  </th>
+                  <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                    Location
+                  </th>
+
+                  <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filtered.length === 0 ? (
                   <tr>
-                    <th className="px-4 py-3 text-center  text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Organization
-                    </th>
-                    <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                      Email
-                    </th>
-                    <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                      Contact
-                    </th>
-                    <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
-                      Location
-                    </th>
-
-                    <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      No organizations found.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                        No organizations found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((org) => {
-                      const primaryAddr = org.addresses?.[0];
+                ) : (
+                  filtered.map((org) => {
+                    const primaryAddr = org.addresses?.[0];
 
-                      return (
-                        <tr key={org.organizationId} className="hover:bg-gray-50 transition">
-                          {/* Organization Name + Logo */}
-                          <td className="px-4 py-4 whitespace-nowrap text-center ">
-                            <div className="flex items-center justify-center gap-3">
-                              <div>
-                                <div className="text-sm font-semibold text-gray-900">
-                                  {show(org.organizationName)}
-                                </div>
+                    return (
+                      <tr key={org.organizationId} className="hover:bg-gray-50 transition">
+                        {/* Organization Name + Logo */}
+                        <td className="px-4 py-4 whitespace-nowrap text-center ">
+                          <div className="flex items-center justify-center gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">
+                                {show(org.organizationName)}
                               </div>
                             </div>
-                          </td>
+                          </div>
+                        </td>
 
-                          {/* Email */}
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell text-center ">
-                            <div className="flex items-center justify-center gap-2">
-                              {show(org.email)}
-                            </div>
-                          </td>
+                        {/* Email */}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell text-center ">
+                          <div className="flex items-center justify-center gap-2">
+                            {show(org.email)}
+                          </div>
+                        </td>
 
-                          {/* Contact Number */}
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell text-center ">
-                            <div className="flex items-center justify-center gap-2">
-                              {show(org.contactNumber)}
-                            </div>
-                          </td>
+                        {/* Contact Number */}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell text-center ">
+                          <div className="flex items-center justify-center gap-2">
+                            {show(org.contactNumber)}
+                          </div>
+                        </td>
 
-                          {/* City */}
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell text-center ">
-                            <div className="flex items-center gap-2 justify-center ">
-                              {primaryAddr ? `${show(primaryAddr.city)}, ${show(primaryAddr.state)}` : '—'}
-                            </div>
-                          </td>
-                          {/* Actions */}
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-center ">
-                            <div className="flex items-center justify-center gap-3">
-                              <Link
-                                href={`/admin-dashboard/organization/${org.organizationId}`}
-                                className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm"
-                              >
-                                View
-                              </Link>
-                              <Link
-                                href={`/admin-dashboard/organization/${org.organizationId}/edit`}
-                                className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm"
-                              >
-                                Edit
-                              </Link>
-                              <button
-                                onClick={() => handleDelete(org.organizationId)}
-                                disabled={deletingId === org.organizationId}
-                                className="text-red-600 hover:text-red-900 disabled:opacity-50 text-xs sm:text-sm"
-                              >
-                                {deletingId === org.organizationId ? (
-                                  <>Deleting...</>
-                                ) : (
-                                  'Delete'
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        {/* City */}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell text-center ">
+                          <div className="flex items-center gap-2 justify-center ">
+                            {primaryAddr ? `${show(primaryAddr.city)}, ${show(primaryAddr.state)}` : '—'}
+                          </div>
+                        </td>
+                        {/* Actions */}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-center ">
+                          <div className="flex items-center justify-center gap-3">
+                            <Link
+                              href={`/admin-dashboard/organization/${org.organizationId}`}
+                              className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm"
+                            >
+                              View
+                            </Link>
+                            <Link
+                              href={`/admin-dashboard/organization/${org.organizationId}/edit`}
+                              className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(org.organizationId)}
+                              disabled={deletingId === org.organizationId}
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50 text-xs sm:text-sm"
+                            >
+                              {deletingId === org.organizationId ? (
+                                <>Deleting...</>
+                              ) : (
+                                'Delete'
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+            {/* </div> */}
           </div>
 
           {/* Mobile Card View */}
