@@ -7,20 +7,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { sidebarConfig } from "./sidebar.config";
 
-// TYPES
-export type Role =
-  | "ADMIN"
-  | "EMPLOYEE"
-  | "MANAGER"
-  | "HR"
-  | "FINANCE"
-  | "SUPER_HR";
-
-interface SidebarItem {
-  label: string;
-  href: string;
-  permission?: string;
-}
+// ✅ SHARED TYPES
 
 // ICONS
 import {
@@ -39,8 +26,11 @@ import {
   Receipt,
   CalendarDays,
 } from "lucide-react";
+import { Role, SidebarItem, SidebarRole } from "@/lib/api/types";
 
-// ICON MAP
+/* =====================
+   ICON MAP
+===================== */
 const ICON_MAP: Record<string, React.ReactNode> = {
   Dashboard: <Home size={18} />,
   Profile: <User size={18} />,
@@ -58,16 +48,17 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Invoices: <Receipt size={18} />,
   Employees: <Users size={18} />,
   Clients: <Users size={18} />,
-  Organization: <Users size={18} />,
 };
 
-// TYPE GUARD – only roles that exist in sidebarConfig
-type SidebarRole = "MANAGER" | "FINANCE" | "SUPER_HR";
-
-export const isSidebarRole = (role: Role): role is SidebarRole =>
+/* =====================
+   TYPE GUARD
+===================== */
+const isSidebarRole = (role: Role): role is SidebarRole =>
   role === "MANAGER" || role === "FINANCE" || role === "SUPER_HR";
 
-
+/* =====================
+   SIDEBAR
+===================== */
 export default function Sidebar() {
   const { state } = useAuth();
   const pathname = usePathname();
@@ -92,22 +83,22 @@ export default function Sidebar() {
             alt="DigiQuad Logo"
             width={50}
             height={50}
-            style={{ width: "auto" }}
             className="rounded-full shadow-sm"
           />
           <div className="text-2xl font-bold text-indigo-600">
             DigiQuad
           </div>
         </div>
-
-        {/* 🔹 COMMON (ALL ROLES) */}
-        {role !== "SUPER_HR" && (
+        {/* =====================
+    COMMON (EMPLOYEE, MANAGER,HR, FINANCE ONLY)
+===================== */}
+          {role !== "SUPER_HR" && (
           <SidebarSection title="Main">
             {sidebarConfig.common.map((item: SidebarItem) => (
               <SidebarLink
                 key={item.href}
                 href={item.href}
-                active={pathname === item.href}
+                active={pathname.startsWith(item.href)}
                 icon={getIcon(item.label)}
               >
                 {item.label}
@@ -117,14 +108,16 @@ export default function Sidebar() {
         )}
 
 
-        {/* 🔥 HR ADMIN LINKS (NO PERMISSION CHECK) */}
+        {/* =====================
+            HR ADMIN (NO PERMISSIONS)
+        ===================== */}
         {role === "HR" && sidebarConfig.HR_COMMON && (
-          <SidebarSection title="Admin Access">
+          <SidebarSection title="Main">
             {sidebarConfig.HR_COMMON.map((item: SidebarItem) => (
               <SidebarLink
                 key={item.href}
                 href={item.href}
-                active={pathname === item.href}
+                active={pathname.startsWith(item.href)}
                 icon={getIcon(item.label)}
               >
                 {item.label}
@@ -133,9 +126,30 @@ export default function Sidebar() {
           </SidebarSection>
         )}
 
-        {/* 🔹 ROLE-SPECIFIC (PERMISSION BASED) */}
-        {isSidebarRole(role) && (
-          <SidebarSection title={role}>
+        {/* =====================
+            SUPER_HR COMMON (NO PERMISSIONS)
+            👉 ONLY LEAVES
+        ===================== */}
+        {role === "SUPER_HR" && sidebarConfig.SUPERHR_COMMON && (
+          <SidebarSection title="Main">
+            {sidebarConfig.SUPERHR_COMMON.map((item: SidebarItem) => (
+              <SidebarLink
+                key={item.href}
+                href={item.href}
+                active={pathname.startsWith(item.href)}
+                icon={getIcon(item.label)}
+              >
+                {item.label}
+              </SidebarLink>
+            ))}
+          </SidebarSection>
+        )}
+
+        {/* =====================
+            ROLE-SPECIFIC (PERMISSION BASED)
+        ===================== */}
+        {isSidebarRole(role) && sidebarConfig[role] && (
+          <SidebarSection title={role.replace("_", " ")}>
             {sidebarConfig[role]
               .filter(
                 (item: SidebarItem) =>
@@ -146,7 +160,7 @@ export default function Sidebar() {
                 <SidebarLink
                   key={item.href}
                   href={item.href}
-                  active={pathname === item.href}
+                  active={pathname.startsWith(item.href)}
                   icon={getIcon(item.label)}
                 >
                   {item.label}
@@ -154,14 +168,14 @@ export default function Sidebar() {
               ))}
           </SidebarSection>
         )}
-
-
       </div>
     </aside>
   );
 }
 
-/* ---------------- SUB COMPONENTS ---------------- */
+/* =====================
+   SUB COMPONENTS
+===================== */
 
 function SidebarSection({
   title,
@@ -195,8 +209,8 @@ function SidebarLink({
     <Link
       href={href}
       className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${active
-          ? "bg-indigo-100 text-indigo-700 font-medium"
-          : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+        ? "bg-indigo-100 text-indigo-700 font-medium"
+        : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
         }`}
     >
       {icon}

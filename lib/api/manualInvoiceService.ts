@@ -33,19 +33,20 @@ export const manualInvoiceService = {
         }
       },
 
-     // Get employees by client ID (minimal data) 
-      async getEmployeesByClientId(
-        clientId: string
-      ): Promise<WebResponseDTO<ClientEmployeeMinResponseDTO[]>> {
-        try {
-          const response: AxiosResponse<WebResponseDTO<ClientEmployeeMinResponseDTO[]>> =
-            await api.get(`/admin/emp/all/min/${clientId}`);
-      
-          return response.data;
-        } catch (error: any) {
-          throw new Error(getBackendError(error));
-        }
-      },
+   // Get employees by client ID (minimal data)
+async getEmployeesByClientId(
+  clientId: string
+): Promise<WebResponseDTO<ClientEmployeeMinResponseDTO>> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<ClientEmployeeMinResponseDTO>> =
+      await api.get(`/admin/emp/all/min/${clientId}`);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+},
+
 
       // Generate manual invoice
       async generateManualInvoice(
