@@ -40,6 +40,82 @@ function getBackendError(error: any): string {
 
 export const leaveService = {
   /**
+ * SUPER HR / HR – Apply leave for an employee
+ */
+  async applyLeaveBySuperHR(
+    employeeId: string,
+    request: LeaveRequestDTO,
+    attachment?: File | null
+  ): Promise<LeaveResponseDTO> {
+    try {
+      if (!employeeId) {
+        throw new Error('employeeId is required');
+      }
+
+      const formData = new FormData();
+
+      Object.entries(request).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          formData.append(key, value.toString());
+        }
+      });
+
+      if (attachment) {
+        formData.append('attachmentFile', attachment);
+      }
+
+      const response: AxiosResponse<WebResponseDTOLeaveResponseDTO> =
+        await api.post(
+          `/super-hr/employee/applyLeave`,
+          formData,
+          {
+            params: { employeeId }, // ✅ REQUIRED
+            headers: { 'Content-Type': 'multipart/form-data' },
+          }
+        );
+
+      console.log('🧩 SuperHR apply leave response:', response.data.response);
+
+      if (response.data.flag && response.data.response) {
+        return response.data.response;
+      }
+
+      throw new Error(response.data.message || 'Failed to apply leave (SuperHR)');
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+  ,
+  /**
+   * SUPER HR / HR – Delete an employee leave
+   */
+  async deleteLeaveBySuperHR(leaveId: string): Promise<string> {
+    try {
+      if (!leaveId) {
+        throw new Error('leaveId is required');
+      }
+
+      const response: AxiosResponse<WebResponseDTOString> =
+        await api.delete(
+          `/super-hr/employee/leave/delete`,
+          {
+            params: { leaveId },
+            headers: { Accept: '*/*' },
+          }
+        );
+
+      console.log('🧩 SuperHR delete leave response:', response.data);
+
+      if (response.data.flag && response.data.response) {
+        return response.data.response;
+      }
+
+      throw new Error(response.data.message);
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  },
+  /**
    * Apply for a new leave (POST multipart/form-data; appends fields from LeaveRequestDTO).
    */
   async applyLeave(request: LeaveRequestDTO, attachment?: File | null): Promise<LeaveResponseDTO> {
@@ -180,28 +256,32 @@ export const leaveService = {
       throw new Error(getBackendError(error));
     }
   },
-
+  
   /**
-   * Calculate working days between dates (POST with body).
-   */
-  async calculateWorkingDays(range: DateRangeRequestDTO): Promise<WorkdayResponseDTO> {
-    try {
-      const response: AxiosResponse<WebResponseDTOWorkdayResponseDTO> = await api.post(
-        '/employee/workDays',
+ * Calculate working days between dates (POST with body + optional employeeId)
+ */
+async calculateWorkingDays( range: DateRangeRequestDTO, employeeId?: string ): Promise<WorkdayResponseDTO> {
+  try {
+    const params = new URLSearchParams();
+    // pass only if valid UUID (SUPER_HR case)
+    if (employeeId && employeeId.includes('-')) {
+      params.append('employeeId', employeeId);
+    }
+    const response: AxiosResponse<WebResponseDTOWorkdayResponseDTO> = await api.post(
+        `/employee/workDays?${params.toString()}`,
         range
       );
 
-      console.log('🧩 Full calculate working days API response:', response.data.response);
-
-      if (response.data.flag && response.data.response) {
-        return response.data.response;
-      }
-
-      throw new Error(response.data.message || 'Failed to calculate working days');
-    } catch (error: any) {
-      throw new Error(getBackendError(error));
+    if (response.data.flag && response.data.response) {
+      return response.data.response;
     }
-  },
+
+    throw new Error( response.data.message || 'Failed to calculate working days');
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+},
+
 
   /**
    * Check leave availability (POST with query params).
@@ -209,7 +289,7 @@ export const leaveService = {
 
   async checkLeaveAvailability(employeeId: string, leaveDuration: number): Promise<LeaveAvailabilityDTO> {
     // Client-side validation    
-    if (!employeeId || typeof employeeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(employeeId)){
+    if (!employeeId || typeof employeeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(employeeId)) {
       throw new Error('Invalid employee ID: must be a valid UUID string');
     }
     if (!Number.isFinite(leaveDuration) || leaveDuration <= 0) {
@@ -390,50 +470,50 @@ export const leaveService = {
   /**
  * Adjust leave balances in bulk (ADMIN / HR only)
  */
-async adjustLeaveCount(
-  payload: LeaveAdjustmentRequestDTO[]
-): Promise<LeaveAdjustmentResponse> {
-  try {
-    // Basic validation
-    if (!Array.isArray(payload) || payload.length === 0) {
-      throw new Error('Adjustment payload cannot be empty');
-    }
-
-    payload.forEach((item) => {
-      if (!item.employeeId || typeof item.adjustment !== 'number') {
-        throw new Error('Invalid leave adjustment payload');
+  async adjustLeaveCount(
+    payload: LeaveAdjustmentRequestDTO[]
+  ): Promise<LeaveAdjustmentResponse> {
+    try {
+      // Basic validation
+      if (!Array.isArray(payload) || payload.length === 0) {
+        throw new Error('Adjustment payload cannot be empty');
       }
-    });
 
-    const response: AxiosResponse<WebResponseDTO<LeaveAdjustmentResponse>> =
-      await api.post(
-        '/employee/leave/adjust',
-        payload
-      );
+      payload.forEach((item) => {
+        if (!item.employeeId || typeof item.adjustment !== 'number') {
+          throw new Error('Invalid leave adjustment payload');
+        }
+      });
 
-    console.log('🧩 Adjust leave API response:', response.data.response);
+      const response: AxiosResponse<WebResponseDTO<LeaveAdjustmentResponse>> =
+        await api.post(
+          '/employee/leave/adjust',
+          payload
+        );
 
-    if (response.data.flag && response.data.response) {
-      return response.data.response;
+      console.log('🧩 Adjust leave API response:', response.data.response);
+
+      if (response.data.flag && response.data.response) {
+        return response.data.response;
+      }
+
+      throw new Error(response.data.message || 'Failed to adjust leave balances');
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
-
-    throw new Error(response.data.message || 'Failed to adjust leave balances');
-  } catch (error: any) {
-    throw new Error(getBackendError(error));
-  }
-},
+  },
 
   /**
  * Get all employees except logged-in HR ( HR only)
  */
- // ✅ Get all employees
- async getAllEmployeesExceptLoginHR(): Promise<WebResponseDTOListEmployeeDTO> {
-  try {
-    const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get('employee/emp/all/except/loginHR');
-    return response.data;
-  } catch (error: any) {
-    throw new Error(getBackendError(error));
+  // ✅ Get all employees
+  async getAllEmployeesExceptLoginHR(): Promise<WebResponseDTOListEmployeeDTO> {
+    try {
+      const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get('employee/emp/all/except/loginHR');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
   }
-}
 
 };
