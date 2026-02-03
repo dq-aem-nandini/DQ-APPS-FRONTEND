@@ -48,6 +48,10 @@ export const sidebarConfig = {
       label: "Add Holiday",
       href: "/superhr/addHoliday",
     },
+    {
+      label: "View Holidays",
+      href: "/superhr/viewHolidays",
+    },
     // {
     //   permission: "DELETE_HOLIDAY",
     //   label: "Delete Holiday",

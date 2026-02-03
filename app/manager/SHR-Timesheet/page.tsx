@@ -22,8 +22,6 @@ import {managerTimeSheetService} from '@/lib/api/managerTimeSheetService';
 import {
   ClientMinDTO,
   EmployeeMinDTO,
-  ManualInvoiceItemRequestDTO,
-  ManualInvoiceRequestDTO,
   ClientEmployeeMinResponseDTO,
 } from "@/lib/api/types";
 import Swal from "sweetalert2";

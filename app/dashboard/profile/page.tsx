@@ -512,40 +512,22 @@ const ProfilePage = () => {
 
       // === Addresses ===
       // Always send full list (backend handles upsert based on addressId)
-      // === Addresses ===
-// Only send new or changed addresses
-let addressIndex = 0;
+      let addressIndex = 0;
+      addresses.forEach((addr, index) => {
 
-addresses.forEach((addr) => {
-  // Skip if this address was marked deleted in UI (you already handle deletion separately)
-  // If you ever add status: 'deleted' to addresses, you can add check here
+        // If existing address → include addressId
+        if (addr.addressId && !addr.addressId.startsWith("temp-")) {
+          payload.append(`addresses[${index}].addressId`, addr.addressId);
+        }
 
-  const original = profile?.addresses?.find(
-    (o) => o.addressId === addr.addressId
-  );
-
-  const isNew = !addr.addressId || addr.addressId.startsWith("temp-");
-  const isChanged = !isNew && original && !isAddressEqual(original, addr);
-
-  if (!isNew && !isChanged) {
-    return; // skip unchanged existing addresses
-  }
-
-  // Send this address
-  if (!isNew) {
-    payload.append(`addresses[${addressIndex}].addressId`, addr.addressId!);
-  }
-
-  payload.append(`addresses[${addressIndex}].houseNo`, addr.houseNo || "");
-  payload.append(`addresses[${addressIndex}].streetName`, addr.streetName || "");
-  payload.append(`addresses[${addressIndex}].city`, addr.city || "");
-  payload.append(`addresses[${addressIndex}].state`, addr.state || "");
-  payload.append(`addresses[${addressIndex}].country`, addr.country || "");
-  payload.append(`addresses[${addressIndex}].pincode`, addr.pincode || "");
-  payload.append(`addresses[${addressIndex}].addressType`, addr.addressType || "");
-
-  addressIndex++;
-});
+        payload.append(`addresses[${index}].houseNo`, addr.houseNo || "");
+        payload.append(`addresses[${index}].streetName`, addr.streetName || "");
+        payload.append(`addresses[${index}].city`, addr.city || "");
+        payload.append(`addresses[${index}].state`, addr.state || "");
+        payload.append(`addresses[${index}].country`, addr.country || "");
+        payload.append(`addresses[${index}].pincode`, addr.pincode || "");
+        payload.append(`addresses[${index}].addressType`, addr.addressType || "");
+      });
       // Documents: new + replacements
         documents
         .filter((d) => d.fileObj instanceof File) // only when new file is selected

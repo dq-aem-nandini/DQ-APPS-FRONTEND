@@ -1702,3 +1702,14 @@ export interface LeaveAdjustmentRequestDTO {
 }
 
 export type LeaveAdjustmentResponse = Record<string, number>;
+
+export interface SuperHrHolidayRequestDTO {
+  holidayDate: string;        // yyyy-MM-dd
+  holidayName: string;
+  employeeIds: string[];      // UUIDs
+}
+
+export interface DeleteEmployeeHolidayRequestDTO {
+  holidayId: string;          // UUID
+  employeeId: string;         // UUID
+}
