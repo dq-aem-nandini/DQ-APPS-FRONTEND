@@ -19,49 +19,13 @@ export const sidebarConfig = {
     { label: "Employee Leaves", href: "/admin-dashboard/leaves" },
     { label: "Add Holiday", href: "/admin-dashboard/holiday" },
   ],
-  SUPERHR_COMMON: [
-    { label: 'Leaves', href: '/superhr/leaves', },
-
-  ],
-
-  // EMPLOYEE: [
-  //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },
-  // ],
+  
+  
   SUPER_HR: [
-    // {
-    //   permission: "APPLY_LEAVE",
-    //   label: "Apply Leave",
-    //   href: "/superhr/leaves/applyleave",
-    // },
-    // {
-    //   permission: "DELETE_LEAVE",
-    //   label: "Delete Leave",
-    //   href: "/superhr/deleteLeave",
-    // },
-    {
-      permission: "SUBMIT_TIMESHEET",
-      label: "Timesheet",
-      href: "/manager/SHR-Timesheet",
-    },
-    // {
-    //   permission: "DELETE_TIMESHEET",
-    //   label: "Delete Timesheet",
-    //   href: "/superhr/deleteTimesheet",
-    // },
-    {
-      permission: "ADD_HOLIDAY",
-      label: "Add Holiday",
-      href: "/superhr/addHoliday",
-    },
-    {
-      label: "View Holidays",
-      href: "/superhr/viewHolidays",
-    },
-    // {
-    //   permission: "DELETE_HOLIDAY",
-    //   label: "Delete Holiday",
-    //   href: "/superhr/deleteHoliday",
-    // },
+    { permission: "ADD_HOLIDAY", label: "Add Holiday", href: "/superhr/addHoliday",},
+    { label: "View Holidays", href: "/superhr/viewHolidays",},
+    { label: 'Leaves', href: '/superhr/leaves', },
+    { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/manager/SHR-Timesheet",},
   ],
 
 

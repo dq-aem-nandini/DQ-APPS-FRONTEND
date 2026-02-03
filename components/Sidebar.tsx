@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { sidebarConfig } from "./sidebar.config";
 
@@ -62,6 +62,7 @@ const isSidebarRole = (role: Role): role is SidebarRole =>
 export default function Sidebar() {
   const { state } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   const user = state.user;
   if (!user) return null;
@@ -77,18 +78,21 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
 
         {/* LOGO */}
-        <div className="flex items-center justify-center space-x-4 mb-8">
-          <Image
-            src="/digiquad logo.jpeg"
-            alt="DigiQuad Logo"
-            width={50}
-            height={50}
-            className="rounded-full shadow-sm"
-          />
-          <div className="text-2xl font-bold text-indigo-600">
-            DigiQuad
-          </div>
-        </div>
+        <div
+      className="flex items-center justify-center space-x-4 mb-8 cursor-pointer hover:opacity-90 transition"
+      onClick={() => router.push('/dashboard')}
+    >
+      <Image
+        src="/digiquad logo.jpeg"
+        alt="DigiQuad Logo"
+        width={50}
+        height={50}
+        className="rounded-full shadow-sm"
+      />
+      <div className="text-2xl font-bold text-indigo-600">
+        DigiQuad
+      </div>
+    </div>
         {/* =====================
     COMMON (EMPLOYEE, MANAGER,HR, FINANCE ONLY)
 ===================== */}

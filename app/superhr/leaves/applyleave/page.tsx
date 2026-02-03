@@ -141,17 +141,22 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
 
   const calculateDuration = async () => {
     if (calculating) return;
-
+  
     try {
       setCalculating(true);
       setError(null);
-
-      const res = await leaveService.calculateWorkingDays({
-        fromDate: formData.fromDate || '',
-        toDate: formData.toDate || '',
-        partialDay: formData.partialDay,
-      });
-
+  
+      console.log("Employee ID:", selectedEmployeeId);
+  
+      const res = await leaveService.calculateWorkingDays(
+        {
+          fromDate: formData.fromDate || '',
+          toDate: formData.toDate || '',
+          partialDay: formData.partialDay,
+        },
+        selectedEmployeeId || undefined   
+      );
+  
       setFormData(prev => ({
         ...prev,
         leaveDuration: res.leaveDuration || 0,
