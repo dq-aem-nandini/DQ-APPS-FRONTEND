@@ -178,6 +178,53 @@ false,
 }
 
 /**
+ * ❌ SUPER_HR – Delete timesheets for an employee
+ */
+async deleteTimesheetsAsSuperHr(
+  employeeId: string,
+  timesheetIds: string[]
+): Promise<WebResponseDTO<string>> {
+
+  if (!employeeId) {
+    return {
+      flag: false,
+      message: "EmployeeId is required",
+      status: 400,
+      response: '',
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  if (!timesheetIds || timesheetIds.length === 0) {
+    return {
+      flag: false,
+      message: "Timesheet IDs are required",
+      status: 400,
+      response: '',
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  return this._mutation(
+    "/super-hr/timesheet/delete",
+    "delete",
+    undefined,
+    {
+      params: {
+        employeeId,                 // ✅ single param
+        timesheets: timesheetIds,   // ✅ list param
+      },
+    },
+    false,
+    "Timesheets deleted successfully",
+    "Failed to delete timesheets"
+  );
+}
+
+
+/**
 * 📤 Submit timesheets for manager approval (GET)
 * @param timesheetIds Array of timesheet IDs to submit
 * @returns WebResponseDTO with success/failure info
@@ -262,6 +309,39 @@ return this._query<TimeSheetResponseDto[]>("/employee/view/timesheet", { params:
 async getTimesheetById(timesheetId: string): Promise<WebResponseDTO<TimeSheetResponseDto>> {
 return this._query<TimeSheetResponseDto>(`/employee/view/timesheet/${timesheetId}`);
 }
+
+/**
+ * ➕ SUPER_HR – Register timesheets for any employee
+ */
+async createTimesheetsAsSuperHr(
+    employeeId: string,
+    timesheets: TimeSheetModel | TimeSheetModel[]
+  ): Promise<WebResponseDTOObject> {
+    const list = Array.isArray(timesheets) ? timesheets : [timesheets];
+  
+    const payload = list.map((ts) => ({
+      workDate: ts.workDate,
+      hoursWorked: Number(ts.hoursWorked),
+      taskName: ts.taskName ?? '',
+      taskDescription: ts.taskDescription ?? '',
+    }));
+  
+    console.debug('[TimesheetService][SUPER_HR] payload:', payload);
+  
+    return this._mutation(
+      `/super-hr/timesheet/register`,
+      'post',
+      payload,
+      {
+        params: { employeeId }   // MUST be inside params
+      },
+      false,
+      'Timesheets created successfully',
+      'Failed to create timesheets'
+    );
+    
+  }
+  
 
 // async getTimesheetById(
 // id: string,

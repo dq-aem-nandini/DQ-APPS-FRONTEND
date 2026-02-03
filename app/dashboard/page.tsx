@@ -3,6 +3,7 @@ import EmployeeDashboard from "@/components/employee/DashboardContent";
 import FinanceDashboard from "@/components/finance/FinanceDashboard";
 import HrDashboard from "@/components/hr/HrDashboard";
 import DashboardContent from "@/components/manager/DashboardContent";
+import SuperHrDashboard from "@/components/superhr/SuperHrDashboard";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
@@ -20,6 +21,9 @@ export default function DashboardPage() {
     case "HR":
       return <HrDashboard />;
 
+    case "SUPER_HR":
+      return <SuperHrDashboard />;
+      
     case "FINANCE":
       return <FinanceDashboard />;
 

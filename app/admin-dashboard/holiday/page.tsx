@@ -33,25 +33,6 @@ export default function HolidayListPage() {
     holidayDate: '',
     comments: '',
   });
-
-  // Fetch holidays
-  // const fetchHolidays = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const res = await holidayService.getAllHolidaysview();
-  //     if (res.flag && Array.isArray(res.response)) {
-  //       setHolidays(res.response.sort((a, b) => a.holidayDate.localeCompare(b.holidayDate)));
-  //     }
-  //   } catch (err: any) {
-  //     toast.error(err.message || 'Failed to load holidays');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchHolidays();
-  // }, []);
   const fetchHolidays = async (year: number) => {
     try {
       setLoading(true);

@@ -5,14 +5,15 @@ export type Role =
   | "EMPLOYEE"
   | "MANAGER"
   | "HR"
-  | "FINANCE";
+  | "FINANCE"
+  | "SUPER_HR";
 
-  export interface SidebarItem {
-    label: string;
-    href: string;
-    permission?: string;
-  }
-  export type SidebarRole = Extract<Role, "MANAGER" | "FINANCE" >;
+export interface SidebarItem {
+  label: string;
+  href: string;
+  permission?: string;
+}
+export type SidebarRole = Extract<Role, "MANAGER" | "FINANCE" | "SUPER_HR">;
 export type Designation =
   | "INTERN"
   | "TRAINEE"
@@ -30,7 +31,7 @@ export type Designation =
   | "HR"
   | "FINANCE"
   | "OPERATIONS";
-  export type IndustryType =
+export type IndustryType =
   | "IT"
   | "FINANCE"
   | "HEALTHCARE"
@@ -46,24 +47,24 @@ export type Designation =
   | "PHARMACEUTICAL"
   | "MEDIA"
   | "OTHER";
-  export const INDUSTRY_TYPE_LABELS: Record<IndustryType, string> = {
-    IT: "Information Technology",
-    FINANCE: "Finance",
-    HEALTHCARE: "Healthcare",
-    EDUCATION: "Education",
-    ECOMMERCE: "E-Commerce",
-    MANUFACTURING: "Manufacturing",
-    CONSULTING: "Consulting",
-    REAL_ESTATE: "Real Estate",
-    HOSPITALITY: "Hospitality",
-    TRANSPORT: "Transport & Logistics",
-    ENERGY: "Energy & Utilities",
-    AGRICULTURE: "Agriculture",
-    PHARMACEUTICAL: "Pharmaceuticals",
-    MEDIA: "Media & Advertising",
-    OTHER: "Other",
-  };
-  
+export const INDUSTRY_TYPE_LABELS: Record<IndustryType, string> = {
+  IT: "Information Technology",
+  FINANCE: "Finance",
+  HEALTHCARE: "Healthcare",
+  EDUCATION: "Education",
+  ECOMMERCE: "E-Commerce",
+  MANUFACTURING: "Manufacturing",
+  CONSULTING: "Consulting",
+  REAL_ESTATE: "Real Estate",
+  HOSPITALITY: "Hospitality",
+  TRANSPORT: "Transport & Logistics",
+  ENERGY: "Energy & Utilities",
+  AGRICULTURE: "Agriculture",
+  PHARMACEUTICAL: "Pharmaceuticals",
+  MEDIA: "Media & Advertising",
+  OTHER: "Other",
+};
+
 export type LeaveCategoryType = "SICK" | "CASUAL" | "PLANNED" | "UNPLANNED";
 export type FinancialType = "PAID" | "UNPAID";
 export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
@@ -102,7 +103,7 @@ export type Domain =
   | "TELECOM"
   | "OTHER";
 
-  export type CurrencyCode =
+export type CurrencyCode =
   | "INR"
   | "USD"
   | "EUR"
@@ -169,13 +170,13 @@ export type BondDuration =
   | 'THREE_YEARS'
   | 'NA';
 
-  export type UpdateRequestType = 
+export type UpdateRequestType =
   | 'EMPLOYEE_UPDATE'
   | 'ADDRESS_DELETE'
   | 'CALENDAR_UPDATE'
   | 'DOCUMENT_DELETE';
-  
-  export const PAY_TYPE_OPTIONS = [
+
+export const PAY_TYPE_OPTIONS = [
   "HOURLY",
   "MONTHLY",
   "WEEKLY",
@@ -318,7 +319,7 @@ export interface WebResponseDTOEmployeeDepartmentList {
 
 // Core Models
 export interface AddressModel {
-  addressId: string| null;   // uuid
+  addressId: string | null;   // uuid
   houseNo?: string;
   streetName?: string;
   city?: string;
@@ -454,7 +455,7 @@ export interface LeaveCalendarDTO {
 export type WebResponseDTOLeaveCalendarDTO =
   WebResponseDTO<LeaveCalendarDTO[]>;
 
-  
+
 export interface WebResponseDTO<T> {
   flag: boolean;
   message: string;
@@ -750,7 +751,7 @@ export interface ClientTaxDetail {
   // updatedAt: string;     // ISO Date-Time format
 }
 export interface ClientPocModel {
-  pocId: string| null;  // uuid
+  pocId: string | null;  // uuid
   name: string;
   email: string;
   contactNumber: string;
@@ -858,7 +859,7 @@ export interface EmployeeDTO {
   remarks: string;
   skillsAndCertification: string;
   designation: Designation;
-  dateOfJoining: string; 
+  dateOfJoining: string;
   dateOfOnboardingToClient: string;
   dateOfOffboardingToClient: string;
   clientBillingStartDate: string;
@@ -1077,7 +1078,7 @@ export interface HolidaysModel {
   holidayName: string;
   comments: string;
 }
- 
+
 // Response DTO when fetching one holiday or listing all
 export interface HolidaysDTO {
   holidayId: string; // UUID
@@ -1096,7 +1097,7 @@ export interface WebResponseDTOHolidaysDTO {
   response: HolidaysDTO;
   otherInfo?: any;
 }
- 
+
 // List response
 export interface WebResponseDTOListHolidaysDTO {
   flag: boolean;
@@ -1179,14 +1180,14 @@ export interface OrganizationRequestDTO {
 
   industryType: IndustryType;
 
-  domain:Domain;
+  domain: Domain;
 
 
   establishedDate: string; // yyyy-mm-dd
 
   timezone: string;
 
-  currencyCode:CurrencyCode;
+  currencyCode: CurrencyCode;
 
   accountNumber: string;
   accountHolderName: string;
@@ -1217,10 +1218,10 @@ export interface OrganizationResponseDTO {
   contactNumber: string;
   logoUrl: string;
   industryType: IndustryType;
-  domain:Domain;
+  domain: Domain;
   establishedDate: string;
   timezone: string;
-  currencyCode:CurrencyCode;
+  currencyCode: CurrencyCode;
   accountNumber: string;
   accountHolderName: string;
   bankName: string;
@@ -1597,7 +1598,7 @@ export interface HolidaysModel {
   holidayName: string;
   comments: string;
 }
- 
+
 // Response DTO when fetching one holiday or listing all
 export interface HolidaysDTO {
   holidayId: string; // UUID
@@ -1607,7 +1608,7 @@ export interface HolidaysDTO {
   updateAt: string; // ISO DateTime
   createdAt: string; // ISO DateTime
 }
- 
+
 // Single object response
 export interface WebResponseDTOHolidaysDTO {
   flag: boolean;
@@ -1616,7 +1617,7 @@ export interface WebResponseDTOHolidaysDTO {
   response: HolidaysDTO;
   otherInfo?: any;
 }
- 
+
 // List response
 export interface WebResponseDTOListHolidaysDTO {
   flag: boolean;
@@ -1675,6 +1676,7 @@ export interface EmployeeMinDTO {
   employeeName: string;
   companyId: string;
   rateCard: number | null;
+  dateOfJoining: string;
 }
 export interface ManualInvoiceItemRequestDTO {
   employeeId: string;
@@ -1700,3 +1702,14 @@ export interface LeaveAdjustmentRequestDTO {
 }
 
 export type LeaveAdjustmentResponse = Record<string, number>;
+
+export interface SuperHrHolidayRequestDTO {
+  holidayDate: string;        // yyyy-MM-dd
+  holidayName: string;
+  employeeIds: string[];      // UUIDs
+}
+
+export interface DeleteEmployeeHolidayRequestDTO {
+  holidayId: string;          // UUID
+  employeeId: string;         // UUID
+}

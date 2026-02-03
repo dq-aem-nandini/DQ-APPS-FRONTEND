@@ -1,7 +1,7 @@
 // app/manager/timesheets/page.tsx
 "use client";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isBetween from "dayjs/plugin/isBetween";
@@ -17,7 +17,6 @@ import {
 } from "@/lib/api/types";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import type { Dayjs } from "dayjs";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isBetween);
@@ -403,12 +402,12 @@ export default function ManagerTimesheetReview() {
                     {selectedEmployee.clientName || "—"}
                   </span>
                 </div>
-                {/* <div className="flex items-center border-t border-blue-100 pt-2">
-<span className="font-medium text-gray-600">Manager:</span>
-<span className="font-semibold text-gray-800 ml-3">
-{selectedEmployee.reportingManagerName || '—'}
-</span>
-</div> */}
+              {/* <div className="flex items-center border-t border-blue-100 pt-2">
+                <span className="font-medium text-gray-600">Manager:</span>
+                <span className="font-semibold text-gray-800 ml-3">
+                {selectedEmployee.reportingManagerName || '—'}
+                </span>
+                </div> */}
                 <div className="flex items-center border-t border-blue-100 pt-2">
                   <span className="font-medium text-gray-600">Role:</span>
                   <span className="font-semibold text-gray-800 ml-3">

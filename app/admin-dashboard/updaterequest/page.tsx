@@ -485,14 +485,13 @@ export default function UpdateRequestAdminPage() {
     //  REMOVED — Only detect if backend explicitly sent addresses array
     // --------------------
     if (Array.isArray(updatedData.addresses)) {
-      // Backend sent a list → compare for missing ones (explicit removal)
-      oldMap.forEach((oldAddr, type) => {
-        if (!newMap.has(type)) {
+      updatedData.addresses.forEach((addr: any) => {
+        if (addr.isDeleted === true && addr.addressType) {
           addressChanges.push({
             field: "Address",
             old: "Removed",
             new: "—",
-            type: oldAddr.addressType ?? "UNKNOWN",
+            type: addr.addressType,
           });
         }
       });

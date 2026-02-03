@@ -17,10 +17,12 @@ const DASHBOARD_TITLES: Record<string, string> = {
   MANAGER: "Manager Dashboard",
   HR: "HR Dashboard",
   FINANCE: "Finance Dashboard",
+  SUPER_HR: "SuperHR Dashboard",
 };
 
 const Header = () => {
   const { state, logout } = useAuth();
+  const role = state.user?.role.roleName || '';
   const router = useRouter();
   const user: LoggedInUser | null = state.user as LoggedInUser | null;
 
@@ -31,6 +33,7 @@ const Header = () => {
 
   // Fetch fresh profile photo
   useEffect(() => {
+    if (role === 'SUPER_HR') return;
     const fetchEmployee = async () => {
       if (!user) return;
       try {

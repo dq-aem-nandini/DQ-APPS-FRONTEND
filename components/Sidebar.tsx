@@ -13,7 +13,8 @@ export type Role =
   | "EMPLOYEE"
   | "MANAGER"
   | "HR"
-  | "FINANCE";
+  | "FINANCE"
+  | "SUPER_HR";
 
 interface SidebarItem {
   label: string;
@@ -61,10 +62,11 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 // TYPE GUARD – only roles that exist in sidebarConfig
-type SidebarRole = "MANAGER" | "FINANCE";
+type SidebarRole = "MANAGER" | "FINANCE" | "SUPER_HR";
 
-const isSidebarRole = (role: Role): role is SidebarRole =>
-  role === "MANAGER" || role === "FINANCE";
+export const isSidebarRole = (role: Role): role is SidebarRole =>
+  role === "MANAGER" || role === "FINANCE" || role === "SUPER_HR";
+
 
 export default function Sidebar() {
   const { state } = useAuth();
@@ -99,18 +101,21 @@ export default function Sidebar() {
         </div>
 
         {/* 🔹 COMMON (ALL ROLES) */}
-        <SidebarSection title="Main">
-          {sidebarConfig.common.map((item: SidebarItem) => (
-            <SidebarLink
-              key={item.href}
-              href={item.href}
-              active={pathname === item.href}
-              icon={getIcon(item.label)}
-            >
-              {item.label}
-            </SidebarLink>
-          ))}
-        </SidebarSection>
+        {role !== "SUPER_HR" && (
+          <SidebarSection title="Main">
+            {sidebarConfig.common.map((item: SidebarItem) => (
+              <SidebarLink
+                key={item.href}
+                href={item.href}
+                active={pathname === item.href}
+                icon={getIcon(item.label)}
+              >
+                {item.label}
+              </SidebarLink>
+            ))}
+          </SidebarSection>
+        )}
+
 
         {/* 🔥 HR ADMIN LINKS (NO PERMISSION CHECK) */}
         {role === "HR" && sidebarConfig.HR_COMMON && (
@@ -129,26 +134,26 @@ export default function Sidebar() {
         )}
 
         {/* 🔹 ROLE-SPECIFIC (PERMISSION BASED) */}
-{isSidebarRole(role) && (
-  <SidebarSection title={role}>
-    {sidebarConfig[role]
-      .filter(
-        (item: SidebarItem) =>
-          !item.permission ||
-          permissions.includes(item.permission)
-      )
-      .map((item: SidebarItem) => (
-        <SidebarLink
-          key={item.href}
-          href={item.href}
-          active={pathname === item.href}
-          icon={getIcon(item.label)}
-        >
-          {item.label}
-        </SidebarLink>
-      ))}
-  </SidebarSection>
-)}
+        {isSidebarRole(role) && (
+          <SidebarSection title={role}>
+            {sidebarConfig[role]
+              .filter(
+                (item: SidebarItem) =>
+                  !item.permission ||
+                  permissions.includes(item.permission)
+              )
+              .map((item: SidebarItem) => (
+                <SidebarLink
+                  key={item.href}
+                  href={item.href}
+                  active={pathname === item.href}
+                  icon={getIcon(item.label)}
+                >
+                  {item.label}
+                </SidebarLink>
+              ))}
+          </SidebarSection>
+        )}
 
 
       </div>
@@ -189,11 +194,10 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${
-        active
+      className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-150 ${active
           ? "bg-indigo-100 text-indigo-700 font-medium"
           : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
-      }`}
+        }`}
     >
       {icon}
       <span>{children}</span>

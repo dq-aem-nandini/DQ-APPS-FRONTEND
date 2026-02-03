@@ -79,7 +79,6 @@ export class HolidayService {
   // }
 
 
-// lib/api/holidayService.ts
 async getAllHolidays(
   year?: number,
   employeeId?: string
@@ -91,7 +90,7 @@ async getAllHolidays(
       params.append("year", year.toString());
     }
 
-    // pass only if valid UUID (manager/admin case)
+    // pass only if valid UUID 
     if (employeeId && employeeId.includes("-")) {
       params.append("employeeId", employeeId);
     }
