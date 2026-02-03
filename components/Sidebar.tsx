@@ -134,9 +134,9 @@ export default function Sidebar() {
             SUPER_HR COMMON (NO PERMISSIONS)
             👉 ONLY LEAVES
         ===================== */}
-        {role === "SUPER_HR" && sidebarConfig.SUPERHR_COMMON && (
+        {/* {role === "SUPER_HR" && (
           <SidebarSection title="Main">
-            {sidebarConfig.SUPERHR_COMMON.map((item: SidebarItem) => (
+            {sidebarConfig.SUPER_HR.map((item: SidebarItem) => (
               <SidebarLink
                 key={item.href}
                 href={item.href}
@@ -147,7 +147,7 @@ export default function Sidebar() {
               </SidebarLink>
             ))}
           </SidebarSection>
-        )}
+        )} */}
 
         {/* =====================
             ROLE-SPECIFIC (PERMISSION BASED)
