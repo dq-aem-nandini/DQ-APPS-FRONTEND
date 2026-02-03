@@ -175,7 +175,6 @@ const ViewEmployee = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {hasValue(employee.designation) && <InfoItem label="Designation" value={employee.designation!} />}
                 {hasValue(employee.dateOfJoining) && <InfoItem label="Date of Joining" value={employee.dateOfJoining!} />}
-                {hasValue(employee.clientName) && <InfoItem label="Company" value={employee.clientName!} />}
                 {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
                 {hasValue(employee.employmentType) && <InfoItem label="Employment Type" value={employee.employmentType!} />}
                 {employee.rateCard != null && employee.rateCard > 0 && (
@@ -186,6 +185,28 @@ const ViewEmployee = () => {
                 {hasValue(employee.availableLeaves) && <InfoItem label="Available Leaves" value={String(employee.availableLeaves!)} />}
                 {hasValue(employee.reportingManagerName) && <InfoItem label="Reporting Manager" value={employee.reportingManagerName!} />}
               </div>
+
+              {/* ================= CLIENT DETAILS ================= */}
+              {(hasValue(employee.dateOfOnboardingToClient) ||
+                hasValue(employee.dateOfOffboardingToClient) ||
+                hasValue(employee.clientBillingStartDate) ||
+                hasValue(employee.clientBillingStopDate)) && (
+
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                    Client Details
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {hasValue(employee.clientName) && <InfoItem label="Client Name" value={employee.clientName!} />}
+                    {hasValue(employee.dateOfOnboardingToClient) && <InfoItem label="Client Onboarding Date" value={employee.dateOfOnboardingToClient!} />}
+                    {hasValue(employee.dateOfOffboardingToClient) && <InfoItem label="Client Offboarding Date" value={employee.dateOfOffboardingToClient!} />}
+                    {hasValue(employee.clientBillingStartDate) && <InfoItem label="Billing Start Date" value={employee.clientBillingStartDate!} />}
+                    {hasValue(employee.clientBillingStopDate) && <InfoItem label="Billing Stop Date" value={employee.clientBillingStopDate!} />}
+                  </div>
+                </div>
+              )}
+              {/* ================= END Client Block ================= */}
             </div>
           )}
 
