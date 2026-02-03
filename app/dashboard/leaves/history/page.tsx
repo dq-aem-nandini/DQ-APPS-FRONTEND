@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { leaveService } from '@/lib/api/leaveService';
 import { LeaveResponseDTO, PageLeaveResponseDTO, LeaveStatus, LeaveCategoryType, EmployeeDTO } from '@/lib/api/types';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { ArrowLeft } from 'lucide-react';
@@ -14,7 +14,11 @@ const LeaveHistoryPage = () => {
   const router = useRouter();
   const { state: { user, accessToken } } = useAuth();
   const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
-
+  const hasHighlightedRef = useRef(false);
+  const searchParams = useSearchParams();
+  const highlightedLeaveId = searchParams.get("requestId");
+  const [tempHighlightId, setTempHighlightId] = useState<string | null>(null);
+  const pendingPageJumpRef = useRef<string | null>(null);
 
   const [leaveHistory, setLeaveHistory] = useState<PageLeaveResponseDTO>({
     totalElements: 0,
@@ -70,6 +74,90 @@ const LeaveHistoryPage = () => {
   
     loadEmployee();
   }, []);
+  useEffect(() => {
+    if (!highlightedLeaveId) return;
+    if (hasHighlightedRef.current) return;
+  
+    console.log("Setting temporary highlight for:", highlightedLeaveId);
+  
+    setTempHighlightId(highlightedLeaveId);
+    pendingPageJumpRef.current = highlightedLeaveId;
+    hasHighlightedRef.current = true;
+    
+  
+    // Clean up URL (you already have this — good)
+    router.replace(window.location.pathname, { scroll: false });
+  
+    // Remove highlight after ~4 seconds
+    const timer = setTimeout(() => {
+      setTempHighlightId(null);
+      console.log("Highlight removed via state");
+    }, 4000);
+  
+    return () => clearTimeout(timer);
+  }, [highlightedLeaveId, router]);
+  
+  useEffect(() => {
+    const targetLeaveId = pendingPageJumpRef.current;
+    if (!targetLeaveId) return;
+    if (!employee?.employeeId) return;
+  
+    // Already on correct page → stop
+    if (leaveHistory.content.some(l => l.leaveId === targetLeaveId)) {
+      pendingPageJumpRef.current = null;
+      return;
+    }
+  
+    (async () => {
+      try {
+        const BIG_PAGE = 200;
+  
+        const res = await leaveService.getLeaveSummary(
+          employee.employeeId,
+          filters.month,
+          filters.leaveCategory,
+          filters.status,
+          undefined,
+          filters.futureApproved,
+          undefined,
+          0,
+          BIG_PAGE,
+          pagination.sort
+        );
+  
+        if (!res.flag || !res.response?.content) return;
+  
+        const index = res.response.content.findIndex(
+          l => l.leaveId === targetLeaveId
+        );
+        if (index === -1) return;
+  
+        const targetPage = Math.floor(index / pagination.size);
+  
+        console.log("🟢 PAGINATION JUMP →", targetPage);
+  
+        setPagination(prev => ({ ...prev, page: targetPage }));
+  
+        pendingPageJumpRef.current = null;
+  
+      } catch (err) {
+        console.error("❌ Page jump failed", err);
+        pendingPageJumpRef.current = null;
+      }
+    })();
+  }, [
+    employee,
+    leaveHistory.content,
+    filters.month,
+    filters.leaveCategory,
+    filters.status,
+    filters.futureApproved,
+    pagination.sort
+  ]);
+
+  useEffect(() => {
+    console.log("📄 CURRENT PAGE:", pagination.page);
+  }, [pagination.page]);
   
   // Fetch leave history
   const fetchLeaveHistory = useCallback(async () => {
@@ -344,7 +432,17 @@ const LeaveHistoryPage = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {leaveHistory.content.length > 0 ? (
                 leaveHistory.content.map((leave: LeaveResponseDTO) => (
-                  <tr key={leave.leaveId} className="hover:bg-gray-50 transition duration-200">
+<tr
+  key={leave.leaveId}
+  id={`leave-${leave.leaveId}`}
+  className={`
+    hover:bg-gray-50 transition-all duration-300
+    ${tempHighlightId === leave.leaveId
+      ? "ring-4 ring-indigo-600 bg-indigo-100 shadow-lg scale-[1.015] z-10 relative"
+      : ""
+    }
+  `}
+>
                     <td className="px-4 py-5 text-base text-gray-900">{leave.approverName || '-'}</td>
                     <td className="px-4 py-5 text-base text-gray-900">{leave.leaveCategoryType ? getLabel(leave.leaveCategoryType, true) : '-'}</td>
                     <td className="px-4 py-5 text-base text-gray-900">{leave.status || '-'}</td>

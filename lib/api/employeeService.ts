@@ -85,7 +85,7 @@ class EmployeeService {
   async getEmployeeById(): Promise<EmployeeDTO> {
     try {
       const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> = await api.get('/employee/view');
-      console.log('🧩 Full get employee by ID API response:', response.data);
+      // console.log('🧩 Full get employee by ID API response:', response.data);
       if (response.data.flag && response.data.response) {
         return response.data.response;
       }

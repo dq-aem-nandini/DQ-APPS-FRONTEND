@@ -544,6 +544,7 @@ const AddEmployeePage = () => {
         { value: formData.employeeEmploymentDetailsDTO?.department, name: 'department', label: 'Department' },
         { value: formData.designation, name: 'designation', label: 'Designation' },
         { value: formData.dateOfJoining, name: 'dateOfJoining', label: 'Date of Joining' },
+        { value: formData.dateOfOnboardingToClient, name: 'dateOfOnboardingToClient', label: 'Date of Onboarding to Client' },
         { value: formData.employmentType, name: 'employmentType', label: 'Employment Type' },
         { value: formData.employeeSalaryDTO?.ctc, name: 'employeeSalaryDTO.ctc', label: 'CTC' },
       ];
@@ -1005,7 +1006,7 @@ const AddEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Onboarding To Client 
-                      {/* <span className="text-red-500">*</span> */}
+                      <span className="text-red-500">*</span> 
                       <TooltipHint hint="First working day at the company. Cannot be future date." />
                     </Label>
                     <Input
