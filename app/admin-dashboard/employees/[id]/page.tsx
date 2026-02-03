@@ -198,7 +198,19 @@ const ViewEmployee = () => {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {hasValue(employee.clientName) && <InfoItem label="Client Name" value={employee.clientName!} />}
+                    {hasValue(employee.clientName) && hasValue(employee.clientId) && (
+                      <InfoItem
+                        label="Client Name"
+                        value={
+                          <Link
+                            href={`/admin-dashboard/clients/${employee.clientId}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {employee.clientName}
+                          </Link>
+                        }
+                      />
+                    )}                
                     {hasValue(employee.dateOfOnboardingToClient) && <InfoItem label="Client Onboarding Date" value={employee.dateOfOnboardingToClient!} />}
                     {hasValue(employee.dateOfOffboardingToClient) && <InfoItem label="Client Offboarding Date" value={employee.dateOfOffboardingToClient!} />}
                     {hasValue(employee.clientBillingStartDate) && <InfoItem label="Billing Start Date" value={employee.clientBillingStartDate!} />}
@@ -519,7 +531,7 @@ const ViewEmployee = () => {
   );
 };
 
-const InfoItem = ({ label, value, compact = false, className = '' }: { label: string; value: string; compact?: boolean; className?: string }) => (
+const InfoItem = ({ label, value, compact = false, className = '' }: { label: string; value: string | React.ReactNode; compact?: boolean; className?: string }) => (
   <div className={`${compact ? 'text-sm' : ''} ${className}`}>
     <p className="text-gray-600 text-sm font-medium">{label}</p>
     <p className="mt-1 font-medium text-gray-900">{value}</p>
