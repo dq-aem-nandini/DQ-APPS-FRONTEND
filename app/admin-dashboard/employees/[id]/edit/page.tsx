@@ -311,43 +311,24 @@ const EditEmployeePage = () => {
 
           employeeSalaryDTO: emp.employeeSalaryDTO
             ? {
-                ...emp.employeeSalaryDTO,
-                employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
-                // Clean CTC and Standard Hours to show blank if 0/undefined
-                ctc:
-                  emp.employeeSalaryDTO.ctc === 0 ||
+              ...emp.employeeSalaryDTO,
+              employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
+              // Clean CTC and Standard Hours to show blank if 0/undefined
+              ctc:
+                emp.employeeSalaryDTO.ctc === 0 ||
                   emp.employeeSalaryDTO.ctc == null
-                    ? null
-                    : emp.employeeSalaryDTO.ctc,
-                standardHours:
-                  emp.employeeSalaryDTO.standardHours === 0 ||
+                  ? null
+                  : emp.employeeSalaryDTO.ctc,
+              standardHours:
+                emp.employeeSalaryDTO.standardHours === 0 ||
                   emp.employeeSalaryDTO.standardHours == null ||
                   emp.employeeSalaryDTO.standardHours === 40
-                    ? null
-                    : emp.employeeSalaryDTO.standardHours,
-              }
+                  ? null
+                  : emp.employeeSalaryDTO.standardHours,
+            }
             : undefined,
         });
 
-        // setFormData({
-        //   ...emp,
-        //   clientSelection,
-
-        //   // Clean: pure EmployeeDocumentDTO[] — no fileObj, no extensions
-        //   documents: emp.documents ?? [],
-
-        //   employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
-
-        //   employeeSalaryDTO: emp.employeeSalaryDTO
-        //     ? {
-        //       ...emp.employeeSalaryDTO,
-        //       employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
-        //     }
-        //     : undefined,
-        // });
-
-        // Reset the separate file upload tracker
-        // setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
         if (emp.employeeEmploymentDetailsDTO?.department) {
           employeeService
             .getEmployeesByDepartment(
@@ -477,6 +458,144 @@ const EditEmployeePage = () => {
     }
   };
 
+  const validateClientDates = (data: EmployeeModel) => {
+    if (!data.clientSelection) return;
+  
+    const newErrors: Record<string, string> = {};
+  
+    const parseDate = (dateStr?: string | null): Date | null => {
+      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? null : d;
+    };
+  
+    const rawDoJ = data.dateOfJoining;
+    const rawOCT = data.dateOfOnboardingToClient;
+    const rawOff = data.dateOfOffboardingToClient;
+    const rawCbs = data.clientBillingStartDate;
+    const rawCbe = data.clientBillingStopDate;
+  
+    const doJ = parseDate(rawDoJ);
+    const doOCT = parseDate(rawOCT);
+    const doOff = parseDate(rawOff);
+    const cbs = parseDate(rawCbs);
+    const cbe = parseDate(rawCbe);
+  
+    /* -----------------------------
+       DOJ — ALWAYS mandatory
+    ------------------------------ */
+    if (!doJ) {
+      newErrors.dateOfJoining = "Date of Joining is required";
+    }
+  
+    /* -----------------------------
+       STATUS client → stop here
+    ------------------------------ */
+    if (data.clientSelection.startsWith("STATUS:")) {
+      setErrors((prev) => {
+        const cleaned = { ...prev };
+  
+        delete cleaned.dateOfOnboardingToClient;
+        delete cleaned.dateOfOffboardingToClient;
+        delete cleaned.clientBillingStartDate;
+        delete cleaned.clientBillingStopDate;
+  
+        return {
+          ...cleaned,
+          ...newErrors, // DOJ error (if any) preserved
+        };
+      });
+      return;
+    }
+  
+    /* -----------------------------
+       CLIENT → Onboarding mandatory
+    ------------------------------ */
+    if (!doOCT) {
+      newErrors.dateOfOnboardingToClient =
+        "Date of Onboarding is required";
+    }
+  
+    // Stop if mandatory missing
+    if (!doJ || !doOCT) {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+  
+    /* -----------------------------
+       Date relationship checks
+    ------------------------------ */
+    if (doJ > doOCT) {
+      newErrors.dateOfOnboardingToClient =
+        "Onboarding date must be after Date of Joining";
+    }
+  
+    if (rawOff && doOff && doOCT > doOff) {
+      newErrors.dateOfOffboardingToClient =
+        "Offboarding date must be after onboarding date";
+    }
+  
+    if (rawCbs && cbs && cbs < doOCT) {
+      newErrors.clientBillingStartDate =
+        "Billing start date cannot be before onboarding date";
+    }
+
+    // Billing start must be before offboarding
+if (cbs && doOff && cbs >= doOff) {
+  newErrors.clientBillingStartDate =
+    "Billing start date must be before offboarding date";
+}
+
+// Billing start must be before billing end
+if (cbs && cbe && cbs >= cbe) {
+  newErrors.clientBillingStartDate =
+    "Billing start date must be before billing end date";
+  newErrors.clientBillingStopDate =
+    "Billing end date must be after billing start date";
+}
+
+  
+    if (rawCbe && cbe && rawCbs && cbs && cbs >= cbe) {
+      newErrors.clientBillingStopDate =
+        "Billing end date must be after billing start date";
+    }
+  
+    if (rawOff && rawCbe && doOff && cbe && doOff > cbe) {
+      newErrors.dateOfOffboardingToClient =
+        "Offboarding date cannot be after billing end date";
+    }
+  
+    setErrors((prev) => {
+      const cleaned = { ...prev };
+  
+      delete cleaned.dateOfJoining;
+      delete cleaned.dateOfOnboardingToClient;
+      delete cleaned.dateOfOffboardingToClient;
+      delete cleaned.clientBillingStartDate;
+      delete cleaned.clientBillingStopDate;
+  
+      return {
+        ...cleaned,
+        ...newErrors,
+      };
+    });
+  };
+  
+
+
+  useEffect(() => {
+    if (!formData || !isDirty) return;
+    validateClientDates(formData);
+  }, [
+    formData?.dateOfJoining,
+    formData?.dateOfOnboardingToClient,
+    formData?.dateOfOffboardingToClient,
+    formData?.clientBillingStartDate,
+    formData?.clientBillingStopDate,
+    formData?.clientSelection,
+  ]);
+
+
   // DOCUMENTS
   const addDocument = () => {
     setFormData((prev) => {
@@ -504,11 +623,11 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            documents: prev.documents.map((doc, i) =>
-              i === index ? { ...doc, [field]: value } : doc,
-            ),
-          }
+          ...prev,
+          documents: prev.documents.map((doc, i) =>
+            i === index ? { ...doc, [field]: value } : doc,
+          ),
+        }
         : prev,
     );
   };
@@ -545,9 +664,9 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            documents: prev.documents.filter((_, i) => i !== index),
-          }
+          ...prev,
+          documents: prev.documents.filter((_, i) => i !== index),
+        }
         : prev,
     );
   };
@@ -557,17 +676,17 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            employeeEquipmentDTO: [
-              ...(prev.employeeEquipmentDTO ?? []),
-              {
-                equipmentId: "",
-                equipmentType: "",
-                serialNumber: "",
-                issuedDate: "",
-              },
-            ],
-          }
+          ...prev,
+          employeeEquipmentDTO: [
+            ...(prev.employeeEquipmentDTO ?? []),
+            {
+              equipmentId: "",
+              equipmentType: "",
+              serialNumber: "",
+              issuedDate: "",
+            },
+          ],
+        }
         : prev,
     );
   };
@@ -580,12 +699,12 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            employeeEquipmentDTO:
-              prev.employeeEquipmentDTO?.map((eq, i) =>
-                i === index ? { ...eq, [field]: value } : eq,
-              ) ?? [],
-          }
+          ...prev,
+          employeeEquipmentDTO:
+            prev.employeeEquipmentDTO?.map((eq, i) =>
+              i === index ? { ...eq, [field]: value } : eq,
+            ) ?? [],
+        }
         : prev,
     );
   };
@@ -621,17 +740,17 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            employeeEquipmentDTO:
-              prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
-          }
+          ...prev,
+          employeeEquipmentDTO:
+            prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
+        }
         : prev,
     );
   };
   const currentManagerName = formData?.reportingManagerId
     ? departmentEmployees.find(
-        (e) => e.employeeId === formData.reportingManagerId,
-      )?.fullName
+      (e) => e.employeeId === formData.reportingManagerId,
+    )?.fullName
     : null;
 
   // DELETE ALLOWANCE
@@ -799,80 +918,6 @@ const EditEmployeePage = () => {
     });
   };
 
-  // const removeAllowance = async (index: number) => {
-  //   if (!formData || !params.id) return;
-
-  //   const allowance = formData.employeeSalaryDTO?.allowances?.[index];
-
-  //   // Delete from backend if it has an ID (already saved)
-  //   if (allowance?.allowanceId) {
-  //     try {
-  //       const res = await adminService.deleteEmployeeAllowance(
-  //         params.id as string,
-  //         allowance.allowanceId
-  //       );
-  //       if (!res.flag) throw new Error(res.message || 'Failed to delete');
-  //     } catch (err: any) {
-  //       Swal.fire('Error', err.message || 'Could not delete allowance', 'error');
-  //       return; // ← Important: don't update UI if API failed
-  //     }
-  //   }
-
-  //   // Safely update state while preserving required fields
-  //   setFormData(prev => {
-  //     if (!prev || !prev.employeeSalaryDTO) return prev;
-
-  //     const updatedAllowances = prev.employeeSalaryDTO.allowances?.filter((_, i) => i !== index) || [];
-
-  //     return {
-  //       ...prev,
-  //       employeeSalaryDTO: {
-  //         ...prev.employeeSalaryDTO,
-  //         employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string), // ← ENSURE it's always a string
-  //         allowances: updatedAllowances,
-  //       },
-  //     };
-  //   });
-
-  //   Swal.fire('Deleted!', 'Allowance removed successfully', 'success');
-  // };
-
-  // const removeDeduction = async (index: number) => {
-  //   if (!formData || !params.id) return;
-
-  //   const deduction = formData.employeeSalaryDTO?.deductions?.[index];
-
-  //   if (deduction?.deductionId) {
-  //     try {
-  //       const res = await adminService.deleteEmployeeDeduction(
-  //         params.id as string,
-  //         deduction.deductionId
-  //       );
-  //       if (!res.flag) throw new Error(res.message || 'Failed to delete');
-  //     } catch (err: any) {
-  //       Swal.fire('Error', err.message || 'Could not delete deduction', 'error');
-  //       return;
-  //     }
-  //   }
-
-  //   setFormData(prev => {
-  //     if (!prev || !prev.employeeSalaryDTO) return prev;
-
-  //     const updatedDeductions = prev.employeeSalaryDTO.deductions?.filter((_, i) => i !== index) || [];
-
-  //     return {
-  //       ...prev,
-  //       employeeSalaryDTO: {
-  //         ...prev.employeeSalaryDTO,
-  //         employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string), // ← Critical fix
-  //         deductions: updatedDeductions,
-  //       },
-  //     };
-  //   });
-
-  //   Swal.fire('Deleted!', 'Deduction removed successfully', 'success');
-  // };
-
   // In handleSubmit — CRITICAL CHANGE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -924,7 +969,7 @@ const EditEmployeePage = () => {
         rateCard: formData.rateCard,
         employmentType: formData.employmentType,
         // reportingManagerId: formData.reportingManagerId ?? null,
-        reportingManagerId:formData.reportingManagerId === "NO_MANAGER"? null: formData.reportingManagerId,
+        reportingManagerId: formData.reportingManagerId === "NO_MANAGER" ? null : formData.reportingManagerId,
         clientId: formData.clientId ?? null,
         clientSelection: formData.clientSelection,
         panNumber: formData.panNumber,
@@ -948,53 +993,53 @@ const EditEmployeePage = () => {
 
         // ADDED: INSURANCE & STATUTORY — ONLY IF ANY FIELD IS FILLED
         ...(formData.employeeInsuranceDetailsDTO &&
-        (formData.employeeInsuranceDetailsDTO.policyNumber ||
-          formData.employeeInsuranceDetailsDTO.providerName ||
-          formData.employeeInsuranceDetailsDTO.coverageStart ||
-          formData.employeeInsuranceDetailsDTO.coverageEnd ||
-          formData.employeeInsuranceDetailsDTO.nomineeName ||
-          formData.employeeInsuranceDetailsDTO.nomineeRelation ||
-          formData.employeeInsuranceDetailsDTO.nomineeContact ||
-          formData.employeeInsuranceDetailsDTO.groupInsurance === true)
+          (formData.employeeInsuranceDetailsDTO.policyNumber ||
+            formData.employeeInsuranceDetailsDTO.providerName ||
+            formData.employeeInsuranceDetailsDTO.coverageStart ||
+            formData.employeeInsuranceDetailsDTO.coverageEnd ||
+            formData.employeeInsuranceDetailsDTO.nomineeName ||
+            formData.employeeInsuranceDetailsDTO.nomineeRelation ||
+            formData.employeeInsuranceDetailsDTO.nomineeContact ||
+            formData.employeeInsuranceDetailsDTO.groupInsurance === true)
           ? {
-              employeeInsuranceDetailsDTO: {
-                policyNumber:
-                  formData.employeeInsuranceDetailsDTO.policyNumber || "",
-                providerName:
-                  formData.employeeInsuranceDetailsDTO.providerName || "",
-                coverageStart:
-                  formData.employeeInsuranceDetailsDTO.coverageStart || "",
-                coverageEnd:
-                  formData.employeeInsuranceDetailsDTO.coverageEnd || "",
-                nomineeName:
-                  formData.employeeInsuranceDetailsDTO.nomineeName || "",
-                nomineeRelation:
-                  formData.employeeInsuranceDetailsDTO.nomineeRelation || "",
-                nomineeContact:
-                  formData.employeeInsuranceDetailsDTO.nomineeContact || "",
-                groupInsurance:
-                  formData.employeeInsuranceDetailsDTO.groupInsurance || false,
-              },
-            }
+            employeeInsuranceDetailsDTO: {
+              policyNumber:
+                formData.employeeInsuranceDetailsDTO.policyNumber || "",
+              providerName:
+                formData.employeeInsuranceDetailsDTO.providerName || "",
+              coverageStart:
+                formData.employeeInsuranceDetailsDTO.coverageStart || "",
+              coverageEnd:
+                formData.employeeInsuranceDetailsDTO.coverageEnd || "",
+              nomineeName:
+                formData.employeeInsuranceDetailsDTO.nomineeName || "",
+              nomineeRelation:
+                formData.employeeInsuranceDetailsDTO.nomineeRelation || "",
+              nomineeContact:
+                formData.employeeInsuranceDetailsDTO.nomineeContact || "",
+              groupInsurance:
+                formData.employeeInsuranceDetailsDTO.groupInsurance || false,
+            },
+          }
           : {}),
 
         ...(formData.employeeStatutoryDetailsDTO &&
-        (formData.employeeStatutoryDetailsDTO.passportNumber ||
-          formData.employeeStatutoryDetailsDTO.taxRegime ||
-          formData.employeeStatutoryDetailsDTO.pfUanNumber ||
-          formData.employeeStatutoryDetailsDTO.esiNumber ||
-          formData.employeeStatutoryDetailsDTO.ssnNumber)
+          (formData.employeeStatutoryDetailsDTO.passportNumber ||
+            formData.employeeStatutoryDetailsDTO.taxRegime ||
+            formData.employeeStatutoryDetailsDTO.pfUanNumber ||
+            formData.employeeStatutoryDetailsDTO.esiNumber ||
+            formData.employeeStatutoryDetailsDTO.ssnNumber)
           ? {
-              employeeStatutoryDetailsDTO: {
-                passportNumber:
-                  formData.employeeStatutoryDetailsDTO.passportNumber || "",
-                taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || "",
-                pfUanNumber:
-                  formData.employeeStatutoryDetailsDTO.pfUanNumber || "",
-                esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || "",
-                ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || "",
-              },
-            }
+            employeeStatutoryDetailsDTO: {
+              passportNumber:
+                formData.employeeStatutoryDetailsDTO.passportNumber || "",
+              taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || "",
+              pfUanNumber:
+                formData.employeeStatutoryDetailsDTO.pfUanNumber || "",
+              esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || "",
+              ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || "",
+            },
+          }
           : {}),
       };
 
@@ -1003,11 +1048,6 @@ const EditEmployeePage = () => {
       if (employeeImageFile instanceof File) {
         fd.append("employeePhotoUrl", employeeImageFile);
       }
-      // documentFiles.forEach((file, index) => {
-      //   if (file instanceof File) {
-      //     fd.append(`documents[${index}]`, file);
-      //   }
-      // });
       formData.documents.forEach((doc, index) => {
         fd.append(`documents[${index}].documentId`, doc.documentId ?? "");
         fd.append(`documents[${index}].docType`, doc.docType);
@@ -1037,6 +1077,8 @@ const EditEmployeePage = () => {
     }
   };
 
+  const isStatusClient = formData?.clientSelection?.startsWith("STATUS:");
+
   // LOADING STATES
   if (loading) {
     return (
@@ -1064,8 +1106,9 @@ const EditEmployeePage = () => {
   }
 
   const selectValue = formData.clientSelection?.startsWith("STATUS:")
-    ? formData.clientSelection.replace("STATUS:", "")
-    : (formData.clientId ?? undefined);
+  ? formData.clientSelection.replace("STATUS:", "")
+  : (formData.clientId ?? "");
+
 
   const getError = (key: string) => errors[key] || "";
   return (
@@ -1385,21 +1428,50 @@ const EditEmployeePage = () => {
                       required
                       value={selectValue}
                       onValueChange={(v) => {
-                        setFormData((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                clientId: staticClients.has(v) ? null : v,
-                                clientSelection: staticClients.has(v)
-                                  ? `STATUS:${v}`
-                                  : `CLIENT:${v}`,
+                        setFormData((prev) => {
+                          if (!prev) return prev;
+
+                          const prevClient =
+                            prev.clientSelection?.startsWith("CLIENT:")
+                              ? prev.clientSelection
+                              : null;
+
+                          const nextClient = staticClients.has(v)
+                            ? `STATUS:${v}`
+                            : `CLIENT:${v}`;
+                          const clientChanged = prev.clientSelection !== nextClient;
+                          return {
+                            ...prev,
+                            clientId: staticClients.has(v) ? null : v,
+                            clientSelection: nextClient,
+
+                            // 🔴 Reset client-dependent dates if client changed
+                            ...(clientChanged
+                              ? {
+                                dateOfOnboardingToClient: "",
+                                dateOfOffboardingToClient: "",
+                                clientBillingStartDate: "",
+                                clientBillingStopDate: "",
                               }
-                            : prev,
-                        );
-                        setErrors((prev) => ({ ...prev, clientSelection: "" }));
-                        setIsDirty(true)
+                              : {}),
+                          };
+                        });
+
+                        // Clear date-related validation errors
+                        setErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.dateOfOnboardingToClient;
+                          delete newErrors.dateOfOffboardingToClient;
+                          delete newErrors.clientBillingStartDate;
+                          delete newErrors.clientBillingStopDate;
+                          delete newErrors.clientSelection;
+                          return newErrors;
+                        });
+
+                        setIsDirty(true);
                       }}
                     >
+
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Client" />
                       </SelectTrigger>
@@ -1441,18 +1513,18 @@ const EditEmployeePage = () => {
                         setFormData((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                employeeEmploymentDetailsDTO: {
-                                  ...(prev.employeeEmploymentDetailsDTO || {
-                                    employmentId: "",
-                                    employeeId: params.id as string,
-                                    probationApplicable: false,
-                                    bondApplicable: false,
-                                  }),
-                                  department,
-                                },
-                                reportingManagerId: "", // temporarily clear
-                              }
+                              ...prev,
+                              employeeEmploymentDetailsDTO: {
+                                ...(prev.employeeEmploymentDetailsDTO || {
+                                  employmentId: "",
+                                  employeeId: params.id as string,
+                                  probationApplicable: false,
+                                  bondApplicable: false,
+                                }),
+                                department,
+                              },
+                              reportingManagerId: "", // temporarily clear
+                            }
                             : prev,
                         );
 
@@ -1474,10 +1546,10 @@ const EditEmployeePage = () => {
                           setFormData((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  reportingManagerId:
-                                    validManagers[0].employeeId,
-                                }
+                                ...prev,
+                                reportingManagerId:
+                                  validManagers[0].employeeId,
+                              }
                               : prev,
                           );
                         }
@@ -1511,8 +1583,8 @@ const EditEmployeePage = () => {
                     </Label>
                     <Select
                       value={formData?.reportingManagerId || ""}
-                      onValueChange={(v) =>{
-                      setFormData((prev) =>
+                      onValueChange={(v) => {
+                        setFormData((prev) =>
                           prev ? { ...prev, reportingManagerId: v } : prev,
                         )
                         setIsDirty(true)
@@ -1532,37 +1604,37 @@ const EditEmployeePage = () => {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                      {/* No department selected */}
-                      {!formData?.employeeEmploymentDetailsDTO?.department ? (
-                        <SelectItem value="none" disabled>
-                          First select Department
-                        </SelectItem>
-                      ) : realManagers.length === 0 && hasNoManagerOption ? (
-                        /* Only N/A came from backend */
-                        <SelectItem value="NO_MANAGER" disabled>
-                          No manager
-                        </SelectItem>
-                      ) : (
-                        <>
-                          {/* Real managers */}
-                          {realManagers.map((emp) => (
-                            <SelectItem
-                              key={emp.employeeId}
-                              value={emp.employeeId}
-                            >
-                              {emp.fullName}
-                            </SelectItem>
-                          ))}
+                        {/* No department selected */}
+                        {!formData?.employeeEmploymentDetailsDTO?.department ? (
+                          <SelectItem value="none" disabled>
+                            First select Department
+                          </SelectItem>
+                        ) : realManagers.length === 0 && hasNoManagerOption ? (
+                          /* Only N/A came from backend */
+                          <SelectItem value="NO_MANAGER" disabled>
+                            No manager
+                          </SelectItem>
+                        ) : (
+                          <>
+                            {/* Real managers */}
+                            {realManagers.map((emp) => (
+                              <SelectItem
+                                key={emp.employeeId}
+                                value={emp.employeeId}
+                              >
+                                {emp.fullName}
+                              </SelectItem>
+                            ))}
 
-                          {/* Explicit "No manager" option */}
-                          {hasNoManagerOption && (
-                            <SelectItem value="NO_MANAGER">
-                              No manager
-                            </SelectItem>
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
+                            {/* Explicit "No manager" option */}
+                            {hasNoManagerOption && (
+                              <SelectItem value="NO_MANAGER">
+                                No manager
+                              </SelectItem>
+                            )}
+                          </>
+                        )}
+                      </SelectContent>
                     </Select>
                   </div>
 
@@ -1575,7 +1647,7 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData?.designation || ""}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         setFormData((prev) =>
                           prev
@@ -1615,7 +1687,7 @@ const EditEmployeePage = () => {
                       type="date"
                       name="dateOfJoining"
                       required
-                      value={formData.dateOfJoining}
+                      value={formData.dateOfJoining ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
@@ -1627,46 +1699,47 @@ const EditEmployeePage = () => {
                     )}
                   </div>
 
-                  {/* Date of onboarding*/}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Date Of Onboarding To Client
-                      <span className="text-red-500">*</span>
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
-                    </Label>
-                    <Input
-                      type="date"
-                      name="dateOfOnboardingToClient"
-                      value={formData.dateOfOnboardingToClient}
-                      onChange={handleChange}
-                      className="h-12 text-base w-full"
-                      // max={maxJoiningDateStr}
-                    />
-                    {getError("dateOfJoining") && (
-                      <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
-                      </p>
-                    )}
-                  </div>
+                 {/* Date of onboarding */}
+<div className="space-y-2">
+  <Label className="text-sm font-semibold text-gray-700">
+    Date Of Onboarding To Client
+    {!isStatusClient && <span className="text-red-500">*</span>}
+  </Label>
+
+  <Input
+    type="date"
+    name="dateOfOnboardingToClient"
+    value={formData.dateOfOnboardingToClient ?? ""}
+    onChange={handleChange}
+    required={!isStatusClient}
+    // disabled={isStatusClient}
+    className="h-12 text-base w-full"
+  />
+
+  {getError("dateOfOnboardingToClient") && !isStatusClient && (
+    <p className="text-xs text-red-600">
+      {getError("dateOfOnboardingToClient")}
+    </p>
+  )}
+</div>
+
 
                   {/* Date of Offboarding To Client*/}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Offboarding To Client
-                      {/* <span className="text-red-500">*</span> */}
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input
                       type="date"
                       name="dateOfOffboardingToClient"
-                      value={formData.dateOfOffboardingToClient}
+                      value={formData.dateOfOffboardingToClient ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
-                      //  max={maxJoiningDateStr}
+                    //  max={maxJoiningDateStr}
                     />
-                    {getError("dateOfJoining") && (
+                    {getError("dateOfOffboardingToClient") && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("dateOfOffboardingToClient")}
                       </p>
                     )}
                   </div>
@@ -1674,21 +1747,18 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing Start Date
-                      {/* <span className="text-red-500">*</span> */}
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStartDate"
-                      value={formData.clientBillingStartDate}
+                      value={formData.clientBillingStartDate ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
-                      //  max={maxJoiningDateStr}
+                    //  max={maxJoiningDateStr}
                     />
-
-                    {getError("dateOfJoining") && (
+                    {getError("clientBillingStartDate") && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("clientBillingStartDate")}
                       </p>
                     )}
                   </div>
@@ -1696,21 +1766,18 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing End Date
-                      {/* <span className="text-red-500">*</span> */}
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStopDate"
-                      value={formData.clientBillingStopDate}
+                      value={formData.clientBillingStopDate ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
-                      //  max={maxJoiningDateStr}
+                    //  max={maxJoiningDateStr}
                     />
-
-                    {getError("dateOfJoining") && (
+                    {getError("clientBillingStopDate") && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("clientBillingStopDate")}
                       </p>
                     )}
                   </div>
@@ -1798,25 +1865,25 @@ const EditEmployeePage = () => {
                         setFormData((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                employeeSalaryDTO: {
-                                  ...(prev.employeeSalaryDTO ?? {
-                                    employeeId: params.id as string,
-                                    ctc: 0,
-                                    standardHours: 160,
-                                    payClass: "A1" as PayClass,
-                                    bankAccountNumber: "",
-                                    ifscCode: "",
-                                    allowances: [],
-                                    deductions: [],
-                                  }),
-                                  payType: v as PayType,
-                                },
-                              }
+                              ...prev,
+                              employeeSalaryDTO: {
+                                ...(prev.employeeSalaryDTO ?? {
+                                  employeeId: params.id as string,
+                                  ctc: 0,
+                                  standardHours: 160,
+                                  payClass: "A1" as PayClass,
+                                  bankAccountNumber: "",
+                                  ifscCode: "",
+                                  allowances: [],
+                                  deductions: [],
+                                }),
+                                payType: v as PayType,
+                              },
+                            }
                             : prev,
                         )
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Type" />
@@ -1854,7 +1921,7 @@ const EditEmployeePage = () => {
 
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ""}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1863,7 +1930,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Class" />
@@ -1889,7 +1956,7 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO?.workingModel ||
                         ""
                       }
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1898,7 +1965,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Working Model" />
@@ -1933,7 +2000,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Shift" />
@@ -1977,7 +2044,7 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO
                           ?.noticePeriodDuration || ""
                       }
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1986,7 +2053,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Notice Period" />
@@ -2026,80 +2093,80 @@ const EditEmployeePage = () => {
                   {/* Probation Duration */}
                   {formData.employeeEmploymentDetailsDTO
                     ?.probationApplicable && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        Probation Duration
-                      </Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-gray-700">
+                          Probation Duration
+                        </Label>
 
-                      <Select
-                        value={
-                          formData.employeeEmploymentDetailsDTO
-                            ?.probationDuration || ""
-                        }
-                        onValueChange={(v) =>{
-                          setIsDirty(true)
-                          handleChange({
-                            target: {
-                              name: "employeeEmploymentDetailsDTO.probationDuration",
-                              value: v,
-                            },
-                          } as any)
-                        }
-                      }
-                      >
-                        <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                          <SelectValue placeholder="Select Duration" />
-                        </SelectTrigger>
+                        <Select
+                          value={
+                            formData.employeeEmploymentDetailsDTO
+                              ?.probationDuration || ""
+                          }
+                          onValueChange={(v) => {
+                            setIsDirty(true)
+                            handleChange({
+                              target: {
+                                name: "employeeEmploymentDetailsDTO.probationDuration",
+                                value: v,
+                              },
+                            } as any)
+                          }
+                          }
+                        >
+                          <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                            <SelectValue placeholder="Select Duration" />
+                          </SelectTrigger>
 
-                        <SelectContent>
-                          {PROBATION_DURATION_OPTIONS.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectContent>
+                            {PROBATION_DURATION_OPTIONS.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                   {/* Probation Notice Period */}
                   {formData.employeeEmploymentDetailsDTO
                     ?.probationApplicable && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        Probation Notice Period
-                      </Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-gray-700">
+                          Probation Notice Period
+                        </Label>
 
-                      <Select
-                        value={
-                          formData.employeeEmploymentDetailsDTO
-                            ?.probationNoticePeriod || ""
-                        }
-                        onValueChange={(v) =>{
-                          setIsDirty(true)
-                          handleChange({
-                            target: {
-                              name: "employeeEmploymentDetailsDTO.probationNoticePeriod",
-                              value: v,
-                            },
-                          } as any)
-                        }
-                      }
-                      >
-                        <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                          <SelectValue placeholder="Select Notice Period" />
-                        </SelectTrigger>
+                        <Select
+                          value={
+                            formData.employeeEmploymentDetailsDTO
+                              ?.probationNoticePeriod || ""
+                          }
+                          onValueChange={(v) => {
+                            setIsDirty(true)
+                            handleChange({
+                              target: {
+                                name: "employeeEmploymentDetailsDTO.probationNoticePeriod",
+                                value: v,
+                              },
+                            } as any)
+                          }
+                          }
+                        >
+                          <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                            <SelectValue placeholder="Select Notice Period" />
+                          </SelectTrigger>
 
-                        <SelectContent>
-                          {PROBATION_NOTICE_OPTIONS.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectContent>
+                            {PROBATION_NOTICE_OPTIONS.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                   {/* Bond Applicable */}
                   <div className="flex items-center gap-2">
@@ -2134,7 +2201,7 @@ const EditEmployeePage = () => {
                           formData.employeeEmploymentDetailsDTO?.bondDuration ||
                           ""
                         }
-                        onValueChange={(v) =>{
+                        onValueChange={(v) => {
                           setIsDirty(true)
                           handleChange({
                             target: {
@@ -2143,7 +2210,7 @@ const EditEmployeePage = () => {
                             },
                           } as any)
                         }
-                      }
+                        }
                       >
                         <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                           <SelectValue placeholder="Select Duration" />
@@ -2191,22 +2258,22 @@ const EditEmployeePage = () => {
                                 setFormData((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        employeeSalaryDTO: {
-                                          ...(prev.employeeSalaryDTO || {
-                                            employeeId: params.id as string,
-                                            ctc: 0,
-                                            payType: "MONTHLY" as PayType,
-                                            standardHours: 160,
-                                            payClass: "A1" as PayClass,
-                                            bankAccountNumber: "",
-                                            ifscCode: "",
-                                            allowances: [],
-                                            deductions: [],
-                                          }),
-                                          allowances: updated,
-                                        },
-                                      }
+                                      ...prev,
+                                      employeeSalaryDTO: {
+                                        ...(prev.employeeSalaryDTO || {
+                                          employeeId: params.id as string,
+                                          ctc: 0,
+                                          payType: "MONTHLY" as PayType,
+                                          standardHours: 160,
+                                          payClass: "A1" as PayClass,
+                                          bankAccountNumber: "",
+                                          ifscCode: "",
+                                          allowances: [],
+                                          deductions: [],
+                                        }),
+                                        allowances: updated,
+                                      },
+                                    }
                                     : prev,
                                 );
                               }}
@@ -2239,22 +2306,22 @@ const EditEmployeePage = () => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      employeeSalaryDTO: {
-                                        ...(prev.employeeSalaryDTO || {
-                                          employeeId: params.id as string,
-                                          ctc: 0,
-                                          payType: "MONTHLY" as PayType,
-                                          standardHours: 160,
-                                          payClass: "A1" as PayClass,
-                                          bankAccountNumber: "",
-                                          ifscCode: "",
-                                          allowances: [],
-                                          deductions: [],
-                                        }),
-                                        allowances: updated,
-                                      },
-                                    }
+                                    ...prev,
+                                    employeeSalaryDTO: {
+                                      ...(prev.employeeSalaryDTO || {
+                                        employeeId: params.id as string,
+                                        ctc: 0,
+                                        payType: "MONTHLY" as PayType,
+                                        standardHours: 160,
+                                        payClass: "A1" as PayClass,
+                                        bankAccountNumber: "",
+                                        ifscCode: "",
+                                        allowances: [],
+                                        deductions: [],
+                                      }),
+                                      allowances: updated,
+                                    },
+                                  }
                                   : prev,
                               );
                             }}
@@ -2292,26 +2359,26 @@ const EditEmployeePage = () => {
                           setFormData((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  employeeSalaryDTO: {
-                                    ...(prev.employeeSalaryDTO || {
-                                      employeeId: params.id as string,
-                                      ctc: 0,
-                                      payType: "MONTHLY" as PayType,
-                                      standardHours: 160,
-                                      payClass: "A1" as PayClass,
-                                      bankAccountNumber: "",
-                                      ifscCode: "",
-                                      allowances: [],
-                                      deductions: [],
-                                    }),
-                                    allowances: [
-                                      ...(prev.employeeSalaryDTO?.allowances ||
-                                        []),
-                                      newAllowance,
-                                    ],
-                                  },
-                                }
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO || {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    payType: "MONTHLY" as PayType,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: [],
+                                  }),
+                                  allowances: [
+                                    ...(prev.employeeSalaryDTO?.allowances ||
+                                      []),
+                                    newAllowance,
+                                  ],
+                                },
+                              }
                               : prev,
                           );
                         }}
@@ -2350,22 +2417,22 @@ const EditEmployeePage = () => {
                                 setFormData((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        employeeSalaryDTO: {
-                                          ...(prev.employeeSalaryDTO || {
-                                            employeeId: params.id as string,
-                                            ctc: 0,
-                                            payType: "MONTHLY" as PayType,
-                                            standardHours: 160,
-                                            payClass: "A1" as PayClass,
-                                            bankAccountNumber: "",
-                                            ifscCode: "",
-                                            allowances: [],
-                                            deductions: [],
-                                          }),
-                                          deductions: updated,
-                                        },
-                                      }
+                                      ...prev,
+                                      employeeSalaryDTO: {
+                                        ...(prev.employeeSalaryDTO || {
+                                          employeeId: params.id as string,
+                                          ctc: 0,
+                                          payType: "MONTHLY" as PayType,
+                                          standardHours: 160,
+                                          payClass: "A1" as PayClass,
+                                          bankAccountNumber: "",
+                                          ifscCode: "",
+                                          allowances: [],
+                                          deductions: [],
+                                        }),
+                                        deductions: updated,
+                                      },
+                                    }
                                     : prev,
                                 );
                               }}
@@ -2397,22 +2464,22 @@ const EditEmployeePage = () => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      employeeSalaryDTO: {
-                                        ...(prev.employeeSalaryDTO || {
-                                          employeeId: params.id as string,
-                                          ctc: 0,
-                                          payType: "MONTHLY" as PayType,
-                                          standardHours: 160,
-                                          payClass: "A1" as PayClass,
-                                          bankAccountNumber: "",
-                                          ifscCode: "",
-                                          allowances: [],
-                                          deductions: [],
-                                        }),
-                                        deductions: updated,
-                                      },
-                                    }
+                                    ...prev,
+                                    employeeSalaryDTO: {
+                                      ...(prev.employeeSalaryDTO || {
+                                        employeeId: params.id as string,
+                                        ctc: 0,
+                                        payType: "MONTHLY" as PayType,
+                                        standardHours: 160,
+                                        payClass: "A1" as PayClass,
+                                        bankAccountNumber: "",
+                                        ifscCode: "",
+                                        allowances: [],
+                                        deductions: [],
+                                      }),
+                                      deductions: updated,
+                                    },
+                                  }
                                   : prev,
                               );
                             }}
@@ -2450,26 +2517,26 @@ const EditEmployeePage = () => {
                           setFormData((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  employeeSalaryDTO: {
-                                    ...(prev.employeeSalaryDTO || {
-                                      employeeId: params.id as string,
-                                      ctc: 0,
-                                      payType: "MONTHLY" as PayType,
-                                      standardHours: 160,
-                                      payClass: "A1" as PayClass,
-                                      bankAccountNumber: "",
-                                      ifscCode: "",
-                                      allowances: [],
-                                      deductions: [],
-                                    }),
-                                    deductions: [
-                                      ...(prev.employeeSalaryDTO?.deductions ||
-                                        []),
-                                      newDeduction,
-                                    ],
-                                  },
-                                }
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO || {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    payType: "MONTHLY" as PayType,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: [],
+                                  }),
+                                  deductions: [
+                                    ...(prev.employeeSalaryDTO?.deductions ||
+                                      []),
+                                    newDeduction,
+                                  ],
+                                },
+                              }
                               : prev,
                           );
                         }}
@@ -2509,7 +2576,7 @@ const EditEmployeePage = () => {
 
                           <Select
                             value={doc.docType}
-                            onValueChange={(v) =>{
+                            onValueChange={(v) => {
                               setIsDirty(true)
                               handleDocumentFileChange(
                                 i,
@@ -2544,11 +2611,11 @@ const EditEmployeePage = () => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      documents: prev.documents.map((d, idx) =>
-                                        idx === i ? { ...d, file } : d,
-                                      ),
-                                    }
+                                    ...prev,
+                                    documents: prev.documents.map((d, idx) =>
+                                      idx === i ? { ...d, file } : d,
+                                    ),
+                                  }
                                   : prev,
                               );
                             }}
@@ -2558,11 +2625,11 @@ const EditEmployeePage = () => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      documents: prev.documents.map((d, idx) =>
-                                        idx === i ? { ...d, file: null } : d,
-                                      ),
-                                    }
+                                    ...prev,
+                                    documents: prev.documents.map((d, idx) =>
+                                      idx === i ? { ...d, file: null } : d,
+                                    ),
+                                  }
                                   : prev,
                               );
                             }}
@@ -2749,27 +2816,26 @@ const EditEmployeePage = () => {
                       onChange={handleChange}
                       maxLength={30}
                       placeholder="e.g., Cleared, Pending"
-                      className={`w-full h-12 px-4 py-3 border rounded-xl text-base focus:ring-indigo-500 ${
-                        errors[
-                          "employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                        ]
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
+                      className={`w-full h-12 px-4 py-3 border rounded-xl text-base focus:ring-indigo-500 ${errors[
+                        "employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                      ]
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        }`}
                     />
 
                     {/* Error */}
                     {errors[
                       "employeeAdditionalDetailsDTO.backgroundCheckStatus"
                     ] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {
-                          errors[
+                        <p className="text-red-500 text-xs mt-1">
+                          {
+                            errors[
                             "employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                          ]
-                        }
-                      </p>
-                    )}
+                            ]
+                          }
+                        </p>
+                      )}
                   </div>
 
                   {/* ADDITIONAL REMARKS */}
@@ -2999,10 +3065,10 @@ const EditEmployeePage = () => {
                       {checking.has(
                         "employeeInsuranceDetailsDTO.nomineeContact",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
                     {errors["employeeInsuranceDetailsDTO.nomineeContact"] && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
@@ -3018,7 +3084,7 @@ const EditEmployeePage = () => {
                       // checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
                       checked={
                         formData.employeeInsuranceDetailsDTO?.groupInsurance ===
-                        null
+                          null
                           ? undefined
                           : formData.employeeInsuranceDetailsDTO?.groupInsurance
                       }
@@ -3089,10 +3155,10 @@ const EditEmployeePage = () => {
                       {checking.has(
                         "employeeStatutoryDetailsDTO.passportNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
                     {errors["employeeStatutoryDetailsDTO.passportNumber"] && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
@@ -3144,10 +3210,10 @@ const EditEmployeePage = () => {
                       {checking.has(
                         "employeeStatutoryDetailsDTO.pfUanNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
                     {errors["employeeStatutoryDetailsDTO.pfUanNumber"] && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
@@ -3220,10 +3286,10 @@ const EditEmployeePage = () => {
                       {checking.has(
                         "employeeStatutoryDetailsDTO.esiNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
                     {errors["employeeStatutoryDetailsDTO.esiNumber"] && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
@@ -3275,10 +3341,10 @@ const EditEmployeePage = () => {
                       {checking.has(
                         "employeeStatutoryDetailsDTO.ssnNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
                     {errors["employeeStatutoryDetailsDTO.ssnNumber"] && (
                       <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">

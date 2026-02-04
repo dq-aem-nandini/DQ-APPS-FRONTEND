@@ -173,10 +173,11 @@ const ViewEmployee = () => {
                 Professional Details
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {employee.employeeEmploymentDetailsDTO && hasValue(employee.employeeEmploymentDetailsDTO.department) && <InfoItem label="Department" value={employee.employeeEmploymentDetailsDTO.department!} />}
                 {hasValue(employee.designation) && <InfoItem label="Designation" value={employee.designation!} />}
-                {hasValue(employee.dateOfJoining) && <InfoItem label="Date of Joining" value={employee.dateOfJoining!} />}
-                {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
                 {hasValue(employee.employmentType) && <InfoItem label="Employment Type" value={employee.employmentType!} />}
+                {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
+                {hasValue(employee.dateOfJoining) && <InfoItem label=" Date of Joining" value={employee.dateOfJoining!} />}                
                 {employee.rateCard != null && employee.rateCard > 0 && (
                   <InfoItem label="Rate Card" value={String(employee.rateCard)} />
                 )}
@@ -193,7 +194,7 @@ const ViewEmployee = () => {
                 hasValue(employee.clientBillingStopDate)) && (
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                  <h3 className="text-xl font-semibold text-gray-700 mb-4">
                     Client Details
                   </h3>
 
@@ -400,7 +401,6 @@ const ViewEmployee = () => {
           employee.employeeEmploymentDetailsDTO.bondApplicable ||
           hasValue(employee.employeeEmploymentDetailsDTO.workingModel) ||
           hasValue(employee.employeeEmploymentDetailsDTO.shiftTimingLabel) ||
-          hasValue(employee.employeeEmploymentDetailsDTO.department) ||
           hasValue(employee.employeeEmploymentDetailsDTO.location) ||
           hasValue(employee.employeeEmploymentDetailsDTO.dateOfConfirmation)
         ) && (

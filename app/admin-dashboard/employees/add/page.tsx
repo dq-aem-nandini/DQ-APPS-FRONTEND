@@ -72,7 +72,7 @@ const AddEmployeePage = () => {
     dateOfOnboardingToClient: '',
     dateOfOffboardingToClient: '',
     clientBillingStartDate: '',
-    clientBillingStopDate: '',  
+    clientBillingStopDate: '',
     rateCard: null,
     employmentType: 'FULLTIME' as EmploymentType,
     panNumber: '',
@@ -229,26 +229,31 @@ const AddEmployeePage = () => {
       }
     }
 
-    // Handle nested dto fields
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
+    setFormData(prev => {
+      let updated: EmployeeModel;
 
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...(typeof prev[parent as keyof EmployeeModel] === "object" && prev[parent as keyof EmployeeModel] !== null
-            ? (prev[parent as keyof EmployeeModel] as any)
-            : {}), // safe fallback object
-          [child]: parsedValue,
-        },
-      }));
-    }
-    else {
-      setFormData(prev => ({ ...prev, [name]: parsedValue }));
-    }
+      if (name.includes('.')) {
+        const [parent, child] = name.split('.');
+        updated = {
+          ...prev,
+          [parent]: {
+            ...(prev[parent as keyof EmployeeModel] as any),
+            [child]: parsedValue,
+          },
+        };
+      } else {
+        updated = { ...prev, [name]: parsedValue };
+      }
+
+      // ✅ VALIDATE WITH UPDATED STATE
+      validateClientDates(updated);
+
+      return updated;
+    });
 
     validateField(name, parsedValue);
   };
+
 
   const fetchDepartmentEmployees = async (dept: Department) => {
     if (!dept) {
@@ -321,7 +326,7 @@ const AddEmployeePage = () => {
   const realManagers = departmentEmployees.filter(
     (emp) => emp.employeeId && emp.designation
   );
-  
+
   const hasNoManagerOption = departmentEmployees.some(
     (emp) => emp.employeeId === null
   );
@@ -553,8 +558,8 @@ const AddEmployeePage = () => {
         // Convert "NO_MANAGER" / "none" → null
         reportingManagerId:
           formData.reportingManagerId === "NO_MANAGER" ||
-          formData.reportingManagerId === "none" ||
-          formData.reportingManagerId === ""
+            formData.reportingManagerId === "none" ||
+            formData.reportingManagerId === ""
             ? null
             : formData.reportingManagerId,
         // ... you can add similar normalization for other optional IDs if needed
@@ -646,6 +651,111 @@ const AddEmployeePage = () => {
   const selectValue = formData.clientSelection?.startsWith('STATUS:')
     ? formData.clientSelection.replace('STATUS:', '')
     : (formData.clientId ?? undefined);
+
+  const isStatusClient = formData.clientSelection?.startsWith("STATUS:");
+
+
+  const validateClientDates = (data: EmployeeModel) => {
+    const newErrors: Record<string, string> = {};
+
+    // Helper: parse yyyy-mm-dd safely
+    const parseDate = (dateStr?: string | null): Date | null => {
+      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const doJ = parseDate(data.dateOfJoining);
+    const doOCT = parseDate(data.dateOfOnboardingToClient);
+    const doOff = parseDate(data.dateOfOffboardingToClient);
+    const cbs = parseDate(data.clientBillingStartDate);
+    const cbe = parseDate(data.clientBillingStopDate);
+
+
+    // 🚫 Joining is mandatory anchor
+    if (!doJ) {
+      setErrors(newErrors);
+      return;
+    }
+
+    /* ---------------------------------------------------
+       1️⃣ DOJ must be before everything
+    --------------------------------------------------- */
+    if (doOCT && doJ > doOCT) {
+      newErrors.dateOfOnboardingToClient =
+        "Onboarding date must be after Date of Joining";
+    }
+
+    if (cbs && doJ > cbs) {
+      newErrors.clientBillingStartDate =
+        "Billing start date must be after Date of Joining";
+    }
+
+    if (doOff && doJ >= doOff) {
+      newErrors.dateOfOffboardingToClient =
+        "Offboarding date must be after Date of Joining";
+    }
+
+    if (cbe && doJ >= cbe) {
+      newErrors.clientBillingStopDate =
+        "Billing end date must be after Date of Joining";
+    }
+
+    /* ---------------------------------------------------
+       2️⃣ Onboarding < Offboarding
+    --------------------------------------------------- */
+    if (doOCT && doOff && doOCT > doOff) {
+      newErrors.dateOfOnboardingToClient =
+        "Onboarding date must be before offboarding date";
+    }
+
+    // if (rawOff && doOff && doOCT  doOff) {
+    //   newErrors.dateOfOffboardingToClient =
+    //     "Offboarding date must be after onboarding date";
+    // }
+
+    /* ---------------------------------------------------
+       3️⃣ Billing Start rules
+       - ≥ Onboarding
+       - < Offboarding
+       - < Billing End
+    --------------------------------------------------- */
+    if (cbs && doOCT && cbs < doOCT) {
+      newErrors.clientBillingStartDate =
+        "Billing start date cannot be before onboarding date";
+    }
+
+    if (cbs && doOff && cbs >= doOff) {
+      newErrors.clientBillingStartDate =
+        "Billing start date must be before offboarding date";
+    }
+
+    if (cbs && cbe && cbs >= cbe) {
+      newErrors.clientBillingStartDate =
+        "Billing start date must be before billing end date";
+      newErrors.clientBillingStopDate =
+        "Billing end date must be after billing start date";
+    }
+
+    /* ---------------------------------------------------
+       4️⃣ Billing Stop rules
+       - ≥ Onboarding
+       - ≥ Offboarding (can be equal)
+    --------------------------------------------------- */
+    if (cbe && doOCT && cbe <= doOCT) {
+      newErrors.clientBillingStopDate =
+        "Billing end date must be after onboarding date";
+    }
+
+    if (doOff && cbe && doOff > cbe) {
+      newErrors.dateOfOffboardingToClient =
+        "Offboarding date cannot be after billing end date";
+    }
+
+    setErrors(newErrors);
+  };
+
+
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 md:p-8">
@@ -886,11 +996,34 @@ const AddEmployeePage = () => {
                       Client <span className="text-red-500">*</span>
                       <TooltipHint hint="Select the client/project the employee is assigned to. Use BENCH/INHOUSE if not assigned." />
                     </Label>
-                    <Select required value={selectValue} onValueChange={(v) => setFormData(p => ({
-                      ...p,
-                      clientId: staticClients.has(v) ? null : v,
-                      clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`,
-                    }))}>
+                    <Select
+                      required
+                      value={selectValue}
+                      onValueChange={(v) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          clientId: staticClients.has(v) ? null : v,
+                          clientSelection: staticClients.has(v) ? `STATUS:${v}` : `CLIENT:${v}`,
+
+                          // ─── Reset these five fields when client changes ───
+                          dateOfOnboardingToClient: '',
+                          dateOfOffboardingToClient: '',
+                          clientBillingStartDate: '',
+                          clientBillingStopDate: '',
+                        }));
+
+                        // Also clear any existing validation errors for these fields
+                        setErrors(prev => {
+                          const next = { ...prev };
+                          delete next.dateOfJoining;
+                          delete next.dateOfOnboardingToClient;
+                          delete next.dateOfOffboardingToClient;
+                          delete next.clientBillingStartDate;
+                          delete next.clientBillingStopDate;
+                          return next;
+                        });
+                      }}
+                    >
                       <SelectTrigger className="w-full min-w-[200px] !h-12">
                         <SelectValue placeholder="Select Client" />
                       </SelectTrigger>
@@ -938,37 +1071,37 @@ const AddEmployeePage = () => {
                         <SelectValue placeholder={formData.employeeEmploymentDetailsDTO?.department ? "Select Manager" : "Select Department First"} />
                       </SelectTrigger>
                       <SelectContent>
-                      {/* No department selected */}
-                      {!formData?.employeeEmploymentDetailsDTO?.department ? (
-                        <SelectItem value="none" disabled>
-                          First select Department
-                        </SelectItem>
-                      ) : realManagers.length === 0 && hasNoManagerOption ? (
-                        /* Only N/A came from backend */
-                        <SelectItem value="NO_MANAGER" disabled>
-                          No manager
-                        </SelectItem>
-                      ) : (
-                        <>
-                          {/* Real managers */}
-                          {realManagers.map((emp) => (
-                            <SelectItem
-                              key={emp.employeeId}
-                              value={emp.employeeId}
-                            >
-                              {emp.fullName}
-                            </SelectItem>
-                          ))}
+                        {/* No department selected */}
+                        {!formData?.employeeEmploymentDetailsDTO?.department ? (
+                          <SelectItem value="none" disabled>
+                            First select Department
+                          </SelectItem>
+                        ) : realManagers.length === 0 && hasNoManagerOption ? (
+                          /* Only N/A came from backend */
+                          <SelectItem value="NO_MANAGER" disabled>
+                            No manager
+                          </SelectItem>
+                        ) : (
+                          <>
+                            {/* Real managers */}
+                            {realManagers.map((emp) => (
+                              <SelectItem
+                                key={emp.employeeId}
+                                value={emp.employeeId}
+                              >
+                                {emp.fullName}
+                              </SelectItem>
+                            ))}
 
-                          {/* Explicit "No manager" option */}
-                          {hasNoManagerOption && (
-                            <SelectItem value="NO_MANAGER">
-                              No manager
-                            </SelectItem>
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
+                            {/* Explicit "No manager" option */}
+                            {hasNoManagerOption && (
+                              <SelectItem value="NO_MANAGER">
+                                No manager
+                              </SelectItem>
+                            )}
+                          </>
+                        )}
+                      </SelectContent>
                     </Select>
                   </div>
                   {/* Designation */}
@@ -990,85 +1123,99 @@ const AddEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date of Joining <span className="text-red-500">*</span>
-                      <TooltipHint hint="First working day at the company. Cannot be future date." />
-                    </Label>
+                      <TooltipHint
+                        hint="Employee's first official working day with the company. Must be in the past or today. Cannot be a future date. This date must be earlier than onboarding, billing start, offboarding, and billing end dates."
+                      />                      </Label>
                     <Input
                       type="date"
                       name="dateOfJoining"
-                      value={formData.dateOfJoining}
+                      value={formData.dateOfJoining ?? ""}
                       required
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}
                     />
+                    {errors.dateOfJoining && <p className="text-red-500 text-xs mt-1">{errors.dateOfJoining}</p>}
                   </div>
                   {/* Date of onboarding*/}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                      Date Of Onboarding To Client 
-                      <span className="text-red-500">*</span> 
-                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                      Date Of Onboarding To Client
+                      {!isStatusClient && <span className="text-red-500">*</span>}
+                      <TooltipHint
+                        hint="Date when the employee started working for the client. Must be after Date of Joining."
+                      />
                     </Label>
                     <Input
                       type="date"
                       name="dateOfOnboardingToClient"
-                      value={formData.dateOfOnboardingToClient}
-                      
+                      value={formData.dateOfOnboardingToClient ?? ""}
+                      required={!isStatusClient}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}
                     />
+                    {errors.dateOfOnboardingToClient && <p className="text-red-500 text-xs mt-1">{errors.dateOfOnboardingToClient}</p>}
                   </div>
                   {/* Date of Offboarding To Client*/}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                    Date Of Offboarding To Client 
-                    {/* <span className="text-red-500">*</span> */}
-                      <TooltipHint hint="First working day at the company. Cannot be future date." />
-                    </Label>
+                      Date Of Offboarding To Client
+                      {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint
+                        hint="Last working day with the client. Must be after Date of Joining, onboarding, and billing start. Can be the same as or before Client Billing End Date."
+                      />                    </Label>
                     <Input
                       type="date"
                       name="dateOfOffboardingToClient"
-                      value={formData.dateOfOffboardingToClient}
-                      
+                      value={formData.dateOfOffboardingToClient ?? ""}
+
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}
                     />
+                    {errors.dateOfOffboardingToClient && <p className="text-red-500 text-xs mt-1">{errors.dateOfOffboardingToClient}</p>}
                   </div>
                   {/* Client Billing Start Date */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                    Client Billing Start Date 
-                    {/* <span className="text-red-500">*</span> */}
-                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                      Client Billing Start Date
+                      {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint
+                        hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date."
+                      />
+
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStartDate"
-                      value={formData.clientBillingStartDate}
-                      
+                      value={formData.clientBillingStartDate ?? ""}
+
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}
                     />
+                    {errors.clientBillingStartDate && <p className="text-red-500 text-xs mt-1">{errors.clientBillingStartDate}</p>}
                   </div>
                   {/* client Billing Stop Date */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                    Client Billing End Date 
-                    {/* <span className="text-red-500">*</span> */}
-                      <TooltipHint hint="First working day at the company. Cannot be future date." />
+                      Client Billing End Date
+                      {/* <span className="text-red-500">*</span> */}
+                      <TooltipHint
+                        hint="Date until which client billing continues for this employee. Must be strictly after Client Billing Start Date. Can be the same as or after Date of Offboarding to Client."
+                      />
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStopDate"
-                      value={formData.clientBillingStopDate}
-                      
+                      value={formData.clientBillingStopDate ?? ""}
+
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                       max={maxJoiningDateStr}
                     />
+                    {errors.clientBillingStopDate && <p className="text-red-500 text-xs mt-1">{errors.clientBillingStopDate}</p>}
                   </div>
                   {/* Employment Type */}
                   <div className="space-y-2">

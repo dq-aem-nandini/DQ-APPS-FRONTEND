@@ -798,9 +798,12 @@ const ProfilePage = () => {
 
     // Compare documents (new files uploaded)
     const documentsChanged =
-  documents.some((d) => d.fileObj instanceof File) ||     // new file upload
-  documents.some((d) => d.status === 'new') ||            // added new document 
-  false;          // Removed invalid check for 'updated'
+    documents.some(
+      (d) =>
+        d.fileObj instanceof File &&          // file selected
+        !!d.docType                           // document type selected
+    );
+  
 
 if (documentsChanged) return true;
 
