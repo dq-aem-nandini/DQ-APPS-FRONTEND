@@ -734,7 +734,7 @@ export type WebResponseDTOEmployeeList = WebResponseDTO<EmployeeDTO[]>;
 export interface ClientModel {
   companyName: string;
   contactNumber: string;
-  email: string;
+  email: string | null; 
   gst: string;
   currency: string;
   panNumber: string;

@@ -78,24 +78,22 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
 
         {/* LOGO */}
-        <div
-      className="flex items-center justify-center space-x-4 mb-8 cursor-pointer hover:opacity-90 transition"
-      onClick={() => router.push('/dashboard')}
-    >
-      <Image
-        src="/digiquad logo.jpeg"
-        alt="DigiQuad Logo"
-        width={50}
-        height={50}
-        className="rounded-full shadow-sm"
-      />
-      <div className="text-2xl font-bold text-indigo-600">
-        DigiQuad
-      </div>
-    </div>
+        <div className="flex items-center justify-center space-x-4 mb-8">
+          <Image
+            src="/digiquad logo.jpeg"
+            alt="DigiQuad Logo"
+            width={50}
+            height={50}
+            style={{ width: "auto" }}
+            className="rounded-full shadow-sm"
+          />
+          <div className="text-2xl font-bold text-indigo-600">
+            DigiQuad
+          </div>
+        </div>
         {/* =====================
-    COMMON (EMPLOYEE, MANAGER,HR, FINANCE ONLY)
-===================== */}
+          COMMON (EMPLOYEE, MANAGER,HR, FINANCE ONLY)
+          ===================== */}
           {role !== "SUPER_HR" && (
           <SidebarSection title="Main">
             {sidebarConfig.common.map((item: SidebarItem) => (

@@ -248,7 +248,7 @@ const isIndia = (country?: string) =>
   };
   // Real-time duplicate detection between main fields and POCs
   const checkDuplicateInForm = () => {
-    const mainEmail = formData.email.toLowerCase().trim();
+    const mainEmail = formData.email?.toLowerCase().trim();
     const mainContact = formData.contactNumber;
 
     const newErrors: Record<string, string> = {};
@@ -258,10 +258,10 @@ const isIndia = (country?: string) =>
       const pocContact = poc.contactNumber;
 
       // Main email = POC email
-      if (pocEmail && pocEmail === mainEmail) {
+      if (pocEmail && mainEmail && pocEmail === mainEmail) {
         newErrors[`clientPocs.${i}.email`] = 'Same as company email';
         newErrors.email = 'Same as POC email';
-      }
+      }      
 
       // Main contact = POC contact
       if (pocContact && pocContact === mainContact) {
@@ -388,7 +388,8 @@ const isIndia = (country?: string) =>
         const payload = {
           companyName: formData.companyName.trim(),
           contactNumber: formData.contactNumber,
-          email: formData.email.toLowerCase().trim(),
+          // email: formData.email.toLowerCase().trim(),
+          email: formData.email ? formData.email.toLowerCase().trim(): null,
           gst: formData.gst.toUpperCase(),
           panNumber: formData.panNumber.toUpperCase(),
           tanNumber: formData.tanNumber.toUpperCase(),

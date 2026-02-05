@@ -1,3 +1,4 @@
+// app/dashboard/TimeSheetRegister/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -769,7 +770,9 @@ useEffect(() => {
         targetDates = weekDates.filter(d => d.format('YYYY-MM') === splitWeekInfo.firstMonth).map(d => d.format('YYYY-MM-DD'));
       } else if (
         splitWeekInfo.secondMonthSubmitFrom && 
-        todayKey >= splitWeekInfo.secondMonthSubmitFrom
+        // todayKey >= splitWeekInfo.secondMonthSubmitFrom
+        todayKey >= splitWeekInfo.secondMonthSubmitFrom &&
+        todayKey <= splitWeekInfo.secondMonthSubmitTo
       ) {
         targetDates = weekDates
         .filter(d => {
@@ -1085,7 +1088,9 @@ useEffect(() => {
             // Case 2: Today is in the allowed second-month range (Fri–Sun)
             else if (
               splitWeekInfo.secondMonthSubmitFrom &&
-              todayKey >= splitWeekInfo.secondMonthSubmitFrom
+              // todayKey >= splitWeekInfo.secondMonthSubmitFrom
+              todayKey >= splitWeekInfo.secondMonthSubmitFrom &&
+              todayKey <= splitWeekInfo.secondMonthSubmitTo
             ) {
               submitDates = weekDates
                 .filter(d => d.format('YYYY-MM') === splitWeekInfo.secondMonth)
