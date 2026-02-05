@@ -19,18 +19,13 @@ export const sidebarConfig = {
     { label: "Employee Leaves", href: "/admin-dashboard/leaves" },
     { label: "Add Holiday", href: "/admin-dashboard/holiday" },
   ],
-  // EMPLOYEE: [
-  //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },],
-
-  // SUPERHR_COMMON: [
-  //   { label: 'Leaves', href: '/superhr/leaves', },
-  // ],
+  
+  
   SUPER_HR: [
-    { label: "Dashboard", href: "/dashboard"},
     { permission: "ADD_HOLIDAY", label: "Add Holiday", href: "/superhr/addHoliday",},
     { label: "View Holidays", href: "/superhr/viewHolidays",},
     { label: 'Leaves', href: '/superhr/leaves', },
-    { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/dashboard/SHR-Timesheet",},
+    { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/manager/SHR-Timesheet",},
   ],
 
 
