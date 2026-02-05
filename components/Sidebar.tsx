@@ -99,9 +99,10 @@ export default function Sidebar() {
             DigiQuad
           </div>
         </div>
-
-        {/* 🔹 COMMON (ALL ROLES) */}
-        {role !== "SUPER_HR" && (
+        {/* =====================
+          COMMON (EMPLOYEE, MANAGER,HR, FINANCE ONLY)
+          ===================== */}
+          {role !== "SUPER_HR" && (
           <SidebarSection title="Main">
             {sidebarConfig.common.map((item: SidebarItem) => (
               <SidebarLink
@@ -133,9 +134,30 @@ export default function Sidebar() {
           </SidebarSection>
         )}
 
-        {/* 🔹 ROLE-SPECIFIC (PERMISSION BASED) */}
-        {isSidebarRole(role) && (
+        {/* =====================
+            SUPER_HR COMMON (NO PERMISSIONS)
+            👉 ONLY LEAVES
+        ===================== */}
+        {/* {role === "SUPER_HR" && (
           <SidebarSection title={role}>
+            {sidebarConfig.SUPERHR_COMMON.map((item: SidebarItem) => (
+              <SidebarLink
+                key={item.href}
+                href={item.href}
+                active={pathname.startsWith(item.href)}
+                icon={getIcon(item.label)}
+              >
+                {item.label}
+              </SidebarLink>
+            ))}
+          </SidebarSection>
+        )} */}
+
+        {/* =====================
+            ROLE-SPECIFIC (PERMISSION BASED)
+        ===================== */}
+        {isSidebarRole(role) && sidebarConfig[role] && (
+          <SidebarSection title={role.replace("_", " ")}>
             {sidebarConfig[role]
               .filter(
                 (item: SidebarItem) =>

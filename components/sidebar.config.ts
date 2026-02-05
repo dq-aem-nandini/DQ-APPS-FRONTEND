@@ -8,7 +8,7 @@ export const sidebarConfig = {
     { label: 'Leaves', href: '/dashboard/leaves', },
     { label: "Holidays", href: '/dashboard/holiday' },
     { label: 'Update Request', href: '/dashboard/updaterequest', },
-    { label: 'Timesheet', href: '/dashboard/TimeSheetRegister', },
+    { label: 'Timesheet', href: '/dashboard/SHR-Timesheet', },
     { label: "Settings", href: "/dashboard/settings" },
   ],
   HR_COMMON: [
@@ -20,43 +20,17 @@ export const sidebarConfig = {
     { label: "Add Holiday", href: "/admin-dashboard/holiday" },
   ],
   // EMPLOYEE: [
-  //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },
+  //   { permission: "VIEW_TIMESHEET", label: "Timesheet", href: '/dashboard/TimeSheetRegister' },],
+
+  // SUPERHR_COMMON: [
+  //   { label: 'Leaves', href: '/superhr/leaves', },
   // ],
   SUPER_HR: [
-    // {
-    //   permission: "APPLY_LEAVE",
-    //   label: "Apply Leave",
-    //   href: "/superhr/applyLeave",
-    // },
-    // {
-    //   permission: "DELETE_LEAVE",
-    //   label: "Delete Leave",
-    //   href: "/superhr/deleteLeave",
-    // },
-    {
-      permission: "SUBMIT_TIMESHEET",
-      label: "Timesheet",
-      href: "/manager/SHR-Timesheet",
-    },
-    // {
-    //   permission: "DELETE_TIMESHEET",
-    //   label: "Delete Timesheet",
-    //   href: "/superhr/deleteTimesheet",
-    // },
-    {
-      permission: "ADD_HOLIDAY",
-      label: "Add Holiday",
-      href: "/superhr/addHoliday",
-    },
-    {
-      label: "View Holidays",
-      href: "/superhr/viewHolidays",
-    },
-    // {
-    //   permission: "DELETE_HOLIDAY",
-    //   label: "Delete Holiday",
-    //   href: "/superhr/deleteHoliday",
-    // },
+    { label: "Dashboard", href: "/dashboard"},
+    { permission: "ADD_HOLIDAY", label: "Add Holiday", href: "/superhr/addHoliday",},
+    { label: "View Holidays", href: "/superhr/viewHolidays",},
+    { label: 'Leaves', href: '/superhr/leaves', },
+    { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/dashboard/SHR-Timesheet",},
   ],
 
 
