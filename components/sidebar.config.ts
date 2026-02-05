@@ -8,7 +8,7 @@ export const sidebarConfig = {
     { label: 'Leaves', href: '/dashboard/leaves', },
     { label: "Holidays", href: '/dashboard/holiday' },
     { label: 'Update Request', href: '/dashboard/updaterequest', },
-    { label: 'Timesheet', href: '/dashboard/TimeSheetRegister', },
+    { label: 'Timesheet', href: '/dashboard/SHR-Timesheet', },
     { label: "Settings", href: "/dashboard/settings" },
   ],
   HR_COMMON: [
