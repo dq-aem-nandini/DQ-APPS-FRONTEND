@@ -322,7 +322,7 @@ export default function ManagerTimesheetReview() {
       const res = await adminService.revertTimesheet(params);
 
       if (res.flag) {
-        console.log("✅ Timesheet reverted:", res.response);
+        console.log("Timesheet reverted:", res.response);
         await fetchTimesheets();
       } else {
         alert(res.message || "Failed to revert timesheet");

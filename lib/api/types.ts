@@ -1713,3 +1713,31 @@ export interface DeleteEmployeeHolidayRequestDTO {
   holidayId: string;          // UUID
   employeeId: string;         // UUID
 }
+
+export type EmployeePasswordState = {
+  selected: boolean;
+  password: string;
+};
+
+// ClientEmployeeHistoryDTO
+export interface ClientEmployeeHistoryDTO {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  onboardDate: string;
+  billingStartDate: string;
+  offboardDate: string;
+  billingEndDate: string;
+  active: boolean;
+}
+
+// EmployeeClientHistoryDTO
+export interface EmployeeClientHistoryDTO {
+  clientId: string;
+  clientName: string;
+  onboardDate: string;
+  billingStartDate: string;
+  offboardDate: string;
+  billingEndDate: string;
+  active: boolean;
+}

@@ -16,6 +16,8 @@ import {
   Designation,
   AdminDTO,
   AdminUpdatePayload,
+  ClientEmployeeHistoryDTO,
+  EmployeeClientHistoryDTO
 } from './types';
 import { AxiosResponse } from 'axios';
 function getBackendError(error: any): string {
@@ -503,6 +505,42 @@ class AdminService {
       throw new Error(getBackendError(error));
     }
   }
+
+  // ✅ Get client employee history
+async getClientEmployeeHistory(
+  clientId: string,
+  page: number = 0,
+  size: number = 10
+): Promise<WebResponseDTO<ClientEmployeeHistoryDTO[]>> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<ClientEmployeeHistoryDTO[]>> =
+      await api.get("/client/employee/get/history", {
+        params: { clientId, page, size }
+      });
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
+// ✅ Get employee client history
+async getEmployeeClientHistory(
+  employeeId: string,
+  page: number = 0,
+  size: number = 10
+): Promise<WebResponseDTO<EmployeeClientHistoryDTO[]>> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<EmployeeClientHistoryDTO[]>> =
+      await api.get("/employee/client/get/history", {
+        params: { employeeId, page, size }
+      });
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
 
 }
 export const adminService = new AdminService();

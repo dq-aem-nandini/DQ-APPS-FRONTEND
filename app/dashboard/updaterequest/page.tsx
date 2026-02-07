@@ -29,6 +29,33 @@ export default function UpdateRequestPage() {
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
     const searchParams = useSearchParams();
+    const getRequestTypeBadge = (type: string) => {
+        switch (type) {
+          case 'ADDRESS_DELETE':
+          case 'DOCUMENT_DELETE':
+            return (
+              <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-semibold">
+                Removed
+              </span>
+            );
+      
+          case 'ADDRESS_ADD':
+          case 'DOCUMENT_ADD':
+            return (
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-semibold">
+                Added
+              </span>
+            );
+      
+          default:
+            return (
+              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-semibold">
+                Updated
+              </span>
+            );
+        }
+      };
+      
     const loadOldProfile = async () => {
         try {
             const res = await employeeService.getEmployeeById();
@@ -77,9 +104,6 @@ export default function UpdateRequestPage() {
             setHighlightedId(null);
         }
     }, [requests, searchParams]);
-
-
-
 
     const loadRequests = async () => {
         try {
@@ -149,21 +173,24 @@ export default function UpdateRequestPage() {
 
                             {/* Status Badge */}
                             <div>
-                                {req.status === "PENDING" && (
-                                    <span className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-lg text-sm font-medium">
-                                        <Clock className="w-4 h-4" /> Pending
-                                    </span>
-                                )}
-                                {req.status === "APPROVED" && (
-                                    <span className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-lg text-sm font-medium">
-                                        <CheckCircle className="w-4 h-4" /> Approved
-                                    </span>
-                                )}
-                                {req.status === "REJECTED" && (
-                                    <span className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-1.5 rounded-lg text-sm font-medium">
-                                        <XCircle className="w-4 h-4" /> Rejected
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                {getRequestTypeBadge(req.requestType)}
+                                    {req.status === "PENDING" && (
+                                        <span className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-lg text-sm font-medium">
+                                            <Clock className="w-4 h-4" /> Pending
+                                        </span>
+                                    )}
+                                    {req.status === "APPROVED" && (
+                                        <span className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-lg text-sm font-medium">
+                                            <CheckCircle className="w-4 h-4" /> Approved
+                                        </span>
+                                    )}
+                                    {req.status === "REJECTED" && (
+                                        <span className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-1.5 rounded-lg text-sm font-medium">
+                                            <XCircle className="w-4 h-4" /> Rejected
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -175,7 +202,6 @@ export default function UpdateRequestPage() {
                             </div>
                         )}
 
-                        {/* Changes Section */}
                         {/* Changes Section */}
                         <div>
                             <p className="text-green-700 font-semibold mb-3 text-base sm:text-lg">
@@ -196,9 +222,28 @@ export default function UpdateRequestPage() {
                                     }
                                 }
                                 const isApproved = req.status === "APPROVED";
+                                const ADDRESS_KEYS = [
+                                    'houseNo',
+                                    'streetName',
+                                    'city',
+                                    'state',
+                                    'country',
+                                    'pincode',
+                                    'addressId',
+                                    'addressType',
+                                  ];
                                 // 1. Scalar field changes
                                 const scalarChanges = Object.entries(updatedData)
-                                .filter(([key]) => !['documents', 'addresses', 'employeePhotoUrl', 'employeePhotoUrlString'].includes(key))
+                                .filter(([key]) =>
+                                    ![
+                                      'documents',
+                                      'addresses',
+                                      'employeePhotoUrl',
+                                      'employeePhotoUrlString',
+                                      ...ADDRESS_KEYS, // 👈 prevents duplicate address rendering
+                                    ].includes(key)
+                                  )
+                                  
                                 .filter(([_, newValue]) => newValue != null && newValue !== '' && newValue !== 'null')
                                 .filter(([key, newValue]) => {
                                   if (isApproved) return true; // 👈 show all new fields
@@ -206,30 +251,69 @@ export default function UpdateRequestPage() {
                                   return String(oldValue ?? '') !== String(newValue);
                                 });
                               
+                                // 2. Address changes (ADD / UPDATE / DELETE)
+                                    const addressChanges: { field: string; old: string; new: string; type: string }[] = [];
 
-                                // 2. Address changes
-                                const addressChanges: { field: string; old: string; new: string; type: string }[] = [];
-                                if (Array.isArray(updatedData.addresses) && updatedData.addresses.length > 0) {
+                                    /**
+                                     * 🔴 ADDRESS DELETE
+                                     */
+                                    if (req.requestType === 'ADDRESS_DELETE') {
+                                    const addrFields: (keyof AddressModel)[] = [
+                                        'houseNo',
+                                        'streetName',
+                                        'city',
+                                        'state',
+                                        'country',
+                                        'pincode',
+                                    ];
+
+                                    addrFields.forEach((field) => {
+                                        const oldVal = updatedData[field];
+                                        if (oldVal != null && oldVal !== '') {
+                                        addressChanges.push({
+                                            field: formatKey(field),
+                                            old: String(oldVal),
+                                            new: '—',
+                                            type: updatedData.addressType || 'Address',
+                                        });
+                                        }
+                                    });
+                                    }
+
+                                    /**
+                                     * 🟢 ADDRESS ADD / UPDATE
+                                     */
+                                    else if (Array.isArray(updatedData.addresses) && updatedData.addresses.length > 0) {
                                     const newAddr = updatedData.addresses[0];
-                                    const oldAddr = profile.addresses?.find(a => a.addressType === newAddr.addressType) || {};
+                                    const oldAddr =
+                                        profile.addresses?.find(a => a.addressType === newAddr.addressType) || {};
 
                                     const addrFields: (keyof AddressModel)[] = [
-                                        'houseNo', 'streetName', 'city', 'state', 'country', 'pincode', 'addressType'
+                                        'houseNo',
+                                        'streetName',
+                                        'city',
+                                        'state',
+                                        'country',
+                                        'pincode',
                                     ];
 
                                     addrFields.forEach((field) => {
                                         const oldVal = (oldAddr as Partial<AddressModel>)[field] ?? '—';
                                         const newVal = newAddr[field] ?? '—';
-                                        if (String(oldVal) !== String(newVal)) {
-                                            addressChanges.push({
-                                                field: formatKey(field),
-                                                old: String(oldVal),
-                                                new: String(newVal),
-                                                type: newAddr.addressType || 'Address'
-                                            });
+                                    
+                                        // 🔥 APPROVED → always show
+                                        if (isApproved || String(oldVal) !== String(newVal)) {
+                                        addressChanges.push({
+                                            field: formatKey(field),
+                                            old: isApproved ? '—' : String(oldVal),
+                                            new: String(newVal),
+                                            type: newAddr.addressType || 'Address',
+                                        });
                                         }
                                     });
-                                }
+                                    
+                                    }
+
 
                                 // 3. Documents
                                 const newDocuments = Array.isArray(updatedData.documents) && updatedData.documents.length > 0
@@ -255,20 +339,19 @@ export default function UpdateRequestPage() {
                                     <div className="space-y-6">
                                         {/* Table Header - Only shown if there are grid changes */}
                                         {(scalarChanges.length > 0 || addressChanges.length > 0 || hasNewPhoto) && (
-  isApproved ? (
-    <div className="grid grid-cols-1 sm:grid-cols-2 font-semibold text-gray-700 text-sm border-b pb-2 mb-4">
-      <div>Field</div>
-      <div className="text-right text-green-700">Updated Value</div>
-    </div>
-  ) : (
-    <div className="grid grid-cols-1 sm:grid-cols-3 font-semibold text-gray-700 text-sm border-b pb-2 mb-4">
-      <div>Field</div>
-      <div className="sm:text-center text-red-600">Previous</div>
-      <div className="text-right text-green-700">Updated</div>
-    </div>
-  )
-)}
-
+                                        isApproved ? (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 font-semibold text-gray-700 text-sm border-b pb-2 mb-4">
+                                            <div>Field</div>
+                                            <div className="text-right text-green-700">Updated Value</div>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 font-semibold text-gray-700 text-sm border-b pb-2 mb-4">
+                                            <div>Field</div>
+                                            <div className="sm:text-center text-red-600">Previous</div>
+                                            <div className="text-right text-green-700">Updated</div>
+                                            </div>
+                                        )
+                                        )}
 
                                         {/* Scalar Changes */}
                                         {scalarChanges.length > 0 && (

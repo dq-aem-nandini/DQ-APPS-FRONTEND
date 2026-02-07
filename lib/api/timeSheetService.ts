@@ -153,6 +153,53 @@ false,
 }
 
 /**
+ * ✏️ Update timesheets (PUT) — Non Super-HR
+ */
+async updateTimesheets(
+  timesheets: TimeSheetModel[]
+): Promise<WebResponseDTO<string>> {
+  if (!timesheets || timesheets.length === 0) {
+    return {
+      flag: false,
+      message: "At least one timesheet is required",
+      status: 400,
+      response: "",
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  const payload = timesheets.map(ts => ({
+    timesheetId: ts.timesheetId,
+    workDate: ts.workDate,
+    hoursWorked: Number(ts.hoursWorked),
+    taskName: ts.taskName ?? "",
+    taskDescription: ts.taskDescription ?? "",
+  }));
+
+  const timesheetIds = payload.map(p => p.timesheetId).join(",");
+
+  console.debug(
+    "[TimesheetService] updateTimesheets",
+    "params:",
+    timesheetIds,
+    "payload:",
+    payload
+  );
+
+  return this._mutation(
+    "/employee/timesheet/update",
+    "put",
+    payload,
+    { params: { timesheetIds } },
+    false,
+    "Timesheets updated successfully",
+    "Failed to update timesheets"
+  );
+}
+
+
+/**
 * Delete a timesheet (DELETE)
 */
 async deleteTimesheet(timesheetIds: string[]): Promise<WebResponseDTO<string>> {
@@ -341,18 +388,74 @@ async createTimesheetsAsSuperHr(
     );
     
   }
-  
 
-// async getTimesheetById(
-// id: string,
-// type: 'timesheetId' | 'referenceId' = 'timesheetId'
-// ): Promise<WebResponseDTO<TimeSheetResponseDto>> {
-// const endpoint =
-// type === 'referenceId'
-// ? `/employee/view/timesheet/${id}`
-// : `/employee/view/timesheet/${id}`;
-// return this._query<TimeSheetResponseDto>(endpoint);
-// }
+
+  
+  
+/**
+ * ✏️ Super HR - Update Timesheets (PUT)
+ * employeeId -> path param
+ * body -> array of timesheet updates
+ */
+async updateTimesheetBySuperHR(
+  employeeId: string,
+  timesheets: Array<{
+    timesheetId: string;
+    workDate: string;      // yyyy-MM-dd
+    hoursWorked: number;
+    taskName: string;
+  
+  }>
+): Promise<WebResponseDTO<string>> {
+  if (!employeeId) {
+    return {
+      flag: false,
+      message: "Employee ID is required",
+      status: 400,
+      response: "",
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  if (!Array.isArray(timesheets) || timesheets.length === 0) {
+    return {
+      flag: false,
+      message: "At least one timesheet update is required",
+      status: 400,
+      response: "",
+      totalRecords: 0,
+      otherInfo: null,
+    };
+  }
+
+  const payload = timesheets.map(ts => ({
+    timesheetId: ts.timesheetId,
+    workDate: ts.workDate,
+    hoursWorked: Number(ts.hoursWorked),
+    taskName: ts.taskName,
+  }));
+
+  console.debug(
+    "[SuperHR Timesheet] updateTimesheetBySuperHR",
+    "employeeId:",
+    employeeId,
+    "payload:",
+    payload
+  );
+
+  return this._mutation(
+    `/super-hr/timesheet/update/${employeeId}`,
+    "put",
+    payload,
+    {},
+    false,
+    "Timesheet updated successfully",
+    "Failed to update timesheet"
+  );
+}
+
+
 }
 
 export const timesheetService = new TimesheetService();
