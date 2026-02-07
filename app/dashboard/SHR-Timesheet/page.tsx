@@ -9,7 +9,7 @@ import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrAfter);
 import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeSheetModel, HolidaysDTO } from '@/lib/api/types';
+import { EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeSheetModel, HolidaysDTO, WorkRequest, RevertTimesheetRequest, workRequestLabels } from '@/lib/api/types';
 import { holidayService } from '@/lib/api/holidayService';
 import { timesheetService } from '@/lib/api/timeSheetService';
 import Spinner from '@/components/ui/Spinner';
@@ -25,6 +25,7 @@ import {
   ClientEmployeeMinResponseDTO,
 } from "@/lib/api/types";
 import Swal from "sweetalert2";
+import { adminService } from '@/lib/api/adminService';
 dayjs.extend(weekday);
 dayjs.extend(isoWeek);
 
@@ -99,6 +100,13 @@ function getBackendError(error: any): string {
   const currentYear = weekStart.format('YYYY');
   const activeYear = useMemo(() => weekStart.year(), [weekStart]);
   const [clientId, setClientId] = useState("");
+  const [showRevertModal, setShowRevertModal] = useState(false);
+    const [selectedWorkRequest, setSelectedWorkRequest] = useState<
+      WorkRequest | ""
+    >("");
+
+
+
   // const [employees, setEmployees] = useState<{ id: string; name: string; dateOfJoining: string }[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeMinDTO | null>(null);
@@ -487,6 +495,40 @@ function getBackendError(error: any): string {
     }
   }, [role,selectedEmployeeId,weekStart, weekDates]);
 
+  // revert timesheet function
+  const confirmRevertTimesheet = async () => {
+    if (!selectedEmployeeId || !selectedWorkRequest) return;
+  
+    try {
+      setLoading(true);
+  
+      const weekEnd = weekStart.clone().add(6, "day");
+  
+      const params: RevertTimesheetRequest = {
+        employeeId: selectedEmployeeId,
+        startDate: weekStart.format("YYYY-MM-DD"),
+        endDate: weekEnd.format("YYYY-MM-DD"),
+        workRequest: selectedWorkRequest,
+      };
+  
+      const res = await adminService.revertTimesheet(params);
+  
+      if (!res.flag) {
+        throw new Error(res.message || "Failed to revert timesheet");
+      }
+  
+      pushMessage("success", "Timesheet reverted successfully");
+      await fetchData(); // ✅ correct refresh
+    } catch (err: any) {
+      pushMessage("error", err.message || "Revert failed");
+    } finally {
+      setLoading(false);
+      setShowRevertModal(false);
+      setSelectedWorkRequest("");
+    }
+  };
+  
+
 useEffect(() => {
   const load = async () => {
     setLoading(true);
@@ -856,8 +898,39 @@ useEffect(() => {
       }
   
       // === UPDATE EXISTING ===
-      for (const [id, data] of Object.entries(toUpdate)) {
-        await timesheetService.updateTimesheet(id, data);
+      if (role === "SUPER_HR") {
+        if (!selectedEmployeeId) {
+          throw new Error("Employee ID is required for Super HR update");
+        }
+      
+        const superHrUpdates = rows.flatMap(row =>
+          Object.entries(row.timesheetIds || {}).map(([date, timesheetId]) => ({
+            timesheetId,
+            workDate: date,
+            hoursWorked: Number(row.hours[date] || 0),
+            taskName: row.taskName,
+          }))
+        );
+      
+        if (superHrUpdates.length > 0) {
+          await timesheetService.updateTimesheetBySuperHR(
+            selectedEmployeeId,
+            superHrUpdates
+          );
+        }
+      }
+      else {
+        const normalUpdates = Object.entries(toUpdate).map(
+          ([timesheetId, data]) => ({
+            ...data,
+            timesheetId,
+            hoursWorked: Number(data.hoursWorked),
+          })
+        );
+      
+        if (normalUpdates.length > 0) {
+          await timesheetService.updateTimesheets(normalUpdates);
+        }
       }
   
       // Clear dirty flags
@@ -1297,7 +1370,8 @@ useEffect(() => {
     <div className=" bottom-0 left-0 right-0 bg-gray-50  border-gray-300 px-6 py-4 -mx-6 z-30">
       <div className="flex justify-end items-center space-x-4 max-w-7xl mx-auto">
       <>    
-      {role === 'SUPER_HR' && (
+      {role === "SUPER_HR" && (
+        <div className="flex gap-4">
           <button
             onClick={saveAll}
             disabled={loading || !hasUnsubmittedChanges || !selectedEmployeeId}
@@ -1305,7 +1379,18 @@ useEffect(() => {
           >
             Save Changes
           </button>
-        )}
+
+          {(weekStatus === "APPROVED" || weekStatus === "PENDING") && (
+            <button
+              onClick={() => setShowRevertModal(true)}
+              disabled={!selectedEmployeeId}
+              className="px-5 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Revert
+            </button>
+          )}
+        </div>
+      )}
        
         {role !== 'SUPER_HR' && (
           <>
@@ -1402,6 +1487,68 @@ useEffect(() => {
         </>  
       </div>
     </div>
+      
+    {showRevertModal && (
+  <div
+    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+    onClick={() => {
+      setShowRevertModal(false);
+      setSelectedWorkRequest("");
+    }}
+  >
+    <div
+      className="bg-white rounded-xl shadow-lg p-6 w-96"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-semibold mb-4 text-gray-800">
+        Revert Timesheet
+      </h3>
+
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Revert To Status
+      </label>
+
+      <select
+        value={selectedWorkRequest}
+        onChange={(e) =>
+          setSelectedWorkRequest(e.target.value as WorkRequest)
+        }
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
+      >
+        <option value="" disabled>
+          Select Work Request
+        </option>
+
+        {(Object.keys(workRequestLabels) as WorkRequest[]).map((status) => (
+          <option key={status} value={status}>
+            {workRequestLabels[status]}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => {
+            setShowRevertModal(false);
+            setSelectedWorkRequest("");
+          }}
+          className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={confirmRevertTimesheet}
+          disabled={!selectedWorkRequest || loading}
+          className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {loading ? "Processing..." : "OK"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {confirmSubmitOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">

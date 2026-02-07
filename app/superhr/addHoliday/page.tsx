@@ -162,8 +162,6 @@ export default function addHoliday() {
   };
   
   
-  
-
       useEffect(() => {
         if (role !== 'SUPER_HR') return; 
       
@@ -269,9 +267,6 @@ export default function addHoliday() {
                       <div className="font-medium text-slate-800">
                         {emp.employeeName}
                       </div>
-                      {/* <div className="text-xs text-slate-500">
-                        {emp.designation}
-                      </div> */}
                     </div>
                   </label>
                 ))}
