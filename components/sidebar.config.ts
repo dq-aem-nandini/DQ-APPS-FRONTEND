@@ -8,7 +8,7 @@ export const sidebarConfig = {
     { label: 'Leaves', href: '/dashboard/leaves', },
     { label: "Holidays", href: '/dashboard/holiday' },
     { label: 'Update Request', href: '/dashboard/updaterequest', },
-    { label: 'Timesheet', href: '/dashboard/TimeSheetRegister', },
+    { label: 'Timesheet', href: '/dashboard/SHR-Timesheet', },
     { label: "Settings", href: "/dashboard/settings" },
   ],
   HR_COMMON: [
@@ -26,7 +26,8 @@ export const sidebarConfig = {
     { permission: "ADD_HOLIDAY", label: "Add Holiday", href: "/superhr/addHoliday",},
     { label: "View Holidays", href: "/superhr/viewHolidays",},
     { label: 'Leaves', href: '/superhr/leaves', },
-    { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/manager/SHR-Timesheet",},
+    { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/dashboard/SHR-Timesheet",},
+    { label: "Change Password", href: "/superhr/changePassword",},
   ],
 
 

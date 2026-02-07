@@ -9,7 +9,7 @@ import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrAfter);
 import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeSheetModel, HolidaysDTO } from '@/lib/api/types';
+import { EmployeeLeaveDayDTO, TimeSheetResponseDto, TimeSheetModel, HolidaysDTO, WorkRequest, RevertTimesheetRequest, workRequestLabels } from '@/lib/api/types';
 import { holidayService } from '@/lib/api/holidayService';
 import { timesheetService } from '@/lib/api/timeSheetService';
 import Spinner from '@/components/ui/Spinner';
@@ -25,6 +25,7 @@ import {
   ClientEmployeeMinResponseDTO,
 } from "@/lib/api/types";
 import Swal from "sweetalert2";
+import { adminService } from '@/lib/api/adminService';
 dayjs.extend(weekday);
 dayjs.extend(isoWeek);
 
@@ -63,6 +64,7 @@ function getBackendError(error: any): string {
   const currentMonday = now.startOf('isoWeek');
   const { state } = useAuth();
   const role = state.user?.role.roleName;
+  const isSuperHR = role === 'SUPER_HR';
   const [joiningDate, setJoiningDate] = useState<dayjs.Dayjs | null>(null);
   const [dojLoading, setDojLoading] = useState(true);
   const [clients, setClients] = useState<ClientMinDTO[]>([]);
@@ -85,7 +87,7 @@ function getBackendError(error: any): string {
   };
 
   const [employeeDetails, setEmployeeDetails] = useState<{
-    clientName?: string;
+    clientName?: string[]; 
     reportingManagerName?: string;
     designation?: string;
   } | null>(null);
@@ -98,14 +100,43 @@ function getBackendError(error: any): string {
   const currentYear = weekStart.format('YYYY');
   const activeYear = useMemo(() => weekStart.year(), [weekStart]);
   const [clientId, setClientId] = useState("");
+  const [showRevertModal, setShowRevertModal] = useState(false);
+    const [selectedWorkRequest, setSelectedWorkRequest] = useState<
+      WorkRequest | ""
+    >("");
+
+
+
   // const [employees, setEmployees] = useState<{ id: string; name: string; dateOfJoining: string }[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeMinDTO | null>(null);
+  const [dayClientMap, setDayClientMap] = useState<Record<string, string>>({});
 
   const weekDates = useMemo(() => Array.from({ length: 7 }).map((_, i) => weekStart.add(i, 'day')), [weekStart]);
   const weekYears = useMemo(() => {
     return [...new Set(weekDates.map(d => d.year()))];
   }, [weekDates]);
+  const CLIENT_COLORS = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-purple-500',
+    'bg-orange-500',
+    'bg-pink-500',
+    'bg-teal-500',
+    'bg-indigo-500',
+  ];
+  
+  const getClientColorMap = (clients: string[]) => {
+    const map: Record<string, string> = {};
+    clients.forEach((client, index) => {
+      map[client] = CLIENT_COLORS[index % CLIENT_COLORS.length];
+    });
+    return map;
+  };
+  const clientColorMap = useMemo(() => {
+    if (!employeeDetails?.clientName) return {};
+    return getClientColorMap(employeeDetails.clientName);
+  }, [employeeDetails?.clientName]);
   
   useEffect(() => {
     if (role !== 'SUPER_HR') return; 
@@ -246,7 +277,7 @@ function getBackendError(error: any): string {
             }
       
             setEmployeeDetails({
-              clientName: employee.clientName,
+              // clientName: employee.clientName,
               reportingManagerName: employee.reportingManagerName,
               designation: employee.designation,
             });
@@ -375,6 +406,27 @@ function getBackendError(error: any): string {
       const list: TimeSheetResponseDto[] = response.response.filter(entry =>
         dayjs(entry.workDate).isBetween(weekStart, weekStart.clone().add(6, 'day'), 'day', '[]')
       );
+      const dayClient: Record<string, string> = {};
+
+        list.forEach(item => {
+          const dateKey = dayjs(item.workDate).format('YYYY-MM-DD');
+          if (!dayClient[dateKey]) {
+            dayClient[dateKey] = item.clientName;
+          }
+        });
+
+        setDayClientMap(dayClient);
+
+      // CLIENT NAME FROM TIMESHEET
+      const uniqueClients = [...new Set(list.map(i => i.clientName))];
+      console.log("Clients in this week:", uniqueClients);
+
+        if (role !== 'SUPER_HR') {
+        setEmployeeDetails(prev => ({
+          ...prev,
+          clientName: uniqueClients,
+        }));
+        }
 
       const statuses = list.map(i => i.status).filter(Boolean);
       const status = statuses.includes('APPROVED') ? 'APPROVED' :
@@ -382,7 +434,7 @@ function getBackendError(error: any): string {
                      statuses.includes('REJECTED') ? 'REJECTED' :
                      statuses.includes('DRAFTED') ? 'DRAFTED' : 'DRAFTED';
       setWeekStatus(status);
-
+      
       const comment = list.find(i => i.managerComment)?.managerComment || null;   
       setManagerComment(comment);
       // Collect all entries with createdAt timestamp
@@ -443,6 +495,40 @@ function getBackendError(error: any): string {
     }
   }, [role,selectedEmployeeId,weekStart, weekDates]);
 
+  // revert timesheet function
+  const confirmRevertTimesheet = async () => {
+    if (!selectedEmployeeId || !selectedWorkRequest) return;
+  
+    try {
+      setLoading(true);
+  
+      const weekEnd = weekStart.clone().add(6, "day");
+  
+      const params: RevertTimesheetRequest = {
+        employeeId: selectedEmployeeId,
+        startDate: weekStart.format("YYYY-MM-DD"),
+        endDate: weekEnd.format("YYYY-MM-DD"),
+        workRequest: selectedWorkRequest,
+      };
+  
+      const res = await adminService.revertTimesheet(params);
+  
+      if (!res.flag) {
+        throw new Error(res.message || "Failed to revert timesheet");
+      }
+  
+      pushMessage("success", "Timesheet reverted successfully");
+      await fetchData(); // ✅ correct refresh
+    } catch (err: any) {
+      pushMessage("error", err.message || "Revert failed");
+    } finally {
+      setLoading(false);
+      setShowRevertModal(false);
+      setSelectedWorkRequest("");
+    }
+  };
+  
+
 useEffect(() => {
   const load = async () => {
     setLoading(true);
@@ -475,7 +561,10 @@ useEffect(() => {
         dateHours[date] = (dateHours[date] || 0) + h;
         if (h < 0) msgs.push(`Negative hours on ${date}`);
         if (h > 8) msgs.push(`Hours exceed 8 on ${date}`);
-        if (holidayMap[date] && h > 0) msgs.push(`Holiday entry on ${date}`);
+        // if (holidayMap[date] && h > 0) msgs.push(`Holiday entry on ${date}`);
+        if (!isSuperHR && holidayMap[date] && h > 0) {
+          msgs.push(`Holiday entry on ${date}`);
+        }        
         const leave = leaveMap[date];
         if (leave?.duration === 1 && h > 0) msgs.push(`Full-day leave conflict on ${date}`);
       });
@@ -488,7 +577,7 @@ useEffect(() => {
       const isHoliday = !!holidayMap[date];
       const leave = leaveMap[date];
 
-      if (!isWeekend && !isHoliday && !leave && total === 0) {
+      if (!isWeekend && (!isHoliday || isSuperHR) && !leave && total === 0) {
         msgs.push(`No hours entered for workday ${date}`);
       }
       if (total > 8) msgs.push(`Total exceeds 8 hours on ${date}`);
@@ -512,7 +601,7 @@ useEffect(() => {
         if (h > 0 && !isDayLocked(date)) {
           dateHours[date] = (dateHours[date] || 0) + h;
           if (h > 8) msgs.push(`Hours exceed 8 on ${date}`);
-          if (holidayMap[date] && h > 0) msgs.push(`Holiday entry on ${date}`);
+          if (!isSuperHR && holidayMap[date] && h > 0) msgs.push(`Holiday entry on ${date}`);
           const leave = leaveMap[date];
           if (leave?.duration === 1 && h > 0) msgs.push(`Full-day leave conflict on ${date}`);
         }
@@ -809,8 +898,39 @@ useEffect(() => {
       }
   
       // === UPDATE EXISTING ===
-      for (const [id, data] of Object.entries(toUpdate)) {
-        await timesheetService.updateTimesheet(id, data);
+      if (role === "SUPER_HR") {
+        if (!selectedEmployeeId) {
+          throw new Error("Employee ID is required for Super HR update");
+        }
+      
+        const superHrUpdates = rows.flatMap(row =>
+          Object.entries(row.timesheetIds || {}).map(([date, timesheetId]) => ({
+            timesheetId,
+            workDate: date,
+            hoursWorked: Number(row.hours[date] || 0),
+            taskName: row.taskName,
+          }))
+        );
+      
+        if (superHrUpdates.length > 0) {
+          await timesheetService.updateTimesheetBySuperHR(
+            selectedEmployeeId,
+            superHrUpdates
+          );
+        }
+      }
+      else {
+        const normalUpdates = Object.entries(toUpdate).map(
+          ([timesheetId, data]) => ({
+            ...data,
+            timesheetId,
+            hoursWorked: Number(data.hoursWorked),
+          })
+        );
+      
+        if (normalUpdates.length > 0) {
+          await timesheetService.updateTimesheets(normalUpdates);
+        }
       }
   
       // Clear dirty flags
@@ -862,7 +982,9 @@ useEffect(() => {
         targetDates = weekDates.filter(d => d.format('YYYY-MM') === splitWeekInfo.firstMonth).map(d => d.format('YYYY-MM-DD'));
       } else if (
         splitWeekInfo.secondMonthSubmitFrom && 
-        todayKey >= splitWeekInfo.secondMonthSubmitFrom
+        // todayKey >= splitWeekInfo.secondMonthSubmitFrom
+        todayKey >= splitWeekInfo.secondMonthSubmitFrom &&
+        todayKey <= splitWeekInfo.secondMonthSubmitTo
       ) {
         targetDates = weekDates
         .filter(d => {
@@ -1050,7 +1172,26 @@ useEffect(() => {
           {employeeDetails && role !== 'SUPER_HR' && (
             <div className="w-full md:w-auto p-4 bg-gradient-to-b from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm text-sm">
               <div className="space-y-2">
-                <div className="flex items-center"><span className="font-medium text-gray-600">Client:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.clientName || '—'}</span></div>
+                {/* <div className="flex items-center"><span className="font-medium text-gray-600">Client:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.clientName || '—'}</span></div> */}
+                <div className="flex items-start">
+                  <span className="font-medium text-gray-600">Client:</span>
+                  <div className="ml-3 space-y-1">
+                    {employeeDetails?.clientName?.length ? (
+                      employeeDetails.clientName.map((client, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span
+                            className={`w-2.5 h-2.5 rounded-full ${clientColorMap[client]}`}
+                          />
+                          <span className="font-semibold text-gray-800">
+                            {client}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="font-semibold text-gray-800">—</span>
+                    )}
+                  </div>
+                </div>
                 <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Manager:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.reportingManagerName || '—'}</span></div>
                 <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Role:</span><span className="font-semibold text-gray-800 ml-3">
                   {employeeDetails.designation ? employeeDetails.designation.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : '—'}
@@ -1113,7 +1254,18 @@ useEffect(() => {
                   else if (isWeekend) { text = 'Weekend'; cls = 'text-gray-600 bg-gray-100'; }
                   return (
                     <th key={key} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
-                      <div className="font-semibold text-gray-900">{d.format('DD ddd')}</div>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="font-semibold text-gray-900">
+                          {d.format('DD ddd')}
+                        </span>
+
+                        {dayClientMap[key] && clientColorMap[dayClientMap[key]] && (
+                          <span
+                            title={dayClientMap[key]}
+                            className={`w-2 h-2 rounded-full ${clientColorMap[dayClientMap[key]]}`}
+                          />
+                        )}
+                      </div>  
                       {text && <div className={`mt-1 px-2 py-1 rounded-full text-xs ${cls}`}>{text}</div>}
                     </th>
                   );
@@ -1161,7 +1313,14 @@ useEffect(() => {
                     const isPreDOJ = joiningDate && d.isBefore(joiningDate, 'day');
                     const isHoliday = !!holidayMap[key];
                     const isLeave = leaveMap[key];
-                    const disabled = loading || isHoliday || (isLeave?.duration === 1) || isPreDOJ || isDayLocked(key);
+                    // const disabled = loading || isHoliday || (isLeave?.duration === 1) || isPreDOJ || isDayLocked(key);
+                    const disabled =
+                          loading ||
+                          (!isSuperHR && isHoliday) ||   // ✅ key change
+                          (isLeave?.duration === 1) ||
+                          isPreDOJ ||
+                          isDayLocked(key);
+
                     const maxHours = isLeave?.duration === 0.5 ? 4 : 8;
 
                     return (
@@ -1211,7 +1370,8 @@ useEffect(() => {
     <div className=" bottom-0 left-0 right-0 bg-gray-50  border-gray-300 px-6 py-4 -mx-6 z-30">
       <div className="flex justify-end items-center space-x-4 max-w-7xl mx-auto">
       <>    
-      {role === 'SUPER_HR' && (
+      {role === "SUPER_HR" && (
+        <div className="flex gap-4">
           <button
             onClick={saveAll}
             disabled={loading || !hasUnsubmittedChanges || !selectedEmployeeId}
@@ -1219,7 +1379,18 @@ useEffect(() => {
           >
             Save Changes
           </button>
-        )}
+
+          {(weekStatus === "APPROVED" || weekStatus === "PENDING") && (
+            <button
+              onClick={() => setShowRevertModal(true)}
+              disabled={!selectedEmployeeId}
+              className="px-5 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Revert
+            </button>
+          )}
+        </div>
+      )}
        
         {role !== 'SUPER_HR' && (
           <>
@@ -1261,7 +1432,9 @@ useEffect(() => {
             // Case 2: Today is in the allowed second-month range (Fri–Sun)
             else if (
               splitWeekInfo.secondMonthSubmitFrom &&
-              todayKey >= splitWeekInfo.secondMonthSubmitFrom
+              // todayKey >= splitWeekInfo.secondMonthSubmitFrom
+              todayKey >= splitWeekInfo.secondMonthSubmitFrom &&
+              todayKey <= splitWeekInfo.secondMonthSubmitTo
             ) {
               submitDates = weekDates
                 .filter(d => d.format('YYYY-MM') === splitWeekInfo.secondMonth)
@@ -1314,6 +1487,68 @@ useEffect(() => {
         </>  
       </div>
     </div>
+      
+    {showRevertModal && (
+  <div
+    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+    onClick={() => {
+      setShowRevertModal(false);
+      setSelectedWorkRequest("");
+    }}
+  >
+    <div
+      className="bg-white rounded-xl shadow-lg p-6 w-96"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-semibold mb-4 text-gray-800">
+        Revert Timesheet
+      </h3>
+
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Revert To Status
+      </label>
+
+      <select
+        value={selectedWorkRequest}
+        onChange={(e) =>
+          setSelectedWorkRequest(e.target.value as WorkRequest)
+        }
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
+      >
+        <option value="" disabled>
+          Select Work Request
+        </option>
+
+        {(Object.keys(workRequestLabels) as WorkRequest[]).map((status) => (
+          <option key={status} value={status}>
+            {workRequestLabels[status]}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => {
+            setShowRevertModal(false);
+            setSelectedWorkRequest("");
+          }}
+          className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={confirmRevertTimesheet}
+          disabled={!selectedWorkRequest || loading}
+          className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {loading ? "Processing..." : "OK"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {confirmSubmitOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">

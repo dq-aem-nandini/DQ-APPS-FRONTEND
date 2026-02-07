@@ -317,7 +317,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
                 required
-                min={minDate}
+                // min={minDate}
               />
             </div>
             <div>

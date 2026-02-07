@@ -46,6 +46,28 @@ export class SuperHrHolidayService {
       throw new Error(getBackendError(error));
     }
   }
+
+/**
+ * 🔐 Admin / Super HR - Update Employee Password(s)
+ */
+async updateEmployeePasswords(
+  request: {
+    password: string;
+    employeeId: string;
+  }[]
+): Promise<WebResponseDTO<string>> {
+  try {
+    const response = await api.put(
+      "/user/admin/updatePassWord",
+      request
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
+  
 }
 
 
