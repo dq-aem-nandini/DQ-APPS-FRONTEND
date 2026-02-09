@@ -62,7 +62,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
   const minAllowedDate = new Date(startOfWeek);
   minAllowedDate.setDate(minAllowedDate.getDate() - 15);
   const minDate = minAllowedDate.toISOString().split('T')[0];
-5
+  5
   /* =========================
      LOAD CLIENTS
   ========================= */
@@ -106,6 +106,18 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
     loadEmployees();
   }, [selectedClientId]);
 
+  useEffect(() => {
+    if (
+      hasCalculated &&
+      formData.leaveDuration > 1 &&
+      formData.partialDay
+    ) {
+      setFormData(prev => ({
+        ...prev,
+        partialDay: false,
+      }));
+    }
+  }, [hasCalculated, formData.leaveDuration]);
 
   /* =========================
      AUTO CALCULATE DURATION
@@ -141,22 +153,22 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
 
   const calculateDuration = async () => {
     if (calculating) return;
-  
+
     try {
       setCalculating(true);
       setError(null);
-  
+
       console.log("Employee ID:", selectedEmployeeId);
-  
+
       const res = await leaveService.calculateWorkingDays(
         {
           fromDate: formData.fromDate || '',
           toDate: formData.toDate || '',
           partialDay: formData.partialDay,
         },
-        selectedEmployeeId || undefined   
+        selectedEmployeeId || undefined
       );
-  
+
       setFormData(prev => ({
         ...prev,
         leaveDuration: res.leaveDuration || 0,
@@ -305,7 +317,20 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
-
+          {/* Partial Day */}
+          {hasCalculated &&
+            (formData.leaveDuration === 1 || formData.partialDay) && (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="partialDay"
+                  checked={formData.partialDay}
+                  onChange={handleInputChange}
+                  className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"
+                />
+                <label className="text-sm font-medium">Partial Day</label>
+              </div>
+            )}
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -317,7 +342,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
                 required
-                // min={minDate}
+              // min={minDate}
               />
             </div>
             <div>
