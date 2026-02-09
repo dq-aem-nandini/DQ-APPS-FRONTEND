@@ -254,7 +254,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
         <div className="mb-10 flex items-center justify-between">
           <BackButton to="/superhr/leaves" />
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Apply Leave
+            Add Leave
           </h1>
           <div className="w-20" />
         </div>

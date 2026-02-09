@@ -16,6 +16,7 @@ class InvoiceService {
    */
   async generateInvoice(
     clientId: string,
+    invoiceDate: string,
     month: number,
     year: number
   ): Promise<InvoiceDTO> {
@@ -24,7 +25,7 @@ class InvoiceService {
         '/invoice/generateInvoice',
         null,
         {
-          params: { clientId, month, year },
+          params: { clientId, invoiceDate, month, year },
         }
       );
 

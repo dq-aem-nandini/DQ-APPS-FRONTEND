@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { adminService } from '@/lib/api/adminService';
-import { EmployeeDTO, DocumentType } from '@/lib/api/types';
+import { EmployeeDTO} from '@/lib/api/types';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
@@ -173,10 +173,11 @@ const ViewEmployee = () => {
                 Professional Details
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {employee.employeeEmploymentDetailsDTO && hasValue(employee.employeeEmploymentDetailsDTO.department) && <InfoItem label="Department" value={employee.employeeEmploymentDetailsDTO.department!} />}
                 {hasValue(employee.designation) && <InfoItem label="Designation" value={employee.designation!} />}
-                {hasValue(employee.dateOfJoining) && <InfoItem label="Date of Joining" value={employee.dateOfJoining!} />}
-                {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
                 {hasValue(employee.employmentType) && <InfoItem label="Employment Type" value={employee.employmentType!} />}
+                {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
+                {hasValue(employee.dateOfJoining) && <InfoItem label=" Date of Joining" value={employee.dateOfJoining!} />}                
                 {employee.rateCard != null && employee.rateCard > 0 && (
                   <InfoItem label="Rate Card" value={String(employee.rateCard)} />
                 )}
@@ -193,7 +194,7 @@ const ViewEmployee = () => {
                 hasValue(employee.clientBillingStopDate)) && (
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                  <h3 className="text-xl font-semibold text-gray-700 mb-4">
                     Client Details
                   </h3>
 
@@ -291,45 +292,67 @@ const ViewEmployee = () => {
           )}
 
         {/* Documents */}
-        {employee.documents?.some(d => hasValue(d.file)) && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-5 flex items-center">
-              <span className="w-2 h-2 bg-yellow-600 rounded-full mr-3"></span>
-              Documents
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {employee.documents.find(d => d.docType === 'OFFER_LETTER' && hasValue(d.file)) && <DocItem label="Offer Letter" url={getFileUrl(employee.documents.find(d => d.docType === 'OFFER_LETTER')!.file)} />}
-              {employee.documents.find(d => d.docType === 'CONTRACT' && hasValue(d.file)) && <DocItem label="Contract" url={getFileUrl(employee.documents.find(d => d.docType === 'CONTRACT')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM' && hasValue(d.file)) && <DocItem label="Tax Declaration" url={getFileUrl(employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'WORK_PERMIT' && hasValue(d.file)) && <DocItem label="Work Permit" url={getFileUrl(employee.documents.find(d => d.docType === 'WORK_PERMIT')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'PAN_CARD' && hasValue(d.file)) && <DocItem label="PAN Card" url={getFileUrl(employee.documents.find(d => d.docType === 'PAN_CARD')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'AADHAAR_CARD' && hasValue(d.file)) && <DocItem label="Aadhar Card" url={getFileUrl(employee.documents.find(d => d.docType === 'AADHAAR_CARD')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'BANK_PASSBOOK' && hasValue(d.file)) && <DocItem label="Bank Passbook" url={getFileUrl(employee.documents.find(d => d.docType === 'BANK_PASSBOOK')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="10th Certificate" url={getFileUrl(employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Intermediate" url={getFileUrl(employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Degree" url={getFileUrl(employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE')!.file!)} />}
-              {employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE' && hasValue(d.file)) && <DocItem label="Post Graduation" url={getFileUrl(employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE')!.file!)} />}
-            </div>
+        {employee.documents?.some(d => hasValue(d.fileUrl)) && (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <h2 className="text-xl font-semibold text-gray-800 mb-5 flex items-center">
+      <span className="w-2 h-2 bg-yellow-600 rounded-full mr-3"></span>
+      Documents
+    </h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {employee.documents.find(d => d.docType === 'OFFER_LETTER' && hasValue(d.fileUrl)) && (
+        <DocItem label="Offer Letter" url={employee.documents.find(d => d.docType === 'OFFER_LETTER')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'CONTRACT' && hasValue(d.fileUrl)) && (
+        <DocItem label="Contract" url={employee.documents.find(d => d.docType === 'CONTRACT')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM' && hasValue(d.fileUrl)) && (
+        <DocItem label="Tax Declaration" url={employee.documents.find(d => d.docType === 'TAX_DECLARATION_FORM')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'WORK_PERMIT' && hasValue(d.fileUrl)) && (
+        <DocItem label="Work Permit" url={employee.documents.find(d => d.docType === 'WORK_PERMIT')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'PAN_CARD' && hasValue(d.fileUrl)) && (
+        <DocItem label="PAN Card" url={employee.documents.find(d => d.docType === 'PAN_CARD')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'AADHAAR_CARD' && hasValue(d.fileUrl)) && (
+        <DocItem label="Aadhar Card" url={employee.documents.find(d => d.docType === 'AADHAAR_CARD')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'BANK_PASSBOOK' && hasValue(d.fileUrl)) && (
+        <DocItem label="Bank Passbook" url={employee.documents.find(d => d.docType === 'BANK_PASSBOOK')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE' && hasValue(d.fileUrl)) && (
+        <DocItem label="10th Certificate" url={employee.documents.find(d => d.docType === 'TENTH_CERTIFICATE')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE' && hasValue(d.fileUrl)) && (
+        <DocItem label="Intermediate" url={employee.documents.find(d => d.docType === 'TWELFTH_CERTIFICATE')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE' && hasValue(d.fileUrl)) && (
+        <DocItem label="Degree" url={employee.documents.find(d => d.docType === 'DEGREE_CERTIFICATE')!.fileUrl!} />
+      )}
+      {employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE' && hasValue(d.fileUrl)) && (
+        <DocItem label="Post Graduation" url={employee.documents.find(d => d.docType === 'POST_GRADUATION_CERTIFICATE')!.fileUrl!} />
+      )}
+    </div>
 
-            {employee.documents.filter(d => d.docType === 'OTHER' && hasValue(d.file)).length > 0 && (
-              <div className="mt-6 pt-6 border-t">
-                <h4 className="font-medium text-gray-800 mb-3">Other Documents</h4>
-                <div className="space-y-2">
-                  {employee.documents
-                    .filter(d => d.docType === 'OTHER' && hasValue(d.file))
-                    .map((doc, i) => (
-                      <div key={i} className="flex justify-between items-center bg-gray-50 p-3 rounded">
-                        <span className="font-medium">Document {i + 1}</span>
-                        <a href={getFileUrl(doc.file)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          View
-                        </a>
-                      </div>
-                    ))}
-                </div>
+    {employee.documents.filter(d => d.docType === 'OTHER' && hasValue(d.fileUrl)).length > 0 && (
+      <div className="mt-6 pt-6 border-t">
+        <h4 className="font-medium text-gray-800 mb-3">Other Documents</h4>
+        <div className="space-y-2">
+          {employee.documents
+            .filter(d => d.docType === 'OTHER' && hasValue(d.fileUrl))
+            .map((doc, i) => (
+              <div key={i} className="flex justify-between items-center bg-gray-50 p-3 rounded">
+                <span className="font-medium">Document {i + 1}</span>
+                <a href={doc.fileUrl ?? undefined} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  View
+                </a>
               </div>
-            )}
-          </div>
-        )}
+            ))}
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
         {/* Salary & Compensation */}
         {employee.employeeSalaryDTO && (
@@ -400,7 +423,6 @@ const ViewEmployee = () => {
           employee.employeeEmploymentDetailsDTO.bondApplicable ||
           hasValue(employee.employeeEmploymentDetailsDTO.workingModel) ||
           hasValue(employee.employeeEmploymentDetailsDTO.shiftTimingLabel) ||
-          hasValue(employee.employeeEmploymentDetailsDTO.department) ||
           hasValue(employee.employeeEmploymentDetailsDTO.location) ||
           hasValue(employee.employeeEmploymentDetailsDTO.dateOfConfirmation)
         ) && (

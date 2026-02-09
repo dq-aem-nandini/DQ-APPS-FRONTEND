@@ -54,7 +54,10 @@ import {
 } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import { employeeService } from "@/lib/api/employeeService";
-import { UniqueField, validationService } from "@/lib/api/validationService";
+import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
+import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
+import { useEmployeeFieldValidation } from "@/hooks/useFieldValidation";
+
 
 interface FileInputProps {
   id: string;
@@ -71,21 +74,26 @@ export const FileInput: React.FC<FileInputProps> = ({
   onChange,
   onClear,
 }) => {
+
   return (
     <div className="space-y-2">
       {/* View existing document */}
       {existingUrl && !currentFile && (
-        <div>
+        <div className="flex items-center gap-3">
           <a
             href={existingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium 
-                       text-indigo-600 border border-indigo-600 rounded-lg 
-                       hover:bg-indigo-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm 
+                       font-medium text-indigo-600 border border-indigo-600 
+                       rounded-lg hover:bg-indigo-50"
           >
-            View
+            View document
           </a>
+
+          <span className="text-xs text-gray-500">
+            Upload only if you want to replace
+          </span>
         </div>
       )}
 
@@ -103,11 +111,11 @@ export const FileInput: React.FC<FileInputProps> = ({
           className="cursor-pointer bg-indigo-600 text-white px-4 py-2 
                      rounded-lg text-sm font-medium hover:bg-indigo-700"
         >
-          Choose file
+          {existingUrl ? "Replace file" : "Choose file"}
         </label>
 
-        <span className="text-sm text-gray-600">
-          {currentFile ? currentFile.name : "No file chosen"}
+        <span className="text-sm text-gray-600 truncate max-w-[220px]">
+          {currentFile ? currentFile.name : "No file selected"}
         </span>
 
         {currentFile && (
@@ -120,16 +128,11 @@ export const FileInput: React.FC<FileInputProps> = ({
           </button>
         )}
       </div>
-
-      {/* Helper text */}
-      {existingUrl && !currentFile && (
-        <p className="text-xs text-gray-500">
-          Choose a file only if you want to replace the existing document
-        </p>
-      )}
     </div>
   );
 };
+
+
 
 const EditEmployeePage = () => {
   const params = useParams();
@@ -140,7 +143,6 @@ const EditEmployeePage = () => {
   // const [documentFiles, setDocumentFiles] = useState<(File | null)[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>("");
   const today = new Date().toISOString().split("T")[0];
   const [departmentEmployees, setDepartmentEmployees] = useState<
@@ -148,8 +150,66 @@ const EditEmployeePage = () => {
   >([]);
   const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
     undefined,);
-  const [isDirty, setIsDirty] = useState(false);  
-  const [checking, setChecking] = useState<Set<string>>(new Set());
+  const [isDirty, setIsDirty] = useState(false);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+  // ✅ Safe handleChange — ONLY updates state
+  const { validateField } = useEmployeeFieldValidation();
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value, type } = e.target;
+    const isCheckbox = type === "checkbox";
+    const checked = (e.target as HTMLInputElement).checked;
+    const fieldValue = isCheckbox ? checked : value;
+
+    setIsDirty(true);
+
+    setFormData((prev) => {
+      if (!prev) return prev;
+
+      // Handle nested fields safely
+      if (name.includes(".")) {
+        const [parent, child] = name.split(".") as [
+          keyof EmployeeModel,
+          string
+        ];
+
+        const currentParent =
+          typeof prev[parent] === "object" && prev[parent] !== null
+            ? prev[parent]
+            : {};
+
+        return {
+          ...prev,
+          [parent]: {
+            ...currentParent,
+            [child]: fieldValue,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [name]: fieldValue,
+      };
+    });
+  };
+
+  const { handleValidatedChange, handleUniqueBlur, fieldError } = useFormFieldHandlers(
+    handleChange,
+    setErrors,
+    checkUniqueness,
+    () => formData,
+    validateField   // ← this makes it use EMPLOYEE rules
+  );
+
+
+  // const [checking, setChecking] = useState<Set<string>>(new Set());
   const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
   const designations: Designation[] = [
     "INTERN",
@@ -217,57 +277,11 @@ const EditEmployeePage = () => {
   const realManagers = departmentEmployees.filter(
     (emp) => emp.employeeId && emp.designation
   );
-  
+
   const hasNoManagerOption = departmentEmployees.some(
     (emp) => emp.employeeId === null
   );
-  
-  const checkUniqueness = async (
-    field: UniqueField,
-    value: string,
-    errorKey: string,
-    fieldColumn: string,
-    excludeId?: string | null,
-  ) => {
-    const val = value.trim();
-    if (!val || val.length < 3 || checking.has(errorKey)) return;
 
-    setChecking((prev) => new Set(prev).add(errorKey));
-
-    try {
-      // ONLY use edit mode if excludeId is a REAL, NON-EMPTY UUID
-      const isValidExcludeId =
-        excludeId && excludeId.trim() !== "" && excludeId.length > 10;
-
-      const mode = isValidExcludeId ? "edit" : "create";
-
-      const result = await validationService.validateField({
-        field,
-        value: val,
-        mode,
-        excludeId: isValidExcludeId ? excludeId : undefined,
-        fieldColumn,
-      });
-
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        if (result.exists) {
-          newErrors[errorKey] = "Already exists in the system";
-        } else {
-          delete newErrors[errorKey];
-        }
-        return newErrors;
-      });
-    } catch (err) {
-      console.warn("Uniqueness check failed:", err);
-    } finally {
-      setChecking((prev) => {
-        const s = new Set(prev);
-        s.delete(errorKey);
-        return s;
-      });
-    }
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -305,49 +319,30 @@ const EditEmployeePage = () => {
             documentId: d.documentId,
             docType: d.docType,
             file: null, // 👈 for replacement upload
-            fileUrl: typeof d.file === "string" ? d.file : undefined, // 👈 existing S3 URL (string only)
+            fileUrl: d.fileUrl ?? undefined,
           })),
           employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
 
           employeeSalaryDTO: emp.employeeSalaryDTO
             ? {
-                ...emp.employeeSalaryDTO,
-                employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
-                // Clean CTC and Standard Hours to show blank if 0/undefined
-                ctc:
-                  emp.employeeSalaryDTO.ctc === 0 ||
+              ...emp.employeeSalaryDTO,
+              employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
+              // Clean CTC and Standard Hours to show blank if 0/undefined
+              ctc:
+                emp.employeeSalaryDTO.ctc === 0 ||
                   emp.employeeSalaryDTO.ctc == null
-                    ? null
-                    : emp.employeeSalaryDTO.ctc,
-                standardHours:
-                  emp.employeeSalaryDTO.standardHours === 0 ||
+                  ? null
+                  : emp.employeeSalaryDTO.ctc,
+              standardHours:
+                emp.employeeSalaryDTO.standardHours === 0 ||
                   emp.employeeSalaryDTO.standardHours == null ||
                   emp.employeeSalaryDTO.standardHours === 40
-                    ? null
-                    : emp.employeeSalaryDTO.standardHours,
-              }
+                  ? null
+                  : emp.employeeSalaryDTO.standardHours,
+            }
             : undefined,
         });
 
-        // setFormData({
-        //   ...emp,
-        //   clientSelection,
-
-        //   // Clean: pure EmployeeDocumentDTO[] — no fileObj, no extensions
-        //   documents: emp.documents ?? [],
-
-        //   employeeEquipmentDTO: emp.employeeEquipmentDTO ?? [],
-
-        //   employeeSalaryDTO: emp.employeeSalaryDTO
-        //     ? {
-        //       ...emp.employeeSalaryDTO,
-        //       employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
-        //     }
-        //     : undefined,
-        // });
-
-        // Reset the separate file upload tracker
-        // setDocumentFiles(new Array(emp.documents?.length || 0).fill(null));
         if (emp.employeeEmploymentDetailsDTO?.department) {
           employeeService
             .getEmployeesByDepartment(
@@ -383,102 +378,179 @@ const EditEmployeePage = () => {
     fetchData();
   }, [params.id]);
 
-  const validateField = (name: string, value: string) => {
-    let errorMsg = "";
-    switch (name) {
-      case "firstName":
-      case "lastName":
-        if (!value.trim()) errorMsg = `${name} is required.`;
-        else if (value.length > 30)
-          errorMsg = `${name} must not exceed 30 characters.`;
-        else if (!/^[a-zA-Z\s]+$/.test(value))
-          errorMsg = `${name} must contain only letters and spaces.`;
-        break;
-      case "personalEmail":
-      case "companyEmail":
-        if (!value.trim()) errorMsg = `${name} is required.`;
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-          errorMsg = `${name} must be a valid email address.`;
-        else if (value.length > 50)
-          errorMsg = `${name} must not exceed 50 characters.`;
-        break;
-      case "contactNumber":
-        if (!value.trim()) errorMsg = "Contact number is required.";
-        else if (!/^[6-9]\d{9}$/.test(value))
-          errorMsg =
-            "Contact number must be a valid 10-digit number starting with 6-9.";
-        break;
-      default:
-        break;
-    }
-    return errorMsg;
-  };
+  // Add this useEffect inside EditEmployeePage (near other useEffects)
 
-  // FIXED: Safe handleChange — never wipes data
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
-    const { name, value, type } = e.target;
-    const isCheckbox = type === "checkbox";
-    const checked = (e.target as HTMLInputElement).checked;
-    setIsDirty(true);
-    setFormData((prev) => {
-      if (!prev) return prev;
-
-      // Handle nested fields like employeeEmploymentDetailsDTO.shiftTiming
-      if (name.includes(".")) {
-        const [parent, child] = name.split(".") as [
-          keyof EmployeeModel,
-          string,
-        ];
-
-        // Special safety for undefined nested objects
-        const currentParent = prev[parent] as any;
-
-        return {
-          ...prev,
-          [parent]: {
-            ...(currentParent ?? {}),
-            [child]: isCheckbox ? checked : value,
-          },
-        };
-      }
-
-      // Top-level fields
-      return {
-        ...prev,
-        [name]: isCheckbox ? checked : value,
-      };
-    });
-
-    // Validation (only run for simple fields — skip nested ones if you want)
-    // if (!name.includes('.')) {
-    //   const error = validateField(name, value);
-    //   setErrors((prev) => ({ ...prev, [name]: error }));
-    // }
-    // Only validate non-email fields on change
-    if (
-      !name.includes(".") &&
-      !["personalEmail", "companyEmail"].includes(name)
-    ) {
-      const error = validateField(name, value);
-      setErrors((prev) => ({ ...prev, [name]: error }));
-    }
-
-    // Clear email errors while typing (will re-validate on blur)
-    if (["personalEmail", "companyEmail"].includes(name)) {
+  useEffect(() => {
+    if (!formData?.personalEmail || !formData?.companyEmail) {
       setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name]; // remove error while typing
-        return newErrors;
+        const next = { ...prev };
+        delete next["personalEmail_same"];
+        delete next["companyEmail_same"];
+        return next;
+      });
+      return;
+    }
+
+    const p = formData.personalEmail.trim().toLowerCase();
+    const c = formData.companyEmail.trim().toLowerCase();
+
+    if (p === c && p.length > 0) {
+      setErrors((prev) => ({
+        ...prev,
+        personalEmail_same: "Personal and company email cannot be the same",
+        companyEmail_same: "Personal and company email cannot be the same",
+      }));
+    } else {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next["personalEmail_same"];
+        delete next["companyEmail_same"];
+        return next;
       });
     }
+  }, [formData?.personalEmail, formData?.companyEmail]);
+
+  const validateClientDates = (data: EmployeeModel) => {
+    if (!data.clientSelection) return;
+
+    const newErrors: Record<string, string> = {};
+
+    const parseDate = (dateStr?: string | null): Date | null => {
+      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const rawDoJ = data.dateOfJoining;
+    const rawOCT = data.dateOfOnboardingToClient;
+    const rawOff = data.dateOfOffboardingToClient;
+    const rawCbs = data.clientBillingStartDate;
+    const rawCbe = data.clientBillingStopDate;
+
+    const doJ = parseDate(rawDoJ);
+    const doOCT = parseDate(rawOCT);
+    const doOff = parseDate(rawOff);
+    const cbs = parseDate(rawCbs);
+    const cbe = parseDate(rawCbe);
+
+    /* -----------------------------
+       DOJ — ALWAYS mandatory
+    ------------------------------ */
+    if (!doJ) {
+      newErrors.dateOfJoining = "Date of Joining is required";
+    }
+
+    /* -----------------------------
+       STATUS client → stop here
+    ------------------------------ */
+    if (data.clientSelection.startsWith("STATUS:")) {
+      setErrors((prev) => {
+        const cleaned = { ...prev };
+
+        delete cleaned.dateOfOnboardingToClient;
+        delete cleaned.dateOfOffboardingToClient;
+        delete cleaned.clientBillingStartDate;
+        delete cleaned.clientBillingStopDate;
+
+        return {
+          ...cleaned,
+          ...newErrors, // DOJ error (if any) preserved
+        };
+      });
+      return;
+    }
+
+    /* -----------------------------
+       CLIENT → Onboarding mandatory
+    ------------------------------ */
+    if (!doOCT) {
+      newErrors.dateOfOnboardingToClient =
+        "Date of Onboarding is required";
+    }
+
+    // Stop if mandatory missing
+    if (!doJ || !doOCT) {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+
+    /* -----------------------------
+       Date relationship checks
+    ------------------------------ */
+    if (doJ > doOCT) {
+      newErrors.dateOfOnboardingToClient =
+        "Onboarding date must be after Date of Joining";
+    }
+
+    if (rawOff && doOff && doOCT > doOff) {
+      newErrors.dateOfOffboardingToClient =
+        "Offboarding date must be after onboarding date";
+    }
+
+    if (rawCbs && cbs && cbs < doOCT) {
+      newErrors.clientBillingStartDate =
+        "Billing start date cannot be before onboarding date";
+    }
+
+    // Billing start must be before offboarding
+    if (cbs && doOff && cbs >= doOff) {
+      newErrors.clientBillingStartDate =
+        "Billing start date must be before offboarding date";
+    }
+
+    // Billing start must be before billing end
+    if (cbs && cbe && cbs >= cbe) {
+      newErrors.clientBillingStartDate =
+        "Billing start date must be before billing end date";
+      newErrors.clientBillingStopDate =
+        "Billing end date must be after billing start date";
+    }
+
+
+    if (rawCbe && cbe && rawCbs && cbs && cbs >= cbe) {
+      newErrors.clientBillingStopDate =
+        "Billing end date must be after billing start date";
+    }
+
+    if (rawOff && rawCbe && doOff && cbe && doOff > cbe) {
+      newErrors.dateOfOffboardingToClient =
+        "Offboarding date cannot be after billing end date";
+    }
+
+    setErrors((prev) => {
+      const cleaned = { ...prev };
+
+      delete cleaned.dateOfJoining;
+      delete cleaned.dateOfOnboardingToClient;
+      delete cleaned.dateOfOffboardingToClient;
+      delete cleaned.clientBillingStartDate;
+      delete cleaned.clientBillingStopDate;
+
+      return {
+        ...cleaned,
+        ...newErrors,
+      };
+    });
   };
+
+
+
+  useEffect(() => {
+    if (!formData || !isDirty) return;
+    validateClientDates(formData);
+  }, [
+    formData?.dateOfJoining,
+    formData?.dateOfOnboardingToClient,
+    formData?.dateOfOffboardingToClient,
+    formData?.clientBillingStartDate,
+    formData?.clientBillingStopDate,
+    formData?.clientSelection,
+  ]);
+
 
   // DOCUMENTS
   const addDocument = () => {
+    setIsDirty(true);
     setFormData((prev) => {
       if (!prev) return prev;
 
@@ -488,7 +560,7 @@ const EditEmployeePage = () => {
           ...prev.documents,
           {
             documentId: null,
-            docType: "OTHER",
+            docType: undefined,
             file: null, // 👈 important
           },
         ],
@@ -504,11 +576,11 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            documents: prev.documents.map((doc, i) =>
-              i === index ? { ...doc, [field]: value } : doc,
-            ),
-          }
+          ...prev,
+          documents: prev.documents.map((doc, i) =>
+            i === index ? { ...doc, [field]: value } : doc,
+          ),
+        }
         : prev,
     );
   };
@@ -545,29 +617,30 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            documents: prev.documents.filter((_, i) => i !== index),
-          }
+          ...prev,
+          documents: prev.documents.filter((_, i) => i !== index),
+        }
         : prev,
     );
   };
 
   // EQUIPMENT
   const addEquipment = () => {
+    setIsDirty(true);  // ← ADD THIS LINE
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            employeeEquipmentDTO: [
-              ...(prev.employeeEquipmentDTO ?? []),
-              {
-                equipmentId: "",
-                equipmentType: "",
-                serialNumber: "",
-                issuedDate: "",
-              },
-            ],
-          }
+          ...prev,
+          employeeEquipmentDTO: [
+            ...(prev.employeeEquipmentDTO ?? []),
+            {
+              equipmentId: "",
+              equipmentType: "",
+              serialNumber: "",
+              issuedDate: "",
+            },
+          ],
+        }
         : prev,
     );
   };
@@ -580,12 +653,12 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            employeeEquipmentDTO:
-              prev.employeeEquipmentDTO?.map((eq, i) =>
-                i === index ? { ...eq, [field]: value } : eq,
-              ) ?? [],
-          }
+          ...prev,
+          employeeEquipmentDTO:
+            prev.employeeEquipmentDTO?.map((eq, i) =>
+              i === index ? { ...eq, [field]: value } : eq,
+            ) ?? [],
+        }
         : prev,
     );
   };
@@ -621,17 +694,17 @@ const EditEmployeePage = () => {
     setFormData((prev) =>
       prev
         ? {
-            ...prev,
-            employeeEquipmentDTO:
-              prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
-          }
+          ...prev,
+          employeeEquipmentDTO:
+            prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
+        }
         : prev,
     );
   };
   const currentManagerName = formData?.reportingManagerId
     ? departmentEmployees.find(
-        (e) => e.employeeId === formData.reportingManagerId,
-      )?.fullName
+      (e) => e.employeeId === formData.reportingManagerId,
+    )?.fullName
     : null;
 
   // DELETE ALLOWANCE
@@ -799,80 +872,6 @@ const EditEmployeePage = () => {
     });
   };
 
-  // const removeAllowance = async (index: number) => {
-  //   if (!formData || !params.id) return;
-
-  //   const allowance = formData.employeeSalaryDTO?.allowances?.[index];
-
-  //   // Delete from backend if it has an ID (already saved)
-  //   if (allowance?.allowanceId) {
-  //     try {
-  //       const res = await adminService.deleteEmployeeAllowance(
-  //         params.id as string,
-  //         allowance.allowanceId
-  //       );
-  //       if (!res.flag) throw new Error(res.message || 'Failed to delete');
-  //     } catch (err: any) {
-  //       Swal.fire('Error', err.message || 'Could not delete allowance', 'error');
-  //       return; // ← Important: don't update UI if API failed
-  //     }
-  //   }
-
-  //   // Safely update state while preserving required fields
-  //   setFormData(prev => {
-  //     if (!prev || !prev.employeeSalaryDTO) return prev;
-
-  //     const updatedAllowances = prev.employeeSalaryDTO.allowances?.filter((_, i) => i !== index) || [];
-
-  //     return {
-  //       ...prev,
-  //       employeeSalaryDTO: {
-  //         ...prev.employeeSalaryDTO,
-  //         employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string), // ← ENSURE it's always a string
-  //         allowances: updatedAllowances,
-  //       },
-  //     };
-  //   });
-
-  //   Swal.fire('Deleted!', 'Allowance removed successfully', 'success');
-  // };
-
-  // const removeDeduction = async (index: number) => {
-  //   if (!formData || !params.id) return;
-
-  //   const deduction = formData.employeeSalaryDTO?.deductions?.[index];
-
-  //   if (deduction?.deductionId) {
-  //     try {
-  //       const res = await adminService.deleteEmployeeDeduction(
-  //         params.id as string,
-  //         deduction.deductionId
-  //       );
-  //       if (!res.flag) throw new Error(res.message || 'Failed to delete');
-  //     } catch (err: any) {
-  //       Swal.fire('Error', err.message || 'Could not delete deduction', 'error');
-  //       return;
-  //     }
-  //   }
-
-  //   setFormData(prev => {
-  //     if (!prev || !prev.employeeSalaryDTO) return prev;
-
-  //     const updatedDeductions = prev.employeeSalaryDTO.deductions?.filter((_, i) => i !== index) || [];
-
-  //     return {
-  //       ...prev,
-  //       employeeSalaryDTO: {
-  //         ...prev.employeeSalaryDTO,
-  //         employeeId: prev.employeeSalaryDTO.employeeId || (params.id as string), // ← Critical fix
-  //         deductions: updatedDeductions,
-  //       },
-  //     };
-  //   });
-
-  //   Swal.fire('Deleted!', 'Deduction removed successfully', 'success');
-  // };
-
   // In handleSubmit — CRITICAL CHANGE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -881,6 +880,27 @@ const EditEmployeePage = () => {
     setSubmitting(true);
     const fd = new FormData();
 
+    // 🚫 Block partial document updates
+    const hasInvalidNewDocument = formData.documents.some((doc) => {
+      // 🟢 Existing document → always valid (replace freely)
+      if (doc.documentId) return false;
+
+      const hasType = !!doc.docType;
+      const hasFile = doc.file instanceof File;
+
+      // 🔵 New document → invalid ONLY if partially filled
+      return hasType !== hasFile;
+    });
+
+    if (hasInvalidNewDocument) {
+      Swal.fire(
+        "Incomplete Document",
+        "Please select both document type and file for new documents.",
+        "warning"
+      );
+      setSubmitting(false);
+      return;
+    }
     try {
       const cleanEmploymentDetails = (dto?: any) => {
         if (!dto) return undefined;
@@ -924,7 +944,7 @@ const EditEmployeePage = () => {
         rateCard: formData.rateCard,
         employmentType: formData.employmentType,
         // reportingManagerId: formData.reportingManagerId ?? null,
-        reportingManagerId:formData.reportingManagerId === "NO_MANAGER"? null: formData.reportingManagerId,
+        reportingManagerId: formData.reportingManagerId === "NO_MANAGER" ? null : formData.reportingManagerId,
         clientId: formData.clientId ?? null,
         clientSelection: formData.clientSelection,
         panNumber: formData.panNumber,
@@ -941,60 +961,60 @@ const EditEmployeePage = () => {
         employeeEquipmentDTO: formData.employeeEquipmentDTO,
 
         // ONLY send document metadata — NO file field!
-        documents: formData.documents.map((doc) => ({
-          documentId: doc.documentId || null,
-          docType: doc.docType,
-        })),
+        // documents: formData.documents.map((doc) => ({
+        //   documentId: doc.documentId || null,
+        //   docType: doc.docType,
+        // })),
 
         // ADDED: INSURANCE & STATUTORY — ONLY IF ANY FIELD IS FILLED
         ...(formData.employeeInsuranceDetailsDTO &&
-        (formData.employeeInsuranceDetailsDTO.policyNumber ||
-          formData.employeeInsuranceDetailsDTO.providerName ||
-          formData.employeeInsuranceDetailsDTO.coverageStart ||
-          formData.employeeInsuranceDetailsDTO.coverageEnd ||
-          formData.employeeInsuranceDetailsDTO.nomineeName ||
-          formData.employeeInsuranceDetailsDTO.nomineeRelation ||
-          formData.employeeInsuranceDetailsDTO.nomineeContact ||
-          formData.employeeInsuranceDetailsDTO.groupInsurance === true)
+          (formData.employeeInsuranceDetailsDTO.policyNumber ||
+            formData.employeeInsuranceDetailsDTO.providerName ||
+            formData.employeeInsuranceDetailsDTO.coverageStart ||
+            formData.employeeInsuranceDetailsDTO.coverageEnd ||
+            formData.employeeInsuranceDetailsDTO.nomineeName ||
+            formData.employeeInsuranceDetailsDTO.nomineeRelation ||
+            formData.employeeInsuranceDetailsDTO.nomineeContact ||
+            formData.employeeInsuranceDetailsDTO.groupInsurance === true)
           ? {
-              employeeInsuranceDetailsDTO: {
-                policyNumber:
-                  formData.employeeInsuranceDetailsDTO.policyNumber || "",
-                providerName:
-                  formData.employeeInsuranceDetailsDTO.providerName || "",
-                coverageStart:
-                  formData.employeeInsuranceDetailsDTO.coverageStart || "",
-                coverageEnd:
-                  formData.employeeInsuranceDetailsDTO.coverageEnd || "",
-                nomineeName:
-                  formData.employeeInsuranceDetailsDTO.nomineeName || "",
-                nomineeRelation:
-                  formData.employeeInsuranceDetailsDTO.nomineeRelation || "",
-                nomineeContact:
-                  formData.employeeInsuranceDetailsDTO.nomineeContact || "",
-                groupInsurance:
-                  formData.employeeInsuranceDetailsDTO.groupInsurance || false,
-              },
-            }
+            employeeInsuranceDetailsDTO: {
+              policyNumber:
+                formData.employeeInsuranceDetailsDTO.policyNumber || "",
+              providerName:
+                formData.employeeInsuranceDetailsDTO.providerName || "",
+              coverageStart:
+                formData.employeeInsuranceDetailsDTO.coverageStart || "",
+              coverageEnd:
+                formData.employeeInsuranceDetailsDTO.coverageEnd || "",
+              nomineeName:
+                formData.employeeInsuranceDetailsDTO.nomineeName || "",
+              nomineeRelation:
+                formData.employeeInsuranceDetailsDTO.nomineeRelation || "",
+              nomineeContact:
+                formData.employeeInsuranceDetailsDTO.nomineeContact || "",
+              groupInsurance:
+                formData.employeeInsuranceDetailsDTO.groupInsurance || false,
+            },
+          }
           : {}),
 
         ...(formData.employeeStatutoryDetailsDTO &&
-        (formData.employeeStatutoryDetailsDTO.passportNumber ||
-          formData.employeeStatutoryDetailsDTO.taxRegime ||
-          formData.employeeStatutoryDetailsDTO.pfUanNumber ||
-          formData.employeeStatutoryDetailsDTO.esiNumber ||
-          formData.employeeStatutoryDetailsDTO.ssnNumber)
+          (formData.employeeStatutoryDetailsDTO.passportNumber ||
+            formData.employeeStatutoryDetailsDTO.taxRegime ||
+            formData.employeeStatutoryDetailsDTO.pfUanNumber ||
+            formData.employeeStatutoryDetailsDTO.esiNumber ||
+            formData.employeeStatutoryDetailsDTO.ssnNumber)
           ? {
-              employeeStatutoryDetailsDTO: {
-                passportNumber:
-                  formData.employeeStatutoryDetailsDTO.passportNumber || "",
-                taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || "",
-                pfUanNumber:
-                  formData.employeeStatutoryDetailsDTO.pfUanNumber || "",
-                esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || "",
-                ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || "",
-              },
-            }
+            employeeStatutoryDetailsDTO: {
+              passportNumber:
+                formData.employeeStatutoryDetailsDTO.passportNumber || "",
+              taxRegime: formData.employeeStatutoryDetailsDTO.taxRegime || "",
+              pfUanNumber:
+                formData.employeeStatutoryDetailsDTO.pfUanNumber || "",
+              esiNumber: formData.employeeStatutoryDetailsDTO.esiNumber || "",
+              ssnNumber: formData.employeeStatutoryDetailsDTO.ssnNumber || "",
+            },
+          }
           : {}),
       };
 
@@ -1003,20 +1023,28 @@ const EditEmployeePage = () => {
       if (employeeImageFile instanceof File) {
         fd.append("employeePhotoUrl", employeeImageFile);
       }
-      // documentFiles.forEach((file, index) => {
-      //   if (file instanceof File) {
-      //     fd.append(`documents[${index}]`, file);
-      //   }
-      // });
-      formData.documents.forEach((doc, index) => {
-        fd.append(`documents[${index}].documentId`, doc.documentId ?? "");
-        fd.append(`documents[${index}].docType`, doc.docType);
+      if (formData?.documents?.length) {
+        const validDocuments = formData.documents.filter(
+          (doc) =>
+            // existing document unchanged
+            (doc.documentId && !doc.file) ||
+            // new or replaced document
+            (doc.docType && doc.file instanceof File)
+        );
 
-        // attach file ONLY if user selected one
-        if (doc.file instanceof File) {
-          fd.append(`documents[${index}].file`, doc.file);
-        }
-      });
+        validDocuments.forEach((doc, index) => {
+          if (!doc.docType) return;
+
+          fd.append(`documents[${index}].documentId`, doc.documentId ?? "");
+          fd.append(`documents[${index}].docType`, doc.docType);
+
+          if (doc.file instanceof File) {
+            fd.append(`documents[${index}].file`, doc.file);
+          }
+        });
+      }
+
+
       const res = await adminService.updateEmployee(params.id as string, fd);
 
       if (res.flag) {
@@ -1036,6 +1064,38 @@ const EditEmployeePage = () => {
       setSubmitting(false);
     }
   };
+
+  const isStatusClient = formData?.clientSelection?.startsWith("STATUS:");
+
+  const hasValidDocumentChange =
+    formData?.documents?.every((doc) => {
+      // 🟢 EXISTING DOCUMENT (replace allowed)
+      if (doc.documentId) {
+        // allow:
+        // - change only type
+        // - change only file
+        // - change both
+        // - change nothing
+        return true;
+      }
+
+      // 🔵 NEW DOCUMENT (must be complete OR untouched)
+      const hasType = !!doc.docType;
+      const hasFile = doc.file instanceof File;
+
+      // valid if:
+      // - both selected
+      // - neither selected (empty row allowed until user fills or deletes)
+      return hasType === hasFile;
+    }) ?? true;
+
+  const canAddDocument =
+    !formData ||
+    formData.documents.every(
+      (d) => d.documentId || (d.docType && d.file instanceof File)
+    );
+
+
 
   // LOADING STATES
   if (loading) {
@@ -1065,7 +1125,8 @@ const EditEmployeePage = () => {
 
   const selectValue = formData.clientSelection?.startsWith("STATUS:")
     ? formData.clientSelection.replace("STATUS:", "")
-    : (formData.clientId ?? undefined);
+    : (formData.clientId ?? "");
+
 
   const getError = (key: string) => errors[key] || "";
   return (
@@ -1100,16 +1161,13 @@ const EditEmployeePage = () => {
                       name="firstName"
                       value={formData.firstName}
                       required
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       maxLength={30}
                       placeholder="Enter first name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-                    {getError("firstName") && (
-                      <p className="text-xs text-red-600">
-                        {getError("firstName")}
-                      </p>
-                    )}
+                    {fieldError(errors, "firstName")}
+
                   </div>
 
                   {/* Last Name */}
@@ -1122,17 +1180,14 @@ const EditEmployeePage = () => {
                       name="lastName"
                       value={formData.lastName}
                       required
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       maxLength={50}
                       placeholder="Enter last name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
 
-                    {getError("lastName") && (
-                      <p className="text-xs text-red-600">
-                        {getError("lastName")}
-                      </p>
-                    )}
+                    {fieldError(errors, "lastName")}
+
                   </div>
 
                   {/* Personal Email - WITH UNIQUENESS CHECK & LOADING SPINNER */}
@@ -1147,22 +1202,14 @@ const EditEmployeePage = () => {
                         type="email"
                         value={formData.personalEmail}
                         required
-                        // onChange={handleChange}
-                        onChange={(e) => {
-                          e.target.value = e.target.value.toLowerCase();
-                          handleChange(e);
-                        }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "EMAIL",
-                              val,
-                              "personalEmail",
-                              "personal_email",
-                              employeeData?.employeeId,
-                            );
-                        }}
+                        onChange={handleValidatedChange}
+                        onBlur={handleUniqueBlur(
+                          "EMAIL",
+                          "personal_email",
+                          "personalEmail",
+                          employeeData?.employeeId
+                        )}
+
                         maxLength={30}
                         placeholder="you@gmail.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1176,12 +1223,12 @@ const EditEmployeePage = () => {
                       )}
                     </div>
 
-                    {/* Error Message */}
-                    {getError("personalEmail") && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {getError("personalEmail")}
+                    {fieldError(errors, "personalEmail") || errors.personalEmail_same && (
+                      <p className="text-red-600 text-xs mt-1">
+                        {errors.personalEmail || errors.personalEmail_same}
                       </p>
                     )}
+
                   </div>
 
                   {/* Company Email */}
@@ -1196,21 +1243,14 @@ const EditEmployeePage = () => {
                         value={formData.companyEmail}
                         required
                         // onChange={handleChange}
-                        onChange={(e) => {
-                          e.target.value = e.target.value.toLowerCase();
-                          handleChange(e);
-                        }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "EMAIL",
-                              val,
-                              "companyEmail",
-                              "company_email",
-                              employeeData?.employeeId,
-                            );
-                        }}
+                        onChange={handleValidatedChange}
+                        onBlur={handleUniqueBlur(
+                          "EMAIL",
+                          "company_email",
+                          "companyEmail",
+                          employeeData?.employeeId
+                        )}
+
                         maxLength={30}
                         placeholder="you@company.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1222,10 +1262,10 @@ const EditEmployeePage = () => {
                         </div>
                       )}
                     </div>
-                    {/* Error Message */}
-                    {getError("companyEmail") && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {getError("companyEmail")}
+                    {/* Company Email field – same pattern */}
+                    {fieldError(errors, "companyEmail") || errors.companyEmail_same && (
+                      <p className="text-red-600 text-xs mt-1">
+                        {errors.companyEmail || errors.companyEmail_same}
                       </p>
                     )}
                   </div>
@@ -1244,23 +1284,17 @@ const EditEmployeePage = () => {
                         value={formData.contactNumber}
                         required
                         onChange={(e) => {
-                          if (/^\d*$/.test(e.target.value)) {
-                            handleChange(e);
-                          }
-                        }}
-                        // onChange={handleChange}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val && val.length === 10) {
-                            checkUniqueness(
-                              "CONTACT_NUMBER",
-                              val,
-                              "contactNumber",
-                              "contact_number",
-                              employeeData?.employeeId,
-                            );
-                          }
-                        }}
+                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          e.target.value = onlyDigits;
+                          handleValidatedChange(e);
+                        }}                        onBlur={handleUniqueBlur(
+                          "CONTACT_NUMBER",
+                          "contact_number",
+                          "contactNumber",
+                          employeeData?.employeeId,
+                          10
+                        )}
+
                         maxLength={10}
                         placeholder="9876543210"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1273,11 +1307,8 @@ const EditEmployeePage = () => {
                       )}
                     </div>
                     {/* Error Message */}
-                    {getError("contactNumber") && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {getError("contactNumber")}
-                      </p>
-                    )}
+                    {fieldError(errors, "contactNumber")}
+
                   </div>
 
                   {/* Date of Birth */}
@@ -1291,16 +1322,13 @@ const EditEmployeePage = () => {
                       name="dateOfBirth"
                       value={formData.dateOfBirth}
                       required
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       max={today}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
 
-                    {getError("dateOfBirth") && (
-                      <p className="text-xs text-red-600">
-                        {getError("dateOfBirth")}
-                      </p>
-                    )}
+                    {fieldError(errors, "dateOfBirth")}
+
                   </div>
 
                   {/* Nationality */}
@@ -1313,17 +1341,14 @@ const EditEmployeePage = () => {
                       name="nationality"
                       value={formData.nationality}
                       required
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       maxLength={30}
                       placeholder="Indian"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
 
-                    {getError("nationality") && (
-                      <p className="text-xs text-red-600">
-                        {getError("nationality")}
-                      </p>
-                    )}
+                    {fieldError(errors, "nationality")}
+
                   </div>
 
                   {/* Gender */}
@@ -1335,7 +1360,7 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData?.gender || ""}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setFormData((prev) =>
                           prev ? { ...prev, gender: v } : prev,
                         );
@@ -1353,11 +1378,8 @@ const EditEmployeePage = () => {
                       </SelectContent>
                     </Select>
 
-                    {getError("gender") && (
-                      <p className="text-xs text-red-600">
-                        {getError("gender")}
-                      </p>
-                    )}
+                    {fieldError(errors, "gender")}
+
                   </div>
                 </div>
               </CardContent>
@@ -1385,21 +1407,50 @@ const EditEmployeePage = () => {
                       required
                       value={selectValue}
                       onValueChange={(v) => {
-                        setFormData((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                clientId: staticClients.has(v) ? null : v,
-                                clientSelection: staticClients.has(v)
-                                  ? `STATUS:${v}`
-                                  : `CLIENT:${v}`,
+                        setFormData((prev) => {
+                          if (!prev) return prev;
+
+                          const prevClient =
+                            prev.clientSelection?.startsWith("CLIENT:")
+                              ? prev.clientSelection
+                              : null;
+
+                          const nextClient = staticClients.has(v)
+                            ? `STATUS:${v}`
+                            : `CLIENT:${v}`;
+                          const clientChanged = prev.clientSelection !== nextClient;
+                          return {
+                            ...prev,
+                            clientId: staticClients.has(v) ? null : v,
+                            clientSelection: nextClient,
+
+                            // 🔴 Reset client-dependent dates if client changed
+                            ...(clientChanged
+                              ? {
+                                dateOfOnboardingToClient: "",
+                                dateOfOffboardingToClient: "",
+                                clientBillingStartDate: "",
+                                clientBillingStopDate: "",
                               }
-                            : prev,
-                        );
-                        setErrors((prev) => ({ ...prev, clientSelection: "" }));
-                        setIsDirty(true)
+                              : {}),
+                          };
+                        });
+
+                        // Clear date-related validation errors
+                        setErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.dateOfOnboardingToClient;
+                          delete newErrors.dateOfOffboardingToClient;
+                          delete newErrors.clientBillingStartDate;
+                          delete newErrors.clientBillingStopDate;
+                          delete newErrors.clientSelection;
+                          return newErrors;
+                        });
+
+                        setIsDirty(true);
                       }}
                     >
+
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Client" />
                       </SelectTrigger>
@@ -1441,18 +1492,18 @@ const EditEmployeePage = () => {
                         setFormData((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                employeeEmploymentDetailsDTO: {
-                                  ...(prev.employeeEmploymentDetailsDTO || {
-                                    employmentId: "",
-                                    employeeId: params.id as string,
-                                    probationApplicable: false,
-                                    bondApplicable: false,
-                                  }),
-                                  department,
-                                },
-                                reportingManagerId: "", // temporarily clear
-                              }
+                              ...prev,
+                              employeeEmploymentDetailsDTO: {
+                                ...(prev.employeeEmploymentDetailsDTO || {
+                                  employmentId: "",
+                                  employeeId: params.id as string,
+                                  probationApplicable: false,
+                                  bondApplicable: false,
+                                }),
+                                department,
+                              },
+                              reportingManagerId: "", // temporarily clear
+                            }
                             : prev,
                         );
 
@@ -1474,10 +1525,10 @@ const EditEmployeePage = () => {
                           setFormData((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  reportingManagerId:
-                                    validManagers[0].employeeId,
-                                }
+                                ...prev,
+                                reportingManagerId:
+                                  validManagers[0].employeeId,
+                              }
                               : prev,
                           );
                         }
@@ -1511,8 +1562,8 @@ const EditEmployeePage = () => {
                     </Label>
                     <Select
                       value={formData?.reportingManagerId || ""}
-                      onValueChange={(v) =>{
-                      setFormData((prev) =>
+                      onValueChange={(v) => {
+                        setFormData((prev) =>
                           prev ? { ...prev, reportingManagerId: v } : prev,
                         )
                         setIsDirty(true)
@@ -1532,37 +1583,37 @@ const EditEmployeePage = () => {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                      {/* No department selected */}
-                      {!formData?.employeeEmploymentDetailsDTO?.department ? (
-                        <SelectItem value="none" disabled>
-                          First select Department
-                        </SelectItem>
-                      ) : realManagers.length === 0 && hasNoManagerOption ? (
-                        /* Only N/A came from backend */
-                        <SelectItem value="NO_MANAGER" disabled>
-                          No manager
-                        </SelectItem>
-                      ) : (
-                        <>
-                          {/* Real managers */}
-                          {realManagers.map((emp) => (
-                            <SelectItem
-                              key={emp.employeeId}
-                              value={emp.employeeId}
-                            >
-                              {emp.fullName}
-                            </SelectItem>
-                          ))}
+                        {/* No department selected */}
+                        {!formData?.employeeEmploymentDetailsDTO?.department ? (
+                          <SelectItem value="none" disabled>
+                            First select Department
+                          </SelectItem>
+                        ) : realManagers.length === 0 && hasNoManagerOption ? (
+                          /* Only N/A came from backend */
+                          <SelectItem value="NO_MANAGER" disabled>
+                            No manager
+                          </SelectItem>
+                        ) : (
+                          <>
+                            {/* Real managers */}
+                            {realManagers.map((emp) => (
+                              <SelectItem
+                                key={emp.employeeId}
+                                value={emp.employeeId}
+                              >
+                                {emp.fullName}
+                              </SelectItem>
+                            ))}
 
-                          {/* Explicit "No manager" option */}
-                          {hasNoManagerOption && (
-                            <SelectItem value="NO_MANAGER">
-                              No manager
-                            </SelectItem>
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
+                            {/* Explicit "No manager" option */}
+                            {hasNoManagerOption && (
+                              <SelectItem value="NO_MANAGER">
+                                No manager
+                              </SelectItem>
+                            )}
+                          </>
+                        )}
+                      </SelectContent>
                     </Select>
                   </div>
 
@@ -1575,7 +1626,7 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData?.designation || ""}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         setFormData((prev) =>
                           prev
@@ -1615,58 +1666,55 @@ const EditEmployeePage = () => {
                       type="date"
                       name="dateOfJoining"
                       required
-                      value={formData.dateOfJoining}
-                      onChange={handleChange}
+                      value={formData.dateOfJoining ?? ""}
+                      onChange={handleValidatedChange}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
 
-                    {getError("dateOfJoining") && (
+                    {fieldError(errors, "dateOfJoining")}
+                  </div>
+
+                  {/* Date of onboarding */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Date Of Onboarding To Client
+                      {!isStatusClient && <span className="text-red-500">*</span>}
+                    </Label>
+
+                    <Input
+                      type="date"
+                      name="dateOfOnboardingToClient"
+                      value={formData.dateOfOnboardingToClient ?? ""}
+                      onChange={handleChange}
+                      required={!isStatusClient}
+                      // disabled={isStatusClient}
+                      className="h-12 text-base w-full"
+                    />
+
+                    {getError("dateOfOnboardingToClient") && !isStatusClient && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("dateOfOnboardingToClient")}
                       </p>
                     )}
                   </div>
 
-                  {/* Date of onboarding*/}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Date Of Onboarding To Client
-                      <span className="text-red-500">*</span>
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
-                    </Label>
-                    <Input
-                      type="date"
-                      name="dateOfOnboardingToClient"
-                      value={formData.dateOfOnboardingToClient}
-                      onChange={handleChange}
-                      className="h-12 text-base w-full"
-                      // max={maxJoiningDateStr}
-                    />
-                    {getError("dateOfJoining") && (
-                      <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
-                      </p>
-                    )}
-                  </div>
 
                   {/* Date of Offboarding To Client*/}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Offboarding To Client
-                      {/* <span className="text-red-500">*</span> */}
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input
                       type="date"
                       name="dateOfOffboardingToClient"
-                      value={formData.dateOfOffboardingToClient}
+                      value={formData.dateOfOffboardingToClient ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
-                      //  max={maxJoiningDateStr}
+                    //  max={maxJoiningDateStr}
                     />
-                    {getError("dateOfJoining") && (
+                    {getError("dateOfOffboardingToClient") && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("dateOfOffboardingToClient")}
                       </p>
                     )}
                   </div>
@@ -1674,21 +1722,18 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing Start Date
-                      {/* <span className="text-red-500">*</span> */}
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStartDate"
-                      value={formData.clientBillingStartDate}
+                      value={formData.clientBillingStartDate ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
-                      //  max={maxJoiningDateStr}
+                    //  max={maxJoiningDateStr}
                     />
-
-                    {getError("dateOfJoining") && (
+                    {getError("clientBillingStartDate") && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("clientBillingStartDate")}
                       </p>
                     )}
                   </div>
@@ -1696,21 +1741,18 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing End Date
-                      {/* <span className="text-red-500">*</span> */}
-                      {/* <TooltipHint hint="First working day at the company. Cannot be future date." /> */}
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStopDate"
-                      value={formData.clientBillingStopDate}
+                      value={formData.clientBillingStopDate ?? ""}
                       onChange={handleChange}
                       className="h-12 text-base w-full"
-                      //  max={maxJoiningDateStr}
+                    //  max={maxJoiningDateStr}
                     />
-
-                    {getError("dateOfJoining") && (
+                    {getError("clientBillingStopDate") && (
                       <p className="text-xs text-red-600">
-                        {getError("dateOfJoining")}
+                        {getError("clientBillingStopDate")}
                       </p>
                     )}
                   </div>
@@ -1724,7 +1766,7 @@ const EditEmployeePage = () => {
                     <Select
                       required
                       value={formData.employmentType}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         setFormData((prev) =>
                           prev
@@ -1763,8 +1805,7 @@ const EditEmployeePage = () => {
                       type="number"
                       name="rateCard"
                       value={formData.rateCard ?? ""}
-                      onChange={handleChange}
-                      className="h-12 text-base w-full"
+                      onChange={handleValidatedChange}   // ← changed                      className="h-12 text-base w-full"
                       placeholder="45.00"
                     />
                   </div>
@@ -1779,7 +1820,7 @@ const EditEmployeePage = () => {
                       placeholder="e.g. 1200000"
                       name="employeeSalaryDTO.ctc"
                       value={formData.employeeSalaryDTO?.ctc ?? ""}
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       required
                     />
                     {getError("ctc") && (
@@ -1789,34 +1830,34 @@ const EditEmployeePage = () => {
                   {/* Pay Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                      Pay Type
+                      Pay Type <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={formData?.employeeSalaryDTO?.payType || ""}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         setFormData((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                employeeSalaryDTO: {
-                                  ...(prev.employeeSalaryDTO ?? {
-                                    employeeId: params.id as string,
-                                    ctc: 0,
-                                    standardHours: 160,
-                                    payClass: "A1" as PayClass,
-                                    bankAccountNumber: "",
-                                    ifscCode: "",
-                                    allowances: [],
-                                    deductions: [],
-                                  }),
-                                  payType: v as PayType,
-                                },
-                              }
+                              ...prev,
+                              employeeSalaryDTO: {
+                                ...(prev.employeeSalaryDTO ?? {
+                                  employeeId: params.id as string,
+                                  ctc: 0,
+                                  standardHours: 160,
+                                  payClass: "A1" as PayClass,
+                                  bankAccountNumber: "",
+                                  ifscCode: "",
+                                  allowances: [],
+                                  deductions: [],
+                                }),
+                                payType: v as PayType,
+                              },
+                            }
                             : prev,
                         )
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Type" />
@@ -1830,6 +1871,9 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {getError("payType") && (
+                      <p className="text-xs text-red-600">{getError("payType")}</p>
+                    )}
                   </div>
 
                   {/* Standard Hours */}
@@ -1841,8 +1885,7 @@ const EditEmployeePage = () => {
                       type="number"
                       name="employeeSalaryDTO.standardHours"
                       value={formData.employeeSalaryDTO?.standardHours ?? ""}
-                      onChange={handleChange}
-                      className="h-12 text-base w-full"
+                      onChange={handleValidatedChange}   // ← changed                      className="h-12 text-base w-full"
                     />
                   </div>
 
@@ -1854,7 +1897,7 @@ const EditEmployeePage = () => {
 
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ""}
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1863,7 +1906,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Class" />
@@ -1889,7 +1932,7 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO?.workingModel ||
                         ""
                       }
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1898,7 +1941,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Working Model" />
@@ -1924,7 +1967,7 @@ const EditEmployeePage = () => {
                       value={
                         formData.employeeEmploymentDetailsDTO?.shiftTiming || ""
                       }
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1933,7 +1976,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Shift" />
@@ -1977,7 +2020,7 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO
                           ?.noticePeriodDuration || ""
                       }
-                      onValueChange={(v) =>{
+                      onValueChange={(v) => {
                         setIsDirty(true)
                         handleChange({
                           target: {
@@ -1986,7 +2029,7 @@ const EditEmployeePage = () => {
                           },
                         } as any)
                       }
-                    }
+                      }
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Notice Period" />
@@ -2026,80 +2069,80 @@ const EditEmployeePage = () => {
                   {/* Probation Duration */}
                   {formData.employeeEmploymentDetailsDTO
                     ?.probationApplicable && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        Probation Duration
-                      </Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-gray-700">
+                          Probation Duration
+                        </Label>
 
-                      <Select
-                        value={
-                          formData.employeeEmploymentDetailsDTO
-                            ?.probationDuration || ""
-                        }
-                        onValueChange={(v) =>{
-                          setIsDirty(true)
-                          handleChange({
-                            target: {
-                              name: "employeeEmploymentDetailsDTO.probationDuration",
-                              value: v,
-                            },
-                          } as any)
-                        }
-                      }
-                      >
-                        <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                          <SelectValue placeholder="Select Duration" />
-                        </SelectTrigger>
+                        <Select
+                          value={
+                            formData.employeeEmploymentDetailsDTO
+                              ?.probationDuration || ""
+                          }
+                          onValueChange={(v) => {
+                            setIsDirty(true)
+                            handleChange({
+                              target: {
+                                name: "employeeEmploymentDetailsDTO.probationDuration",
+                                value: v,
+                              },
+                            } as any)
+                          }
+                          }
+                        >
+                          <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                            <SelectValue placeholder="Select Duration" />
+                          </SelectTrigger>
 
-                        <SelectContent>
-                          {PROBATION_DURATION_OPTIONS.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectContent>
+                            {PROBATION_DURATION_OPTIONS.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                   {/* Probation Notice Period */}
                   {formData.employeeEmploymentDetailsDTO
                     ?.probationApplicable && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        Probation Notice Period
-                      </Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-gray-700">
+                          Probation Notice Period
+                        </Label>
 
-                      <Select
-                        value={
-                          formData.employeeEmploymentDetailsDTO
-                            ?.probationNoticePeriod || ""
-                        }
-                        onValueChange={(v) =>{
-                          setIsDirty(true)
-                          handleChange({
-                            target: {
-                              name: "employeeEmploymentDetailsDTO.probationNoticePeriod",
-                              value: v,
-                            },
-                          } as any)
-                        }
-                      }
-                      >
-                        <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                          <SelectValue placeholder="Select Notice Period" />
-                        </SelectTrigger>
+                        <Select
+                          value={
+                            formData.employeeEmploymentDetailsDTO
+                              ?.probationNoticePeriod || ""
+                          }
+                          onValueChange={(v) => {
+                            setIsDirty(true)
+                            handleChange({
+                              target: {
+                                name: "employeeEmploymentDetailsDTO.probationNoticePeriod",
+                                value: v,
+                              },
+                            } as any)
+                          }
+                          }
+                        >
+                          <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                            <SelectValue placeholder="Select Notice Period" />
+                          </SelectTrigger>
 
-                        <SelectContent>
-                          {PROBATION_NOTICE_OPTIONS.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectContent>
+                            {PROBATION_NOTICE_OPTIONS.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                   {/* Bond Applicable */}
                   <div className="flex items-center gap-2">
@@ -2134,7 +2177,7 @@ const EditEmployeePage = () => {
                           formData.employeeEmploymentDetailsDTO?.bondDuration ||
                           ""
                         }
-                        onValueChange={(v) =>{
+                        onValueChange={(v) => {
                           setIsDirty(true)
                           handleChange({
                             target: {
@@ -2143,7 +2186,7 @@ const EditEmployeePage = () => {
                             },
                           } as any)
                         }
-                      }
+                        }
                       >
                         <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                           <SelectValue placeholder="Select Duration" />
@@ -2182,42 +2225,60 @@ const EditEmployeePage = () => {
                               maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
-                                const updated = [
-                                  ...(formData.employeeSalaryDTO?.allowances ||
-                                    []),
-                                ];
-                                updated[i].allowanceType = e.target.value;
+                                const val = e.target.value;
 
+                                // 1️⃣ clone allowances safely
+                                const updated = [
+                                  ...(formData.employeeSalaryDTO?.allowances || []),
+                                ];
+
+                                updated[i] = {
+                                  ...updated[i],
+                                  allowanceType: val,
+                                };
+
+                                // 2️⃣ FULL validation path (CRITICAL)
+                                const fieldKey = `employeeSalaryDTO.allowances.${i}.allowanceType`;
+
+                                // 3️⃣ validate
+                                const error = validateField(fieldKey, val, formData);
+
+                                // 4️⃣ update errors correctly
+                                setErrors((prev) => {
+                                  const next = { ...prev };
+                                  error ? (next[fieldKey] = error) : delete next[fieldKey];
+                                  return next;
+                                });
+
+                                // 5️⃣ update formData
                                 setFormData((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        employeeSalaryDTO: {
-                                          ...(prev.employeeSalaryDTO || {
-                                            employeeId: params.id as string,
-                                            ctc: 0,
-                                            payType: "MONTHLY" as PayType,
-                                            standardHours: 160,
-                                            payClass: "A1" as PayClass,
-                                            bankAccountNumber: "",
-                                            ifscCode: "",
-                                            allowances: [],
-                                            deductions: [],
-                                          }),
-                                          allowances: updated,
-                                        },
-                                      }
-                                    : prev,
+                                      ...prev,
+                                      employeeSalaryDTO: {
+                                        ...(prev.employeeSalaryDTO || {
+                                          employeeId: params.id as string,
+                                          ctc: 0,
+                                          payType: "MONTHLY" as PayType,
+                                          standardHours: 160,
+                                          payClass: "A1" as PayClass,
+                                          bankAccountNumber: "",
+                                          ifscCode: "",
+                                          allowances: [],
+                                          deductions: [],
+                                        }),
+                                        allowances: updated,
+                                      },
+                                    }
+                                    : prev
                                 );
                               }}
                             />
 
-                            {errors[`allowance_${i}_type`] && (
-                              <p className="text-red-500 text-xs">
-                                {errors[`allowance_${i}_type`]}
-                              </p>
-                            )}
+                            {/* ✅ correct error display */}
+                            {fieldError(errors, `employeeSalaryDTO.allowances.${i}.allowanceType`)}
                           </div>
+
 
                           {/* Amount */}
                           <Input
@@ -2239,22 +2300,22 @@ const EditEmployeePage = () => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      employeeSalaryDTO: {
-                                        ...(prev.employeeSalaryDTO || {
-                                          employeeId: params.id as string,
-                                          ctc: 0,
-                                          payType: "MONTHLY" as PayType,
-                                          standardHours: 160,
-                                          payClass: "A1" as PayClass,
-                                          bankAccountNumber: "",
-                                          ifscCode: "",
-                                          allowances: [],
-                                          deductions: [],
-                                        }),
-                                        allowances: updated,
-                                      },
-                                    }
+                                    ...prev,
+                                    employeeSalaryDTO: {
+                                      ...(prev.employeeSalaryDTO || {
+                                        employeeId: params.id as string,
+                                        ctc: 0,
+                                        payType: "MONTHLY" as PayType,
+                                        standardHours: 160,
+                                        payClass: "A1" as PayClass,
+                                        bankAccountNumber: "",
+                                        ifscCode: "",
+                                        allowances: [],
+                                        deductions: [],
+                                      }),
+                                      allowances: updated,
+                                    },
+                                  }
                                   : prev,
                               );
                             }}
@@ -2283,6 +2344,7 @@ const EditEmployeePage = () => {
                         variant="outline"
                         className="mt-4 h-12"
                         onClick={() => {
+                          setIsDirty(true);  // ← ADD THIS
                           const newAllowance: AllowanceDTO = {
                             allowanceId: "",
                             allowanceType: "",
@@ -2292,26 +2354,26 @@ const EditEmployeePage = () => {
                           setFormData((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  employeeSalaryDTO: {
-                                    ...(prev.employeeSalaryDTO || {
-                                      employeeId: params.id as string,
-                                      ctc: 0,
-                                      payType: "MONTHLY" as PayType,
-                                      standardHours: 160,
-                                      payClass: "A1" as PayClass,
-                                      bankAccountNumber: "",
-                                      ifscCode: "",
-                                      allowances: [],
-                                      deductions: [],
-                                    }),
-                                    allowances: [
-                                      ...(prev.employeeSalaryDTO?.allowances ||
-                                        []),
-                                      newAllowance,
-                                    ],
-                                  },
-                                }
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO || {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    payType: "MONTHLY" as PayType,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: [],
+                                  }),
+                                  allowances: [
+                                    ...(prev.employeeSalaryDTO?.allowances ||
+                                      []),
+                                    newAllowance,
+                                  ],
+                                },
+                              }
                               : prev,
                           );
                         }}
@@ -2341,41 +2403,63 @@ const EditEmployeePage = () => {
                               maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
-                                const updated = [
-                                  ...(formData.employeeSalaryDTO?.deductions ||
-                                    []),
-                                ];
-                                updated[i].deductionType = e.target.value;
+                                const val = e.target.value;
 
+                                // 1️⃣ build updated deductions
+                                const updated = [
+                                  ...(formData.employeeSalaryDTO?.deductions || []),
+                                ];
+                                updated[i] = {
+                                  ...updated[i],
+                                  deductionType: val,
+                                };
+
+                                // 2️⃣ FULL validation key (critical)
+                                const fieldKey = `employeeSalaryDTO.deductions.${i}.deductionType`;
+
+                                // 3️⃣ validate
+                                const error = validateField(fieldKey, val, formData);
+
+                                // 4️⃣ update errors correctly
+                                setErrors((prev) => {
+                                  const next = { ...prev };
+                                  error ? (next[fieldKey] = error) : delete next[fieldKey];
+                                  return next;
+                                });
+
+                                // 5️⃣ update formData
                                 setFormData((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        employeeSalaryDTO: {
-                                          ...(prev.employeeSalaryDTO || {
-                                            employeeId: params.id as string,
-                                            ctc: 0,
-                                            payType: "MONTHLY" as PayType,
-                                            standardHours: 160,
-                                            payClass: "A1" as PayClass,
-                                            bankAccountNumber: "",
-                                            ifscCode: "",
-                                            allowances: [],
-                                            deductions: [],
-                                          }),
-                                          deductions: updated,
-                                        },
-                                      }
-                                    : prev,
+                                      ...prev,
+                                      employeeSalaryDTO: {
+                                        ...(prev.employeeSalaryDTO || {
+                                          employeeId: params.id as string,
+                                          ctc: 0,
+                                          payType: "MONTHLY" as PayType,
+                                          standardHours: 160,
+                                          payClass: "A1" as PayClass,
+                                          bankAccountNumber: "",
+                                          ifscCode: "",
+                                          allowances: [],
+                                          deductions: [],
+                                        }),
+                                        deductions: updated,
+                                      },
+                                    }
+                                    : prev
                                 );
                               }}
                             />
-                            {errors[`deduction_${i}_type`] && (
+
+                            {/* ✅ error display */}
+                            {errors[`employeeSalaryDTO.deductions.${i}.deductionType`] && (
                               <p className="text-red-500 text-xs">
-                                {errors[`deduction_${i}_type`]}
+                                {errors[`employeeSalaryDTO.deductions.${i}.deductionType`]}
                               </p>
                             )}
                           </div>
+
 
                           {/* Amount */}
                           <Input
@@ -2397,22 +2481,22 @@ const EditEmployeePage = () => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      employeeSalaryDTO: {
-                                        ...(prev.employeeSalaryDTO || {
-                                          employeeId: params.id as string,
-                                          ctc: 0,
-                                          payType: "MONTHLY" as PayType,
-                                          standardHours: 160,
-                                          payClass: "A1" as PayClass,
-                                          bankAccountNumber: "",
-                                          ifscCode: "",
-                                          allowances: [],
-                                          deductions: [],
-                                        }),
-                                        deductions: updated,
-                                      },
-                                    }
+                                    ...prev,
+                                    employeeSalaryDTO: {
+                                      ...(prev.employeeSalaryDTO || {
+                                        employeeId: params.id as string,
+                                        ctc: 0,
+                                        payType: "MONTHLY" as PayType,
+                                        standardHours: 160,
+                                        payClass: "A1" as PayClass,
+                                        bankAccountNumber: "",
+                                        ifscCode: "",
+                                        allowances: [],
+                                        deductions: [],
+                                      }),
+                                      deductions: updated,
+                                    },
+                                  }
                                   : prev,
                               );
                             }}
@@ -2441,6 +2525,7 @@ const EditEmployeePage = () => {
                         variant="outline"
                         className="mt-4 h-12"
                         onClick={() => {
+                          setIsDirty(true);  // ← ADD THIS
                           const newDeduction: DeductionDTO = {
                             deductionId: "",
                             deductionType: "",
@@ -2450,26 +2535,26 @@ const EditEmployeePage = () => {
                           setFormData((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  employeeSalaryDTO: {
-                                    ...(prev.employeeSalaryDTO || {
-                                      employeeId: params.id as string,
-                                      ctc: 0,
-                                      payType: "MONTHLY" as PayType,
-                                      standardHours: 160,
-                                      payClass: "A1" as PayClass,
-                                      bankAccountNumber: "",
-                                      ifscCode: "",
-                                      allowances: [],
-                                      deductions: [],
-                                    }),
-                                    deductions: [
-                                      ...(prev.employeeSalaryDTO?.deductions ||
-                                        []),
-                                      newDeduction,
-                                    ],
-                                  },
-                                }
+                                ...prev,
+                                employeeSalaryDTO: {
+                                  ...(prev.employeeSalaryDTO || {
+                                    employeeId: params.id as string,
+                                    ctc: 0,
+                                    payType: "MONTHLY" as PayType,
+                                    standardHours: 160,
+                                    payClass: "A1" as PayClass,
+                                    bankAccountNumber: "",
+                                    ifscCode: "",
+                                    allowances: [],
+                                    deductions: [],
+                                  }),
+                                  deductions: [
+                                    ...(prev.employeeSalaryDTO?.deductions ||
+                                      []),
+                                    newDeduction,
+                                  ],
+                                },
+                              }
                               : prev,
                           );
                         }}
@@ -2508,26 +2593,34 @@ const EditEmployeePage = () => {
                           </Label>
 
                           <Select
-                            value={doc.docType}
-                            onValueChange={(v) =>{
-                              setIsDirty(true)
-                              handleDocumentFileChange(
-                                i,
-                                "docType",
-                                v as DocumentType,
-                              )
+                            value={doc.docType ?? ""}
+                            onValueChange={(v) => {
+                              setIsDirty(true);
+                              handleDocumentFileChange(i, "docType", v as DocumentType);
                             }}
                           >
+
                             <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                               <SelectValue placeholder="Select Type" />
                             </SelectTrigger>
 
                             <SelectContent>
-                              {documentTypes.map((t) => (
-                                <SelectItem key={t} value={t}>
-                                  {t.replace(/_/g, " ")}
-                                </SelectItem>
-                              ))}
+                              {documentTypes
+                                .filter((t) => {
+                                  // allow current docType for this row
+                                  if (t === doc.docType) return true;
+
+                                  // block already-selected docTypes from other rows
+                                  return !formData.documents.some(
+                                    (d, idx) => idx !== i && d.docType === t
+                                  );
+                                })
+                                .map((t) => (
+                                  <SelectItem key={t} value={t}>
+                                    {t.replace(/_/g, " ")}
+                                  </SelectItem>
+                                ))}
+
                             </SelectContent>
                           </Select>
                         </div>
@@ -2540,31 +2633,33 @@ const EditEmployeePage = () => {
 
                           <FileInput
                             id={`doc-upload-${i}`}
+                            currentFile={doc.file ?? null}
+                            existingUrl={doc.fileUrl ?? undefined}
                             onChange={(file) => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      documents: prev.documents.map((d, idx) =>
-                                        idx === i ? { ...d, file } : d,
-                                      ),
-                                    }
-                                  : prev,
+                                    ...prev,
+                                    documents: prev.documents.map((d, idx) =>
+                                      idx === i ? { ...d, file } : d
+                                    ),
+                                  }
+                                  : prev
                               );
+                              setIsDirty(true);  // ← this was missing
                             }}
-                            currentFile={doc.file ?? null}
-                            existingUrl={doc.fileUrl ?? undefined}
                             onClear={() => {
                               setFormData((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      documents: prev.documents.map((d, idx) =>
-                                        idx === i ? { ...d, file: null } : d,
-                                      ),
-                                    }
-                                  : prev,
+                                    ...prev,
+                                    documents: prev.documents.map((d, idx) =>
+                                      idx === i ? { ...d, file: null } : d
+                                    ),
+                                  }
+                                  : prev
                               );
+                              setIsDirty(true);  // ← also useful
                             }}
                           />
                         </div>
@@ -2590,6 +2685,7 @@ const EditEmployeePage = () => {
                     <Button
                       type="button"
                       onClick={addDocument}
+                      disabled={!canAddDocument}
                       variant="outline"
                       className="h-12 px-8 text-base font-semibold border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 rounded-xl"
                     >
@@ -2626,16 +2722,27 @@ const EditEmployeePage = () => {
                           </Label>
                           <Input
                             value={eq.equipmentType || ""}
-                            onChange={(e) =>
-                              handleEquipmentChange(
-                                i,
-                                "equipmentType",
-                                e.target.value,
-                              )
-                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+
+                              // FIXED: update correct field (was wrongly "serialNumber")
+                              handleEquipmentChange(i, "equipmentType", val);
+
+                              const error = validateField("equipmentType", val, formData);
+
+                              setErrors((prev) => {
+                                const next = { ...prev };
+                                error
+                                  ? (next[`employeeEquipmentDTO[${i}].equipmentType`] = error)
+                                  : delete next[`employeeEquipmentDTO[${i}].equipmentType`];
+                                return next;
+                              });
+                            }}
+
                             placeholder="Enter Type"
                             className="h-12 text-base"
                           />
+                          {fieldError(errors, `employeeEquipmentDTO[${i}].equipmentType`)}
                         </div>
 
                         {/* Serial Number */}
@@ -2646,15 +2753,36 @@ const EditEmployeePage = () => {
                           <Input
                             value={eq.serialNumber || ""}
                             onChange={(e) =>
-                              handleEquipmentChange(
-                                i,
-                                "serialNumber",
-                                e.target.value,
-                              )
+                              handleEquipmentChange(i, "serialNumber", e.target.value)
                             }
                             placeholder="Enter Serial Number"
+                            maxLength={30}
                             className="h-12 text-base"
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+                              if (val.length >= 3) {
+                                checkUniqueness(
+                                  "SERIAL_NUMBER",
+                                  val,
+                                  `employeeEquipmentDTO[${i}].serialNumber`,
+                                  "serial_number",
+                                  eq.equipmentId || undefined
+                                );
+                              }
+                            }}
                           />
+
+                          {checking.has(`employeeEquipmentDTO[${i}].serialNumber`) && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
+                            </div>
+                          )}
+                          {errors[`equipment_${i}_serial`] && (
+                            <p className="text-red-500 text-xs">
+                              {errors[`equipment_${i}_serial`]}
+                            </p>
+                          )}
+
                         </div>
 
                         {/* Issued Date */}
@@ -2740,35 +2868,16 @@ const EditEmployeePage = () => {
                       Background Check Status
                     </Label>
                     <input
-                      id="backgroundCheckStatus"
                       name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                      value={
-                        formData.employeeAdditionalDetailsDTO
-                          ?.backgroundCheckStatus || ""
-                      }
-                      onChange={handleChange}
+                      value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ""}
                       maxLength={30}
-                      placeholder="e.g., Cleared, Pending"
-                      className={`w-full h-12 px-4 py-3 border rounded-xl text-base focus:ring-indigo-500 ${
-                        errors[
-                          "employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                        ]
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
+                      onChange={handleValidatedChange}
+                      className="w-full h-12 px-4 py-3 border rounded-xl"
                     />
 
-                    {/* Error */}
-                    {errors[
+                    {fieldError(
+                      errors,
                       "employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                    ] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {
-                          errors[
-                            "employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                          ]
-                        }
-                      </p>
                     )}
                   </div>
 
@@ -2825,36 +2934,20 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.policyNumber"
-                      value={
-                        formData.employeeInsuranceDetailsDTO?.policyNumber || ""
-                      }
-                      onChange={handleChange}
+                      value={formData.employeeInsuranceDetailsDTO?.policyNumber || ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleUniqueBlur(
+                        "POLICY_NUMBER",
+                        "policy_number",
+                        "employeeInsuranceDetailsDTO.policyNumber",
+                        employeeData?.employeeInsuranceDetailsDTO?.insuranceId
+                      )}
                       placeholder="e.g., POL123456"
-                      onBlur={(e) => {
-                        const val = e.target.value.trim();
-                        if (val) {
-                          const insuranceId =
-                            employeeData?.employeeInsuranceDetailsDTO
-                              ?.insuranceId;
-                          checkUniqueness(
-                            "POLICY_NUMBER",
-                            val,
-                            "employeeInsuranceDetailsDTO.policyNumber",
-                            "policy_number",
-                            insuranceId,
-                          );
-                        }
-                        // if (val) {
-                        //   checkUniqueness('POLICY_NUMBER', val, 'employeeInsuranceDetailsDTO.policyNumber', 'policy_number', employeeData?.employeeInsuranceDetailsDTO?.insuranceId);
-                        // }
-                      }}
-                      className="h-12 text-base border-gray-300 focus:ring-amber-500"
+                      className="h-12 text-base"
                     />
-                    {errors["employeeInsuranceDetailsDTO.policyNumber"] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors["employeeInsuranceDetailsDTO.policyNumber"]}
-                      </p>
-                    )}
+
+                    {fieldError(errors, "employeeInsuranceDetailsDTO.policyNumber")}
+
                   </div>
 
                   {/* Provider Name */}
@@ -2864,18 +2957,14 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.providerName"
-                      value={
-                        formData.employeeInsuranceDetailsDTO?.providerName || ""
-                      }
-                      onChange={handleChange}
+                      value={formData.employeeInsuranceDetailsDTO?.providerName || ""}
+                      onChange={handleValidatedChange}
                       placeholder="e.g., Star Health"
-                      className="h-12 text-base border-gray-300 focus:ring-amber-500"
+                      className="h-12 text-base"
                     />
-                    {errors["employeeInsuranceDetailsDTO.providerName"] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors["employeeInsuranceDetailsDTO.providerName"]}
-                      </p>
-                    )}
+
+                    {fieldError(errors, "employeeInsuranceDetailsDTO.providerName")}
+
                   </div>
 
                   {/* Coverage Start */}
@@ -2919,18 +3008,13 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeName"
-                      value={
-                        formData.employeeInsuranceDetailsDTO?.nomineeName || ""
-                      }
-                      onChange={handleChange}
+                      value={formData.employeeInsuranceDetailsDTO?.nomineeName || ""}
+                      onChange={handleValidatedChange}
                       placeholder="e.g., Priya Sharma"
-                      className="h-12 text-base border-gray-300 focus:ring-amber-500"
                     />
-                    {errors["employeeInsuranceDetailsDTO.nomineeName"] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors["employeeInsuranceDetailsDTO.nomineeName"]}
-                      </p>
-                    )}
+
+                    {fieldError(errors, "employeeInsuranceDetailsDTO.nomineeName")}
+
                   </div>
 
                   {/* Nominee Relation */}
@@ -2940,19 +3024,13 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeRelation"
-                      value={
-                        formData.employeeInsuranceDetailsDTO?.nomineeRelation ||
-                        ""
-                      }
-                      onChange={handleChange}
+                      value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ""}
+                      onChange={handleValidatedChange}
                       placeholder="e.g., Spouse"
-                      className="h-12 text-base border-gray-300 focus:ring-amber-500"
                     />
-                    {errors["employeeInsuranceDetailsDTO.nomineeRelation"] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors["employeeInsuranceDetailsDTO.nomineeRelation"]}
-                      </p>
-                    )}
+
+                    {fieldError(errors, "employeeInsuranceDetailsDTO.nomineeRelation")}
+
                   </div>
 
                   {/* Nominee Contact */}
@@ -2962,53 +3040,21 @@ const EditEmployeePage = () => {
                     </Label>
                     <div className="relative">
                       <Input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
                         name="employeeInsuranceDetailsDTO.nomineeContact"
-                        value={
-                          formData.employeeInsuranceDetailsDTO
-                            ?.nomineeContact || ""
-                        }
-                        // onChange={handleChange}
+                        value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ""}
                         maxLength={10}
                         onChange={(e) => {
-                          if (/^\d*$/.test(e.target.value)) {
-                            handleChange(e);
-                          }
+                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          e.target.value = onlyDigits;
+                          handleValidatedChange(e);
                         }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val && val.length === 10) {
-                            const insuranceId =
-                              employeeData?.employeeInsuranceDetailsDTO
-                                ?.insuranceId;
-                            checkUniqueness(
-                              "CONTACT_NUMBER",
-                              val,
-                              "employeeInsuranceDetailsDTO.nomineeContact",
-                              "nominee_contact",
-                              insuranceId,
-                            );
-                          }
-                        }}
-                        placeholder="e.g., 123456789012"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        placeholder="e.g., 9876543210"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has(
-                        "employeeInsuranceDetailsDTO.nomineeContact",
-                      ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+
+                      {fieldError(errors, "employeeInsuranceDetailsDTO.nomineeContact")}
+
                     </div>
-                    {errors["employeeInsuranceDetailsDTO.nomineeContact"] && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {errors["employeeInsuranceDetailsDTO.nomineeContact"]}
-                      </p>
-                    )}
+
                   </div>
 
                   {/* Group Insurance */}
@@ -3018,7 +3064,7 @@ const EditEmployeePage = () => {
                       // checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
                       checked={
                         formData.employeeInsuranceDetailsDTO?.groupInsurance ===
-                        null
+                          null
                           ? undefined
                           : formData.employeeInsuranceDetailsDTO?.groupInsurance
                       }
@@ -3061,44 +3107,28 @@ const EditEmployeePage = () => {
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.passportNumber"
-                        type="text"
-                        value={
-                          formData.employeeStatutoryDetailsDTO
-                            ?.passportNumber || ""
-                        }
-                        onChange={handleChange}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val) {
-                            const statutoryId =
-                              employeeData?.employeeStatutoryDetailsDTO
-                                ?.statutoryId;
-                            checkUniqueness(
-                              "PASSPORT_NUMBER",
-                              val,
-                              "employeeStatutoryDetailsDTO.passportNumber",
-                              "passport_number",
-                              statutoryId,
-                            );
-                          }
-                        }}
+                        value={formData.employeeStatutoryDetailsDTO?.passportNumber || ""}
+                        onChange={handleValidatedChange}
+                        onBlur={handleUniqueBlur(
+                          "PASSPORT_NUMBER",
+                          "passport_number",
+                          "employeeStatutoryDetailsDTO.passportNumber",
+                          employeeData?.employeeStatutoryDetailsDTO?.statutoryId
+                        )}
                         placeholder="e.g., A1234567"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        className="h-12 text-base"
                       />
                       {/* Loading Spinner */}
                       {checking.has(
                         "employeeStatutoryDetailsDTO.passportNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
-                    {errors["employeeStatutoryDetailsDTO.passportNumber"] && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {errors["employeeStatutoryDetailsDTO.passportNumber"]}
-                      </p>
-                    )}
+                    {fieldError(errors, "employeeStatutoryDetailsDTO.passportNumber")}
+
                   </div>
 
                   {/* PF UAN Number */}
@@ -3109,51 +3139,34 @@ const EditEmployeePage = () => {
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.pfUanNumber"
-                        type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={
-                          formData.employeeStatutoryDetailsDTO?.pfUanNumber ||
-                          ""
-                        }
-                        // onChange={handleChange}
+                        maxLength={12}
+                        value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ""}
                         onChange={(e) => {
-                          if (/^\d{0,12}$/.test(e.target.value)) {
-                            handleChange(e);
-                          }
+                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          e.target.value = onlyDigits;
+                          handleValidatedChange(e);
                         }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val) {
-                            const statutoryId =
-                              employeeData?.employeeStatutoryDetailsDTO
-                                ?.statutoryId;
-                            checkUniqueness(
-                              "PF_UAN_NUMBER",
-                              val,
-                              "employeeStatutoryDetailsDTO.pfUanNumber",
-                              "pf_uan_number",
-                              statutoryId,
-                            );
-                          }
-                        }}
+                        onBlur={handleUniqueBlur(
+                          "PF_UAN_NUMBER",
+                          "pf_uan_number",
+                          "employeeStatutoryDetailsDTO.pfUanNumber",
+                          employeeData?.employeeStatutoryDetailsDTO?.statutoryId
+                        )}
                         placeholder="e.g., 123456789012"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        className="h-12 text-base"
                       />
                       {/* Loading Spinner */}
                       {checking.has(
                         "employeeStatutoryDetailsDTO.pfUanNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
-                    {errors["employeeStatutoryDetailsDTO.pfUanNumber"] && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {errors["employeeStatutoryDetailsDTO.pfUanNumber"]}
-                      </p>
-                    )}
+                    {fieldError(errors, "employeeStatutoryDetailsDTO.pfUanNumber")}
+
                   </div>
 
                   {/* Tax Regime */}
@@ -3186,50 +3199,34 @@ const EditEmployeePage = () => {
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.esiNumber"
-                        type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={
-                          formData.employeeStatutoryDetailsDTO?.esiNumber || ""
-                        }
-                        // onChange={handleChange}
+                        autoComplete="off"                     // ← this is the key line
+                        value={formData.employeeStatutoryDetailsDTO?.esiNumber || ""}
                         onChange={(e) => {
-                          if (/^\d*$/.test(e.target.value)) {
-                            handleChange(e);
-                          }
+                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          e.target.value = onlyDigits;
+                          handleValidatedChange(e);
                         }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val) {
-                            const statutoryId =
-                              employeeData?.employeeStatutoryDetailsDTO
-                                ?.statutoryId;
-                            checkUniqueness(
-                              "ESI_NUMBER",
-                              val,
-                              "employeeStatutoryDetailsDTO.esiNumber",
-                              "esi_number",
-                              statutoryId,
-                            );
-                          }
-                        }}
+                        onBlur={handleUniqueBlur(
+                          "ESI_NUMBER",
+                          "esi_number",
+                          "employeeStatutoryDetailsDTO.esiNumber",
+                          employeeData?.employeeStatutoryDetailsDTO?.statutoryId
+                        )}
                         placeholder="e.g., 1234567890"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        className="h-12 text-base"
                       />
                       {/* Loading Spinner */}
                       {checking.has(
                         "employeeStatutoryDetailsDTO.esiNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
-                    {errors["employeeStatutoryDetailsDTO.esiNumber"] && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {errors["employeeStatutoryDetailsDTO.esiNumber"]}
-                      </p>
-                    )}
+                    {fieldError(errors, "employeeStatutoryDetailsDTO.esiNumber")}
+
                   </div>
 
                   {/* SSN Number */}
@@ -3239,52 +3236,34 @@ const EditEmployeePage = () => {
                     </Label>
                     <div className="relative">
                       <Input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
                         name="employeeStatutoryDetailsDTO.ssnNumber"
-                        value={
-                          formData.employeeStatutoryDetailsDTO?.ssnNumber || ""
-                        }
-                        // onChange={handleChange}
+                        inputMode="numeric"
+                        value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ""}
                         onChange={(e) => {
-                          // Allow only digits (you can later format as 123-45-6789 if needed)
-                          if (/^\d*$/.test(e.target.value)) {
-                            handleChange(e);
-                          }
+                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          e.target.value = onlyDigits;
+                          handleValidatedChange(e);
                         }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val) {
-                            const statutoryId =
-                              employeeData?.employeeStatutoryDetailsDTO
-                                ?.statutoryId;
-                            checkUniqueness(
-                              "SSN_NUMBER",
-                              val,
-                              "employeeStatutoryDetailsDTO.ssnNumber",
-                              "ssn_number",
-                              statutoryId,
-                            );
-                          }
-                        }}
-                        placeholder="e.g., 123-45-6789"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        onBlur={handleUniqueBlur(
+                          "SSN_NUMBER",
+                          "ssn_number",
+                          "employeeStatutoryDetailsDTO.ssnNumber",
+                          employeeData?.employeeStatutoryDetailsDTO?.statutoryId
+                        )}
+                        placeholder="e.g., 123456789"
+                        className="h-12 text-base"
                       />
                       {/* Loading Spinner */}
                       {checking.has(
                         "employeeStatutoryDetailsDTO.ssnNumber",
                       ) && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                          </div>
+                        )}
                     </div>
-                    {errors["employeeStatutoryDetailsDTO.ssnNumber"] && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {errors["employeeStatutoryDetailsDTO.ssnNumber"]}
-                      </p>
-                    )}
+                    {fieldError(errors, "employeeStatutoryDetailsDTO.ssnNumber")}
+
                   </div>
                 </div>
               </CardContent>
@@ -3304,9 +3283,10 @@ const EditEmployeePage = () => {
               >
                 Cancel
               </Link>
+
               <button
                 type="submit"
-                disabled={submitting || !isDirty}
+                disabled={submitting || !isDirty || !hasValidDocumentChange}
                 // disabled={submitting}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2"
               >

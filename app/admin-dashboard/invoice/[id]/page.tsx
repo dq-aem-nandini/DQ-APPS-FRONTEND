@@ -249,7 +249,7 @@ const InvoiceSummaryPage = () => {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Invoice #</TableHead>
-                                            <TableHead>Date</TableHead>
+                                            <TableHead>Generated Date</TableHead>
                                             <TableHead>From</TableHead>
                                             <TableHead>To</TableHead>
                                             <TableHead>Status</TableHead>

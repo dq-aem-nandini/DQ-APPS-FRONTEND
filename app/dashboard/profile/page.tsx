@@ -126,7 +126,7 @@ const ProfilePage = () => {
   interface FormDocument extends EmployeeDocumentDTO {
     fileObj?: File | null;
     tempId?: string;
-    status?: 'unchanged' | 'new' ;
+    status?: 'unchanged' | 'new';
   }
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -146,10 +146,10 @@ const ProfilePage = () => {
           ? res.maritalStatus.charAt(0).toUpperCase() +
           res.maritalStatus.slice(1).toLowerCase()
           : "",
-          addresses: (res.addresses || []).map((a) => ({
-            ...a,
-            addressId: a.addressId ?? uuidv4(),   // only if null/undefined
-          })),
+        addresses: (res.addresses || []).map((a) => ({
+          ...a,
+          addressId: a.addressId ?? uuidv4(),   // only if null/undefined
+        })),
         documents: res.documents || [],
         employeeSalaryDTO: res.employeeSalaryDTO || undefined,
         employeeInsuranceDetailsDTO:
@@ -206,13 +206,13 @@ const ProfilePage = () => {
 
   const removeDocument = async (index: number) => {
     const doc = documents[index];
-  
+
     // Case 1: New document (never saved) → just remove from UI
     if (doc.status === 'new' || !doc.documentId) {
       setDocuments((prev) => prev.filter((_, i) => i !== index));
       return;
     }
-  
+
     // Case 2: Existing document → ask for confirmation & send delete request
     const result = await Swal.fire({
       title: "Delete Document?",
@@ -222,22 +222,22 @@ const ProfilePage = () => {
       confirmButtonText: "Yes, request delete",
       cancelButtonText: "Cancel",
     });
-  
+
     if (!result.isConfirmed) return;
-  
+
     try {
       // Call the delete request API (similar to address)
       await employeeService.submitDeleteDocumentRequest(doc);
-  
+
       Swal.fire({
         icon: "success",
         title: "Delete Request Sent",
         text: "Admin will review your request.",
       });
-  
+
       // Optimistic UI update: remove from list immediately
       // setDocuments((prev) => prev.filter((_, i) => i !== index));
-  
+
     } catch (err: any) {
       Swal.fire({
         icon: "error",
@@ -528,34 +528,41 @@ const ProfilePage = () => {
         payload.append(`addresses[${index}].pincode`, addr.pincode || "");
         payload.append(`addresses[${index}].addressType`, addr.addressType || "");
       });
-      // Documents: new + replacements
-        documents
-        .filter((d) => d.fileObj instanceof File) // only when new file is selected
-        .forEach((doc, i) => {
-          // If existing document → include ID for update
-          if (doc.documentId) {
-            payload.append(`documents[${i}].documentId`, doc.documentId);
-            // Optional: send old URL if backend needs it
-            if (doc.fileUrl) {
-              payload.append(`documents[${i}].fileUrl`, doc.fileUrl);
-            }
-          }
+      let docIndex = 0;
 
-          payload.append(`documents[${i}].docType`, doc.docType);
-          payload.append(`documents[${i}].file`, doc.fileObj!);
-        });
+      documents.forEach((doc) => {
+        if (!(doc.fileObj instanceof File)) return;
+
+        // Existing document → include ID
+        if (doc.documentId) {
+          payload.append(`documents[${docIndex}].documentId`, doc.documentId);
+
+          if (doc.fileUrl) {
+            payload.append(`documents[${docIndex}].fileUrl`, doc.fileUrl);
+          }
+        }
+
+        if (!doc.docType) {
+          throw new Error("Invariant violation: docType missing for uploaded document");
+        }
+
+        payload.append(`documents[${docIndex}].docType`, doc.docType);
+        payload.append(`documents[${docIndex}].file`, doc.fileObj);
+
+        docIndex++;
+      });
 
       // If no changes at all (except possibly photo/documents), prevent submission
-       // Check if we have any real changes
-        const hasRealChanges =
+      // Check if we have any real changes
+      const hasRealChanges =
         !payload.entries().next().done ||           // something was appended (fields, photo, addresses, etc.)
         !!profilePhotoFile ||                       // photo changed
-        documents.some((d) => 
-          d.fileObj instanceof File || 
-          d.status === 'new' 
-        );                                       
+        documents.some((d) =>
+          d.fileObj instanceof File ||
+          d.status === 'new'
+        );
 
-        if (!hasRealChanges) {
+      if (!hasRealChanges) {
         Swal.fire({
           icon: "info",
           title: "No Changes",
@@ -563,7 +570,7 @@ const ProfilePage = () => {
           confirmButtonColor: "#4F46E5",
         });
         return;
-        }
+      }
 
       const res = await employeeService.submitUpdateRequest(payload);
       if (!res.flag) throw new Error(res.message || "Update failed");
@@ -588,13 +595,13 @@ const ProfilePage = () => {
 
   const handleDeleteAddress = async (address: AddressModel) => {
     const addressId = address.addressId;
-  
+
     // Case 1: New / temporary address → instantly remove from UI (no prompt, no API)
     if (!addressId || addressId.startsWith("temp-")) {
       setAddresses((prev) => prev.filter(a => a.addressId !== addressId));
       return;
     }
-  
+
     // Case 2: Existing address → show confirmation & send delete request
     const result = await Swal.fire({
       title: "Request Address Deletion?",
@@ -604,9 +611,9 @@ const ProfilePage = () => {
       confirmButtonText: "Yes, send request",
       cancelButtonText: "Cancel",
     });
-  
+
     if (!result.isConfirmed) return;
-  
+
     try {
       await employeeService.submitDeleteAddressRequest(address);
       Swal.fire({
@@ -614,16 +621,16 @@ const ProfilePage = () => {
         title: "Delete Request Sent",
         text: "Admin will review your request.",
       });
-  
+
       // Update UI: remove the address
       // setAddresses((prev) => prev.filter(a => a.addressId !== addressId));
-  
+
       // Also update formData if needed (though setAddresses should suffice)
       // setFormData(prev => ({
       //   ...prev!,
       //   addresses: prev!.addresses.filter(a => a.addressId !== addressId),
       // }));
-  
+
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -798,11 +805,14 @@ const ProfilePage = () => {
 
     // Compare documents (new files uploaded)
     const documentsChanged =
-  documents.some((d) => d.fileObj instanceof File) ||     // new file upload
-  documents.some((d) => d.status === 'new') ||            // added new document 
-  false;          // Removed invalid check for 'updated'
+      documents.some(
+        (d) =>
+          d.fileObj instanceof File &&          // file selected
+          !!d.docType                           // document type selected
+      );
 
-if (documentsChanged) return true;
+
+    if (documentsChanged) return true;
 
     return false;
   }, [profile, formData, addresses, documents]);
@@ -1486,7 +1496,7 @@ if (documentsChanged) return true;
                         className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4"
                       >
                         <div>
-                        <Input
+                          <Input
                             label="House Number"
                             value={addr.houseNo || ""}
                             maxLength={20}
@@ -1602,80 +1612,118 @@ if (documentsChanged) return true;
                     .filter(doc => doc.docType !== "OFFER_LETTER" && doc.docType !== "CONTRACT")
                     .map((doc, i) => (
                       <div
-                      key={doc.tempId || doc.documentId}
-                      className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-6 bg-gradient-to-r from-gray-50 to-white rounded-2xl mb-6 border border-gray-200 shadow-sm"
-                    >
-                      {/* Document Type - Col 1 */}
-                      <div className="lg:col-span-1">
-                        <Select
-                          label="Document Type"
-                          value={doc.docType}
-                          onChange={(e) =>
-                            updateDocument(i, "docType", e.target.value as DocumentType)
-                          }
-                          options={EMPLOYEE_ALLOWED_DOCUMENTS}
-                        />
-                      </div>
-                    
-                      {/* Current File Info - Col 2 */}
-                      <div className="lg:col-span-1 flex items-center justify-center">
-                        {doc.fileUrl && !doc.fileObj && (
-                          <div className="text-center">
-                            {/* <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-2 mx-auto">
+                        key={doc.tempId || doc.documentId}
+                        className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-6 bg-gradient-to-r from-gray-50 to-white rounded-2xl mb-6 border border-gray-200 shadow-sm"
+                      >
+                        {/* Document Type - Col 1 */}
+                        <div className="lg:col-span-1">
+                          <Select
+                            label="Document Type"
+                            value={doc.docType}
+                            onChange={(e) =>
+                              updateDocument(i, "docType", e.target.value as DocumentType)
+                            }
+                            options={EMPLOYEE_ALLOWED_DOCUMENTS.filter((t) => {
+                              // allow current row's selected type
+                              if (t === doc.docType) return true;
+
+                              // block types already used in other rows
+                              return !documents.some(
+                                (d, idx) => idx !== i && d.docType === t
+                              );
+                            })}
+                          />
+
+                        </div>
+
+                        {/* Current File Info - Col 2 */}
+                        <div className="lg:col-span-1 flex items-center justify-center">
+                          {doc.fileUrl && !doc.fileObj && (
+                            <div className="text-center">
+                              {/* <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-2 mx-auto">
                               <FileText className="w-6 h-6 text-blue-600" />
                             </div> */}
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1 justify-center"
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1 justify-center"
+                              >
+                                <Eye className="w-4 h-4" /> View Current
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload / Replace - Col 3 (flexible) */}
+                        {/* Upload / Replace - Col 3 */}
+                        <div className="lg:col-span-1 flex-1">
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            {doc.fileUrl ? "Replace File" : "Upload File"}
+                          </label>
+
+                          {/* Hidden native input */}
+                          <input
+                            id={`file-${i}`}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              updateDocument(i, "fileObj", file);
+                            }}
+                          />
+
+                          {/* Custom button + text */}
+                          <label
+                            htmlFor={`file-${i}`}
+                            className="flex items-center gap-3 px-4 py-3 border border-gray-200 
+               rounded-xl cursor-pointer bg-white hover:bg-gray-50
+               focus-within:ring-2 focus-within:ring-indigo-500 transition"
+                          >
+                            <span
+                              className="px-4 py-2 rounded-lg text-white text-sm font-medium
+                 bg-gradient-to-r from-indigo-600 to-purple-600
+                 hover:from-indigo-700 hover:to-purple-700 shadow"
                             >
-                              <Eye className="w-4 h-4" /> View Current
-                            </a>
-                          </div>
-                        )}
+                              Choose file
+                            </span>
+
+                            {/* File name text logic */}
+                            {!doc.fileUrl && (
+                              <span className="text-sm text-gray-600 truncate max-w-[200px]">
+                                {doc.fileObj ? doc.fileObj.name : "No file selected"}
+                              </span>
+                            )}
+
+                            {doc.fileUrl && doc.fileObj && (
+                              <span className="text-sm text-gray-600 truncate max-w-[200px]">
+                                {doc.fileObj.name}
+                              </span>
+                            )}
+                          </label>
+
+                          {errors[`documents[${i}].file`] && (
+                            <p className="mt-1 text-red-600 text-xs font-medium">
+                              {errors[`documents[${i}].file`]}
+                            </p>
+                          )}
+                        </div>
+
+
+                        {/* Trash - Col 4 */}
+                        <div className="lg:col-span-1 flex items-start lg:items-center justify-center lg:justify-end pt-2 lg:pt-8">
+                          <button
+                            type="button"
+                            onClick={() => removeDocument(i)}
+                            className="group relative p-3 bg-red-50 hover:bg-red-100 rounded-2xl border-2 border-red-200 hover:border-red-300 transition-all shadow-sm hover:shadow-md hover:scale-105"
+                            title="Remove this document"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-600 group-hover:text-red-700 transition-colors" />
+                          </button>
+                        </div>
                       </div>
-                    
-                      {/* Upload / Replace - Col 3 (flexible) */}
-                      <div className="lg:col-span-1 flex-1">
-                        <label className="block text-sm font-semibold text-gray-800 mb-2">
-                          {doc.fileUrl ? "Replace File" : "Upload File"}
-                        </label>
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            updateDocument(i, "fileObj", file);
-                          }}
-                          className="block w-full text-sm text-gray-600 bg-white
-                            file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0
-                            file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 
-                            file:text-white file:font-medium file:shadow-md
-                            hover:file:from-indigo-700 hover:file:to-purple-700 
-                            cursor-pointer border border-gray-200 rounded-xl px-4 py-3
-                            focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        />
-                        {errors[`documents[${i}].file`] && (
-                          <p className="mt-1 text-red-600 text-xs font-medium">
-                            {errors[`documents[${i}].file`]}
-                          </p>
-                        )}
-                      </div>      
-                    
-                      {/* Trash - Col 4 */}
-                      <div className="lg:col-span-1 flex items-start lg:items-center justify-center lg:justify-end pt-2 lg:pt-8">
-                        <button
-                          type="button"
-                          onClick={() => removeDocument(i)}
-                          className="group relative p-3 bg-red-50 hover:bg-red-100 rounded-2xl border-2 border-red-200 hover:border-red-300 transition-all shadow-sm hover:shadow-md hover:scale-105"
-                          title="Remove this document"
-                        >
-                          <Trash2 className="w-5 h-5 text-red-600 group-hover:text-red-700 transition-colors" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
 
                   {/* Add Document Button */}
                   <button
@@ -1903,14 +1951,13 @@ if (documentsChanged) return true;
                     <div className="space-y-3">
                       {profile.documents.map((doc, i) => (
                         <div
-                          key={i}
+                          key={doc.documentId ?? doc.fileUrl ?? i}
                           className="flex items-center justify-between bg-indigo-50 p-4 rounded-xl"
                         >
-                          <div>
-                            <p className="font-medium">
-                              {doc.docType.replace(/_/g, " ")}
-                            </p>
-                          </div>
+                          <p className="font-medium">
+                            {(doc.docType ?? "UNKNOWN").replace(/_/g, " ")}
+                          </p>
+
 
                           {doc.fileUrl ? (
                             <a

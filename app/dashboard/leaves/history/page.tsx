@@ -6,7 +6,6 @@ import { LeaveResponseDTO, PageLeaveResponseDTO, LeaveStatus, LeaveCategoryType,
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
-import { ArrowLeft } from 'lucide-react';
 import BackButton from '@/components/ui/BackButton';
 import { employeeService } from '@/lib/api/employeeService';
 
@@ -56,62 +55,62 @@ const LeaveHistoryPage = () => {
   useEffect(() => {
     const loadEmployee = async () => {
       console.log("📌 [INIT] Fetching employee details...");
-  
+
       try {
         const emp = await employeeService.getEmployeeById();
-  
+
         console.log("🟢 [EMPLOYEE LOADED] EmployeeDTO:", {
           employeeId: emp.employeeId,
           reportingManagerId: emp.reportingManagerId,
           name: emp.firstName + " " + emp.lastName,
         });
-  
+
         setEmployee(emp);
       } catch (error) {
         console.error("❌ [EMPLOYEE ERROR] Failed to load EmployeeDTO", error);
       }
     };
-  
+
     loadEmployee();
   }, []);
   useEffect(() => {
     if (!highlightedLeaveId) return;
     if (hasHighlightedRef.current) return;
-  
+
     console.log("Setting temporary highlight for:", highlightedLeaveId);
-  
+
     setTempHighlightId(highlightedLeaveId);
     pendingPageJumpRef.current = highlightedLeaveId;
     hasHighlightedRef.current = true;
-    
-  
+
+
     // Clean up URL (you already have this — good)
     router.replace(window.location.pathname, { scroll: false });
-  
+
     // Remove highlight after ~4 seconds
     const timer = setTimeout(() => {
       setTempHighlightId(null);
       console.log("Highlight removed via state");
     }, 4000);
-  
+
     return () => clearTimeout(timer);
   }, [highlightedLeaveId, router]);
-  
+
   useEffect(() => {
     const targetLeaveId = pendingPageJumpRef.current;
     if (!targetLeaveId) return;
     if (!employee?.employeeId) return;
-  
+
     // Already on correct page → stop
     if (leaveHistory.content.some(l => l.leaveId === targetLeaveId)) {
       pendingPageJumpRef.current = null;
       return;
     }
-  
+
     (async () => {
       try {
         const BIG_PAGE = 200;
-  
+
         const res = await leaveService.getLeaveSummary(
           employee.employeeId,
           filters.month,
@@ -124,22 +123,22 @@ const LeaveHistoryPage = () => {
           BIG_PAGE,
           pagination.sort
         );
-  
+
         if (!res.flag || !res.response?.content) return;
-  
+
         const index = res.response.content.findIndex(
           l => l.leaveId === targetLeaveId
         );
         if (index === -1) return;
-  
+
         const targetPage = Math.floor(index / pagination.size);
-  
+
         console.log("🟢 PAGINATION JUMP →", targetPage);
-  
+
         setPagination(prev => ({ ...prev, page: targetPage }));
-  
+
         pendingPageJumpRef.current = null;
-  
+
       } catch (err) {
         console.error("❌ Page jump failed", err);
         pendingPageJumpRef.current = null;
@@ -158,7 +157,9 @@ const LeaveHistoryPage = () => {
   useEffect(() => {
     console.log("📄 CURRENT PAGE:", pagination.page);
   }, [pagination.page]);
-  
+
+
+
   // Fetch leave history
   const fetchLeaveHistory = useCallback(async () => {
     if (!user || !accessToken) {
@@ -166,15 +167,15 @@ const LeaveHistoryPage = () => {
       router.push("/auth/login");
       return;
     }
-  
+
     if (!employee?.employeeId) {
       console.log("⛔ Employee not loaded yet");
       return;
     }
-  
+
     setLoading(true);
     setError(null);
-  
+
     try {
       const response = await leaveService.getLeaveSummary(
         employee.employeeId,         // ✅ FIXED
@@ -188,11 +189,11 @@ const LeaveHistoryPage = () => {
         pagination.size,
         pagination.sort
       );
-  
+
       if (!response.flag || !response.response) {
         throw new Error(response.message || "Failed to fetch leave history");
       }
-  
+
       setLeaveHistory(response.response);
     } catch (err: any) {
       setError(err.message || "Failed to load leave history.");
@@ -200,7 +201,7 @@ const LeaveHistoryPage = () => {
       setLoading(false);
     }
   }, [employee, user, accessToken, filters, pagination, router]);
-  
+
 
   // Handle withdraw leave request with SweetAlert2
   const handleWithdrawLeave = async (leaveId: string) => {
@@ -269,7 +270,7 @@ const LeaveHistoryPage = () => {
       fetchLeaveHistory();
     }
   }, [employee, fetchLeaveHistory]);
-  
+
 
   // Handle filter changes
   const handleFilterChange = (key: keyof typeof filters, value: string | boolean | undefined) => {
@@ -279,16 +280,6 @@ const LeaveHistoryPage = () => {
     }));
     setPagination((prev) => ({ ...prev, page: 0 }));
   };
-
-  // Handle sort changes
-  const handleSortChange = (newSort: string) => {
-    setPagination((prev) => ({
-      ...prev,
-      sort: newSort.includes(',desc') ? newSort.replace(',desc', ',asc') : newSort.replace(',asc', ',desc'),
-      page: 0,
-    }));
-  };
-
   // Dynamic label generation from enum value
   const getLabel = (value: string, isCategory: boolean = false): string => {
     const words = value.toLowerCase().split('_');
@@ -394,65 +385,63 @@ const LeaveHistoryPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                  <button onClick={() => handleSortChange('approverName,desc')} className="flex items-center gap-1">
-                    Approver {pagination.sort.includes('approverName,desc') ? '↓' : pagination.sort.includes('approverName,asc') ? '↑' : ''}
-                  </button>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  Approver
                 </th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                  <button onClick={() => handleSortChange('leaveCategoryType,desc')} className="flex items-center gap-1">
-                    Category {pagination.sort.includes('leaveCategoryType,desc') ? '↓' : pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
-                  </button>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  Category
                 </th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                  <button onClick={() => handleSortChange('status,desc')} className="flex items-center gap-1">
-                    Status {pagination.sort.includes('status,desc') ? '↓' : pagination.sort.includes('status,asc') ? '↑' : ''}
-                  </button>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  Status
                 </th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                  <button onClick={() => handleSortChange('fromDate,desc')} className="flex items-center gap-1">
-                    From Date {pagination.sort.includes('fromDate,desc') ? '↓' : pagination.sort.includes('fromDate,asc') ? '↑' : ''}
-                  </button>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  From Date
                 </th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                  <button onClick={() => handleSortChange('toDate,desc')} className="flex items-center gap-1">
-                    To Date {pagination.sort.includes('toDate,desc') ? '↓' : pagination.sort.includes('toDate,asc') ? '↑' : ''}
-                  </button>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  To Date
                 </th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                  <button onClick={() => handleSortChange('leaveDuration,desc')} className="flex items-center gap-1">
-                    Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' : pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
-                  </button>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  Duration
                 </th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Context</th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Manager Comment</th>
-                <th className="px-4 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">Context</th>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">Manager Comment</th>
+                <th className="px-4 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {leaveHistory.content.length > 0 ? (
                 leaveHistory.content.map((leave: LeaveResponseDTO) => (
-<tr
-  key={leave.leaveId}
-  id={`leave-${leave.leaveId}`}
-  className={`
+                  <tr
+                    key={leave.leaveId}
+                    id={`leave-${leave.leaveId}`}
+                    className={`
     hover:bg-gray-50 transition-all duration-300
     ${tempHighlightId === leave.leaveId
-      ? "ring-4 ring-indigo-600 bg-indigo-100 shadow-lg scale-[1.015] z-10 relative"
-      : ""
-    }
+                        ? "ring-4 ring-indigo-600 bg-indigo-100 shadow-lg scale-[1.015] z-10 relative"
+                        : ""
+                      }
   `}
->
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.approverName || '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.leaveCategoryType ? getLabel(leave.leaveCategoryType, true) : '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.status || '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.toDate ? new Date(leave.toDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.leaveDuration ? `${leave.leaveDuration} days` : '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.context || '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">{leave.approverComment || '-'}</td>
-                    <td className="px-4 py-5 text-base text-gray-900">
-                      {leave.status === 'PENDING' && (
+                  >
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.approverName || '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.leaveCategoryType ? getLabel(leave.leaveCategoryType, true) : '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.status || '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.toDate ? new Date(leave.toDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.leaveDuration ? `${leave.leaveDuration} days` : '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.context || '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+{leave.approverComment || '-'}</td>
+                    <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
+
+                      {
+                      leave.status === 'PENDING' && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => router.push(`/dashboard/leaves/applyleave?leaveId=${leave.leaveId}`)}
@@ -467,7 +456,8 @@ const LeaveHistoryPage = () => {
                             Withdraw
                           </button>
                         </div>
-                      )}
+                        
+                      ) || '-'}
                     </td>
                   </tr>
                 ))

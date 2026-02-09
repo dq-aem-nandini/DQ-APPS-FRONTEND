@@ -22,6 +22,7 @@ export const sidebarConfig = {
   
   
   SUPER_HR: [
+    { label: "Dashboard", href: "/dashboard"},
     { permission: "ADD_HOLIDAY", label: "Add Holiday", href: "/superhr/addHoliday",},
     { label: "View Holidays", href: "/superhr/viewHolidays",},
     { label: 'Leaves', href: '/superhr/leaves', },

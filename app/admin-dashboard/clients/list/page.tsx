@@ -16,7 +16,6 @@ const ClientList = () => {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const { state } = useAuth();
   const router = useRouter();
 
@@ -45,10 +44,11 @@ const ClientList = () => {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (client) =>
-          client.companyName.toLowerCase().includes(term) ||
-          client.email.toLowerCase().includes(term) ||
-          client.contactNumber.includes(term)
+          client.companyName?.toLowerCase().includes(term) ||
+          client.email?.toLowerCase().includes(term) ||
+          client.contactNumber?.includes(term)
       );
+      
     }
     setFilteredClients(filtered);
   }, [searchTerm, clients]);
@@ -71,7 +71,6 @@ const ClientList = () => {
 
   const handleClearFilters = () => {
     setSearchTerm('');
-    setStatusFilter('ALL');
   };
 
   if (loading) {

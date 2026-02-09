@@ -48,6 +48,7 @@ const ViewClientPage = () => {
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [invoiceDate, setInvoiceDate] = useState('');
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -65,6 +66,8 @@ const ViewClientPage = () => {
     if (showGenerateModal) {
       setMonth(String(currentMonth).padStart(2, '0'));
       setYear(String(currentYear));
+      setInvoiceDate(''); // ✅ TODAY
+
     }
   }, [showGenerateModal]);
 
@@ -72,41 +75,47 @@ const ViewClientPage = () => {
   const hasValue = (val: any): boolean => val != null && val !== '' && val !== 'null' && val !== 'undefined';
 
   // ────────────────────── FETCH CLIENT & EMPLOYEES ──────────────────────
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
+useEffect(() => {
+  if (!id) return; // ✅ guard FIRST
 
+  const fetchData = async () => {
+    try {
       await withLoading(async () => {
-        // Fetch Client
-        const clientWrapper: WebResponseDTOClientDTO = await adminService.getClientById(id as string);
+        const clientWrapper: WebResponseDTOClientDTO =
+          await adminService.getClientById(id as string);
+
         if (!clientWrapper.flag || !clientWrapper.response) {
           throw new Error(clientWrapper.message || 'Client not found');
         }
+
         setClient(clientWrapper.response);
 
-        // Fetch Employees
-        const empWrapper: WebResponseDTOListEmployeeDTO = await adminService.getEmployeesByClientId(id as string);
+        const empWrapper: WebResponseDTOListEmployeeDTO =
+          await adminService.getEmployeesByClientId(id as string);
+
         if (empWrapper.flag && empWrapper.response) {
           setEmployees(empWrapper.response);
         }
-      }).catch(err => {
-        setError(err.message || 'Failed to load data');
       });
-    };
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data');
+    }
+  };
 
-    fetchData();
-  }, [id, withLoading]);
+  fetchData();
+}, [id, withLoading]);
+
 
   // ────────────────────── GENERATE INVOICE ──────────────────────
   const handleGenerateInvoice = async () => {
     if (!month || !year) {
-      Swal.fire({ icon: 'warning', title: 'Invalid Date', text: 'Please select month and year.' });
+      Swal.fire({ icon: 'warning', title: 'Invalid Date', text: 'Please select invoice date,month and year.' });
       return;
     }
 
     setGenerating(true);
     try {
-      const invoice: InvoiceDTO = await invoiceService.generateInvoice(id as string, parseInt(month), parseInt(year));
+      const invoice: InvoiceDTO = await invoiceService.generateInvoice(id as string, invoiceDate, parseInt(month), parseInt(year));
 
       setToast({
         type: 'success',
@@ -141,12 +150,7 @@ const ViewClientPage = () => {
     <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
-          {loading && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <Spinner size="lg" />
-            </div>
-          )}
-
+        
           {toast && (
             <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center gap-3 animate-slide-in-right ${toast.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
               {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -193,7 +197,9 @@ const ViewClientPage = () => {
                     hasValue(client.gst) ||
                     hasValue(client.panNumber) ||
                     hasValue(client.tanNumber) ||
-                    hasValue(client.currency)) && (
+                    hasValue(client.netTerms)  ||
+                    hasValue(client.currency)) && 
+                    (
                       <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
                         <h3 className="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
                           <FileText className="w-5 h-5 text-indigo-600" />
@@ -206,6 +212,7 @@ const ViewClientPage = () => {
                           {hasValue(client.panNumber) && <InfoItem icon={BadgeCheck} label="PAN" value={client.panNumber!} />}
                           {hasValue(client.tanNumber) && <InfoItem icon={FileText} label="TAN" value={client.tanNumber!} />}
                           {hasValue(client.currency) && <InfoItem icon={DollarSign} label="Currency" value={client.currency!} />}
+                          {hasValue(client.netTerms) && <InfoItem icon={Calendar} label="Net Terms" value={`${client.netTerms} days`} />}
                         </div>
                       </div>
                     )}
@@ -415,6 +422,20 @@ const ViewClientPage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
+
+                <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Invoice Date
+  </label>
+  <input
+    type="date"
+    value={invoiceDate}
+    onChange={(e) => setInvoiceDate(e.target.value)}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    required
+  />
+</div>
+
               </div>
 
               <div className="flex gap-3 mt-6">

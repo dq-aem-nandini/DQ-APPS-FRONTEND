@@ -3,16 +3,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { adminService } from '@/lib/api/adminService';
-import { UniqueField, validationService } from '@/lib/api/validationService';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BackButton from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Trash2, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import isEqual from 'lodash/isEqual';
+import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
+import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
+import { useClientFieldValidation } from '@/hooks/useFieldValidation';
 
 type FormDataType = {
   clientId: string;
@@ -23,6 +24,7 @@ type FormDataType = {
   panNumber: string;
   tanNumber: string;
   currency: string;
+  netTerms: number | null;
   addresses: Array<{
     addressId: string | null;
     houseNo?: string;
@@ -60,24 +62,85 @@ export default function EditClientPage() {
     panNumber: '',
     tanNumber: '',
     currency: 'INR',
+    netTerms: null,
     addresses: [],
     clientPocs: [],
     clientTaxDetails: [],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [checking, setChecking] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const [originalData, setOriginalData] = useState<FormDataType | null>(null);
-  // Regex
-  const phoneRegex = /^[6-9]\d{9}$/;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const nameRegex = /^[A-Za-z ]+$/;
-  const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/;
-  const gstRegex = /^[0-9]{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]$/;
-  const tanRegex = /^[A-Z]{4}\d{5}[A-Z]$/;
+  const { validateField } = useClientFieldValidation();
+  const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    index?: number,
+    section?: 'addresses' | 'clientPocs' | 'clientTaxDetails'
+  ) => {
+    const { name, value } = e.target;
+    let parsedValue: any = value;
 
+    if (name.includes('email')) parsedValue = value.toLowerCase().trim();
+    if (name === 'gst' || name === 'panNumber' || name === 'tanNumber') parsedValue = value.toUpperCase().trim();
+    if (name.includes('pincode') || name.includes('contactNumber')) parsedValue = value.replace(/\D/g, '');
+    // 🇮🇳 Country → State logic
+    if (
+      section === 'addresses' &&
+      index !== undefined &&
+      name.endsWith('.country')
+    ) {
+      const country = value.trim();
+
+      // Update country immediately
+      setFormData(prev => ({
+        ...prev,
+        addresses: prev.addresses.map((a, i) =>
+          i === index ? { ...a, country, state: '' } : a
+        ),
+      }));
+
+      // If India → fetch states
+      if (country.toLowerCase() === 'india') {
+        adminService.getStatesByCountry('India').then(states => {
+          setStatesMap(prev => ({
+            ...prev,
+            [index]: states || [],
+          }));
+        });
+      } else {
+        // Non-India → remove dropdown
+        setStatesMap(prev => {
+          const copy = { ...prev };
+          delete copy[index];
+          return copy;
+        });
+      }
+
+      return; // ⛔ STOP default handler
+    }
+
+
+    if (section && index !== undefined) {
+      setFormData(prev => ({
+        ...prev,
+        [section]: prev[section].map((item, i) =>
+          i === index ? { ...item, [name.split('.').pop()!]: parsedValue } : item
+        ),
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: parsedValue }));
+    }
+  };
+
+  const { handleValidatedChange, handleUniqueBlur, fieldError } = useFormFieldHandlers(
+    handleChange,
+    setErrors,
+    checkUniqueness,
+    () => formData,          // or whatever your client form data getter is
+    validateField            // ← this makes it use CLIENT rules
+  );
   // Fetch client
   useEffect(() => {
     const fetchClient = async () => {
@@ -95,6 +158,7 @@ export default function EditClientPage() {
           panNumber: dto.panNumber || '',
           tanNumber: dto.tanNumber || '',
           currency: dto.currency || 'INR',
+          netTerms: dto.netTerms ?? null,   
 
           addresses: Array.isArray(dto.addresses) && dto.addresses.length > 0
             ? dto.addresses.map((a: any) => ({
@@ -130,7 +194,7 @@ export default function EditClientPage() {
         };
 
         setFormData(loadedData);
-+       setOriginalData(JSON.parse(JSON.stringify(loadedData)));
+        +       setOriginalData(JSON.parse(JSON.stringify(loadedData)));
 
         if (dto.addresses && dto.addresses.length > 0) {
           dto.addresses.forEach(async (addr: any, index: number) => {
@@ -147,7 +211,7 @@ export default function EditClientPage() {
             }
           });
         }
-        
+
       } catch (err) {
         setErrors({ root: 'Failed to load client' });
       } finally {
@@ -163,88 +227,7 @@ export default function EditClientPage() {
   const hasChanges = useMemo(() => {
     if (!originalData) return false;
     return !isEqual(formData, originalData);
-  }, [formData, originalData]);  
-
-  // Manual validation
-  const validateField = (name: string, value: string | number, index?: number) => {
-    let error = '';
-
-    if (name === 'companyName') {
-      if (!value) error = 'Required';
-      else if (value.toString().length < 3) error = 'Min 3 characters';
-      else if (!nameRegex.test(value.toString())) error = 'Only letters & spaces';
-    }
-    if (name === 'contactNumber') {
-      if (!value) error = 'Required';
-      else if (!phoneRegex.test(value.toString())) error = 'Invalid mobile';
-    }
-    if (name === 'email') {
-      if (!value) error = 'Required';
-      else if (!emailRegex.test(value.toString())) error = 'Invalid email';
-    }
-    if (name === 'gst') {
-      if (!value) error = 'GSTIN required';
-      else if (!gstRegex.test(value.toString())) error = 'Invalid GSTIN';
-    }
-    if (name === 'panNumber') {
-      if (!value) error = 'PAN required';
-      else if (!panRegex.test(value.toString())) error = 'Invalid PAN';
-    }
-    if (name === 'tanNumber') {
-      if (!value) error = 'TAN required';
-      else if (!tanRegex.test(value.toString())) error = 'Invalid TAN';
-    }
-
-    setErrors(prev => ({ ...prev, [name]: error }));
-  };
-
-  // Uniqueness check with fieldColumn
-  const checkUniqueness = async (
-    field: UniqueField,
-    value: string,
-    errorKey: string,
-    fieldColumn: string,
-    excludeId?: string | null
-  ) => {
-    const val = value.trim();
-    if (!val || val.length < 3 || checking.has(errorKey)) return;
-
-    setChecking(prev => new Set(prev).add(errorKey));
-
-    try {
-      // ONLY use edit mode if excludeId is a REAL, NON-EMPTY UUID
-      const isValidExcludeId = excludeId && excludeId.trim() !== "" && excludeId.length > 10;
-
-      const mode = isValidExcludeId ? "edit" : "create";
-
-      const result = await validationService.validateField({
-        field,
-        value: val,
-        mode,
-        excludeId: isValidExcludeId ? excludeId : undefined,
-        fieldColumn,
-      });
-
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        if (result.exists) {
-          newErrors[errorKey] = "Already exists in the system";
-        } else {
-          delete newErrors[errorKey];
-        }
-        return newErrors;
-      });
-    } catch (err) {
-      console.warn("Uniqueness check failed:", err);
-    } finally {
-      setChecking(prev => {
-        const s = new Set(prev);
-        s.delete(errorKey);
-        return s;
-      });
-    }
-  };
-
+  }, [formData, originalData]);
 
   // Duplicate detection in form (main vs POC, POC vs POC)
   const checkDuplicateInForm = () => {
@@ -286,66 +269,6 @@ export default function EditClientPage() {
     checkDuplicateInForm();
   }, [formData.email, formData.contactNumber, formData.clientPocs]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-    index?: number,
-    section?: 'addresses' | 'clientPocs' | 'clientTaxDetails'
-  ) => {
-    const { name, value } = e.target;
-    let parsedValue: any = value;
-
-    if (name.includes('email')) parsedValue = value.toLowerCase().trim();
-    if (name === 'gst' || name === 'panNumber' || name === 'tanNumber') parsedValue = value.toUpperCase().trim();
-    if (name.includes('pincode') || name.includes('contactNumber')) parsedValue = value.replace(/\D/g, '');
-    // 🇮🇳 Country → State logic
-if (
-  section === 'addresses' &&
-  index !== undefined &&
-  name.endsWith('.country')
-) {
-  const country = value.trim();
-
-  // Update country immediately
-  setFormData(prev => ({
-    ...prev,
-    addresses: prev.addresses.map((a, i) =>
-      i === index ? { ...a, country, state: '' } : a
-    ),
-  }));
-
-  // If India → fetch states
-  if (country.toLowerCase() === 'india') {
-    adminService.getStatesByCountry('India').then(states => {
-      setStatesMap(prev => ({
-        ...prev,
-        [index]: states || [],
-      }));
-    });
-  } else {
-    // Non-India → remove dropdown
-    setStatesMap(prev => {
-      const copy = { ...prev };
-      delete copy[index];
-      return copy;
-    });
-  }
-
-  return; // ⛔ STOP default handler
-}
-
-
-    if (section && index !== undefined) {
-      setFormData(prev => ({
-        ...prev,
-        [section]: prev[section].map((item, i) =>
-          i === index ? { ...item, [name.split('.').pop()!]: parsedValue } : item
-        ),
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: parsedValue }));
-    }
-    validateField(name, parsedValue, index);
-  };
 
   const addItem = (section: 'addresses' | 'clientPocs' | 'clientTaxDetails') => {
     if (section === 'addresses') {
@@ -386,137 +309,10 @@ if (
     }));
   };
 
-  // const onSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   // if (!hasChanges) return;
-  //   if (!hasChanges) {
-  //     await Swal.fire(
-  //       'No changes detected',
-  //       'Modify something before updating the client.',
-  //       'info'
-  //     );
-  //     return;
-  //   }
-    
-  //   setErrors({}); // Clear previous errors
-  //   const requiredFields = [
-  //     { value: formData.companyName, name: 'companyName', label: 'Company Name' },
-  //     { value: formData.contactNumber, name: 'contactNumber', label: 'Contact Number' },
-  //     { value: formData.email, name: 'email', label: 'Email' },
-  //     { value: formData.gst, name: 'gst', label: 'GST' },
-  //     { value: formData.panNumber, name: 'panNumber', label: 'PAN' },
-  //     { value: formData.tanNumber, name: 'tanNumber', label: 'TAN' },
-  //     { value: formData.currency, name: 'currency', label: 'Currency' },
-  //     { value: formData.addresses[0]?.city, name: 'addresses.0.city', label: 'City (Address)' },
-  //     { value: formData.addresses[0]?.state, name: 'addresses.0.state', label: 'State (Address)' },
-  //     { value: formData.addresses[0]?.pincode, name: 'addresses.0.pincode', label: 'Pincode (Address)' },
-  //     { value: formData.addresses[0]?.country, name: 'addresses.0.country', label: 'Country (Address)' },
-  //     { value: formData.clientPocs[0]?.name, name: 'clientPocs.0.name', label: 'POC Name' },
-  //     { value: formData.clientPocs[0]?.email, name: 'clientPocs.0.email', label: 'POC Email' },
-  //     { value: formData.clientPocs[0]?.contactNumber, name: 'clientPocs.0.contactNumber', label: 'POC Contact Number' },
-  //   ];
 
-  //   const missingField = requiredFields.find(f => !f.value || f.value.toString().trim() === '');
-  //   if (missingField) {
-  //     const errorMsg = `${missingField.label} is required`;
-  //     setErrors({ [missingField.name]: errorMsg });
-
-  //     setTimeout(() => {
-  //       const input = document.querySelector(`[name="${missingField.name}"]`) as HTMLElement;
-  //       if (input) {
-  //         input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  //         input.focus();
-  //         input.classList.add('error-field');
-  //       }
-  //     }, 100);
-
-  //     return;
-  //   }
-
-  //   // If all required fields are filled, proceed
-  //   try {
-  //     const payload = {
-  //       companyName: formData.companyName.trim(),
-  //       contactNumber: formData.contactNumber,
-  //       email: formData.email.toLowerCase().trim(),
-  //       gst: formData.gst.toUpperCase(),
-  //       panNumber: formData.panNumber.toUpperCase(),
-  //       tanNumber: formData.tanNumber.toUpperCase(),
-  //       currency: formData.currency,
-
-  //       addresses: formData.addresses.map(a => ({
-  //         // addressId: a.addressId,
-  //         addressId:
-  //           a.addressId && typeof a.addressId === "string" && a.addressId.length > 10
-  //             ? a.addressId
-  //             : null,
-  //         houseNo: a.houseNo?.trim() || '',
-  //         streetName: a.streetName?.trim() || '',
-  //         city: a.city.trim(),
-  //         state: a.state.trim(),
-  //         pincode: a.pincode,
-  //         country: a.country.trim(),
-  //         addressType: a.addressType,
-  //       })),
-
-  //       clientPocs: formData.clientPocs.map(p => ({
-  //         // pocId: p.pocId,
-  //         pocId:
-  //           p.pocId && typeof p.pocId === "string" && p.pocId.length > 10
-  //             ? p.pocId
-  //             : null,
-  //         name: p.name.trim(),
-  //         email: p.email.toLowerCase().trim(),
-  //         contactNumber: p.contactNumber,
-  //         designation: p.designation?.trim() || '',
-  //       })),
-
-  //       clientTaxDetails: formData.clientTaxDetails
-  //         .filter(t => t.taxName?.trim())  // ← Only include if taxName exists
-  //         .map(t => ({
-  //           taxId:
-  //             t.taxId && typeof t.taxId === "string" && t.taxId.length > 10
-  //               ? t.taxId
-  //               : null, taxName: t.taxName!.trim(),
-  //           taxPercentage: Number(t.taxPercentage) || 0,
-  //         })),
-  //     };
-
-  //     await adminService.updateClient(id, payload);
-  //     await Swal.fire('Success!', `${formData.companyName} has been updated Successfully.`, 'success');
-
-  //     router.push('/admin-dashboard/clients/list');
-
-  //   } catch (err: any) {
-  //     let backendMessage = 'Failed to update client';
-
-  //     if (err.response?.data) {
-  //       const data = err.response.data;
-  //       if (data.message) {
-  //         backendMessage = data.message;
-  //       }
-  //       else if (data.errors && typeof data.errors === 'object') {
-  //         const firstError = Object.values(data.errors)[0];
-  //         backendMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
-  //       }
-  //     } else if (err.message) {
-  //       backendMessage = err.message;
-  //     }
-  //     await Swal.fire({
-  //       icon: 'error',
-  //       title: 'Error',
-  //       text: backendMessage,
-  //       confirmButtonColor: '#ef4444',
-  //       background: '#fef2f2',
-  //       customClass: {
-  //         popup: 'animate__animated animate__shakeX',
-  //       },
-  //     });
-  //   }
-  // };
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     if (!hasChanges) {
       await Swal.fire(
         'No changes detected',
@@ -525,9 +321,9 @@ if (
       );
       return;
     }
-  
+
     setErrors({});
-  
+
     try {
       const payload = {
         companyName: formData.companyName.trim(),
@@ -537,7 +333,7 @@ if (
         panNumber: formData.panNumber?.toUpperCase().trim() || '',
         tanNumber: formData.tanNumber?.toUpperCase().trim() || '',
         currency: formData.currency,
-  
+netTerms: formData.netTerms,
         addresses: formData.addresses.map(a => ({
           addressId:
             a.addressId && a.addressId.length > 10 ? a.addressId : null,
@@ -549,7 +345,7 @@ if (
           country: a.country.trim(),
           addressType: a.addressType,
         })),
-  
+
         clientPocs: formData.clientPocs.map(p => ({
           pocId:
             p.pocId && p.pocId.length > 10 ? p.pocId : null,
@@ -558,7 +354,7 @@ if (
           contactNumber: p.contactNumber || '',
           designation: p.designation?.trim() || '',
         })),
-  
+
         clientTaxDetails: formData.clientTaxDetails
           .filter(t => t.taxName?.trim())
           .map(t => ({
@@ -568,27 +364,27 @@ if (
             taxPercentage: Number(t.taxPercentage) || 0,
           })),
       };
-  
+
       await adminService.updateClient(id, payload);
-  
+
       await Swal.fire(
         'Success!',
         `${formData.companyName} updated successfully.`,
         'success'
       );
-  
+
       router.push('/admin-dashboard/clients/list');
-  
+
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
         'Failed to update client';
-  
+
       await Swal.fire('Error', msg, 'error');
     }
   };
-  
+
 
   if (loading) {
     return (
@@ -615,137 +411,223 @@ if (
 
             {/* Company Details */}
             <Card>
-              <CardHeader><CardTitle>Company Details</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Company Details</CardTitle>
+              </CardHeader>
+
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                {/* Company Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Name <span className="text-red-500">*</span>
+                  </label>
+
                   <input
                     type="text"
                     name="companyName"
                     value={formData.companyName}
-                    onChange={handleChange}
-                    required
+                    onChange={handleValidatedChange}
                     onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) checkUniqueness('COMPANY_NAME', val, 'companyName', 'company_name', formData.clientId);
+                      handleUniqueBlur(
+                        "COMPANY_NAME",
+                        "company_name",
+                        "companyName",
+                        formData.clientId
+                      )(e);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
-                  {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
-                  {checking.has('companyName') && <Loader2 className="h-4 w-4 animate-spin inline ml-2" />}
+
+                  {fieldError(errors, "companyName")}
+                  {checking.has("companyName") && (
+                    <Loader2 className="h-4 w-4 animate-spin inline ml-2" />
+                  )}
                 </div>
 
+                {/* Contact Number */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Number <span className="text-red-500">*</span>
+                  </label>
+
                   <input
                     type="tel"
                     name="contactNumber"
-                    required
                     value={formData.contactNumber}
-                    onChange={handleChange}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val && val.length === 10) {
-                        checkUniqueness('CONTACT_NUMBER', val, 'contactNumber', 'contact_number', formData.clientId);
+                    maxLength={10}
+                    onChange={(e) => {
+                      if (/^\d*$/.test(e.target.value)) {
+                        handleValidatedChange(e);
                       }
-                    }} maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    }}   
+                                     onBlur={(e) => {
+                      handleUniqueBlur(
+                        "CONTACT_NUMBER",
+                        "contact_number",
+                        "contactNumber",
+                        formData.clientId,
+                        10
+                      )(e);
+                    }}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
-                  {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
+
+                  {fieldError(errors, "contactNumber")}
                 </div>
 
+                {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email 
-                    {/* <span className="text-red-500">*</span> */}
-                    </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
-                    // required
-                    onChange={handleChange}
+                    onChange={handleValidatedChange}
                     onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) checkUniqueness('EMAIL', val, 'email', 'email', formData.clientId);
+                      handleUniqueBlur(
+                        "EMAIL",
+                        "email",
+                        "email",
+                        formData.clientId
+                      )(e);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
-                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+
+                  {fieldError(errors, "email")}
                 </div>
 
+                {/* GST */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN 
-                    {/* <span className="text-red-500">*</span> */}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GSTIN
                   </label>
+
                   <input
                     type="text"
                     name="gst"
                     value={formData.gst}
-                    onChange={handleChange}
-                    // required
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) checkUniqueness('GST', val, 'gst', 'gst', formData.clientId);
-                    }}
                     maxLength={15}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      handleUniqueBlur(
+                        "GST",
+                        "gst",
+                        "gst",
+                        formData.clientId
+                      )(e);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
-                  {errors.gst && <p className="text-red-500 text-xs mt-1">{errors.gst}</p>}
+
+                  {fieldError(errors, "gst")}
                 </div>
 
+                {/* PAN */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">PAN 
-                    {/* <span className="text-red-500">*</span> */}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    PAN
                   </label>
+
                   <input
                     type="text"
                     name="panNumber"
-                    // required
                     value={formData.panNumber}
-                    onChange={handleChange}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) checkUniqueness('PAN_NUMBER', val, 'panNumber', 'pan_number', formData.clientId);
-                    }}
                     maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      handleUniqueBlur(
+                        "PAN_NUMBER",
+                        "pan_number",
+                        "panNumber",
+                        formData.clientId
+                      )(e);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
-                  {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
+
+                  {fieldError(errors, "panNumber")}
                 </div>
 
+                {/* TAN */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TAN 
-                    {/* <span className="text-red-500">*</span> */}
-                    </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    TAN
+                  </label>
+
                   <input
                     type="text"
                     name="tanNumber"
                     value={formData.tanNumber}
-                    // required
-                    onChange={handleChange}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) checkUniqueness('TAN_NUMBER', val, 'tanNumber', 'tan_number', formData.clientId);
-                    }}
                     maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      handleUniqueBlur(
+                        "TAN_NUMBER",
+                        "tan_number",
+                        "tanNumber",
+                        formData.clientId
+                      )(e);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
-                  {errors.tanNumber && <p className="text-red-500 text-xs mt-1">{errors.tanNumber}</p>}
+
+                  {fieldError(errors, "tanNumber")}
                 </div>
 
+                {/* Currency */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" >Currency <span className="text-red-500">*</span></label>
-                  <Select required value={formData.currency} onValueChange={(v) => setFormData(prev => ({ ...prev, currency: v }))}>
-                    <SelectTrigger className="w-full min-w-[200px] !h-11"><SelectValue /></SelectTrigger>
-                    <SelectContent >
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Currency <span className="text-red-500">*</span>
+                  </label>
+
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(v) =>
+                      setFormData(prev => ({ ...prev, currency: v }))
+                    }
+                    required
+                  >
+                    <SelectTrigger className="w-full !h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="INR">INR</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="EUR">EUR</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Net Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Net Terms (in days)
+                  </label>
+                  <input
+                    type="number"
+                    name="netTerms"
+                    value={formData.netTerms !== null ? formData.netTerms : ''}
+                    min={0}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        netTerms: val === '' ? null : Math.max(0, Number(val)),
+                      }));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
               </CardContent>
             </Card>
+
 
             {/* ==================== ADDRESSES ==================== */}
             <div className="border-b border-gray-200 pb-6">
@@ -802,53 +684,59 @@ if (
                       <input
                         type="text"
                         name={`addresses.${i}.city`}
-                        value={addr.city || ''}
-                        onChange={(e) => handleChange(e, i, 'addresses')}
-                        onBlur={(e) => validateField(`addresses.${i}.city`, e.target.value, i)}
+                        value={addr.city || ""}
+                        onChange={(e) => handleChange(e, i, "addresses")}
+                        onBlur={(e) => {
+                          const key = `addresses.${i}.city`;
+                          const err = validateField(key, e.target.value);
+
+                          setErrors(prev => {
+                            const next = { ...prev };
+                            if (err) next[key] = err;
+                            else delete next[key];
+                            return next;
+                          });
+                        }}
+
                         required={i === 0}
-                        placeholder="e.g. Mumbai"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                        className="w-full px-3 py-2 border rounded-md"
                       />
-                      {errors[`addresses.${i}.city`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.city`]}</p>
-                      )}
+
+                      {fieldError(errors, `addresses.${i}.city`)}  {/* ✅ */}
+
                     </div>
-
-                    {/* State */}
-                    {/* <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">State {i === 0}<span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        name={`addresses.${i}.state`}
-                        value={addr.state || ''}
-                        onChange={(e) => handleChange(e, i, 'addresses')}
-                        onBlur={(e) => validateField(`addresses.${i}.state`, e.target.value, i)}
-                        required={i === 0}
-                        placeholder="e.g. Maharashtra"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                      />
-                      {errors[`addresses.${i}.state`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.state`]}</p>
-                      )}
-                    </div> */}
-
                     {/* Pincode */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Pincode {i === 0}<span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         name={`addresses.${i}.pincode`}
-                        value={addr.pincode || ''}
-                        onChange={(e) => handleChange(e, i, 'addresses')}
-                        onBlur={(e) => validateField(`addresses.${i}.pincode`, e.target.value, i)}
+                        value={addr.pincode || ""}
                         maxLength={6}
+                        onChange={(e) => {
+                          if (/^\d*$/.test(e.target.value)) {
+                            handleChange(e, i, "addresses");
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const key = `addresses.${i}.pincode`;
+                          const err = validateField(key, e.target.value);
+
+                          setErrors(prev => {
+                            const next = { ...prev };
+                            if (err) next[key] = err;
+                            else delete next[key];
+                            return next;
+                          });
+                        }}
+
                         required={i === 0}
-                        placeholder="e.g. 400001"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                        className="w-full px-3 py-2 border rounded-md"
                       />
-                      {errors[`addresses.${i}.pincode`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.pincode`]}</p>
-                      )}
+
+
+                      {fieldError(errors, `addresses.${i}.pincode`)} {/* ✅ */}
+
                     </div>
 
                     {/* Country */}
@@ -857,64 +745,69 @@ if (
                       <input
                         type="text"
                         name={`addresses.${i}.country`}
-                        value={addr.country || ''}
-                        onChange={(e) => handleChange(e, i, 'addresses')}
-                        onBlur={(e) => validateField(`addresses.${i}.country`, e.target.value, i)}
+                        value={addr.country || ""}
+                        onChange={(e) => handleChange(e, i, "addresses")} // ✅ only this
+                        onBlur={(e) => {
+                          const err = validateField(`addresses.${i}.country`, e.target.value);
+                          setErrors(prev => ({
+                            ...prev,
+                            ...(err ? { [`addresses.${i}.country`]: err } : {})
+                          }));
+                        }}
                         required={i === 0}
-                        placeholder="e.g. India"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                        className="w-full px-3 py-2 border rounded-md"
                       />
-                      {errors[`addresses.${i}.country`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`addresses.${i}.country`]}</p>
-                      )}
+
+
+                      {fieldError(errors, `addresses.${i}.country`)} {/* ✅ */}
+
                     </div>
 
                     <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    State {i === 0 && <span className="text-red-500">*</span>}
-  </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        State {i === 0 && <span className="text-red-500">*</span>}
+                      </label>
 
-  {statesMap[i]?.length ? (
-    <Select
-      value={addr.state}
-      onValueChange={(val) =>
-        setFormData(prev => ({
-          ...prev,
-          addresses: prev.addresses.map((a, idx) =>
-            idx === i ? { ...a, state: val } : a
-          ),
-        }))
-      }
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select State" />
-      </SelectTrigger>
-      <SelectContent>
-        {statesMap[i].map(state => (
-          <SelectItem key={state} value={state}>
-            {state}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  ) : (
-    <input
-      type="text"
-      name={`addresses.${i}.state`}
-      value={addr.state || ''}
-      onChange={(e) => handleChange(e, i, 'addresses')}
-      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-      placeholder="Enter State"
-      required={i === 0}
-    />
-  )}
+                      {statesMap[i]?.length ? (
+                        <Select
+                          value={addr.state}
+                          onValueChange={(val) =>
+                            setFormData(prev => ({
+                              ...prev,
+                              addresses: prev.addresses.map((a, idx) =>
+                                idx === i ? { ...a, state: val } : a
+                              ),
+                            }))
+                          }
+                        >
 
-  {errors[`addresses.${i}.state`] && (
-    <p className="text-red-500 text-xs mt-1">
-      {errors[`addresses.${i}.state`]}
-    </p>
-  )}
-</div>
+
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select State" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statesMap[i].map(state => (
+                              <SelectItem key={state} value={state}>
+                                {state}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <input
+                          type="text"
+                          name={`addresses.${i}.state`}
+                          value={addr.state || ''}
+                          onChange={(e) => handleChange(e, i, 'addresses')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          placeholder="Enter State"
+                          required={i === 0}
+                        />
+                      )}
+
+                      {fieldError(errors, `addresses.${i}.state`)} {/* ✅ */}
+
+                    </div>
 
 
                     {/* Address Type */}
@@ -983,77 +876,112 @@ if (
                           <input
                             type="text"
                             name={`clientPocs.${i}.name`}
-                            value={poc.name || ''}
-                            onChange={(e) => handleChange(e, i, 'clientPocs')}
-                            onBlur={(e) => validateField(`clientPocs.${i}.name`, e.target.value, i)}
-                            placeholder="e.g. Anita Sharma"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                            value={poc.name || ""}
+                            onChange={(e) => handleChange(e, i, "clientPocs")}   // ✅ FIX
+                            onBlur={(e) => {
+                              const err = validateField(`clientPocs.${i}.name`, e.target.value);
+                              setErrors(prev => ({
+                                ...prev,
+                                ...(err ? { [`clientPocs.${i}.name`]: err } : {})
+                              }));
+                            }}
                             required={i === 0}
+                            className="w-full px-3 py-2 border rounded-md"
                           />
-                          {errors[`clientPocs.${i}.name`] && (
-                            <p className="text-red-500 text-xs mt-1">{errors[`clientPocs.${i}.name`]}</p>
-                          )}
+
+                          {fieldError(errors, `clientPocs.${i}.name`)}
+
+
                         </div>
 
                         {/* Email */}
                         <div className="relative">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Email 
+                            Email
                             {/* {i === 0 && <span className="text-red-500">*</span>} */}
                           </label>
                           <input
                             type="email"
                             name={`clientPocs.${i}.email`}
-                            value={poc.email || ''}
-                            onChange={(e) => handleChange(e, i, 'clientPocs')}
+                            value={poc.email || ""}
+                            onChange={(e) => handleChange(e, i, "clientPocs")}   // ✅ FIX
                             onBlur={(e) => {
                               const val = e.target.value.trim();
-                              if (val) {
-                                const pocId = formData.clientPocs[i]?.pocId;
-                                checkUniqueness('EMAIL', val, `clientPocs.${i}.email`, 'email', pocId);
+
+                              // regex validation
+                              const err = validateField(`clientPocs.${i}.email`, val);
+                              setErrors(prev => ({
+                                ...prev,
+                                ...(err ? { [`clientPocs.${i}.email`]: err } : {})
+                              }));
+
+                              // uniqueness (only if regex passed)
+                              if (!err && val) {
+                                handleUniqueBlur(
+                                  "EMAIL",
+                                  "email",
+                                  `clientPocs.${i}.email`,
+                                  formData.clientPocs[i]?.pocId
+                                )(e);
                               }
                             }}
-                            placeholder="anita.sharma@company.com"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                            // required={i === 0}
+                            className="w-full px-3 py-2 border rounded-md"
                           />
+
                           {checking.has(`clientPocs.${i}.email`) && (
                             <Loader2 className="absolute right-3 top-10 h-4 w-4 animate-spin text-gray-500" />
                           )}
-                          {errors[`clientPocs.${i}.email`] && (
-                            <p className="text-red-500 text-xs mt-1">{errors[`clientPocs.${i}.email`]}</p>
-                          )}
+
+                          {fieldError(errors, `clientPocs.${i}.email`)}
+
+
                         </div>
 
                         {/* Contact Number */}
                         <div className="relative">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Contact Number 
+                            Contact Number
                             {/* {i === 0 && <span className="text-red-500">*</span>} */}
                           </label>
                           <input
                             type="tel"
                             name={`clientPocs.${i}.contactNumber`}
-                            value={poc.contactNumber || ''}
-                            onChange={(e) => handleChange(e, i, 'clientPocs')}
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              if (val && val.length === 10) {
-                                const pocId = formData.clientPocs[i]?.pocId;
-                                checkUniqueness('CONTACT_NUMBER', val, `clientPocs.${i}.contactNumber`, 'contact_number', pocId);
+                            value={poc.contactNumber || ""}
+                            maxLength={10}
+                            onChange={(e) => {
+                              if (/^\d*$/.test(e.target.value)) {
+                                handleChange(e, i, "clientPocs");   
                               }
                             }}
-                            maxLength={10}
-                            placeholder="9876543210"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                            // required={i === 0}
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+
+                              const err = validateField(`clientPocs.${i}.contactNumber`, val);
+                              setErrors(prev => ({
+                                ...prev,
+                                ...(err ? { [`clientPocs.${i}.contactNumber`]: err } : {})
+                              }));
+
+                              if (!err && val.length === 10) {
+                                handleUniqueBlur(
+                                  "CONTACT_NUMBER",
+                                  "contact_number",
+                                  `clientPocs.${i}.contactNumber`,
+                                  formData.clientPocs[i]?.pocId,
+                                  10
+                                )(e);
+                              }
+                            }}
+                            className="w-full px-3 py-2 border rounded-md"
                           />
+
                           {checking.has(`clientPocs.${i}.contactNumber`) && (
                             <Loader2 className="absolute right-3 top-10 h-4 w-4 animate-spin text-gray-500" />
                           )}
-                          {errors[`clientPocs.${i}.contactNumber`] && (
-                            <p className="text-red-500 text-xs mt-1">{errors[`clientPocs.${i}.contactNumber`]}</p>
-                          )}
+
+                          {fieldError(errors, `clientPocs.${i}.contactNumber`)}
+
+
                         </div>
 
                         {/* Designation */}
@@ -1062,11 +990,12 @@ if (
                           <input
                             type="text"
                             name={`clientPocs.${i}.designation`}
-                            value={poc.designation || ''}
-                            onChange={(e) => handleChange(e, i, 'clientPocs')}
+                            value={poc.designation || ""}
+                            onChange={(e) => handleChange(e, i, "clientPocs")}
                             placeholder="e.g. Procurement Manager"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                           />
+
                         </div>
                       </div>
 
@@ -1149,8 +1078,8 @@ if (
               <Button type="button" variant="outline" onClick={() => router.push('/admin-dashboard/clients/list')}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={!hasChanges}
                 title={!hasChanges ? "No changes made" : ""}
               >

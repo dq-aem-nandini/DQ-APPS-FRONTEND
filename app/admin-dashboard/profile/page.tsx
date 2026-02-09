@@ -10,7 +10,8 @@ import {
 import { adminService } from '@/lib/api/adminService';
 import { UniqueField, validationService } from '@/lib/api/validationService';
 import Swal from 'sweetalert2';
-
+import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
+import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
 export default function AdminProfilePage() {
   const { state, logout } = useAuth();
   const user = state.user;
@@ -31,7 +32,42 @@ export default function AdminProfilePage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [checking, setChecking] = useState<Set<string>>(new Set());
+  // Reuse shared form hooks
+const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+
+const { 
+  handleValidatedChange, 
+  handleUniqueBlur, 
+  fieldError 
+} = useFormFieldHandlers(
+  (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  },
+  setErrors,
+  checkUniqueness,
+  () => formData,
+  // Admin-specific validation rules
+  (name: string, value: string) => {
+    let error = '';
+
+    if (name === "email") {
+      if (!value.trim()) error = "Email is required";
+      else if (!/^[a-zA-Z0-9._%+-]+@digiquadsolutions\.com$/.test(value)) {
+        error = "Email must end with @digiquadsolutions.com";
+      }
+    }
+
+    if (name === "contactNumber") {
+      if (!value.trim()) error = "Contact number is required";
+      else if (!/^[6-9]\d{9}$/.test(value)) {
+        error = "Invalid 10-digit mobile number (starts with 6-9)";
+      }
+    }
+
+    return error;
+  }
+);
   // ⭐ LOAD ADMIN PROFILE
   const loadAdmin = async () => {
     try {
@@ -68,36 +104,6 @@ export default function AdminProfilePage() {
     loadAdmin();
   };
 
-  // ⭐SUBMIT UPDATE (send OTP)
-
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setError('');
-  //   setSuccess('');
-  //   setLoading(true);
-  //   setStatusMessage('Sending update request...');
-  //   try {
-  //     const res = await adminService.requestAdminUpdate(formData);
-
-  //     if (res.flag) {
-  //       setStatusMessage('OTP sent to your email. Please check your inbox.');
-  //       setIsOtpStep(true); // show OTP popup
-  //       // setSuccess('OTP sent to your email.');
-  //       Swal.fire({
-  //         icon: "success",
-  //         title: "OTP Sent!",
-  //         text: "A verification OTP has been sent to your email.",
-  //         confirmButtonColor: "#4f46e5",
-  //       });
-
-  //     }
-  //   } catch (err: any) {
-  //     setError(err.message);
-  //     setStatusMessage('');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -129,46 +135,6 @@ export default function AdminProfilePage() {
     }
   };
 
-
-
-  // ⭐ VERIFY OTP & SAVE UPDATE
-
-  // const handleVerifyOtp = async () => {
-  //   setError('');
-  //   setSuccess('');
-  //   setLoading(true);
-  //   setStatusMessage('Verifying OTP...');
-  //   try {
-  //     const res = await adminService.verifyAdminOtp(otp);
-
-  //     if (res.flag) {
-  //       // setSuccess('Profile updated successfully!');
-  //       Swal.fire({
-  //         icon: "success",
-  //         title: "Profile Updated!",
-  //         text: "Your profile has been updated successfully.",
-  //         confirmButtonColor: "#10b981",
-  //       });
-
-  //       setIsOtpStep(false);
-  //       setIsEditing(false);
-  //       setStatusMessage('');
-  //       loadAdmin();
-  //     }
-  //   } catch (err: any) {
-  //     // setError(err.message);
-  //     Swal.fire({
-  //       icon: "error",
-  //       title: "Something went wrong",
-  //       text: err.message || "Please try again",
-  //       confirmButtonColor: "#dc2626",
-  //     });
-
-  //     setStatusMessage('');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   const handleVerifyOtp = async () => {
     setLoading(true);
     setStatusMessage("Verifying OTP...");
@@ -216,91 +182,11 @@ export default function AdminProfilePage() {
     .join('')
     .toUpperCase()
     .slice(0, 2);
-  const checkUniqueness = async (
-    field: UniqueField,
-    value: string,
-    uiField: string,
-    fieldColumn: string,
-    excludeId?: string
-  ) => {
-    setChecking((prev) => new Set(prev).add(uiField));
+ 
 
-    const res = await validationService.validateField({
-      field,
-      value,
-      mode: "edit",
-      excludeId,
-      fieldColumn,
-    });
 
-    setChecking((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(uiField);
-      return newSet;
-    });
 
-    setErrors((prev: any) => ({
-      ...prev,
-      [uiField]: res.exists ? res.message : "",
-    }));
-  };
 
-  // ⭐ REGEX RULES
-
-  const adminEmailRegex = /^[a-zA-Z0-9._%+-]+@digiquadsolutions\.com$/;
-  // const adminEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-  const adminPhoneRegex = /^[6-9]\d{9}$/;
-
-  // ⭐ MANUAL VALIDATION FUNCTION
-  const validateField = (name: string, value: string) => {
-    let error = '';
-
-    // ⭐ EMAIL
-    if (name === "email") {
-      if (!value) error = "Required";
-      else if (!adminEmailRegex.test(value)) {
-        error = "Email must be @digiquadsolutions.com";
-      }
-    }
-
-    // ⭐ CONTACT NUMBER
-    if (name === "contactNumber") {
-      if (!value) error = "Required";
-      else if (!adminPhoneRegex.test(value)) {
-        error = "Invalid 10-digit mobile number";
-      }
-    }
-
-    setErrors(prev => ({ ...prev, [name]: error }));
-    return error;
-  };
-
-  const handleFieldValidation = async (name: string, value: string) => {
-    const manualError = validateField(name, value);
-    if (manualError) return; // stop if regex/manual fails
-
-    setChecking((prev) => new Set(prev).add(name));
-
-    const res = await validationService.validateField({
-      field: name === "email" ? "EMAIL" : "CONTACT_NUMBER",
-      value,
-      mode: "edit",
-      fieldColumn: name === "contactNumber" ? "contact_number" : "email",
-      excludeId: admin.adminId,
-    });
-
-    setChecking((prev) => {
-      const s = new Set(prev);
-      s.delete(name);
-      return s;
-    });
-
-    setErrors((prev) => ({
-      ...prev,
-      [name]: res.exists ? `${name === "email" ? "Email" : "Contact number"} already exists` : "",
-    }));
-  };
 
 
   return (
@@ -391,77 +277,90 @@ export default function AdminProfilePage() {
 
             {/* FORM */}
             <form id="profileForm" onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                {/* FULL NAME */}
-                <div>
-                  <label className="block font-semibold mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    disabled={!isEditing}
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base"
-                  />
-                </div>
+  {/* FULL NAME – simple, no uniqueness */}
+  <div className="space-y-1">
+    <label className="block font-semibold mb-2 text-gray-700">
+      Full Name
+    </label>
+    <input
+      type="text"
+      name="fullName"
+      disabled={!isEditing}
+      value={formData.fullName}
+      onChange={handleValidatedChange}
+      placeholder="Enter full name"
+      className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+    />
+  </div>
 
-                {/* EMAIL */}
-                <div>
-                  <label className="block font-semibold mb-2">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    disabled={!isEditing}
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    onBlur={(e) => handleFieldValidation("email", e.target.value.trim())}
-                    className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base"
-                  />
+  {/* EMAIL – with real-time validation + uniqueness on blur */}
+  <div className="space-y-1">
+    <label className="block font-semibold mb-2 text-gray-700">
+      Email <span className="text-red-500">*</span>
+    </label>
+    <div className="relative">
+      <input
+        type="email"
+        name="email"
+        disabled={!isEditing}
+        value={formData.email}
+        onChange={handleValidatedChange}
+        onBlur={() => handleUniqueBlur(
+          "EMAIL",             // field type for API
+          "email",             // DB column name
+          "email",             // error key
+          admin?.adminId       // exclude current admin ID
+        )}
+        placeholder="admin@digiquadsolutions.com"
+        className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+      />
 
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                  )}
+      {checking.has("email") && (
+        <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600" />
+      )}
+    </div>
 
-                  {checking.has("email") && (
-                    <Loader2 className="h-4 w-4 animate-spin inline ml-2" />
-                  )}
-                </div>
+    {fieldError(errors, "email")}
+  </div>
 
-                {/* CONTACT NUMBER */}
-                <div>
-                  <label className="block font-semibold mb-2">
-                    Contact Number <span className="text-red-500">*</span>
-                  </label>
+  {/* CONTACT NUMBER – with real-time validation + uniqueness on blur */}
+  <div className="space-y-1">
+    <label className="block font-semibold mb-2 text-gray-700">
+      Contact Number <span className="text-red-500">*</span>
+    </label>
+    <div className="relative">
+      <input
+        type="text"
+        name="contactNumber"
+        disabled={!isEditing}
+        value={formData.contactNumber}
+        onChange={(e) => {
+          if (/^\d*$/.test(e.target.value)) {
+            handleValidatedChange(e);
+          }
+        }}  
+        onBlur={() => handleUniqueBlur(
+          "CONTACT_NUMBER",
+          "contact_number",
+          "contactNumber",
+          admin?.adminId
+        )}
+        maxLength={10}
+        placeholder="9876543210"
+        className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+      />
 
-                  <input
-                    type="text"
-                    name="contactNumber"
-                    disabled={!isEditing}
-                    value={formData.contactNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, contactNumber: e.target.value })
-                    }
-                    onBlur={(e) =>
-                      handleFieldValidation("contactNumber", e.target.value.trim())
-                    }
-                    className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base"
-                  />
+      {checking.has("contactNumber") && (
+        <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600" />
+      )}
+    </div>
 
-                  {errors.contactNumber && (
-                    <p className="text-red-500 text-sm mt-1">{errors.contactNumber}</p>
-                  )}
+    {fieldError(errors, "contactNumber")}
+  </div>
 
-                  {checking.has("contactNumber") && (
-                    <Loader2 className="h-4 w-4 animate-spin inline ml-2" />
-                  )}
-                </div>
-
-              </div>
+</div>
             </form>
 
           </div>
