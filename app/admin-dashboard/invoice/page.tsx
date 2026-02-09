@@ -167,12 +167,6 @@ export default function InvoicesPage() {
     });
   }, [invoices, selectedYear, selectedMonth, filters.status, filters.search]);
 
-
-  useEffect(() => {
-    const now = new Date();
-    setSelectedYear(getYear(now));
-    setSelectedMonth(getMonth(now) + 1);
-  }, []);
   /* -------------------------- STATS -------------------------- */
   const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
   const overdueCount = filteredInvoices.filter((i) => i.status === "OVERDUE").length;

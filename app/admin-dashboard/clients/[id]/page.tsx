@@ -48,6 +48,7 @@ const ViewClientPage = () => {
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [invoiceDate, setInvoiceDate] = useState('');
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -65,6 +66,8 @@ const ViewClientPage = () => {
     if (showGenerateModal) {
       setMonth(String(currentMonth).padStart(2, '0'));
       setYear(String(currentYear));
+      setInvoiceDate(''); // ✅ TODAY
+
     }
   }, [showGenerateModal]);
 
@@ -106,13 +109,13 @@ useEffect(() => {
   // ────────────────────── GENERATE INVOICE ──────────────────────
   const handleGenerateInvoice = async () => {
     if (!month || !year) {
-      Swal.fire({ icon: 'warning', title: 'Invalid Date', text: 'Please select month and year.' });
+      Swal.fire({ icon: 'warning', title: 'Invalid Date', text: 'Please select invoice date,month and year.' });
       return;
     }
 
     setGenerating(true);
     try {
-      const invoice: InvoiceDTO = await invoiceService.generateInvoice(id as string, parseInt(month), parseInt(year));
+      const invoice: InvoiceDTO = await invoiceService.generateInvoice(id as string, invoiceDate, parseInt(month), parseInt(year));
 
       setToast({
         type: 'success',
@@ -419,6 +422,20 @@ useEffect(() => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
+
+                <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Invoice Date
+  </label>
+  <input
+    type="date"
+    value={invoiceDate}
+    onChange={(e) => setInvoiceDate(e.target.value)}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    required
+  />
+</div>
+
               </div>
 
               <div className="flex gap-3 mt-6">
