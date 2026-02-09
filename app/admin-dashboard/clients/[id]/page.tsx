@@ -72,30 +72,36 @@ const ViewClientPage = () => {
   const hasValue = (val: any): boolean => val != null && val !== '' && val !== 'null' && val !== 'undefined';
 
   // ────────────────────── FETCH CLIENT & EMPLOYEES ──────────────────────
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
+useEffect(() => {
+  if (!id) return; // ✅ guard FIRST
 
+  const fetchData = async () => {
+    try {
       await withLoading(async () => {
-        // Fetch Client
-        const clientWrapper: WebResponseDTOClientDTO = await adminService.getClientById(id as string);
+        const clientWrapper: WebResponseDTOClientDTO =
+          await adminService.getClientById(id as string);
+
         if (!clientWrapper.flag || !clientWrapper.response) {
           throw new Error(clientWrapper.message || 'Client not found');
         }
+
         setClient(clientWrapper.response);
 
-        // Fetch Employees
-        const empWrapper: WebResponseDTOListEmployeeDTO = await adminService.getEmployeesByClientId(id as string);
+        const empWrapper: WebResponseDTOListEmployeeDTO =
+          await adminService.getEmployeesByClientId(id as string);
+
         if (empWrapper.flag && empWrapper.response) {
           setEmployees(empWrapper.response);
         }
-      }).catch(err => {
-        setError(err.message || 'Failed to load data');
       });
-    };
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data');
+    }
+  };
 
-    fetchData();
-  }, [id, withLoading]);
+  fetchData();
+}, [id, withLoading]);
+
 
   // ────────────────────── GENERATE INVOICE ──────────────────────
   const handleGenerateInvoice = async () => {
@@ -141,12 +147,7 @@ const ViewClientPage = () => {
     <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
-          {loading && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <Spinner size="lg" />
-            </div>
-          )}
-
+        
           {toast && (
             <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center gap-3 animate-slide-in-right ${toast.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
               {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -193,7 +194,9 @@ const ViewClientPage = () => {
                     hasValue(client.gst) ||
                     hasValue(client.panNumber) ||
                     hasValue(client.tanNumber) ||
-                    hasValue(client.currency)) && (
+                    hasValue(client.netTerms)  ||
+                    hasValue(client.currency)) && 
+                    (
                       <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
                         <h3 className="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
                           <FileText className="w-5 h-5 text-indigo-600" />
@@ -206,6 +209,7 @@ const ViewClientPage = () => {
                           {hasValue(client.panNumber) && <InfoItem icon={BadgeCheck} label="PAN" value={client.panNumber!} />}
                           {hasValue(client.tanNumber) && <InfoItem icon={FileText} label="TAN" value={client.tanNumber!} />}
                           {hasValue(client.currency) && <InfoItem icon={DollarSign} label="Currency" value={client.currency!} />}
+                          {hasValue(client.netTerms) && <InfoItem icon={Calendar} label="Net Terms" value={`${client.netTerms} days`} />}
                         </div>
                       </div>
                     )}

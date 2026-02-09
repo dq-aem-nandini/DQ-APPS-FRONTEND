@@ -521,7 +521,7 @@ export interface WebResponseDTOLeaveStatusCount {
 // Additional Schemas
 export interface EmployeeDocumentDTO {
   documentId: string | null;      // uuid
-  docType: DocumentType;
+  docType?: DocumentType;
   file?: File | null;             // 👈 REAL uploaded file (optional)
   fileUrl?: string | null;        // 👈 existing file from backend (read-only)
   uploadedAt?: string;            // optional
@@ -737,6 +737,7 @@ export interface ClientModel {
   email: string | null; 
   gst: string;
   currency: string;
+  netTerms: number | null;
   panNumber: string;
   tanNumber?: string;
   addresses?: AddressModel[];
@@ -907,6 +908,7 @@ export interface ClientDTO {
   panNumber: string;
   tanNumber: string;
   status: string;
+  netTerms: number | null;
   clientTaxDetails: ClientTaxDetail[];
   createdAt: string;         // ISO Date-Time string
   updatedAt: string;         // ISO Date-Time string
