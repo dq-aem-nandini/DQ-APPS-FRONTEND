@@ -314,8 +314,8 @@ const ViewEmployee = () => {
       {employee.documents.find(d => d.docType === 'PAN_CARD' && hasValue(d.fileUrl)) && (
         <DocItem label="PAN Card" url={employee.documents.find(d => d.docType === 'PAN_CARD')!.fileUrl!} />
       )}
-      {employee.documents.find(d => d.docType === 'AADHAAR_CARD' && hasValue(d.fileUrl)) && (
-        <DocItem label="Aadhar Card" url={employee.documents.find(d => d.docType === 'AADHAAR_CARD')!.fileUrl!} />
+      {employee.documents.find(d => d.docType === 'AADHAR_CARD' && hasValue(d.fileUrl)) && (
+        <DocItem label="Aadhar Card" url={employee.documents.find(d => d.docType === 'AADHAR_CARD')!.fileUrl!} />
       )}
       {employee.documents.find(d => d.docType === 'BANK_PASSBOOK' && hasValue(d.fileUrl)) && (
         <DocItem label="Bank Passbook" url={employee.documents.find(d => d.docType === 'BANK_PASSBOOK')!.fileUrl!} />

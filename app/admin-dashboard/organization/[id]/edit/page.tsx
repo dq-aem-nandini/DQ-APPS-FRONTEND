@@ -1,19 +1,15 @@
-// /app/admin-dashboard/organization/[id]/edit/page.tsx
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Upload, Plus, Trash2 } from 'lucide-react';
 import { organizationService } from '@/lib/api/organizationService';
 import { employeeService } from '@/lib/api/employeeService';
-import { validationService, UniqueField } from '@/lib/api/validationService';
-import {adminService} from '@/lib/api/adminService';
 import {
   Domain,
   CurrencyCode,
@@ -29,24 +25,23 @@ import {
 import BackButton from '@/components/ui/BackButton';
 import Swal from 'sweetalert2';
 import TooltipHint from '@/components/ui/TooltipHint';
-import { useMemo as reactUseMemo } from 'react';
+import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
+import { useOrganizationFieldValidation } from '@/hooks/organizationValidator';
+import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
 
 const ADDRESS_TYPES: AddressType[] = ['PERMANENT', 'CURRENT', 'OFFICE'];
 const TIMEZONES = ['Asia/Kolkata', 'America/New_York', 'Europe/London', 'Australia/Sydney', 'Asia/Singapore'];
 
 export default function EditOrganizationPage() {
-  const { id } = useParams();
+  const params = useParams<{ id: string }>();
+  const id = params.id; // string | undefined
   const router = useRouter();
 
-  const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
-  const [isLookingUp, setIsLookingUp] = useState<boolean>(false);
-  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
-  const [currentAddrId, setCurrentAddrId] = useState<string | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string>("");
-  const [signaturePreview, setSignaturePreview] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [logoPreview, setLogoPreview] = useState("");
+  const [signaturePreview, setSignaturePreview] = useState("");
 
   const [formData, setFormData] = useState<OrganizationRequestDTO>({
     organizationName: '',
@@ -71,27 +66,54 @@ export default function EditOrganizationPage() {
     branchName: '',
     digitalSignature: null,
     addresses: [],
+    prefix: '',
+    sequenceNumber: undefined,
+    companyType: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [checking, setChecking] = useState<Set<string>>(new Set());
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [originalData, setOriginalData] = useState<OrganizationRequestDTO | null>(null);
-  // simple patterns
-  const patterns = {
-    email: /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i,
-    mobile: /^[6-9]\d{9}$/,
-    pan: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
-    gst: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
-    cin: /^[LPUA][A-Z]{3}[0-9]{4}[A-Z]{3}[0-9]{6}$/,
-    ifsc: /^[A-Z]{4}0[A-Z0-9]{6}$/,
-    accountNumber: /^\d{9,18}$/,
-    pincode: /^\d{6}$/,
-  };
+  const [success, setSuccess] = useState('');
 
-  // load organization on mount
+  const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+  const { validateField } = useOrganizationFieldValidation();
+
+  const {
+    handleValidatedChange,
+    handleUniqueBlur,
+    fieldError,
+  } = useFormFieldHandlers(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      let formatted = value;
+
+      if (['panNumber', 'gstNumber', 'cinNumber', 'ifscCode'].includes(name)) {
+        formatted = value.toUpperCase();
+      }
+      if (name === 'email') {
+        formatted = value.toLowerCase();
+      }
+      if (name === 'contactNumber' || name === 'accountNumber') {
+        formatted = value.replace(/[^0-9]/g, '');
+      }
+      if (name === 'registrationNumber') {
+        formatted = value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
+      }
+      if (name === 'accountHolderName') {
+        formatted = value.replace(/[^A-Za-z\s.,&()-]/g, '');
+      }
+
+      setFormData(prev => ({ ...prev, [name]: formatted }));
+    },
+    setErrors,
+    checkUniqueness,
+    () => formData,
+    validateField
+  );
+
+  // Load organization data
   useEffect(() => {
-    if (!id || typeof id !== 'string') {
+    if (!id) {
       setLoading(false);
       return;
     }
@@ -99,13 +121,9 @@ export default function EditOrganizationPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const res: OrganizationResponseDTO = await organizationService.getById(id);
-        setCurrentOrgId(res.organizationId || null);
-        setLogoPreview(res.logoUrl || "");
-        setSignaturePreview(res.digitalSignatureUrl || "");
+        const res = await organizationService.getById(id);
 
-        // Map response to request DTO shape, keep addresses and fields; file inputs remain null
-        const loadedData: OrganizationRequestDTO = {
+        const loaded: OrganizationRequestDTO = {
           organizationName: res.organizationName ?? '',
           organizationLegalName: res.organizationLegalName ?? '',
           registrationNumber: res.registrationNumber ?? '',
@@ -116,18 +134,18 @@ export default function EditOrganizationPage() {
           email: res.email ?? '',
           contactNumber: res.contactNumber ?? '',
           logo: null,
-          industryType: res.industryType ?? '',
-          domain: (res.domain as Domain) ?? 'OTHER',
+          industryType: res.industryType ?? 'OTHER',
+          domain: res.domain ?? 'OTHER',
           establishedDate: res.establishedDate ?? '',
           timezone: res.timezone ?? 'Asia/Kolkata',
-          currencyCode: (res.currencyCode as CurrencyCode) ?? 'INR',
+          currencyCode: res.currencyCode ?? 'INR',
           accountNumber: res.accountNumber ?? '',
           accountHolderName: res.accountHolderName ?? '',
           bankName: res.bankName ?? '',
           ifscCode: res.ifscCode ?? '',
           branchName: res.branchName ?? '',
           digitalSignature: null,
-          addresses: (res.addresses ?? []).map((a: any) => ({
+          addresses: res.addresses?.map(a => ({
             addressId: a.addressId ?? null,
             houseNo: a.houseNo ?? '',
             streetName: a.streetName ?? '',
@@ -135,13 +153,19 @@ export default function EditOrganizationPage() {
             state: a.state ?? '',
             country: a.country ?? '',
             pincode: a.pincode ?? '',
-            addressType: (a.addressType ?? 'OFFICE') as AddressType,
-          })),
+            addressType: a.addressType ?? 'OFFICE' as AddressType,
+          })) ?? [],
+          prefix: res.prefix ?? '',
+          sequenceNumber: res.sequenceNumber ?? undefined,
+          companyType: res.companyType ?? '',
         };
-        setFormData(loadedData);
-       setOriginalData(loadedData);
+
+        setFormData(loaded);
+        setOriginalData(loaded);
+        setLogoPreview(res.logoUrl ?? "");
+        setSignaturePreview(res.digitalSignatureUrl ?? "");
       } catch (err: any) {
-        setError(err?.message || 'Failed to load organization');
+        Swal.fire("Error", "Failed to load organization", "error");
       } finally {
         setLoading(false);
       }
@@ -151,67 +175,63 @@ export default function EditOrganizationPage() {
   }, [id]);
 
   const hasChanges = useMemo(() => {
-      if (!originalData) return false;
-       
-       // Simple deep comparison (good enough for most cases)
-       return JSON.stringify(formData) !== JSON.stringify(originalData);
-     }, [formData, originalData]);
+    if (!originalData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(originalData);
+  }, [formData, originalData]);
 
-  const handleDeleteAddress = (idx: number, addressId: string | null) => {
-    // Only remove from local state — backend will delete missing addresses on update
-    removeAddress(idx);
-  };
+  // IFSC lookup
+  const handleIfscLookup = async (ifsc: string) => {
+    const code = String(ifsc ?? '').trim().toUpperCase();
 
-  // ---------- Handlers ----------
+    // Skip if empty, already looking up, or already has error
+    if (!code || isLookingUp || errors.ifscCode) return;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    let parsed: any = value;
+    setIsLookingUp(true);
 
-    // uppercase PAN & IFSC while typing
-    if (name === 'panNumber' || name === 'ifscCode') parsed = value.toUpperCase();
+    try {
+      const res = await employeeService.getIFSCDetails(code);
 
-    // addresses.* fields -> addresses.idx.field
-    if (name.startsWith('addresses.')) {
-      // e.g. addresses.0.city or addresses.1.pincode
-      const [, idxStr, field] = name.split('.');
-      const idx = parseInt(idxStr, 10);
-      setFormData(prev => {
-        const addrs = [...prev.addresses];
-        const existing = addrs[idx] ?? {
-          addressId: null,
-          houseNo: '',
-          streetName: '',
-          city: '',
-          state: '',
-          country: '',
-          pincode: '',
-          addressType: 'OFFICE' as AddressType,
-        };
-        addrs[idx] = { ...existing, [field]: parsed };
-        return { ...prev, addresses: addrs };
-      });
-      return;
+      if (res?.flag && res.response) {
+        const data = res.response;
+
+        setFormData(prev => ({
+          ...prev,
+          bankName: data.BANK ?? '',
+          branchName: data.BRANCH ?? '',
+          ifscCode: code, // store cleaned version
+        }));
+
+        setSuccess('Bank details auto-filled!');
+        setErrors(prev => {
+          const n = { ...prev };
+          delete n.ifscCode;
+          return n;
+        });
+      } else {
+        setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
+      }
+    } catch (err: any) {
+      console.error('IFSC lookup error:', err);
+      setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
+    } finally {
+      setIsLookingUp(false);
     }
-
-    setFormData(prev => ({ ...prev, [name]: parsed }));
   };
 
-  const handleAddressChange = (idx: number, field: keyof AddressModel, val: string) => {
+  const handleAddressChange = (index: number, field: keyof AddressModel, value: string) => {
     setFormData(prev => {
       const addrs = [...prev.addresses];
-      const existing = addrs[idx] ?? {
-        addressId: null,
-        houseNo: '',
-        streetName: '',
-        city: '',
-        state: '',
-        country: '',
-        pincode: '',
-        addressType: 'OFFICE' as AddressType,
-      };
-      addrs[idx] = { ...existing, [field]: val };
+      addrs[index] = { ...addrs[index], [field]: value };
       return { ...prev, addresses: addrs };
+    });
+
+    const path = `addresses.${index}.${field}`;
+    const error = validateField(path, value, formData);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (error) next[path] = error;
+      else delete next[path];
+      return next;
     });
   };
 
@@ -220,388 +240,136 @@ export default function EditOrganizationPage() {
       ...prev,
       addresses: [
         ...prev.addresses,
-        { addressId: null, houseNo: '', streetName: '', city: '', state: '', country: '', pincode: '', addressType: 'OFFICE' },
+        { addressId: null, houseNo: '', streetName: '', city: '', state: '', country: '', pincode: '', addressType: 'OFFICE' as AddressType },
       ],
     }));
   };
 
-  const removeAddress = (idx: number) => {
+  const removeAddress = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      addresses: prev.addresses.filter((_, i) => i !== idx),
+      addresses: prev.addresses.filter((_, i) => i !== index),
     }));
-    // clear any address-related errors
+
     setErrors(prev => {
-      const copy = { ...prev };
-      delete copy[`addresses.${idx}.city`];
-      delete copy[`addresses.${idx}.state`];
-      delete copy[`addresses.${idx}.country`];
-      delete copy[`addresses.${idx}.pincode`];
-      return copy;
+      const next = { ...prev };
+      Object.keys(next).forEach(key => {
+        if (key.startsWith(`addresses.${index}.`)) delete next[key];
+      });
+      return next;
     });
   };
 
   const handleFileChange = (field: 'logo' | 'digitalSignature', file: File | null) => {
     setFormData(prev => ({ ...prev, [field]: file }));
-  };
-
-  // ---------- Validation ----------
-
-  const validateField = (name: string, value: string) => {
-    const v = value?.trim() ?? '';
-    const newErr = { ...errors };
-    delete newErr[name];
-
-    // required set (edit page): organizationName, organizationLegalName, email, contactNumber, accountNumber, accountHolderName, bankName, ifscCode
-    const requiredCore = [
-      'organizationName',
-      'organizationLegalName',
-      'registrationNumber',
-      'gstNumber',
-      'panNumber',
-      'cinNumber',
-      'email',
-      'contactNumber',
-      'industryType',
-      'domain',
-      'establishedDate',
-      'timezone',
-      'currencyCode',
-      'accountNumber',
-      'accountHolderName',
-      'ifscCode',
-      'bankName',
-      'branchName'
-    ];
-
-
-    if (requiredCore.includes(name) && !v) {
-      newErr[name] = 'This field is required';
-    }
-
-    if (name === 'email' && v && !patterns.email.test(v)) newErr[name] = 'Invalid email';
-    if (name === 'contactNumber' && v && !patterns.mobile.test(v)) newErr[name] = 'Invalid mobile';
-    if (name === 'panNumber' && v && !patterns.pan.test(v)) newErr[name] = 'Invalid PAN';
-    if (name === 'gstNumber' && v && !patterns.gst.test(v)) newErr[name] = 'Invalid GST';
-    if (name === 'cinNumber' && v && !patterns.cin.test(v)) newErr[name] = 'Invalid CIN';
-    if (name === 'ifscCode' && v && !patterns.ifsc.test(v)) newErr[name] = 'Invalid IFSC';
-    if (name === 'accountNumber' && v && !patterns.accountNumber.test(v)) newErr[name] = '9–18 digits only';
-    if ((name === 'domain' || name === 'currencyCode') && !v) {
-      newErr[name] = 'This field is required';
-    }
-
-    setErrors(newErr);
-  };
-
-  // address blur validation (optional — only validate if something provided)
-  const validateAddressField = (idx: number, field: keyof AddressModel, value: string) => {
-    const key = `addresses.${idx}.${field}`;
-    const newErr = { ...errors };
-    delete newErr[key];
-
-    const v = String(value ?? '').trim();
-    if (field === 'pincode' && v) {
-      if (!patterns.pincode.test(v)) newErr[key] = 'Pincode must be 6 digits';
-    }
-    // city/state/country: if user entered something but blank after trim -> error
-    if ((field === 'city' || field === 'state' || field === 'country') && value !== undefined && value !== null) {
-      // only error if user explicitly entered blank (we don't require address)
-      if (value !== '' && v === '') newErr[key] = `${String(field).charAt(0).toUpperCase() + String(field).slice(1)} cannot be empty`;
-    }
-
-    setErrors(newErr);
-  };
-
-  // uniqueness check (edit mode) — exclude current org id
-  const checkUniqueness = async (
-    field: UniqueField,
-    value: string,
-    errorKey: string,
-    fieldColumn: string,
-    excludeId?: string | null
-  ) => {
-    const val = value.trim();
-
-    // skip if empty, too short, or already checking
-    if (!val || val.length < 3 || checking.has(errorKey)) return;
-
-    // add to checking state using Set
-    setChecking(prev => {
-      const newSet = new Set(prev);
-      newSet.add(errorKey);
-      return newSet;
-    });
-
-    try {
-      const isValidExcludeId =
-        excludeId && excludeId.trim() !== "" && excludeId.length > 10;
-
-      const mode = isValidExcludeId ? "edit" : "create";
-
-      const result = await validationService.validateField({
-        field,
-        value: val,
-        mode,
-        excludeId: isValidExcludeId ? excludeId : undefined,
-        fieldColumn,
-      });
-
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        if (result.exists) {
-          newErrors[errorKey] = "Already exists in the system";
-        } else {
-          delete newErrors[errorKey];
-        }
-        return newErrors;
-      });
-    } catch (err) {
-      console.warn("Uniqueness check failed", err);
-    } finally {
-      // remove from checking
-      setChecking(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(errorKey);
-        return newSet;
-      });
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      if (field === 'logo') setLogoPreview(preview);
+      if (field === 'digitalSignature') setSignaturePreview(preview);
+    } else {
+      if (field === 'logo') setLogoPreview("");
+      if (field === 'digitalSignature') setSignaturePreview("");
     }
   };
 
-
-
-
-  // handle blur for generic inputs
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    const val = (value ?? "").toString().trim();
-
-    // address.* fields
-    if (name.startsWith("addresses.")) {
-      const [, idxStr, field] = name.split(".");
-      const idx = parseInt(idxStr, 10);
-      validateAddressField(idx, field as keyof AddressModel, value as string);
-      return;
-    }
-
-    // validate field normally
-    validateField(name, val);
-
-    // fields that require uniqueness checking
-    const uniqueMap: Record<
-      string,
-      { field: UniqueField; column: string }
-    > = {
-      organizationName: { field: "COMPANY_NAME", column: "organization_name" },
-      email: { field: "EMAIL", column: "email" },
-      contactNumber: { field: "CONTACT_NUMBER", column: "contact_number" },
-      gstNumber: { field: "GST", column: "gst_number" },
-      panNumber: { field: "PAN_NUMBER", column: "pan_number" },
-      cinNumber: { field: "CIN_NUMBER", column: "cin_number" },
-      registrationNumber: { field: "REGISTRATION_NUMBER", column: "registration_number" },
-      accountNumber: { field: "ACCOUNT_NUMBER", column: "account_number" },
-    };
-
-    const cfg = uniqueMap[name];
-
-    if (cfg && val.length >= 3) {
-      checkUniqueness(
-        cfg.field,
-        val,
-        name,
-        cfg.column,
-        currentOrgId // <-- EXCLUDE ID APPLIED HERE
-      );
-    }
-  };
-
-
-
-  // IFSC lookup
-  const handleIfscLookup = async () => {
-    const code = (formData.ifscCode ?? '').trim().toUpperCase();
-
-    // validate first
-    validateField('ifscCode', code);
-    if (!code || isLookingUp) return;
-
-    setIsLookingUp(true);
-    try {
-      const res = await employeeService.getIFSCDetails(code);
-
-      // Safe null check
-      if (res?.flag && res.response !== null) {
-        const data = res.response;
-
-        setFormData(prev => ({
-          ...prev,
-          bankName: data.BANK ?? '',
-          branchName: data.BRANCH ?? '',
-        }));
-
-        // clear ifsc errors
-        setErrors(prev => {
-          const copy = { ...prev };
-          delete copy.ifscCode;
-          return copy;
-        });
-      } else {
-        setErrors(prev => ({ ...prev, ifscCode: "Invalid IFSC or lookup failed" }));
-      }
-    } catch (err) {
-      setErrors(prev => ({ ...prev, ifscCode: "Invalid IFSC or lookup failed" }));
-    } finally {
-      setIsLookingUp(false);
-    }
-  };
-
-
-  // ---------- Submit ----------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-    if (!hasChanges) {
-           return;
-        }
-    // final basic required checks
-    const required = [
-      { key: 'organizationName', label: 'Organization Name' },
-      { key: 'organizationLegalName', label: 'Legal Name' },
-      { key: 'email', label: 'Email' },
-      { key: 'registrationNumber', label: 'Registration Number' },
-      { key: 'gstNumber', label: 'GST Number' },
-      { key: 'panNumber', label: 'PAN Number' },
-      { key: 'cinNumber', label: 'CIN Number' },
-      { key: 'contactNumber', label: 'Contact Number' },
-      { key: 'domain', label: 'Domain' },
-      { key: 'industryType', label: 'Industry Type' },
-      { key: 'establishedDate', label: 'Established Date' },
-      { key: 'currencyCode', label: 'Currency Code' },
-      { key: 'accountNumber', label: 'Account Number' },
-      { key: 'accountHolderName', label: 'Account Holder Name' },
-      { key: 'ifscCode', label: 'IFSC Code' },
-      { key: 'bankName', label: 'Bank Name' },
-      { key: 'branchName', label: 'Branch Name' },
 
+    if (!hasChanges || !id) return;
+
+    setSaving(true);
+    setErrors({});
+
+    // Client-side validation
+    const tempErrors: Record<string, string> = {};
+
+    const fieldsToValidate = [
+      "organizationName", "organizationLegalName", "registrationNumber",
+      "gstNumber", "panNumber", "cinNumber", "email", "contactNumber",
+      "domain", "industryType", "establishedDate", "currencyCode",
+      "accountNumber", "accountHolderName", "ifscCode", "prefix",
+      "sequenceNumber", "companyType"
     ];
 
-
-    for (const r of required) {
-      const val = (formData as any)[r.key];
-      if (!val || String(val).trim() === '') {
-        setErrors(prev => ({ ...prev, [r.key]: `${r.label} is required` }));
-        // focus if possible
-        const el = inputRefs.current[r.key];
-        if (el) el.focus();
-        return;
-      }
-    }
-
-    // address validation — only validate fields that have been typed (pincode pattern)
-    const addrErrs: Record<string, string> = {};
-    formData.addresses.forEach((a, idx) => {
-      if (a.pincode && !patterns.pincode.test(String(a.pincode))) {
-        addrErrs[`addresses.${idx}.pincode`] = 'Pincode must be 6 digits';
-      }
+    fieldsToValidate.forEach(name => {
+      const value = (formData as any)[name];
+      const error = validateField(name, value, formData);
+      if (error) tempErrors[name] = error;
     });
-    if (Object.keys(addrErrs).length) {
-      setErrors(prev => ({ ...prev, ...addrErrs }));
+
+    // Validate addresses
+    formData.addresses.forEach((addr, idx) => {
+      ["city", "state", "country", "pincode"].forEach(sub => {
+        const value = (addr as any)[sub];
+        const path = `addresses.${idx}.${sub}`;
+        const error = validateField(path, value, formData);
+        if (error) tempErrors[path] = error;
+      });
+    });
+
+    if (Object.keys(tempErrors).length > 0) {
+      setErrors(tempErrors);
+      const firstError = Object.keys(tempErrors)[0];
+      document.querySelector(`[name="${firstError}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setSaving(false);
       return;
     }
 
-    setSaving(true);
-
     try {
-      // build multipart form data
       const fd = new FormData();
-      const payload = {
-        ...formData,
-        logo: null,
-        digitalSignature: null,
-      };
-      
-      /* ---------- BASIC FIELDS ---------- */
-      fd.append("organizationName", formData.organizationName ?? "");
-      fd.append("organizationLegalName", formData.organizationLegalName ?? "");
-      fd.append("registrationNumber", formData.registrationNumber ?? "");
-      fd.append("gstNumber", formData.gstNumber ?? "");
-      fd.append("panNumber", formData.panNumber ?? "");
-      fd.append("cinNumber", formData.cinNumber ?? "");
-      fd.append("website", formData.website ?? "");
-      fd.append("email", formData.email ?? "");
-      fd.append("contactNumber", formData.contactNumber ?? "");
-      fd.append("industryType", formData.industryType ?? "");
-      fd.append("domain", formData.domain ?? "");
-      fd.append("establishedDate", formData.establishedDate ?? "");
-      fd.append("timezone", formData.timezone ?? "");
-      fd.append("currencyCode", formData.currencyCode ?? "");
-      fd.append("accountNumber", formData.accountNumber ?? "");
-      fd.append("accountHolderName", formData.accountHolderName ?? "");
-      fd.append("bankName", formData.bankName ?? "");
-      fd.append("ifscCode", formData.ifscCode ?? "");
-      fd.append("branchName", formData.branchName ?? "");
-      
-      /* ---------- FILES ---------- */
-      if (formData.logo instanceof File) {
-        fd.append("logo", formData.logo);
-      }
-      
-      if (formData.digitalSignature instanceof File) {
-        fd.append("digitalSignature", formData.digitalSignature);
-      }
-      
-      /* ---------- ADDRESSES ---------- */
-      formData.addresses.forEach((addr, index) => {
-        if (addr.addressId) {
-          fd.append(`addresses[${index}].addressId`, addr.addressId);
-        }
-      
-        fd.append(`addresses[${index}].houseNo`, addr.houseNo ?? "");
-        fd.append(`addresses[${index}].streetName`, addr.streetName ?? "");
-        fd.append(`addresses[${index}].city`, addr.city ?? "");
-        fd.append(`addresses[${index}].state`, addr.state ?? "");
-        fd.append(`addresses[${index}].country`, addr.country ?? "");
-        fd.append(`addresses[${index}].pincode`, addr.pincode ?? "");
-        fd.append(`addresses[${index}].addressType`, addr.addressType ?? "OFFICE");
+
+      fd.append("organizationName", formData.organizationName || "");
+      fd.append("organizationLegalName", formData.organizationLegalName || "");
+      fd.append("registrationNumber", formData.registrationNumber || "");
+      fd.append("gstNumber", formData.gstNumber || "");
+      fd.append("panNumber", formData.panNumber || "");
+      fd.append("cinNumber", formData.cinNumber || "");
+      fd.append("website", formData.website || "");
+      fd.append("email", formData.email || "");
+      fd.append("contactNumber", formData.contactNumber || "");
+      fd.append("domain", formData.domain || "");
+      fd.append("industryType", formData.industryType || "");
+      fd.append("establishedDate", formData.establishedDate || "");
+      fd.append("timezone", formData.timezone || "");
+      fd.append("currencyCode", formData.currencyCode || "");
+      fd.append("accountNumber", formData.accountNumber || "");
+      fd.append("accountHolderName", formData.accountHolderName || "");
+      fd.append("bankName", formData.bankName || "");
+      fd.append("ifscCode", formData.ifscCode || "");
+      fd.append("branchName", formData.branchName || "");
+      fd.append("prefix", formData.prefix || "");
+      fd.append("sequenceNumber", String(formData.sequenceNumber ?? ""));
+      fd.append("companyType", formData.companyType || "");
+
+      if (formData.logo) fd.append("logo", formData.logo);
+      if (formData.digitalSignature) fd.append("digitalSignature", formData.digitalSignature);
+
+      formData.addresses.forEach((addr, i) => {
+        if (addr.addressId) fd.append(`addresses[${i}].addressId`, addr.addressId);
+        fd.append(`addresses[${i}].houseNo`, addr.houseNo || "");
+        fd.append(`addresses[${i}].streetName`, addr.streetName || "");
+        fd.append(`addresses[${i}].city`, addr.city || "");
+        fd.append(`addresses[${i}].state`, addr.state || "");
+        fd.append(`addresses[${i}].country`, addr.country || "");
+        fd.append(`addresses[${i}].pincode`, addr.pincode || "");
+        fd.append(`addresses[${i}].addressType`, addr.addressType || "OFFICE");
       });
-      
-      
-      // ✅ STEP 3: send files separately
-      if (formData.logo instanceof File) {
-        fd.append("logo", formData.logo);
-      }
-      
-      if (formData.digitalSignature instanceof File) {
-        fd.append("digitalSignature", formData.digitalSignature);
-      }
 
-      // Call update API. According to swagger, organizationId is query param.
-      // Assume organizationService.update handles sending form-data with organizationId.
-      const res = await organizationService.update(id as string, fd);
+      const res = await organizationService.update(id, fd);
+
       if (res.flag) {
-        // setSuccess('Organization updated successfully!');
-        // // keep small delay so user sees message then navigate
-        // setTimeout(() => router.push('/admin-dashboard/organization/list'), 1200);
         Swal.fire({
-          title: "Updated Successfully!",
-          text: "Organization details have been saved.",
+          title: "Success",
+          text: "Organization updated successfully",
           icon: "success",
-          confirmButtonColor: "#4F46E5",
-        }).then(() => {
-          router.push("/admin-dashboard/organization/list");
-        });
-
+          timer: 2000,
+          showConfirmButton: false,
+        }).then(() => router.push("/admin-dashboard/organization/list"));
       } else {
-        Swal.fire({
-          title: "Update Failed",
-          text: res.message || "Something went wrong.",
-          icon: "error",
-          confirmButtonColor: "#DC2626",
-        });
-
+        Swal.fire("Error", res.message || "Update failed", "error");
       }
     } catch (err: any) {
-      setError(err?.message || 'Something went wrong');
+      Swal.fire("Error", err.message || "Something went wrong", "error");
     } finally {
       setSaving(false);
     }
@@ -628,215 +396,244 @@ export default function EditOrganizationPage() {
 
         <Card className="border-0 shadow-xl">
           <CardContent className="p-8">
-            {success && <Alert className="mb-6 text-green-700"><AlertDescription>{success}</AlertDescription></Alert>}
-            {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
-
             <form onSubmit={handleSubmit} className="space-y-10">
-
               {/* Basic Info Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Organization Name */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Organization Name <span className="text-red-500">*</span>
                     <TooltipHint hint="Display name of the organization. Must be unique." />
-
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.organizationName = el; }}
                     name="organizationName"
                     value={formData.organizationName}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
+                    onChange={handleValidatedChange}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter organization name"
                     maxLength={100}
+                    required
                   />
-                  {errors.organizationName && <p className="text-red-500 text-xs mt-1">{errors.organizationName}</p>}
+                  {fieldError(errors, "organizationName")}
                 </div>
 
+                {/* Legal Name */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Legal Name <span className="text-red-500">*</span>
                     <TooltipHint hint="Full legal name as registered with government authorities." />
-
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.organizationLegalName = el; }}
                     name="organizationLegalName"
                     value={formData.organizationLegalName}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
+                    onChange={handleValidatedChange}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter legal name"
                     maxLength={100}
+                    required
                   />
-                  {errors.organizationLegalName && <p className="text-red-500 text-xs mt-1">{errors.organizationLegalName}</p>}
+                  {fieldError(errors, "organizationLegalName")}
                 </div>
 
+                {/* Registration Number */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">Registration Number<span className="text-red-500">*</span>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Registration Number <span className="text-red-500">*</span>
                     <TooltipHint hint="Company registration number (e.g., UDYAM-AB-12-0001234, ROC number). Alphanumeric only, converted to uppercase." />
                   </Label>
-
-
                   <Input
                     name="registrationNumber"
                     value={formData.registrationNumber}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      // Allow only letters, numbers, and hyphen; convert to uppercase
-                      const value = e.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
-                      e.target.value = value;
-                      handleChange(e);
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "REGISTRATION_NUMBER",
+                        "registration_number",
+                        "registrationNumber",
+                        id,
+                        3
+                      )(e);
                     }}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                     placeholder="e.g., UDYAM-AB-12-0001234"
-                    maxLength={50} />
-                  {errors.registrationNumber && <p className="text-red-500 text-xs mt-1">{errors.registrationNumber}</p>}
+                    maxLength={50}
+                    required
+                  />
+                  {fieldError(errors, "registrationNumber")}
                 </div>
 
+                {/* GST Number */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    GST Number<span className="text-red-500">*</span>
+                    GST Number <span className="text-red-500">*</span>
                     <TooltipHint hint="15-digit GSTIN (e.g., 22AAAAA0000A1Z5). Automatically converted to uppercase." />
-
                   </Label>
                   <Input
                     name="gstNumber"
                     value={formData.gstNumber}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      e.target.value = e.target.value.toUpperCase();
-                      handleChange(e);
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "GST",
+                        "gst_number",
+                        "gstNumber",
+                        id,
+                        15
+                      )(e);
                     }}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                     placeholder="Enter GST number"
                     maxLength={15}
-
+                    required
                   />
-                  {errors.gstNumber && <p className="text-red-500 text-xs mt-1">{errors.gstNumber}</p>}
+                  {fieldError(errors, "gstNumber")}
                 </div>
 
+                {/* PAN Number */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    PAN Number<span className="text-red-500">*</span>
+                    PAN Number <span className="text-red-500">*</span>
                     <TooltipHint hint="10-character PAN (e.g., ABCDE1234F). Automatically converted to uppercase." />
-
                   </Label>
                   <Input
                     name="panNumber"
                     value={formData.panNumber}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      e.target.value = e.target.value.toUpperCase();
-                      handleChange(e);
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "PAN_NUMBER",
+                        "pan_number",
+                        "panNumber",
+                        id,
+                        10
+                      )(e);
                     }}
-                    onBlur={handleBlur}
-                    maxLength={10}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                     placeholder="Enter PAN number"
+                    maxLength={10}
+                    required
                   />
-                  {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
+                  {fieldError(errors, "panNumber")}
                 </div>
 
+                {/* CIN Number */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    CIN Number<span className="text-red-500">*</span>
+                    CIN Number <span className="text-red-500">*</span>
                     <TooltipHint hint="21-character Corporate Identity Number (e.g., L12345MH2020PLC123456). Automatically uppercase." />
-
                   </Label>
                   <Input
                     name="cinNumber"
                     value={formData.cinNumber}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      e.target.value = e.target.value.toUpperCase();
-                      handleChange(e);
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "CIN_NUMBER",
+                        "cin_number",
+                        "cinNumber",
+                        id,
+                        21
+                      )(e);
                     }}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                     placeholder="Enter CIN number"
                     maxLength={21}
-
+                    required
                   />
-                  {errors.cinNumber && <p className="text-red-500 text-xs mt-1">{errors.cinNumber}</p>}
+                  {fieldError(errors, "cinNumber")}
                 </div>
 
+                {/* Website */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">Website
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Website
                     <TooltipHint hint="Official website URL (include https://). Example: https://company.com" />
-
                   </Label>
                   <Input
                     name="website"
                     value={formData.website}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
+                    onChange={handleValidatedChange}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="https://example.com"
                   />
-                  {errors.website && <p className="text-red-500 text-xs mt-1">{errors.website}</p>}
+                  {fieldError(errors, "website")}
                 </div>
 
+                {/* Email */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Email <span className="text-red-500">*</span>
                     <TooltipHint hint="Official organization email. Must be unique and in lowercase only." />
-
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.email = el; }}
                     name="email"
                     type="email"
                     value={formData.email}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      e.target.value = e.target.value.toLowerCase();
-                      handleChange(e);
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "EMAIL",
+                        "email",
+                        "email",
+                        id
+                      )(e);
                     }}
-                    onBlur={handleBlur}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter email"
+                    required
                   />
-                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                  {fieldError(errors, "email")}
                 </div>
 
+                {/* Contact Number */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Contact Number <span className="text-red-500">*</span>
                     <TooltipHint hint="10-digit Indian mobile number starting with 6-9." />
-
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.contactNumber = el; }}
                     name="contactNumber"
                     value={formData.contactNumber}
-                    maxLength={10}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      if (/^\d*$/.test(e.target.value)) {
-                        handleChange(e);
-                      }
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "CONTACT_NUMBER",
+                        "contact_number",
+                        "contactNumber",
+                        id,
+                        10
+                      )(e);
                     }}
-                    onBlur={handleBlur}
+                    maxLength={10}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter 10-digit mobile"
+                    required
                   />
-                  {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
+                  {fieldError(errors, "contactNumber")}
                 </div>
 
+                {/* Domain */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    Domain<span className="text-red-500">*</span>
+                    Domain <span className="text-red-500">*</span>
                   </Label>
                   <Select
                     name="domain"
                     value={formData.domain}
                     onValueChange={(val) => {
                       setFormData(prev => ({ ...prev, domain: val as Domain }));
-                      validateField("domain", val);
+                      const error = validateField("domain", val, formData);
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        error ? next.domain = error : delete next.domain;
+                        return next;
+                      });
                     }}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
@@ -848,68 +645,63 @@ export default function EditOrganizationPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.domain && <p className="text-red-500 text-xs mt-1">{errors.domain}</p>}
+                  {fieldError(errors, "domain")}
                 </div>
 
+                {/* Industry Type */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Industry Type <span className="text-red-500">*</span>
                   </Label>
-
                   <Select
                     name="industryType"
                     value={formData.industryType}
                     onValueChange={(val) => {
                       setFormData(prev => ({ ...prev, industryType: val as IndustryType }));
-                      validateField("industryType", val);
+                      const error = validateField("industryType", val, formData);
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        error ? next.industryType = error : delete next.industryType;
+                        return next;
+                      });
                     }}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                      <SelectValue placeholder="Select industry type" />
+                      <SelectValue placeholder="Select Industry Type" />
                     </SelectTrigger>
-
                     <SelectContent>
                       {Object.entries(INDUSTRY_TYPE_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-
-                  {errors.industryType && (
-                    <p className="text-red-500 text-xs mt-1">{errors.industryType}</p>
-                  )}
+                  {fieldError(errors, "industryType")}
                 </div>
 
-
+                {/* Established Date */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    Established Date<span className="text-red-500">*</span>
+                    Established Date <span className="text-red-500">*</span>
                     <TooltipHint hint="Date when the organization was officially incorporated." />
-
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.establishedDate = el; }}
                     name="establishedDate"
                     type="date"
                     value={formData.establishedDate}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
+                    onChange={handleValidatedChange}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    required
                   />
-                  {errors.establishedDate && <p className="text-red-500 text-xs mt-1">{errors.establishedDate}</p>}
+                  {fieldError(errors, "establishedDate")}
                 </div>
 
+                {/* Timezone */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">Timezone<span className="text-red-500">*</span></Label>
+                  <Label className="text-sm font-semibold text-gray-700">Timezone</Label>
                   <Select
                     name="timezone"
                     value={formData.timezone}
-                    onValueChange={(val) => {
-                      setFormData(prev => ({ ...prev, timezone: val }));
-                      validateField("timezone", val); // optional
-                    }}
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, timezone: val }))}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
                       <SelectValue />
@@ -920,19 +712,24 @@ export default function EditOrganizationPage() {
                   </Select>
                 </div>
 
+                {/* Currency Code */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    Currency Code<span className="text-red-500">*</span>
+                    Currency Code <span className="text-red-500">*</span>
                   </Label>
                   <Select
                     name="currencyCode"
                     value={formData.currencyCode}
                     onValueChange={(val) => {
                       setFormData(prev => ({ ...prev, currencyCode: val as CurrencyCode }));
-                      validateField("currencyCode", val); // ← ADD THIS
+                      const error = validateField("currencyCode", val, formData);
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        error ? next.currencyCode = error : delete next.currencyCode;
+                        return next;
+                      });
                     }}
                   >
-
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
                       <SelectValue />
                     </SelectTrigger>
@@ -942,14 +739,13 @@ export default function EditOrganizationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldError(errors, "currencyCode")}
                 </div>
               </div>
 
               {/* Logo */}
               <div className="space-y-2">
                 <Label>Logo</Label>
-
-                {/* Show preview ONLY if available */}
                 {logoPreview && (
                   <img
                     src={logoPreview}
@@ -957,142 +753,143 @@ export default function EditOrganizationPage() {
                     className="w-24 h-24 object-cover rounded border shadow-sm mb-2"
                   />
                 )}
-
-
-
                 <Input
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0] ?? null;
                     handleFileChange("logo", file);
-
-                    if (file) {
-                      setLogoPreview(URL.createObjectURL(file));
-                    } else {
-                      setLogoPreview(""); // clear preview if no file
-                    }
+                    if (file) setLogoPreview(URL.createObjectURL(file));
+                    else setLogoPreview("");
                   }}
                   className="h-12 text-base border-gray-300"
                 />
               </div>
 
-
               {/* Bank Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Account Number */}
                 <div className="space-y-2">
-                  <Label>Account Number<span className="text-red-500">*</span>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Account Number <span className="text-red-500">*</span>
                     <TooltipHint hint="Bank account number (9-18 digits only)." />
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.accountNumber = el; }}
                     name="accountNumber"
-                    value={formData.accountNumber}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      if (/^\d*$/.test(e.target.value)) {
-                        handleChange(e);
-                      }
+                    value={formData.accountNumber ?? ''}
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "ACCOUNT_NUMBER",
+                        "account_number",
+                        "accountNumber",
+                        id,
+                        9
+                      )(e);
                     }}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300"
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter account number"
+                    required
                   />
-                  {errors.accountNumber && <p className="text-red-500 text-xs mt-1">{errors.accountNumber}</p>}
+                  {fieldError(errors, "accountNumber")}
                 </div>
 
+                {/* Account Holder Name */}
                 <div className="space-y-2">
-                  <Label>Account Holder Name<span className="text-red-500">*</span>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Account Holder Name <span className="text-red-500">*</span>
                     <TooltipHint hint="Full name as per bank records. Only letters and spaces allowed." />
                   </Label>
                   <Input
-                    ref={el => { inputRefs.current.accountHolderName = el; }}
                     name="accountHolderName"
-                    value={formData.accountHolderName}
-                    // onChange={handleChange}
-                    onChange={(e) => {
-                      if (/^[A-Za-z\s]*$/.test(e.target.value)) {
-                        handleChange(e);
-                      }
+                    value={formData.accountHolderName ?? ''}
+                    onChange={handleValidatedChange}
+                    onBlur={(e) => {
+                      if (!id) return;
+                      handleUniqueBlur(
+                        "ACCOUNT_HOLDER_NAME",
+                        "account_holder_name",
+                        "accountHolderName",
+                        id,
+                        3
+                      )(e);
                     }}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300"
-                    placeholder="Enter account holder name"
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="ABC Company Private Limited"
+                    required
                   />
-                  {errors.accountHolderName && <p className="text-red-500 text-xs mt-1">{errors.accountHolderName}</p>}
+                  {fieldError(errors, "accountHolderName")}
                 </div>
 
+                {/* IFSC Code */}
                 <div className="space-y-2">
-                  <Label>IFSC Code<span className="text-red-500">*</span>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    IFSC Code <span className="text-red-500">*</span>
                     <TooltipHint hint="11-character IFSC code. Auto-fills bank & branch name on blur." />
                   </Label>
+
                   <div className="relative">
                     <Input
-                      ref={el => { inputRefs.current.ifscCode = el; }}
                       name="ifscCode"
-                      value={formData.ifscCode}
-                      // onChange={handleChange}
-                      onChange={(e) => {
-                        const val = e.target.value.toUpperCase();
-                        setFormData(prev => ({ ...prev, ifscCode: val }));
-                      }}
-                      onBlur={async () => {
-                        validateField('ifscCode', formData.ifscCode);
-                        await handleIfscLookup();
-                      }}
-                      className="h-12 text-base border-gray-300 pr-10"
-                      placeholder="Enter IFSC"
+                      value={formData.ifscCode ?? ''}
+                      onChange={handleValidatedChange}
+                      onBlur={() => handleIfscLookup(formData.ifscCode ?? '')}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-10 uppercase"
+                      placeholder="Enter IFSC (auto-fills bank/branch)"
+                      maxLength={11}
+                      required
                     />
-                    {isLookingUp && <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />}
+                    {isLookingUp && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                    )}
                   </div>
-                  {errors.ifscCode && <p className="text-red-500 text-xs mt-1">{errors.ifscCode}</p>}
+
+                  {fieldError(errors, "ifscCode")}
                 </div>
 
+                {/* Bank Name */}
                 <div className="space-y-2">
-                  <Label>Bank Name<span className="text-red-500">*</span></Label>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Bank Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
-                    ref={el => { inputRefs.current.bankName = el; }}
                     name="bankName"
-                    value={formData.bankName}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300"
-                    placeholder="Bank name"
+                    value={formData.bankName ?? ''}
+                    readOnly
+                    className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
+                    placeholder="auto-filled"
+                    required
                   />
-                  {errors.bankName && <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>}
+                  {fieldError(errors, "bankName")}
                 </div>
 
+                {/* Branch Name */}
                 <div className="space-y-2">
-                  <Label>Branch Name<span className="text-red-500">*</span></Label>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Branch Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
-                    ref={el => { inputRefs.current.branchName = el; }}
                     name="branchName"
-                    value={formData.branchName}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className="h-12 text-base border-gray-300"
-                    placeholder="Branch name"
+                    value={formData.branchName ?? ''}
+                    readOnly
+                    className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
+                    placeholder="auto-filled"
+                    required
                   />
+                  {fieldError(errors, "branchName")}
                 </div>
               </div>
+
               {/* Digital Signature */}
-              {/* <div className="space-y-2">
+              <div className="space-y-2">
                 <Label>Digital Signature</Label>
-                
                 {signaturePreview && (
-                  signaturePreview.startsWith("blob:") || signaturePreview.match(/\.(png|jpg|jpeg|gif|svg)$/i)
-                    ? (
-                      <img
-                        src={signaturePreview}
-                        alt="Digital Signature"
-                        className="w-24 h-24 object-cover border rounded mb-2"
-                      />
-                    )
-                    : (
-                      <div className="px-3 py-2 bg-gray-100 border rounded text-sm text-gray-600 mb-2">
-                        File: {signaturePreview.split("/").pop()}
-                      </div>
-                    )
+                  <img
+                    src={signaturePreview}
+                    alt="Digital Signature Preview"
+                    className="h-28 object-contain border rounded-xl p-3 bg-white shadow-sm"
+                  />
                 )}
                 <Input
                   type="file"
@@ -1100,57 +897,21 @@ export default function EditOrganizationPage() {
                   onChange={(e) => {
                     const file = e.target.files?.[0] ?? null;
                     handleFileChange("digitalSignature", file);
-
                     if (file) {
                       if (file.type.startsWith("image/")) {
-                        setSignaturePreview(URL.createObjectURL(file)); // image preview
+                        setSignaturePreview(URL.createObjectURL(file));
                       } else {
-                        setSignaturePreview(file.name); // non-image -> label only
+                        setSignaturePreview("");
                       }
                     } else {
-                      setSignaturePreview(""); // hide preview
+                      setSignaturePreview("");
                     }
                   }}
                   className="h-12 text-base border-gray-300"
                 />
-              </div> */}
+              </div>
 
-                {/* Digital Signature */}
-<div className="space-y-2">
-  <Label>Digital Signature</Label>
-
-  {/* Show preview ONLY if available */}
-  {signaturePreview && (
-    <img
-      src={signaturePreview}
-      alt="Digital Signature Preview"
-      className="h-28 object-contain border rounded-xl p-3 bg-white shadow-sm"
-    />
-  )}
-
-  <Input
-    type="file"
-    accept=".p12,.pfx,.cer,image/*"
-    onChange={(e) => {
-      const file = e.target.files?.[0] ?? null;
-      handleFileChange("digitalSignature", file);
-
-      if (file) {
-        if (file.type.startsWith("image/")) {
-          setSignaturePreview(URL.createObjectURL(file));
-        } else {
-          setSignaturePreview(""); // no preview for cert files
-        }
-      } else {
-        setSignaturePreview("");
-      }
-    }}
-    className="h-12 text-base border-gray-300"
-  />
-</div>
-
-
-              {/* Addresses (optional) */}
+              {/* Addresses */}
               <div className="border-b border-gray-200 pb-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Addresses</h3>
@@ -1166,11 +927,15 @@ export default function EditOrganizationPage() {
                 )}
 
                 {formData.addresses.map((address, idx) => (
-                  console.log('Rendering address', idx, currentOrgId, address.addressId),
                   <div key={idx} className="mb-6 p-4 border rounded bg-gray-50">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium">Address {idx + 1}</h4>
-                      <Button type="button" variant="ghost" size="sm"  onClick={() => handleDeleteAddress(idx, address.addressId ?? null)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAddress(idx)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1179,86 +944,85 @@ export default function EditOrganizationPage() {
                       <div className="space-y-2">
                         <Label>House No.</Label>
                         <Input
-                          name={`addresses.${idx}.houseNo`}
-                          value={address.houseNo || ''}
-                          onChange={handleChange}
+                          value={address.houseNo || ""}
+                          onChange={(e) => handleAddressChange(idx, "houseNo", e.target.value)}
                           placeholder="e.g. 221B"
                         />
+                        {fieldError(errors, `addresses.${idx}.houseNo`)}
                       </div>
 
                       <div className="space-y-2">
                         <Label>Street Name</Label>
                         <Input
-                          name={`addresses.${idx}.streetName`}
-                          value={address.streetName || ''}
-                          onChange={handleChange}
+                          value={address.streetName || ""}
+                          onChange={(e) => handleAddressChange(idx, "streetName", e.target.value)}
                           placeholder="e.g. Baker Street"
                         />
+                        {fieldError(errors, `addresses.${idx}.streetName`)}
                       </div>
 
                       <div className="space-y-2">
                         <Label>City</Label>
                         <Input
-                          name={`addresses.${idx}.city`}
-                          value={address.city || ''}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
+                          value={address.city || ""}
+                          onChange={(e) => handleAddressChange(idx, "city", e.target.value)}
                           placeholder="e.g. Mumbai"
                         />
-                        {errors[`addresses.${idx}.city`] && <p className="text-red-500 text-xs mt-1">{errors[`addresses.${idx}.city`]}</p>}
+                        {fieldError(errors, `addresses.${idx}.city`)}
                       </div>
 
                       <div className="space-y-2">
                         <Label>State</Label>
                         <Input
-                          name={`addresses.${idx}.state`}
-                          value={address.state || ''}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
+                          value={address.state || ""}
+                          onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
                           placeholder="e.g. Maharashtra"
                         />
-                        {errors[`addresses.${idx}.state`] && <p className="text-red-500 text-xs mt-1">{errors[`addresses.${idx}.state`]}</p>}
+                        {fieldError(errors, `addresses.${idx}.state`)}
                       </div>
 
                       <div className="space-y-2">
                         <Label>Pincode</Label>
                         <Input
-                          name={`addresses.${idx}.pincode`}
-                          value={address.pincode || ''}
+                          value={address.pincode || ""}
+                          onChange={(e) => {
+                            const digitsOnly = e.target.value.replace(/\D/g, '');
+                            handleAddressChange(idx, "pincode", digitsOnly);
+                          }}
                           maxLength={6}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
                           placeholder="e.g. 400001"
                         />
-                        {errors[`addresses.${idx}.pincode`] && <p className="text-red-500 text-xs mt-1">{errors[`addresses.${idx}.pincode`]}</p>}
+                        {fieldError(errors, `addresses.${idx}.pincode`)}
                       </div>
 
                       <div className="space-y-2">
                         <Label>Country</Label>
                         <Input
-                          name={`addresses.${idx}.country`}
-                          value={address.country || ''}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
+                          value={address.country || ""}
+                          onChange={(e) => handleAddressChange(idx, "country", e.target.value)}
                           placeholder="e.g. India"
                         />
-                        {errors[`addresses.${idx}.country`] && <p className="text-red-500 text-xs mt-1">{errors[`addresses.${idx}.country`]}</p>}
+                        {fieldError(errors, `addresses.${idx}.country`)}
                       </div>
 
                       <div className="space-y-2">
                         <Label>Address Type</Label>
                         <Select
-                          name={`addresses.${idx}.addressType`}
-                          value={address.addressType || ''}
-                          onValueChange={(val) => handleAddressChange(idx, 'addressType', val as AddressType)}
+                          value={address.addressType || ""}
+                          onValueChange={(val) => handleAddressChange(idx, "addressType", val as AddressType)}
                         >
                           <SelectTrigger className="w-full min-w-[200px] !h-12">
-                            <SelectValue />
+                            <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {ADDRESS_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            {ADDRESS_TYPES.map(t => (
+                              <SelectItem key={t} value={t}>
+                                {t}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        {fieldError(errors, `addresses.${idx}.addressType`)}
                       </div>
                     </div>
                   </div>
@@ -1269,13 +1033,13 @@ export default function EditOrganizationPage() {
                 <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
-                <Button 
-         type="submit" 
-         disabled={saving || !hasChanges}
-         title={!hasChanges ? "No changes made" : ""}
-       >
-          {saving ? 'Saving...' : 'Update Organization'}
-        </Button>
+                <Button
+                  type="submit"
+                  disabled={saving || !hasChanges || !id}
+                  title={!hasChanges ? "No changes made" : ""}
+                >
+                  {saving ? 'Saving...' : 'Update Organization'}
+                </Button>
               </div>
             </form>
           </CardContent>

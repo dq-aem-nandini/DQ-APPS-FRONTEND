@@ -51,12 +51,14 @@ import {
   Upload,
   Shield,
   FileCheck,
+  Loader2,
 } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import { employeeService } from "@/lib/api/employeeService";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { useEmployeeFieldValidation } from "@/hooks/useFieldValidation";
+import TooltipHint from "@/components/ui/TooltipHint";
 
 
 interface FileInputProps {
@@ -153,7 +155,9 @@ const EditEmployeePage = () => {
   const [isDirty, setIsDirty] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
+  const [localIfsc, setLocalIfsc] = useState<string>("");
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
   // ✅ Safe handleChange — ONLY updates state
   const { validateField } = useEmployeeFieldValidation();
@@ -208,7 +212,65 @@ const EditEmployeePage = () => {
     validateField   // ← this makes it use EMPLOYEE rules
   );
 
-
+  // Handle IFSC lookup
+  const handleIfscLookup = async (ifsc: string) => {
+    const code = ifsc.trim().toUpperCase();
+  
+    if (!code) {
+      setErrors((prev) => ({ ...prev, ifscCode: "Please enter IFSC code" }));
+      return;
+    }
+  
+    if (code.length !== 11) {
+      setErrors((prev) => ({ ...prev, ifscCode: "IFSC must be exactly 11 characters" }));
+      return;
+    }
+  
+    if (isLookingUp) return;
+  
+    setIsLookingUp(true);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.ifscCode;
+      return next;
+    });
+  
+    try {
+      const res = await employeeService.getIFSCDetails(code);
+  
+      if (res?.flag && res.response) {
+        const { BANK = "", BRANCH = "" } = res.response;
+  
+        // Early return if formData is null (should never happen after mount, but safe)
+        if (!formData) {
+          console.warn("formData is null during IFSC lookup – skipping update");
+          return;
+        }
+  
+        setFormData({
+          ...formData,                           // ← full object guaranteed
+          ifscCode: code,
+          bankName: BANK.trim() || formData.bankName || "",
+          branchName: BRANCH.trim() || formData.branchName || "",
+        });
+  
+        setSuccess("Bank & branch details auto-filled!");
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          ifscCode: res?.message || "Invalid IFSC code",
+        }));
+      }
+    } catch (err: any) {
+      console.error("IFSC lookup failed:", err);
+      setErrors((prev) => ({
+        ...prev,
+        ifscCode: "Failed to fetch bank details. Try again.",
+      }));
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
   // const [checking, setChecking] = useState<Set<string>>(new Set());
   const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
   const designations: Designation[] = [
@@ -245,7 +307,7 @@ const EditEmployeePage = () => {
     "TAX_DECLARATION_FORM",
     "WORK_PERMIT",
     "PAN_CARD",
-    "AADHAAR_CARD",
+    "AADHAR_CARD",
     "BANK_PASSBOOK",
     "TENTH_CERTIFICATE",
     "TWELFTH_CERTIFICATE",
@@ -2459,8 +2521,6 @@ const EditEmployeePage = () => {
                               </p>
                             )}
                           </div>
-
-
                           {/* Amount */}
                           <Input
                             type="number"
@@ -2566,7 +2626,162 @@ const EditEmployeePage = () => {
                 </div>
               </CardContent>
             </Card>
+   {/* Bank Details - RESPONSIVE & UNIFORM */}
+   <Card className="shadow-xl border-0">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-2xl pb-6">
+                <CardTitle className="flex items-center gap-3 text-2xl font-bold text-rose-900">
+                  <FileText className="w-7 h-7 text-rose-800" />
+                  Bank Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* PAN Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      PAN Number
+                      <TooltipHint hint="Permanent Account Number for tax purposes. Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)" />
+                    </Label>
+                    <Input
+                      name="panNumber"
+                      value={formData.panNumber || ""}
+                        onChange={handleValidatedChange}
+                        pattern="[A-Z0-9]{10}"
+                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
 
+                      maxLength={10}
+                      placeholder="e.g.ABCDE1234F"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "panNumber")}
+                  </div>
+
+                  {/* Aadhar Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Aadhar Number
+                      <TooltipHint hint="12-digit unique ID issued by UIDAI. Format: 1234 5678 9012" />
+                    </Label>
+                    <Input
+                      name="aadharNumber"
+                      value={formData.aadharNumber || ""}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = onlyDigits;
+                        handleValidatedChange(e);
+                      }}
+                      pattern="[0-9]{12}"
+                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
+                      inputMode="numeric"
+                      maxLength={12}
+                      placeholder="e.g.123456789012"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "aadharNumber")}
+                  </div>
+
+                  {/* Account Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Account Number
+                      <TooltipHint hint="Bank account number for salary deposits. Typically 9-18 digits." />
+                    </Label>
+                    <Input
+                      name="accountNumber"
+                      value={formData.accountNumber || ""}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = onlyDigits;
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={handleUniqueBlur("ACCOUNT_NUMBER", "account_number", "accountNumber")}
+
+                      inputMode="numeric"
+                      maxLength={18}
+                      placeholder="123456789012"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "accountNumber")}
+                  </div>
+
+                  {/* Account Holder Name – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Account Holder Name
+                      <TooltipHint hint="Name as per bank records. Avoid special characters." />
+                    </Label>
+                    <Input
+                      name="accountHolderName"
+                      value={formData.accountHolderName || ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. As per bank passbook / statement"
+                      maxLength={100}
+                      className="h-12"
+                    />
+                    {fieldError(errors, "accountHolderName")}
+                  </div>
+
+                  {/* IFSC Code – Optional + Lookup */}
+                  <div className="space-y-2 relative">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      IFSC Code
+                      <TooltipHint hint="11-character code to identify bank branch. Format: ABCD0123456" />
+                    </Label>
+                    <Input
+                      name="ifscCode"
+                      value={localIfsc}
+                      onChange={(e) => {
+                        setLocalIfsc(e.target.value.toUpperCase());
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={() => handleIfscLookup(localIfsc)}
+                      placeholder="e.g. HDFC0000123"
+                      maxLength={11}
+                      className="h-12 pr-10 uppercase tracking-wider"
+                    />
+                    {isLookingUp && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-blue-500" />
+                    )}
+                    {fieldError(errors, "ifscCode")}
+                  </div>
+
+                  {/* Bank Name – Auto-filled, read-only */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Bank Name
+                      <TooltipHint hint="Auto-filled based on IFSC code. Read-only field." />
+                    </Label>
+                    <Input
+                      name="bankName"
+                      value={formData.bankName || ""}
+                      readOnly
+                      placeholder="Auto-filled from IFSC"
+                      className="h-12 bg-gray-50 cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Branch Name – Optional */}
+                  <div className="space-y-2 lg:col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Branch Name
+                      <TooltipHint hint="Optional field for bank branch name. Can be auto-filled from IFSC but editable." />
+                    </Label>
+                    <Input
+                      name="branchName"
+                      value={formData.branchName || ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. Mumbai Main Branch"
+                      maxLength={100}
+                      className="h-12"
+                    />
+                    {fieldError(errors, "branchName")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             {/* ==================== DOCUMENTS CARD (UPDATED UI) ==================== */}
             <Card className="shadow-xl border-0">
               <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-2xl pb-6">
@@ -2777,12 +2992,7 @@ const EditEmployeePage = () => {
                               <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
                             </div>
                           )}
-                          {errors[`equipment_${i}_serial`] && (
-                            <p className="text-red-500 text-xs">
-                              {errors[`equipment_${i}_serial`]}
-                            </p>
-                          )}
-
+                          {fieldError(errors, `employeeEquipmentDTO[${i}].serialNumber`)}
                         </div>
 
                         {/* Issued Date */}

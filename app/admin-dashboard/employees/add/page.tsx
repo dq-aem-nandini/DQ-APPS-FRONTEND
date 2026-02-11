@@ -26,6 +26,7 @@ import {
   PAY_CLASS_OPTIONS,
   WORKING_MODEL_OPTIONS,
   EmployeeDepartmentDTO,
+  WorkingModel,
 } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
@@ -37,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Briefcase, FileText, Laptop, Shield, FileCheck, Upload, Trash2, Plus, Loader2 } from 'lucide-react';
+import { User, Briefcase, FileText, Laptop, Shield, FileCheck, Upload, Trash2, Plus, Loader2, DollarSign } from 'lucide-react';
 import { employeeService } from '@/lib/api/employeeService';
 import TooltipHint from '@/components/ui/TooltipHint';
 import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
@@ -49,6 +50,7 @@ interface Client {
 }
 type DocumentFileKey = 'offerLetter' | 'contract' | 'taxDeclarationForm' | 'workPermit';
 const AddEmployeePage = () => {
+
   const [formData, setFormData] = useState<EmployeeModel>({
     firstName: '',
     lastName: '',
@@ -159,20 +161,31 @@ const AddEmployeePage = () => {
   const [managers, setManagers] = useState<EmployeeDTO[]>([]);
   const [isDirty, setIsDirty] = useState(false);   // optional, but useful
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
-
+  const [localIfsc, setLocalIfsc] = useState<string>("");
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
   const { validateField } = useEmployeeFieldValidation();   // ← employee validator
   const handleChange = (e: any) => {
-    const { name } = e.target;
+    const target = e?.target;
+    const name: string | undefined = target?.name;
+
+    if (!name) return; // ✅ guard clause
 
     let value =
-      e.target.value !== undefined ? e.target.value : e.target.checked;
+      target.value !== undefined ? target.value : target.checked;
 
     if (typeof value === "boolean") {
       value = value ? true : null;
     }
 
-    if (['ctc', 'standardHours', 'rateCard', 'numberOfChildren'].some(f => name.includes(f))) {
-      value = value === '' || value == null ? null : Number(value) || null;
+    if (
+      ['ctc', 'standardHours', 'rateCard', 'numberOfChildren']
+        .some(f => name.includes(f))
+    ) {
+      value =
+        value === '' || value == null
+          ? null
+          : Number(value) || null;
     }
 
     setFormData(prev => {
@@ -189,6 +202,7 @@ const AddEmployeePage = () => {
       return { ...prev, [name]: value };
     });
   };
+
   const { handleValidatedChange, handleUniqueBlur, fieldError } = useFormFieldHandlers(
     handleChange,
     setErrors,
@@ -207,7 +221,59 @@ const AddEmployeePage = () => {
     formData.clientSelection,
   ]);
 
+  // Handle IFSC lookup
+  const handleIfscLookup = async (ifsc: string) => {
+    const code = ifsc.trim().toUpperCase();
 
+    if (!code) {
+      setErrors((prev) => ({ ...prev, ifscCode: "Please enter IFSC code" }));
+      return;
+    }
+
+    if (code.length !== 11) {
+      setErrors((prev) => ({ ...prev, ifscCode: "IFSC must be exactly 11 characters" }));
+      return;
+    }
+
+    if (isLookingUp) return;
+
+    setIsLookingUp(true);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.ifscCode;
+      return next;
+    });
+
+    try {
+      const res = await employeeService.getIFSCDetails(code);
+
+      if (res?.flag && res.response) {
+        const { BANK = "", BRANCH = "" } = res.response;
+
+        setFormData((prev) => ({
+          ...prev,
+          ifscCode: code,
+          bankName: BANK.trim() || prev.bankName || "",
+          branchName: BRANCH.trim() || prev.branchName || "",
+        }));
+
+        setSuccess("Bank & branch details auto-filled!");
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          ifscCode: res?.message || "Invalid IFSC code",
+        }));
+      }
+    } catch (err: any) {
+      console.error("IFSC lookup failed:", err);
+      setErrors((prev) => ({
+        ...prev,
+        ifscCode: "Failed to fetch bank details. Try again.",
+      }));
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
   const fetchDepartmentEmployees = async (dept: Department) => {
     if (!dept) {
       setDepartmentEmployees([]);
@@ -232,7 +298,7 @@ const AddEmployeePage = () => {
   ];
   const documentTypes: DocumentType[] = [
     'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
-    'AADHAAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
+    'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
     'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
   ];
   const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
@@ -511,13 +577,38 @@ const AddEmployeePage = () => {
       };
       const missingField = requiredFields.find(f => !f.value);
       if (missingField) {
-        setErrors({ [missingField.name]: 'This field is required' });
+        setErrors({ [missingField.name]: `Please fill ${missingField.label}` });
+
         setTimeout(() => {
-          const input = document.querySelector(`[name="${missingField.name}"]`) as HTMLInputElement;
-          input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          input?.focus();
-          // input?.classList.add('error-field');
-        }, 100);
+          let element: HTMLElement | null = null;
+
+          if (missingField.name.includes(".")) {
+            const child = missingField.name.split(".").pop()!;
+
+            // Try to find <input name="ctc"> for CTC
+            element = document.querySelector(`input[name="${child}"]`);
+
+            // For Select fields (Pay Type, Department, etc.)
+            if (!element) {
+              element = document.querySelector(
+                `select[name="${child}"] ~ button[role="combobox"]`
+              ) as HTMLElement;
+            }
+          } else {
+            element = document.querySelector(`[name="${missingField.name}"]`) as HTMLElement;
+          }
+
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            element.focus();
+            // Visual feedback
+            element.classList.add("ring-2", "ring-red-500", "ring-offset-2");
+            setTimeout(() => {
+              element?.classList.remove("ring-2", "ring-red-500", "ring-offset-2");
+            }, 3000);
+          }
+        }, 150);
+
         setIsSubmitting(false);
         return;
       }
@@ -624,7 +715,11 @@ const AddEmployeePage = () => {
 
     // 🚫 Joining is mandatory anchor
     if (!doJ) {
-      setErrors(newErrors);
+      setErrors(prev => ({
+        ...prev,
+        ...newErrors
+      }));
+      
       return;
     }
 
@@ -717,7 +812,38 @@ const AddEmployeePage = () => {
   const canAddDocument =
     !hasAnyDocTypeSelected || hasValidDocument;
 
+  const isFormValid = () => {
+    // Required top-level fields
+    if (!formData.firstName.trim()) return false;
+    if (!formData.lastName.trim()) return false;
+    if (!formData.personalEmail.trim()) return false;
+    if (!formData.companyEmail.trim()) return false;
+    if (!formData.contactNumber.trim()) return false;
+    if (!formData.dateOfBirth) return false;
+    if (!formData.nationality.trim()) return false;
+    if (!formData.gender) return false;
 
+    // Client / Selection
+    if (!formData.clientSelection && !formData.clientId) return false;
+
+    // Employment
+    if (!formData.employeeEmploymentDetailsDTO?.department) return false;
+    if (!formData.designation) return false;
+    if (!formData.dateOfJoining) return false;
+
+    // Salary
+    if (!formData.employeeSalaryDTO?.payType) return false;
+    if (!formData.employmentType) return false;
+    if (formData.employeeSalaryDTO?.ctc == null || formData.employeeSalaryDTO.ctc <= 0) return false;
+
+    // Optional client dates only if not STATUS client
+    if (!isStatusClient) {
+      if (!formData.dateOfOnboardingToClient) return false;
+    }
+
+    // No errors remaining
+    return Object.keys(errors).length === 0;
+  };
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 md:p-8">
@@ -1417,10 +1543,11 @@ const AddEmployeePage = () => {
                     {fieldError(errors, "employeeSalaryDTO.standardHours")}
 
                   </div>
-                  {/* Pay Class */}
+                  {/* Pay Class – now uses correct options */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Pay Class
-                      <TooltipHint hint="Salary classification: Salaried, Hourly, Contractor, etc." />
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Pay Class 
+                      <TooltipHint hint="Salary classification: A1, A2, INTERN, NA, B1, B2, CONTRACT" />
                     </Label>
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ''}
@@ -1458,9 +1585,11 @@ const AddEmployeePage = () => {
                     </Select>
                     {fieldError(errors, "employeeSalaryDTO.payClass")}
                   </div>
-                  {/* Working Model */}
+
+                  {/* Working Model – now uses correct options */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Working Model
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Working Model
                       <TooltipHint hint="Work arrangement: Remote, Hybrid, Onsite, etc." />
                     </Label>
                     <Select
@@ -1468,37 +1597,45 @@ const AddEmployeePage = () => {
                       onValueChange={(v) => {
                         setIsDirty(true);
 
-                        setFormData(prev => {
-                          const next = {
-                            ...prev,
-                            gender: v,
-                          };
+                        const workingModel = v as WorkingModel;
 
-                          const error = validateField("gender", v, next);
-                          setErrors(prevErr => {
-                            const e = { ...prevErr };
-                            error ? (e.gender = error) : delete e.gender;
-                            return e;
-                          });
+                        const nextData: EmployeeModel = {
+                          ...formData,
+                          employeeEmploymentDetailsDTO: {
+                            ...formData.employeeEmploymentDetailsDTO!,
+                            workingModel,
+                          },
+                        };
 
+                        setFormData(nextData);
+
+                        const error = validateField(
+                          "employeeEmploymentDetailsDTO.workingModel",
+                          workingModel,
+                          nextData
+                        );
+
+                        setErrors(prev => {
+                          const next = { ...prev };
+                          error
+                            ? (next["employeeEmploymentDetailsDTO.workingModel"] = error)
+                            : delete next["employeeEmploymentDetailsDTO.workingModel"];
                           return next;
                         });
                       }}
-
                     >
-
                       <SelectTrigger className="w-full min-w-[200px] !h-12">
-                        <SelectValue placeholder="Select Pay Class" />
+                        <SelectValue placeholder="Select Working Model" /> {/* ← Fixed placeholder */}
                       </SelectTrigger>
                       <SelectContent>
-                        {PAY_CLASS_OPTIONS.map(cls => (
-                          <SelectItem key={cls} value={cls}>
-                            {cls}
+                        {WORKING_MODEL_OPTIONS.map(m => (
+                          <SelectItem key={m} value={m}>
+                            {m}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {fieldError(errors, "employeeSalaryDTO.payClass")}
+                    {fieldError(errors, "employeeEmploymentDetailsDTO.workingModel")} {/* ← Fixed error key */}
                   </div>
                   {/* Shift Timing */}
                   <div className="space-y-2">
@@ -1917,6 +2054,162 @@ const AddEmployeePage = () => {
                 </div>
               </CardContent>
             </Card>
+            {/* Bank Details - RESPONSIVE & UNIFORM */}
+            <Card className="shadow-xl border-0">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-2xl pb-6">
+                <CardTitle className="flex items-center gap-3 text-2xl font-bold text-rose-900">
+                  <FileText className="w-7 h-7 text-rose-800" />
+                  Bank Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* PAN Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      PAN Number
+                      <TooltipHint hint="Permanent Account Number for tax purposes. Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)" />
+                    </Label>
+                    <Input
+                      name="panNumber"
+                      value={formData.panNumber || ""}
+                        onChange={handleValidatedChange}
+                        pattern="[A-Z0-9]{10}"
+                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
+
+                      maxLength={10}
+                      placeholder="e.g.ABCDE1234F"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "panNumber")}
+                  </div>
+
+                  {/* Aadhar Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Aadhar Number
+                      <TooltipHint hint="12-digit unique ID issued by UIDAI. Format: 1234 5678 9012" />
+                    </Label>
+                    <Input
+                      name="aadharNumber"
+                      value={formData.aadharNumber || ""}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = onlyDigits;
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
+                      inputMode="numeric"
+                      maxLength={12}
+                      placeholder="e.g.123456789012"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "aadharNumber")}
+                  </div>
+
+                  {/* Account Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Account Number
+                      <TooltipHint hint="Bank account number for salary deposits. Typically 9-18 digits." />
+                    </Label>
+                    <Input
+                      name="accountNumber"
+                      value={formData.accountNumber || ""}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = onlyDigits;
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={handleUniqueBlur("ACCOUNT_NUMBER", "account_number", "accountNumber")}
+
+                      inputMode="numeric"
+                      maxLength={18}
+                      placeholder="123456789012"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "accountNumber")}
+                  </div>
+
+                  {/* Account Holder Name – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Account Holder Name
+                      <TooltipHint hint="Name as per bank records. Avoid special characters." />
+                    </Label>
+                    <Input
+                      name="accountHolderName"
+                      value={formData.accountHolderName || ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. As per bank passbook / statement"
+                      maxLength={100}
+                      className="h-12"
+                    />
+                    {fieldError(errors, "accountHolderName")}
+                  </div>
+
+                  {/* IFSC Code – Optional + Lookup */}
+                  <div className="space-y-2 relative">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      IFSC Code
+                      <TooltipHint hint="11-character code to identify bank branch. Format: ABCD0123456" />
+                    </Label>
+                    <Input
+                      name="ifscCode"
+                      value={formData.ifscCode || ""}
+                      onChange={(e) => {
+                        setLocalIfsc(e.target.value.toUpperCase());
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={() => handleIfscLookup(localIfsc)}
+                      placeholder="e.g. HDFC0000123"
+                      maxLength={11}
+                      className="h-12 pr-10 uppercase tracking-wider"
+                    />
+                    {isLookingUp && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-blue-500" />
+                    )}
+                    {fieldError(errors, "ifscCode")}
+                  </div>
+
+                  {/* Bank Name – Auto-filled, read-only */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Bank Name
+                      <TooltipHint hint="Auto-filled based on IFSC code. Read-only field." />
+                    </Label>
+                    <Input
+                      name="bankName"
+                      value={formData.bankName || ""}
+                      readOnly
+                      placeholder="Auto-filled from IFSC"
+                      className="h-12 bg-gray-50 cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Branch Name – Optional */}
+                  <div className="space-y-2 lg:col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Branch Name
+                      <TooltipHint hint="Optional field for bank branch name. Can be auto-filled from IFSC but editable." />
+                    </Label>
+                    <Input
+                      name="branchName"
+                      value={formData.branchName || ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. Mumbai Main Branch"
+                      maxLength={100}
+                      className="h-12"
+                    />
+                    {fieldError(errors, "branchName")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* DOCUMENTS - RESPONSIVE & UNIFORM */}
             <Card className="shadow-xl border-0">
               <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-2xl pb-6">
@@ -1932,7 +2225,7 @@ const AddEmployeePage = () => {
                       {/* Document Type */}
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Document Type
-                          <TooltipHint hint="Common documents: Aadhaar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
+                          <TooltipHint hint="Common documents: Aadhar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
                         </Label>
                         <Select
                           value={doc.docType}
@@ -2392,7 +2685,7 @@ const AddEmployeePage = () => {
                   {/* Passport Number - Keep uniqueness (as per your original) */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                      Passport Number 
+                      Passport Number
                       <TooltipHint hint="Indian passport number. Format: One letter + 7 digits (e.g., A1234567). Must be unique." />
                     </Label>
                     <div className="relative">
@@ -2425,7 +2718,7 @@ const AddEmployeePage = () => {
                   {/* PF UAN Number - Keep uniqueness */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                      PF UAN Number 
+                      PF UAN Number
                       <TooltipHint hint="12-digit Universal Account Number for Provident Fund. Must be unique across all employees." />
                     </Label>
                     <div className="relative">
@@ -2531,23 +2824,39 @@ const AddEmployeePage = () => {
               </CardContent>
             </Card>
             {/* SUBMIT */}
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end gap-6 items-center mt-10 border-t pt-6">
               <Button type="button" variant="outline" onClick={() => router.push('/admin-dashboard/employees/list')}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || ((hasAnyDocTypeSelected || hasAnyFileSelected) && !hasValidDocument)}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Add Employee'
+
+              <div className="relative group">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !isFormValid()}
+                  className={`min-w-[180px] transition-all ${isFormValid() && !isSubmitting
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
+                    : "bg-gray-400 cursor-not-allowed"
+                    } text-white`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Add Employee'
+                  )}
+                </Button>
+
+                {/* Show tooltip when disabled due to missing fields */}
+                {!isSubmitting && !isFormValid() && (
+                  <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block z-50 pointer-events-none">
+                    <div className="bg-gray-900 text-white text-sm rounded-lg py-2 px-4 shadow-xl whitespace-nowrap border border-gray-700">
+                      Fill all required fields to enable
+                    </div>
+                  </div>
                 )}
-              </Button>
+              </div>
             </div>
           </form>
         </div>
