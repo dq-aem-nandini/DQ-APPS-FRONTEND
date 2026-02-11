@@ -167,8 +167,19 @@ export default function AddClientPage() {
       });
     });
 
-    setErrors(prev => ({ ...prev, ...newErrors }));
-  };
+    setErrors(prev => {
+      const next = { ...prev };
+    
+      // remove old duplicate errors
+      Object.keys(next).forEach(key => {
+        if (key.includes('clientPocs') || key === 'email' || key === 'contactNumber') {
+          delete next[key];
+        }
+      });
+    
+      return { ...next, ...newErrors };
+    });
+      };
   // Run duplicate check whenever email, contact, or POCs change
   useEffect(() => {
     checkDuplicateInForm();
@@ -983,10 +994,26 @@ export default function AddClientPage() {
                             value={poc.contactNumber || ""}
                             maxLength={10}
                             onChange={(e) => {
-                              if (/^\d*$/.test(e.target.value)) {
-                                handleChange(e, i, "clientPocs");
-                              }
+                              if (!/^\d*$/.test(e.target.value)) return;
+                            
+                              handleChange(e, i, "clientPocs");
+                            
+                              const val = e.target.value;
+                            
+                              const error = validateField(
+                                `clientPocs.${i}.contactNumber`,
+                                val,
+                                formData
+                              );
+                            
+                              setErrors(prev => {
+                                const next = { ...prev };
+                                if (error) next[`clientPocs.${i}.contactNumber`] = error;
+                                else delete next[`clientPocs.${i}.contactNumber`];
+                                return next;
+                              });
                             }}
+                            
                             onBlur={(e) => {
                               const val = e.target.value.trim();
 

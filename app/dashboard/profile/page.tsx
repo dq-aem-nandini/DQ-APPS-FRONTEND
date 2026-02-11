@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { employeeService } from "@/lib/api/employeeService";
-import { EmployeeDTO, AddressModel, BankMaster } from "@/lib/api/types";
+import { EmployeeDTO, AddressModel } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { v4 as uuidv4 } from "uuid";
@@ -20,20 +20,24 @@ import {
   Building,
   Upload,
   Trash2,
-  Download,
+
   Eye,
   Camera,
+  Loader2,
+  Plus,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { DocumentType, EmployeeDocumentDTO } from "@/lib/api/types";
-import { UniqueField, validationService } from "@/lib/api/validationService";
+import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
+import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
+import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
   "OFFER_LETTER",
   "CONTRACT",
   "TAX_DECLARATION_FORM",
   "WORK_PERMIT",
   "PAN_CARD",
-  "AADHAAR_CARD",
+  "AADHAR_CARD",
   "BANK_PASSBOOK",
   "TENTH_CERTIFICATE",
   "TWELFTH_CERTIFICATE",
@@ -111,18 +115,53 @@ const ProfilePage = () => {
     new Set()
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [checking, setChecking] = useState<Set<string>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
   // Bank search
-  const [bankSearch, setBankSearch] = useState("");
-  const [bankOptions, setBankOptions] = useState<BankMaster[]>([]);
-  const [bankSearchTimeout, setBankSearchTimeout] =
-    useState<NodeJS.Timeout | null>(null);
+  // const [bankSearch, setBankSearch] = useState("");
+  // const [bankOptions, setBankOptions] = useState<BankMaster[]>([]);
+  // const [bankSearchTimeout, setBankSearchTimeout] =
+  //   useState<NodeJS.Timeout | null>(null);
   const [documents, setDocuments] = useState<FormDocument[]>([]);
   // IFSC local state (prevents focus loss)
   const [localIfsc, setLocalIfsc] = useState<string>("");
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  // ────────────────────────────────────────────────
+  // Reusable hooks (same as organization forms)
+  // ────────────────────────────────────────────────
+  const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+  const { validateField } = useOrganizationFieldValidation();
+
+  const {
+    handleValidatedChange,
+    handleUniqueBlur,
+    fieldError,
+  } = useFormFieldHandlers(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      let formatted = value;
+
+      // Reuse same formatting rules as organization
+      if (['panNumber', 'ifscCode'].includes(name)) {
+        formatted = value.toUpperCase();
+      }
+      if (name === 'personalEmail') {
+        formatted = value.toLowerCase();
+      }
+      if (['contactNumber', 'alternateContactNumber', 'emergencyContactNumber', 'accountNumber', 'aadharNumber'].includes(name)) {
+        formatted = value.replace(/[^0-9]/g, '');
+      }
+      if (name === 'gender' || name === 'maritalStatus') {
+        formatted = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+      }
+
+      setFormData(prev => prev ? { ...prev, [name]: formatted } : null);
+    },
+    setErrors,
+    checkUniqueness,
+    () => formData,
+    validateField
+  );
   interface FormDocument extends EmployeeDocumentDTO {
     fileObj?: File | null;
     tempId?: string;
@@ -248,181 +287,40 @@ const ProfilePage = () => {
   };
   // Handle IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
-    if (isLookingUp || !formData) return;
+    const code = (ifsc ?? '').trim().toUpperCase();
+
+    if (!code || isLookingUp || errors.ifscCode) return;
+
     setIsLookingUp(true);
-    console.log("Looking up IFSC:", ifsc); // DEBUG LOG
 
     try {
-      const res = await employeeService.getIFSCDetails(ifsc);
-      console.log("API Response:", res); // SEE EXACT RESPONSE
+      const res = await employeeService.getIFSCDetails(code);
 
-      if (res.flag && res.response) {
+      if (res?.flag && res.response) {
         const data = res.response;
 
-        const bankName = data.BANK;
-        const branchName = data.BRANCH;
+        setFormData(prev => prev ? {
+          ...prev,
+          bankName: data.BANK ?? '',
+          branchName: data.BRANCH ?? '',
+          ifscCode: code,
+        } : null);
 
-        console.log("Auto-filling → Bank:", bankName, "| Branch:", branchName);
-
-        setFormData((prev) =>
-          prev
-            ? {
-              ...prev,
-              bankName: bankName,
-              branchName: branchName,
-            }
-            : null
-        );
-
-        setSuccess("Bank details auto-filled!");
-        setBankSearch("");
-        setBankOptions([]);
+        setSuccess('Bank details auto-filled!');
+        setErrors(prev => {
+          const n = { ...prev };
+          delete n.ifscCode;
+          return n;
+        });
+      } else {
+        setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
       }
     } catch (err: any) {
-      console.log("IFSC lookup failed:", err);
+      console.error('IFSC lookup error:', err);
+      setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
     } finally {
       setIsLookingUp(false);
     }
-  };
-
-  const checkUniqueness = async (
-    field: UniqueField,
-    value: string,
-    errorKey: string,
-    fieldColumn: string, // ← REQUIRED: exact DB column name
-    excludeId?: string // ← Optional: statutoryId, insuranceId, equipmentId, etc.
-  ) => {
-    const val = value.trim();
-    if (!val || val.length < 3 || checking.has(errorKey)) return;
-
-    setChecking((prev) => new Set(prev).add(errorKey));
-
-    try {
-      const result = await validationService.validateField({
-        field,
-        value: val,
-        mode: excludeId ? "edit" : "create", // If we have an ID → edit mode
-        excludeId, // Send the correct ID (employeeId, statutoryId, etc.)
-        fieldColumn, // ← This is CRITICAL — tells backend which column we're editing
-      });
-
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        if (result.exists) {
-          newErrors[errorKey] =
-            result.message || "This value already exists in the system";
-        } else {
-          delete newErrors[errorKey];
-        }
-        return newErrors;
-      });
-    } catch (err: any) {
-      console.warn("Uniqueness check failed:", err);
-      // Optional: show temporary message
-      setErrors((prev) => ({
-        ...prev,
-        [errorKey]: "Validation unavailable. Try again.",
-      }));
-    } finally {
-      setChecking((prev) => {
-        const next = new Set(prev);
-        next.delete(errorKey);
-        return next;
-      });
-    }
-  };
-  // REAL-TIME VALIDATION
-  const validateField = (name: string, value: any) => {
-    const val = String(value ?? "").trim();
-    const newErrors = { ...errors };
-
-    // Clear previous error
-    delete newErrors[name];
-
-    // === REGEX PATTERNS ===
-    const patterns = {
-      onlyLetters: /^[A-Za-z\s]+$/,
-      email: /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/,
-      mobile: /^[6-9]\d{9}$/,
-      pan: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
-      aadhaar: /^\d{12}$/,
-      ifsc: /^[A-Z]{4}0[A-Z0-9]{6}$/,
-    };
-
-    // === REQUIRED FIELDS ===
-    const requiredFields = [
-      "firstName",
-      "lastName",
-      "dateOfBirth",
-      "gender",
-      "maritalStatus",
-      "nationality",
-    ];
-
-    if (requiredFields.includes(name) && !val) {
-      newErrors[name] = "This field is required";
-      return setErrors(newErrors);
-    }
-
-    // === FIELD-WISE VALIDATIONS ===
-
-    switch (name) {
-      case "firstName":
-      case "lastName":
-        if (val && !patterns.onlyLetters.test(val))
-          newErrors[name] = "Only letters and spaces allowed";
-        else if (val.length > 30)
-          newErrors[name] = "Maximum 30 characters allowed";
-        break;
-
-      case "personalEmail":
-        if (val && !patterns.email.test(val))
-          newErrors[name] = "Invalid email format";
-        break;
-
-      case "contactNumber":
-      case "alternateContactNumber":
-      case "emergencyContactNumber":
-        if (val && !patterns.mobile.test(val))
-          newErrors[name] = "Enter valid 10-digit Indian mobile number";
-        break;
-
-      case "panNumber":
-        if (val && !patterns.pan.test(val))
-          newErrors[name] = "Invalid PAN format (Example: ABCDE1234F)";
-        break;
-
-      case "aadharNumber":
-        if (val && !patterns.aadhaar.test(val))
-          newErrors[name] = "Aadhaar must be exactly 12 digits";
-        break;
-
-      case "accountNumber":
-        if (!val) {
-          newErrors[name] = "Account number is required";
-        } else if (val.length < 9) {
-          newErrors[name] = "Account number must be at least 9 digits";
-        } else if (val.length > 18) {
-          newErrors[name] = "Account number cannot exceed 18 digits";
-        }
-        break;
-
-      case "ifscCode":
-        if (val && !patterns.ifsc.test(val))
-          newErrors[name] = "Invalid IFSC format (Example: SBIN0000123)";
-        break;
-
-      case "numberOfChildren":
-        const num = Number(val);
-        if (isNaN(num) || num < 0)
-          newErrors[name] = "Must be a non-negative number";
-        break;
-
-      default:
-        break;
-    }
-
-    setErrors(newErrors);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -640,46 +538,42 @@ const ProfilePage = () => {
     }
   };
 
-
-
-
-
   const onChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value: rawValue } = e.target;
     let normalizedValue = rawValue;
 
-    // === Special field transformations ===
-    if (name === "personalEmail") {
-      // Force lowercase for email
-      normalizedValue = rawValue.toLowerCase();
-    }
+    // // === Special field transformations ===
+    // if (name === "personalEmail") {
+    //   // Force lowercase for email
+    //   normalizedValue = rawValue.toLowerCase();
+    // }
 
-    if (name === "panNumber") {
-      // Force uppercase for PAN
-      normalizedValue = rawValue.toUpperCase();
-      // Optional: Allow only alphanumeric (PAN format)
-      normalizedValue = normalizedValue.replace(/[^A-Z0-9]/g, "");
-    }
+    // if (name === "panNumber") {
+    //   // Force uppercase for PAN
+    //   normalizedValue = rawValue.toUpperCase();
+    //   // Optional: Allow only alphanumeric (PAN format)
+    //   normalizedValue = normalizedValue.replace(/[^A-Z0-9]/g, "");
+    // }
 
     // Prevent leading spaces for most fields
-    if (!["personalEmail", "panNumber"].includes(name)) {
-      normalizedValue = rawValue.trimStart();
-    }
+    // if (!["personalEmail", "panNumber"].includes(name)) {
+    //   normalizedValue = rawValue.trimStart();
+    // }
 
-    // Numeric-only fields (keep existing logic)
-    if (
-      [
-        "accountNumber",
-        "aadharNumber",
-        "contactNumber",
-        "alternateContactNumber",
-        "emergencyContactNumber",
-      ].includes(name)
-    ) {
-      normalizedValue = rawValue.replace(/\D/g, ""); // Only digits
-    }
+    // // Numeric-only fields (keep existing logic)
+    // if (
+    //   [
+    //     "accountNumber",
+    //     "aadharNumber",
+    //     "contactNumber",
+    //     "alternateContactNumber",
+    //     "emergencyContactNumber",
+    //   ].includes(name)
+    // ) {
+    //   normalizedValue = rawValue.replace(/\D/g, ""); // Only digits
+    // }
 
     // Normalize gender & maritalStatus
     if (name === "gender" || name === "maritalStatus") {
@@ -691,7 +585,7 @@ const ProfilePage = () => {
     setFormData((prev) => (prev ? { ...prev, [name]: normalizedValue } : null));
 
     // Real-time validation
-    validateField(name, normalizedValue);
+    // validateField(name, normalizedValue);
   };
   const addAddress = () => {
     const newAddr: AddressModel = {
@@ -771,14 +665,6 @@ const ProfilePage = () => {
       if (oldVal !== newVal) return true;
     }
 
-    // Compare addresses
-    // const oldAddresses = (profile.addresses || [])
-    //   .map((a) => JSON.stringify(a))
-    //   .sort();
-    // const newAddresses = addresses.map((a) => JSON.stringify(a)).sort();
-    // if (JSON.stringify(oldAddresses) !== JSON.stringify(newAddresses))
-    //   return true;
-
     // Compare addresses — ignore temporary uuid differences
     const normalizeAddressForCompare = (addr: AddressModel) => ({
       houseNo: addr.houseNo?.trim() || "",
@@ -837,35 +723,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
-  // Live Bank Search
-  useEffect(() => {
-    if (bankSearch.length < 2) {
-      setBankOptions([]);
-      return;
-    }
-
-    if (bankSearchTimeout) clearTimeout(bankSearchTimeout);
-
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await employeeService.searchBankMaster(bankSearch);
-        if (res.flag && res.response) {
-          const filtered = res.response.filter(
-            (bank) =>
-              !formData?.bankName ||
-              bank.bankName.toLowerCase() !== formData.bankName.toLowerCase()
-          );
-          setBankOptions(filtered.slice(0, 10));
-        }
-      } catch (err) {
-        setBankOptions([]);
-      }
-    }, 300);
-
-    setBankSearchTimeout(timeout);
-    return () => clearTimeout(timeout);
-  }, [bankSearch, formData?.bankName]);
+  }, [fetchProfile]);
 
   if (loading)
     return (
@@ -1024,43 +882,29 @@ const ProfilePage = () => {
             {editing ? (
               <form onSubmit={handleUpdate} className="space-y-8">
                 {/* Personal Information */}
-                <Card
-                  title="Personal Information"
-                  icon={<User className="w-5 h-5" />}
-                >
-                  <div
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-
-                  >
-                    {/* REQUIRED FIELDS */}
+                <Card title="Personal Information" icon={<User className="w-5 h-5" />}>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* REQUIRED FIELDS - No uniqueness check */}
                     <div className="space-y-2">
                       <Input
                         label="First Name"
                         name="firstName"
-                        value={formData.firstName}
-                        onChange={onChange}
+                        value={formData?.firstName ?? ''}
+                        onChange={handleValidatedChange}
                         required
                       />
-                      {errors.firstName && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.firstName}
-                        </p>
-                      )}
+                      {fieldError(errors, "firstName")}
                     </div>
 
                     <div className="space-y-2">
                       <Input
                         label="Last Name"
                         name="lastName"
-                        value={formData.lastName}
-                        onChange={onChange}
+                        value={formData?.lastName ?? ''}
+                        onChange={handleValidatedChange}
                         required
                       />
-                      {errors.lastName && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.lastName}
-                        </p>
-                      )}
+                      {fieldError(errors, "lastName")}
                     </div>
 
                     <div className="space-y-2">
@@ -1068,15 +912,11 @@ const ProfilePage = () => {
                         label="Date of Birth"
                         name="dateOfBirth"
                         type="date"
-                        value={formData.dateOfBirth}
-                        onChange={onChange}
+                        value={formData?.dateOfBirth ?? ''}
+                        onChange={handleValidatedChange}
                         required
                       />
-                      {errors.dateOfBirth && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.dateOfBirth}
-                        </p>
-                      )}
+                      {fieldError(errors, "dateOfBirth")}
                     </div>
 
                     <div className="space-y-2">
@@ -1088,11 +928,7 @@ const ProfilePage = () => {
                         options={["Male", "Female", "Other"]}
                         required
                       />
-                      {errors.gender && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.gender}
-                        </p>
-                      )}
+                      {fieldError(errors, "gender")}
                     </div>
 
                     <div className="space-y-2">
@@ -1104,121 +940,91 @@ const ProfilePage = () => {
                         options={["Single", "Married", "Divorced", "Widowed"]}
                         required
                       />
-                      {errors.maritalStatus && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.maritalStatus}
-                        </p>
-                      )}
+                      {fieldError(errors, "maritalStatus")}
                     </div>
 
                     <div className="space-y-2">
                       <Input
                         label="Nationality"
                         name="nationality"
-                        value={formData.nationality}
-                        onChange={onChange}
+                        value={formData?.nationality ?? ''}
+                        onChange={handleValidatedChange}
                         required
                       />
-                      {errors.nationality && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.nationality}
-                        </p>
-                      )}
+                      {fieldError(errors, "nationality")}
                     </div>
-
-                    {/* UNIQUENESS CHECKED FIELDS */}
+                    
                     <div className="space-y-2">
                       {/* Personal Email */}
                       <Input
                         label="Personal Email Address"
                         name="personalEmail"
                         type="email"
-                        value={formData.personalEmail || ""}
-                        onChange={onChange}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness("EMAIL", val, "personalEmail", "personal_email", profile?.employeeId);
-                        }}
+                        value={formData.personalEmail ?? ''}
+                        onChange={handleValidatedChange}
+                        onBlur={handleUniqueBlur(
+                          "EMAIL",
+                          "personal_email",
+                          "personalEmail",
+                          profile?.employeeId
+                        )}
+                        maxLength={30}
+                        placeholder="you@gmail.com"
                       />
-                      {errors.personalEmail && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.personalEmail}
-                        </p>
-                      )}
+                      
+                      {fieldError(errors, "personalEmail")}
                     </div>
 
                     <div className="space-y-2">
+                      {/* Primary Contact Number */}
                       <Input
                         label="Primary Contact Number"
                         name="contactNumber"
-                        value={formData.contactNumber || ""}
-                        onChange={onChange}
-                        pattern="[0-9]{10}"
+                        value={formData?.contactNumber ?? ''}
+                        onChange={handleValidatedChange}
                         maxLength={10}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val && val.length === 10) {
-                            checkUniqueness(
-                              "CONTACT_NUMBER",
-                              val,
-                              "contactNumber",
-                              "contact_number",
-                              profile?.employeeId
-                            );
-                          }
-                        }}
+                        onBlur={handleUniqueBlur(
+                          "CONTACT_NUMBER",
+                          "contact_number",
+                          "contactNumber",
+                          profile?.employeeId,
+                          10
+                        )}
                       />
-                      {errors.contactNumber && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.contactNumber}
-                        </p>
-                      )}
+                      {fieldError(errors, "contactNumber")}
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
+                      {/* Alternate Contact Number */}
                       <Input
                         label="Alternate Contact Number"
                         name="alternateContactNumber"
-                        value={formData.alternateContactNumber || ""}
-                        onChange={onChange}
-                        pattern="[0-9]{10}"
+                        value={formData?.alternateContactNumber ?? ''}
+                        onChange={handleValidatedChange}
                         maxLength={10}
                         placeholder="Another 10-digit number (optional)"
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val && val.length === 10) {
-                            checkUniqueness(
-                              "CONTACT_NUMBER",
-                              val,
-                              "alternateContactNumber",
-                              "alternate_contact_number",
-                              profile?.employeeId
-                            );
-                          }
-                        }}
+                        onBlur={handleUniqueBlur(
+                          "CONTACT_NUMBER",
+                          "contact_number",
+                          "alternateContactNumber",
+                          profile?.employeeId,
+                          10
+                        )}
                       />
-                      {errors.alternateContactNumber && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.alternateContactNumber}
-                        </p>
-                      )}
+                      {fieldError(errors, "alternateContactNumber")}
                     </div>
 
                     <div className="space-y-2">
+                      {/* Number of Children - no uniqueness */}
                       <Input
                         label="Number of Children"
                         name="numberOfChildren"
                         type="number"
-                        value={formData.numberOfChildren}
-                        onChange={onChange}
+                        value={formData?.numberOfChildren ?? ''}
+                        onChange={handleValidatedChange}
                         min="0"
                       />
-                      {errors.numberOfChildren && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.numberOfChildren}
-                        </p>
-                      )}
+                      {fieldError(errors, "numberOfChildren")}
                     </div>
                   </div>
                 </Card>
@@ -1228,50 +1034,33 @@ const ProfilePage = () => {
                   title="Emergency Contact"
                   icon={<Phone className="w-5 h-5" />}
                 >
-                  <div
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-                  >
-                    <div className="space-y-2">
-                      <Input
-                        label="Emergency Contact Name"
-                        name="emergencyContactName"
-                        value={formData.emergencyContactName}
-                        onChange={onChange}
-                      />
-                      {errors.emergencyContactName && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.emergencyContactName}
-                        </p>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Input
+                      label="Emergency Contact Name"
+                      name="emergencyContactName"
+                      value={formData?.emergencyContactName ?? ''}
+                      onChange={handleValidatedChange}
+                    />
+                    {fieldError(errors, "emergencyContactName")}
+                  </div>
 
-                    <div className="space-y-2">
-                      <Input
-                        label="Emergency Contact Number"
-                        name="emergencyContactNumber"
-                        value={formData.emergencyContactNumber || ""}
-                        onChange={onChange}
-                        pattern="[0-9]{10}"
-                        maxLength={10}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val && val.length === 10) {
-                            checkUniqueness(
-                              "CONTACT_NUMBER",
-                              val,
-                              "emergencyContactNumber",
-                              "emergency_contact_number",
-                              profile?.employeeId
-                            );
-                          }
-                        }}
-                      />
-                      {errors.emergencyContactNumber && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.emergencyContactNumber}
-                        </p>
+                  {/* Emergency Contact Number – with uniqueness check */}
+                  <div className="space-y-2">
+                    <Input
+                      label="Emergency Contact Number"
+                      name="emergencyContactNumber"
+                      value={formData?.emergencyContactNumber ?? ''}
+                      onChange={handleValidatedChange}
+                      maxLength={10}
+                      onBlur={handleUniqueBlur(
+                        "CONTACT_NUMBER",
+                        "emergency_contact_number",
+                        "emergencyContactNumber",
+                        profile?.employeeId,
+                        10  // min length to trigger uniqueness check
                       )}
-                    </div>
+                    />
+                    {fieldError(errors, "emergencyContactNumber")}
                   </div>
                 </Card>
 
@@ -1288,51 +1077,29 @@ const ProfilePage = () => {
                         label="PAN Number"
                         name="panNumber"
                         value={formData.panNumber || ""}
-                        onChange={onChange}
+                        onChange={handleValidatedChange}
                         pattern="[A-Z0-9]{10}"
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "PAN_NUMBER",
-                              val,
-                              "panNumber",
-                              "pan_number",
-                              profile?.employeeId
-                            );
-                        }}
-                      />
-                      {errors.panNumber && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.panNumber}
-                        </p>
-                      )}
+                        onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber", profile?.employeeId, 10)} />
+                      {fieldError(errors, "panNumber")}
                     </div>
 
                     <div className="space-y-2">
                       <Input
-                        label="Aadhaar Number"
+                        label="Aadhar Number"
                         name="aadharNumber"
                         value={formData.aadharNumber || ""}
-                        onChange={onChange}
+                        onChange={handleValidatedChange}
                         pattern="[0-9]{12}"
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "AADHAR_NUMBER",
-                              val,
-                              "aadharNumber",
-                              "aadhar_number",
-                              profile?.employeeId
-                            );
-                        }}
+                        onBlur={handleUniqueBlur(
+                          "AADHAR_NUMBER",
+                          "aadhar_number",
+                          "aadharNumber",
+                          profile?.employeeId,
+                          12
+                        )}
+
                       />
-                      {errors.aadharNumber && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.aadharNumber}
-                        </p>
-                      )}
+                      {fieldError(errors, "aadharNumber")}
                     </div>
 
                     <div className="space-y-2">
@@ -1340,81 +1107,52 @@ const ProfilePage = () => {
                         label="Account Number"
                         name="accountNumber"
                         value={formData.accountNumber || ""}
-                        onChange={onChange}
-                        pattern="[0-9]{9,18}"
+                        onChange={handleValidatedChange} pattern="[0-9]{9,18}"
                         maxLength={18}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "ACCOUNT_NUMBER",
-                              val,
-                              "accountNumber",
-                              "account_number",
-                              profile?.bankAccountId
-                            );
-                        }}
+                        onBlur={handleUniqueBlur("ACCOUNT_NUMBER", "account_number", "accountNumber", profile?.employeeId, 9)}
+
                       />
-                      {errors.accountNumber && (
-                        <p className="text-red-600 text-sm font-medium ">
-                          {errors.accountNumber}
-                        </p>
-                      )}
+                      {fieldError(errors, "accountNumber")}
                     </div>
 
                     <div className="space-y-2">
-                      <Input
-                        label="Account Holder Name"
-                        name="accountHolderName"
-                        value={formData.accountHolderName || ""}
-                        onChange={onChange}
-                        placeholder="As per bank passbook / statement"
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            checkUniqueness(
-                              "ACCOUNT_HOLDER_NAME",
-                              val.toUpperCase(),
-                              "accountHolderName",
-                              "account_holder_name",
-                              profile?.employeeId
-                            );
-                        }}
-                      />
-                      {errors.accountHolderName && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.accountHolderName}
-                        </p>
-                      )}
+                    <Input
+  label="Account Holder Name"
+  name="accountHolderName"
+  value={formData.accountHolderName || ""}
+  onChange={handleValidatedChange}
+  placeholder="As per bank passbook / statement"
+/>
+
+                      {fieldError(errors, "accountHolderName")}
                     </div>
 
                     {/* IFSC & Bank Name — unchanged */}
                     <div className="relative space-y-2">
                       <Input
                         label="IFSC Code"
+                        name="ifscCode"
                         value={localIfsc ?? ""}
                         onChange={(e) => {
-                          let val = e.target.value
-                            .toUpperCase()
-                            .replace(/[^A-Z0-9]/g, "")
-                            .slice(0, 11);
+                          const val = e.target.value.toUpperCase().slice(0, 11);
                           setLocalIfsc(val);
-                          validateField("ifscCode", val);
-                          if (val.length === 11) handleIfscLookup(val);
+                        
+                          handleValidatedChange({
+                            ...e,
+                            target: { ...e.target, value: val },
+                          } as any);
                         }}
+                        
+                        onBlur={() => handleIfscLookup(localIfsc)}
                         placeholder="HDFC0000123"
                         maxLength={11}
                       />
-                      {(localIfsc?.length ?? 0) === 11 && (
-                        <div className="absolute right-3 top-10 text-green-600 text-xs font-medium">
-                          Valid
-                        </div>
+
+                      {isLookingUp && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
                       )}
-                      {errors.ifscCode && (
-                        <p className="text-red-600 text-sm font-medium">
-                          {errors.ifscCode}
-                        </p>
-                      )}
+
+                      {fieldError(errors, "ifscCode")}
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
@@ -1422,46 +1160,16 @@ const ProfilePage = () => {
                         label="Bank Name"
                         name="bankName"
                         value={formData.bankName || ""}
-                        onChange={(e) => {
-                          onChange(e);
-                          setBankSearch(e.target.value);
-                        }}
-                        onFocus={() =>
-                          formData.bankName && setBankSearch(formData.bankName)
-                        }
-                        placeholder="Type to search bank..."
+                        readOnly
+                        placeholder="Auto-filled from IFSC"
                       />
-                      {bankSearch && bankOptions.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
-                          {bankOptions.map((bank) => (
-                            <button
-                              key={bank.bankCode}
-                              type="button"
-                              onClick={() => {
-                                setFormData((prev) =>
-                                  prev
-                                    ? { ...prev, bankName: bank.bankName }
-                                    : null
-                                );
-                                setBankSearch("");
-                                setBankOptions([]);
-                              }}
-                              className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition font-medium"
-                            >
-                              {bank.bankName}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
-
                     <div className="space-y-2">
                       <Input
                         label="Branch Name"
                         name="branchName"
                         value={formData.branchName || ""}
-                        onChange={onChange}
-                      />
+                        onChange={handleValidatedChange} />
                       {errors.branchName && (
                         <p className="text-red-600 text-sm font-medium">
                           {errors.branchName}
@@ -1599,7 +1307,7 @@ const ProfilePage = () => {
                     onClick={addAddress}
                     className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
                   >
-                    <MapPin className="w-4 h-4" /> Add Address
+                    <Plus className="w-4 h-4" /> Add Address
                   </button>
                 </Card>
 
@@ -1902,7 +1610,7 @@ const ProfilePage = () => {
                     profile.branchName ? (
                     <>
                       <ShowIfFilled label="PAN Number" value={profile.panNumber} />
-                      <ShowIfFilled label="Aadhaar Number" value={profile.aadharNumber} />
+                      <ShowIfFilled label="Aadhar Number" value={profile.aadharNumber} />
                       <ShowIfFilled label="Bank Name" value={profile.bankName} />
                       <ShowIfFilled label="Account Number" value={profile.accountNumber} />
                       <ShowIfFilled
