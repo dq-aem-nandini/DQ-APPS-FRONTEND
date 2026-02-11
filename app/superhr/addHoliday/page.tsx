@@ -9,6 +9,7 @@ import {
     HolidaysDTO,
     HolidaysModel,
     SuperHrHolidayRequestDTO,
+    HolidayDTO,
   } from "@/lib/api/types";
 
 import { manualInvoiceService } from '@/lib/api/manualInvoiceService';
@@ -49,6 +50,11 @@ export default function addHoliday() {
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
     const [editingHoliday, setEditingHoliday] = useState<HolidaysDTO | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [holidays, setHolidays] = useState<HolidayDTO[]>([]);
+    const [selectedHolidays, setSelectedHolidays] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [selectedHolidayName, setSelectedHolidayName] = useState<string>("");
+    const [isCustomHoliday, setIsCustomHoliday] = useState(false);
     const [formData, setFormData] = useState<HolidaysModel>({
         holidayName: '',
         holidayDate: '',
@@ -62,8 +68,15 @@ export default function addHoliday() {
           : [...prev, emp.employeeId]
       );
     };
-
+    const payload: SuperHrHolidayRequestDTO = {
+      holidayName: formData.holidayName.trim(),
+      holidayDate: formData.holidayDate,
+      employeeIds: selectedEmployeeIds,
+    };
     const isAddDisabled =  selectedEmployeeIds.length === 0;
+    const getSelectedHolidayObjects = () =>
+      holidays.filter(h => selectedHolidays.includes(h.holidayId));
+    
       // Open dialog for add/edit
   const openDialog = async (holiday?: HolidaysDTO) => {
     if (holiday) {
@@ -113,11 +126,7 @@ export default function addHoliday() {
     try {
       setSubmitting(true);
   
-      const payload: SuperHrHolidayRequestDTO = {
-        holidayName: formData.holidayName.trim(),
-        holidayDate: formData.holidayDate,
-        employeeIds: selectedEmployeeIds,
-      };
+     
   
       const res = await superHrHolidayService.addEmployeeHoliday(payload);
   
@@ -203,7 +212,30 @@ export default function addHoliday() {
       
         loadEmployees();
       }, [role, clientId]);
-      
+
+      const fetchHolidays = async () => {
+        try {
+          setLoading(true);
+          const res = await superHrHolidayService.getAllHolidays();
+          setHolidays(res.response || []);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchHolidays();
+      }, [clientId]);
+    
+      const toggleHoliday = (holidayId: string) => {
+        setSelectedHolidays(prev =>
+          prev.includes(holidayId)
+            ? prev.filter(id => id !== holidayId)
+            : [...prev, holidayId]
+        );
+      };
     return (
       <div className="p-6 min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       <div className="mb-6 p-6 bg-white rounded-xl shadow-sm border space-y-6">
@@ -284,24 +316,117 @@ export default function addHoliday() {
 
       </div>
        {/* Header */}
-       <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Holiday Calendar
-                </h1>
-                <p className="text-gray-600 mt-2">Manage all company holidays</p>
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Holiday Calendar
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Manage all company holidays
+            </p>
           </div>
-              <Button
-                onClick={() => openDialog()}
-                size="lg"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg cursor-pointer"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Add Holiday
-              </Button>
-          </div>
+
+          <Button
+                  onClick={async () => {
+                    // CASE 1: Holidays selected → assign holidays
+                    if (selectedHolidays.length > 0) {
+                      if (selectedEmployeeIds.length === 0) {
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Validation Error',
+                          text: 'Please select at least one employee',
+                        });
+                        return;
+                      }
+
+                      try {
+                        setSubmitting(true);
+
+                        const selectedHolidayObjects = getSelectedHolidayObjects();
+
+                        // 🔁 Assign each selected holiday
+                        for (const holiday of selectedHolidayObjects) {
+                          const payload: SuperHrHolidayRequestDTO = {
+                            holidayName: holiday.holidayName,
+                            holidayDate: holiday.holidayDate,
+                            employeeIds: selectedEmployeeIds,
+                          };
+
+                          await superHrHolidayService.addEmployeeHoliday(payload);
+                        }
+
+                        await Swal.fire({
+                          icon: 'success',
+                          title: 'Success',
+                          text: 'Holiday assigned successfully',
+                          confirmButtonColor: '#7c3aed',
+                        });
+
+                        // reset selection
+                        setSelectedHolidays([]);
+                      } catch (err: any) {
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Error',
+                          text: getBackendError(err),
+                        });
+                      } finally {
+                        setSubmitting(false);
+                      }
+
+                      return;
+                    }
+
+                    // CASE 2: No holiday selected → normal add flow
+                    openDialog();
+                  }}
+                  size="lg"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg cursor-pointer"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  {selectedHolidays.length > 0 ? 'Assign Holiday' : 'Add Holiday'}
+                </Button>
         </div>
+      </div>
+
+      {/* Holiday List */} 
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        {loading && (
+          <p className="text-gray-500">Loading holidays...</p>
+        )}
+
+        {!loading && holidays.length === 0 && (
+          <p className="text-gray-500">No holidays found</p>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {holidays.map(holiday => (
+            <label
+              key={holiday.holidayId}
+              className="flex items-center justify-between p-4 rounded-xl border hover:bg-gray-50 cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <input
+                  type="checkbox"
+                  checked={selectedHolidays.includes(holiday.holidayId)}
+                  onChange={() => toggleHoliday(holiday.holidayId)}
+                  className="w-5 h-5 accent-purple-600"
+                />
+
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {holiday.holidayName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {holiday.holidayDate}
+                  </p>
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
@@ -322,13 +447,52 @@ export default function addHoliday() {
               </div>
               <div>
                 <Label>Holiday Name <span className="text-red-500">*</span></Label>
-                <Input
-                  value={formData.holidayName}
-                  onChange={e => setFormData(prev => ({ ...prev, holidayName: e.target.value }))}
-                  placeholder="e.g. Diwali"
+
+                {/* Dropdown */}
+                <select
+                  value={selectedHolidayName}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedHolidayName(value);
+
+                    if (value === "OTHER") {
+                      setIsCustomHoliday(true);
+                      setFormData(prev => ({ ...prev, holidayName: "" }));
+                    } else {
+                      setIsCustomHoliday(false);
+                      setFormData(prev => ({ ...prev, holidayName: value }));
+                    }
+                  }}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5
+                            focus:border-purple-400 focus:ring-2 focus:ring-purple-100
+                            focus:outline-none transition"
                   required
-                />
+                >
+                  <option value="">Select Holiday</option>
+
+                  {holidays.map(h => (
+                    <option key={h.holidayId} value={h.holidayName}>
+                      {h.holidayName}
+                    </option>
+                  ))}
+
+                  <option value="OTHER">Other</option>
+                </select>
+
+                {/* Show input if OTHER selected */}
+                {isCustomHoliday && (
+                  <Input
+                    className="mt-3"
+                    placeholder="Enter custom holiday name"
+                    value={formData.holidayName}
+                    onChange={(e) =>
+                      setFormData(prev => ({ ...prev, holidayName: e.target.value }))
+                    }
+                    required
+                  />
+                )}
               </div>
+
               <div>
                 <Label>Comments (Optional)</Label>
                 <Textarea
@@ -339,9 +503,11 @@ export default function addHoliday() {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                {/* <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
-                </Button>
+                </Button> */}
+                
+
                 <Button
                   type="submit"
                   disabled={isAddDisabled || submitting}

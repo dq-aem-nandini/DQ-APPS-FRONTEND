@@ -1743,3 +1743,10 @@ export interface EmployeeClientHistoryDTO {
   billingEndDate: string;
   active: boolean;
 }
+
+export interface HolidayDTO {
+  holidayId: string;
+  holidayName: string;
+  holidayDate: string; // ISO date string (YYYY-MM-DD)
+  comments: string | null;
+}

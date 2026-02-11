@@ -1,5 +1,5 @@
 import api from "./axios";
-import type { WebResponseDTO, SuperHrHolidayRequestDTO, DeleteEmployeeHolidayRequestDTO } from "@/lib/api/types";
+import type { WebResponseDTO, SuperHrHolidayRequestDTO, DeleteEmployeeHolidayRequestDTO, HolidayDTO } from "@/lib/api/types";
 
 function getBackendError(error: any): string {
   return (
@@ -60,6 +60,20 @@ async updateEmployeePasswords(
     const response = await api.put(
       "/user/admin/updatePassWord",
       request
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
+/**
+ * Get all holidays (SIMPLE)
+ */
+async getAllHolidays(): Promise<WebResponseDTO<HolidayDTO[]>> {
+  try {
+    const response = await api.get(
+      "/simple/holiday/get/all"
     );
     return response.data;
   } catch (error: any) {
