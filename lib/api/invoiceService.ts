@@ -38,9 +38,11 @@ class InvoiceService {
       throw new Error(response.data?.message || 'Invalid response: No invoice data returned');
     } catch (error: unknown) {
       console.error('Error generating invoice:', error);
-      const errorMessage = this.getErrorMessage(error);
-      throw new Error(errorMessage);
+    
+      //  VERY IMPORTANT
+      throw error; // <-- rethrow original Axios error
     }
+    
   }
 
   /**

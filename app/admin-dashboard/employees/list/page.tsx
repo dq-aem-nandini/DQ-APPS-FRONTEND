@@ -9,6 +9,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
 import BackButton from '@/components/ui/BackButton';
+import { employeesDownloadUploadService } from '@/lib/api/employeesDownloadUpload';
 
 const EmployeeList = () => {
   const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
@@ -21,7 +22,7 @@ const EmployeeList = () => {
   const [designations, setDesignations] = useState<string[]>([]);
   const { state } = useAuth();
   const router = useRouter();
-
+  
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -157,6 +158,105 @@ const EmployeeList = () => {
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
+  const handleDownloadEmployees = async () => {
+    try {
+      const blob = await employeesDownloadUploadService.downloadEmployees();
+
+  
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'employees.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+  
+      Swal.fire({
+        icon: 'success',
+        title: 'Downloaded',
+        text: 'Employees data downloaded successfully',
+      });
+    } catch (err: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message || 'Failed to download employees',
+      });
+    }
+  };
+  
+  const createEmployees = async (file: File) => {
+    try {
+      const response = await employeesDownloadUploadService.bulkCreateEmployees(file);
+  
+      const { message, response: result } = response;
+  
+      // ✅ Full success
+      if (result.failureCount === 0) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Employees Created',
+          text: `Successfully created ${result.successCount} employees.`,
+        });
+        return;
+      }
+  
+      // Build error list HTML (safe + readable)
+      const errorListHtml = Array.isArray(result.errors)
+        ? result.errors
+            .map(
+              (err: any) => `
+                <div class="border-b py-1">
+                  <b>Row ${err.rowNumber}</b> 
+                  <span style="color:#6b7280">(${err.column})</span><br/>
+                  <span style="color:#dc2626">${err.message}</span>
+                </div>
+              `
+            )
+            .join('')
+        : '<div>No detailed error information available.</div>';
+  
+      // ⚠️ Partial / Failed upload with scrollable errors
+      Swal.fire({
+        icon: 'warning',
+        title: 'Bulk Upload Completed with Errors',
+        width: 700,
+        html: `
+          <p>${message}</p>
+  
+          <div style="margin-top:12px">
+            <b>Summary</b><br/>
+            ✅ Success: ${result.successCount}<br/>
+            ❌ Failed: ${result.failureCount}
+          </div>
+  
+          <hr style="margin:12px 0"/>
+  
+          <div style="
+            max-height: 250px;
+            overflow-y: auto;
+            text-align: left;
+            padding-right: 6px;
+          ">
+            ${errorListHtml}
+          </div>
+        `,
+        confirmButtonText: 'OK',
+      });
+  
+    } catch (err: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Upload Failed',
+        text: err.message || 'Failed to bulk create employees',
+      });
+    }
+  };
+  
+  
+  
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
@@ -183,10 +283,35 @@ const EmployeeList = () => {
           </h1>
         </div>
 
-        <div className="flex justify-end mb-4 sm:mb-6">
+        <div className="flex flex-wrap justify-end gap-2 mb-4 sm:mb-6">
+          {/* Download */}
+          <button
+            onClick={handleDownloadEmployees}
+            className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-green-700 text-sm font-medium transition"
+          >
+            Download Employees
+          </button>
+
+          {/* Upload */}
+          <label className="bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-yellow-700 text-sm font-medium transition cursor-pointer">
+            Upload Excel
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  createEmployees(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
+            />
+          </label>
+
+          {/* Add */}
           <Link
             href="/admin-dashboard/employees/add"
-            className="w-full sm:w-auto max-w-xs sm:max-w-none bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium transition"
+            className="bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium transition"
           >
             Add New Employee
           </Link>

@@ -127,11 +127,82 @@ useEffect(() => {
         window.open(`/admin-dashboard/invoice/${invoice.invoiceId}`, '_blank');
       }, 1000);
     } catch (err: any) {
-      const errorMessage = err.response?.status === 409
-        ? 'Invoice already exists for this month.'
-        : err.message || 'Failed to generate invoice';
-      Swal.fire({ icon: 'error', title: 'Error', text: errorMessage });
-    } finally {
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+    
+      if (status === 409) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Invoice already exists for this month.',
+        });
+        return;
+      }
+    
+      // Backend message (422, 400, etc.)
+      if (data?.message) {
+        // employees exist → show names
+        if (Array.isArray(data.employees) && data.employees.length > 0) {
+          const employeeNames = data.employees
+            .map((e: any) => e.employeeName)
+            .join(', ');
+    
+            const employeeListHtml = `
+            <div style="text-align:left;">
+              <p style="margin-bottom:8px; font-weight:600;">
+                ${data.message}
+              </p>
+          
+              <div style="
+                max-height:180px;
+                overflow-y:auto;
+                padding:10px;
+                border:1px solid #e5e7eb;
+                border-radius:8px;
+                background:#f9fafb;
+              ">
+                <ul style="margin:0; padding-left:18px;">
+                  ${data.employees
+                    .map((e: any) => `<li style="margin-bottom:4px;">${e.employeeName}</li>`)
+                    .join('')}
+                </ul>
+              </div>
+          
+              <p style="margin-top:8px; font-size:12px; color:#6b7280;">
+                Total employees: ${data.employees.length}
+              </p>
+            </div>
+          `;
+          
+          Swal.fire({
+            icon: 'error',
+            title: 'Invoice Generation Failed',
+            html: employeeListHtml,
+            confirmButtonText: 'OK',
+            width: 520,
+          });
+          
+          return;
+        }
+    
+        // message only
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: data.message,
+        });
+        return;
+      }
+    
+      // 3️⃣ Fallback
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to generate invoice',
+      });
+    }
+    
+     finally {
       setGenerating(false);
     }
   };
