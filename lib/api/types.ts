@@ -1756,3 +1756,25 @@ export interface AttendanceStatusDTO {
   firstClockIn: string;     // ISO date-time
   lastClockOut: string;     // ISO date-time
 }
+
+export interface AttendanceLogDTO {
+  punchTime: string;
+  punchType: "IN" | "OUT";
+}
+
+export interface AttendanceHistoryDTO {
+  date: string;
+  firstClockIn?: string | null;
+  lastClockOut?: string | null;
+  totalHours?: number | null;
+  status?: string;
+  logs: AttendanceLogDTO[];
+}
+
+export interface MonthlyAttendanceResponseDTO {
+  page: number;
+  fromDate: string;
+  toDate: string;
+  totalPages: number;
+  data: AttendanceHistoryDTO[];
+}

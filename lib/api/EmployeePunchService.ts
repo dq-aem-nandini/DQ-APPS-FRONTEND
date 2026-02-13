@@ -1,5 +1,5 @@
 import api from "./axios";
-import type { WebResponseDTO, AttendanceStatusDTO } from "@/lib/api/types";
+import type { WebResponseDTO, AttendanceStatusDTO, MonthlyAttendanceResponseDTO } from "@/lib/api/types";
 
 function getBackendError(error: any): string {
   return (
@@ -44,6 +44,33 @@ export class EmployeePunchService {
       throw new Error(getBackendError(error));
     }
   }
+
+  /**
+ * Get Employee Monthly Attendance
+ * GET /employees/{employeeId}/attendance
+ */
+async getMonthlyAttendance(
+  employeeId: string,
+  fromDate: string,
+  toDate: string
+): Promise<WebResponseDTO<MonthlyAttendanceResponseDTO>> {
+  try {
+    const response = await api.get(
+      `/employees/${employeeId}/attendance`,
+      {
+        params: {
+          fromDate,
+          toDate,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
 
 }
 
