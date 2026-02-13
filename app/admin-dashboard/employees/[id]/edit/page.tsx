@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { adminService } from "@/lib/api/adminService";
@@ -26,6 +26,9 @@ import {
   PAY_TYPE_OPTIONS,
   EmployeeDepartmentDTO,
   EmployeeDTO,
+  DESIGNATION_OPTIONS,
+  EMPLOYMENT_TYPE_OPTIONS,
+  DOCUMENT_TYPE_OPTIONS,
 } from "@/lib/api/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
@@ -145,7 +148,6 @@ const EditEmployeePage = () => {
   // const [documentFiles, setDocumentFiles] = useState<(File | null)[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string>("");
   const today = new Date().toISOString().split("T")[0];
   const [departmentEmployees, setDepartmentEmployees] = useState<
     EmployeeDepartmentDTO[]
@@ -153,7 +155,6 @@ const EditEmployeePage = () => {
   const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
     undefined,);
   const [isDirty, setIsDirty] = useState(false);
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [localIfsc, setLocalIfsc] = useState<string>("");
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -211,49 +212,59 @@ const EditEmployeePage = () => {
     () => formData,
     validateField   // ← this makes it use EMPLOYEE rules
   );
+  const isAnyBankFieldFilled = useMemo(() => {
+    if (!formData) return false;
 
+    return !!(
+      formData.accountNumber?.trim() ||
+      formData.accountHolderName?.trim() ||
+      formData.ifscCode?.trim() ||
+      formData.bankName?.trim() ||
+      formData.branchName?.trim()  // even branch is considered "filled"
+    );
+  }, [formData]);
   // Handle IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
     const code = ifsc.trim().toUpperCase();
-  
+
     if (!code) {
       setErrors((prev) => ({ ...prev, ifscCode: "Please enter IFSC code" }));
       return;
     }
-  
+
     if (code.length !== 11) {
       setErrors((prev) => ({ ...prev, ifscCode: "IFSC must be exactly 11 characters" }));
       return;
     }
-  
+
     if (isLookingUp) return;
-  
+
     setIsLookingUp(true);
     setErrors((prev) => {
       const next = { ...prev };
       delete next.ifscCode;
       return next;
     });
-  
+
     try {
       const res = await employeeService.getIFSCDetails(code);
-  
+
       if (res?.flag && res.response) {
         const { BANK = "", BRANCH = "" } = res.response;
-  
+
         // Early return if formData is null (should never happen after mount, but safe)
         if (!formData) {
           console.warn("formData is null during IFSC lookup – skipping update");
           return;
         }
-  
+
         setFormData({
           ...formData,                           // ← full object guaranteed
           ifscCode: code,
           bankName: BANK.trim() || formData.bankName || "",
           branchName: BRANCH.trim() || formData.branchName || "",
         });
-  
+
         setSuccess("Bank & branch details auto-filled!");
       } else {
         setErrors((prev) => ({
@@ -273,24 +284,7 @@ const EditEmployeePage = () => {
   };
   // const [checking, setChecking] = useState<Set<string>>(new Set());
   const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
-  const designations: Designation[] = [
-    "INTERN",
-    "TRAINEE",
-    "ASSOCIATE_ENGINEER",
-    "SOFTWARE_ENGINEER",
-    "SENIOR_SOFTWARE_ENGINEER",
-    "LEAD_ENGINEER",
-    "TEAM_LEAD",
-    "TECHNICAL_ARCHITECT",
-    "REPORTING_MANAGER",
-    "DELIVERY_MANAGER",
-    "DIRECTOR",
-    "VP_ENGINEERING",
-    "CTO",
-    "HR",
-    "FINANCE",
-    "OPERATIONS",
-  ];
+
 
   const staticClients = new Set(["BENCH", "INHOUSE", "HR", "NA"]);
   const managerDesignations: Designation[] = [
@@ -301,26 +295,7 @@ const EditEmployeePage = () => {
     "CTO",
   ];
 
-  const documentTypes: DocumentType[] = [
-    "OFFER_LETTER",
-    "CONTRACT",
-    "TAX_DECLARATION_FORM",
-    "WORK_PERMIT",
-    "PAN_CARD",
-    "AADHAR_CARD",
-    "BANK_PASSBOOK",
-    "TENTH_CERTIFICATE",
-    "TWELFTH_CERTIFICATE",
-    "DEGREE_CERTIFICATE",
-    "POST_GRADUATION_CERTIFICATE",
-    "OTHER",
-  ];
 
-  const employmentTypes: EmploymentType[] = [
-    "CONTRACTOR",
-    "FREELANCER",
-    "FULLTIME",
-  ];
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   const fetchDepartmentEmployees = async (dept: Department) => {
@@ -440,6 +415,12 @@ const EditEmployeePage = () => {
     fetchData();
   }, [params.id]);
 
+
+  useEffect(() => {
+    if (formData?.ifscCode) {
+      setLocalIfsc(formData.ifscCode.toUpperCase());
+    }
+  }, [formData?.ifscCode]);
   // Add this useEffect inside EditEmployeePage (near other useEffects)
 
   useEffect(() => {
@@ -608,7 +589,27 @@ const EditEmployeePage = () => {
     formData?.clientBillingStopDate,
     formData?.clientSelection,
   ]);
+  const isStatusClient = formData?.clientSelection?.startsWith("STATUS:");
 
+  useEffect(() => {
+    if (!formData) return;
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next["rateCard"]; // clear old error first
+
+      // Only enforce when real client is selected
+      if (formData.clientSelection && !isStatusClient) {
+        const rate = formData.rateCard;
+
+        if (rate == null || rate <= 0) {
+          next["rateCard"] = "Rate Card is required when a client is selected";
+        }
+      }
+
+      return next;
+    });
+  }, [formData?.rateCard, formData?.clientSelection, isStatusClient]);
 
   // DOCUMENTS
   const addDocument = () => {
@@ -940,6 +941,83 @@ const EditEmployeePage = () => {
     if (!params.id || !formData) return;
 
     setSubmitting(true);
+    // ──────────────────────────────────────────────
+    // BANK DETAILS: All-or-nothing validation (same as Add page)
+    // ──────────────────────────────────────────────
+    if (isAnyBankFieldFilled) {
+      const missing: string[] = [];
+      if (!formData.accountNumber?.trim()) missing.push("Account Number");
+      if (!formData.accountHolderName?.trim()) missing.push("Account Holder Name");
+      if (!formData.ifscCode?.trim()) missing.push("IFSC Code");
+      if (!formData.bankName?.trim()) missing.push("Bank Name");
+      // Branch Name is optional → not added here
+
+      if (missing.length > 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Incomplete Bank Details',
+          html: `
+        Please fill these fields when entering bank information:<br><br>
+        <ul style="text-align:left; margin:16px 0 16px 32px; list-style:disc;">
+          ${missing.map(m => `<li>${m}</li>`).join('')}
+        </ul>
+      `,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#4f46e5',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            const bankCard = document.querySelector('[data-bank-section]');
+
+            if (bankCard) {
+              bankCard.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+
+              setTimeout(() => {
+                const firstInput = bankCard.querySelector(
+                  'input:not([type="hidden"]):not([readonly])'
+                ) as HTMLInputElement | null;
+
+                if (firstInput) {
+                  firstInput.focus();
+                  firstInput.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+                  setTimeout(() => {
+                    firstInput.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+                  }, 1800);
+                }
+              }, 450);
+            }
+          }
+        });
+
+        setSubmitting(false);
+        return; // ← STOP submission
+      }
+    }
+    // Rate Card required check for real clients
+    if (formData.clientSelection && !isStatusClient) {
+      if (formData.rateCard == null || formData.rateCard <= 0) {
+        setErrors((prev) => ({
+          ...prev,
+          rateCard: "Rate Card is required when a client is selected",
+        }));
+
+        // Scroll to Rate Card field
+        setTimeout(() => {
+          const rateInput = document.querySelector('input[name="rateCard"]');
+          if (rateInput) {
+            rateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (rateInput as HTMLInputElement).focus();
+          }
+        }, 150);
+
+        setSubmitting(false);
+        return;
+      }
+    }
     const fd = new FormData();
 
     // 🚫 Block partial document updates
@@ -1127,7 +1205,6 @@ const EditEmployeePage = () => {
     }
   };
 
-  const isStatusClient = formData?.clientSelection?.startsWith("STATUS:");
 
   const hasValidDocumentChange =
     formData?.documents?.every((doc) => {
@@ -1217,8 +1294,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       First Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Employee's first name as per official documents. Example: Manoj" />
                     </Label>
-
                     <Input
                       name="firstName"
                       value={formData.firstName}
@@ -1229,15 +1306,13 @@ const EditEmployeePage = () => {
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
                     {fieldError(errors, "firstName")}
-
                   </div>
-
                   {/* Last Name */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Last Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Employee's last name/surname. Example: Sharma" />
                     </Label>
-
                     <Input
                       name="lastName"
                       value={formData.lastName}
@@ -1247,24 +1322,24 @@ const EditEmployeePage = () => {
                       placeholder="Enter last name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-
                     {fieldError(errors, "lastName")}
-
                   </div>
-
                   {/* Personal Email - WITH UNIQUENESS CHECK & LOADING SPINNER */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Personal Email <span className="text-red-500">*</span>
+                      <TooltipHint hint="Personal email for communication. Must be unique in the system." />
                     </Label>
-
                     <div className="relative">
                       <Input
                         name="personalEmail"
                         type="email"
                         value={formData.personalEmail}
                         required
-                        onChange={handleValidatedChange}
+                        onChange={(e) => {
+                          e.target.value = e.target.value.toLowerCase();
+                          handleValidatedChange(e);
+                        }}
                         onBlur={handleUniqueBlur(
                           "EMAIL",
                           "personal_email",
@@ -1276,27 +1351,15 @@ const EditEmployeePage = () => {
                         placeholder="you@gmail.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                       />
-
-                      {/* Loading Spinner */}
-                      {checking.has("personalEmail") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
                     </div>
-
-                    {fieldError(errors, "personalEmail") || errors.personalEmail_same && (
-                      <p className="text-red-600 text-xs mt-1">
-                        {errors.personalEmail || errors.personalEmail_same}
-                      </p>
-                    )}
-
+                    {fieldError(errors, "personalEmail")}
                   </div>
 
                   {/* Company Email */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Company Email <span className="text-red-500">*</span>
+                      <TooltipHint hint="Official work email provided by company. Must be unique." />
                     </Label>
                     <div className="relative">
                       <Input
@@ -1304,8 +1367,10 @@ const EditEmployeePage = () => {
                         type="email"
                         value={formData.companyEmail}
                         required
-                        // onChange={handleChange}
-                        onChange={handleValidatedChange}
+                        onChange={(e) => {
+                          e.target.value = e.target.value.toLowerCase();
+                          handleValidatedChange(e);
+                        }}
                         onBlur={handleUniqueBlur(
                           "EMAIL",
                           "company_email",
@@ -1313,29 +1378,19 @@ const EditEmployeePage = () => {
                           employeeData?.employeeId
                         )}
 
-                        maxLength={30}
+                        maxLength={50}
                         placeholder="you@company.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has("companyEmail") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
                     </div>
-                    {/* Company Email field – same pattern */}
-                    {fieldError(errors, "companyEmail") || errors.companyEmail_same && (
-                      <p className="text-red-600 text-xs mt-1">
-                        {errors.companyEmail || errors.companyEmail_same}
-                      </p>
-                    )}
+                    {fieldError(errors, "companyEmail")}
                   </div>
 
                   {/* Contact Number */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Contact Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="10-digit Indian mobile number. Must start with 6-9." />
                     </Label>
                     <div className="relative">
                       <Input
@@ -1349,7 +1404,7 @@ const EditEmployeePage = () => {
                           const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
-                        }}                        onBlur={handleUniqueBlur(
+                        }} onBlur={handleUniqueBlur(
                           "CONTACT_NUMBER",
                           "contact_number",
                           "contactNumber",
@@ -1361,24 +1416,17 @@ const EditEmployeePage = () => {
                         placeholder="9876543210"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has("contactNumber") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                        </div>
-                      )}
                     </div>
                     {/* Error Message */}
                     {fieldError(errors, "contactNumber")}
-
                   </div>
 
                   {/* Date of Birth */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date of Birth <span className="text-red-500">*</span>
+                      <TooltipHint hint="Select from calendar. Employee must be at least 18 years old." />
                     </Label>
-
                     <Input
                       type="date"
                       name="dateOfBirth"
@@ -1388,17 +1436,15 @@ const EditEmployeePage = () => {
                       max={today}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-
                     {fieldError(errors, "dateOfBirth")}
-
                   </div>
 
                   {/* Nationality */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nationality <span className="text-red-500">*</span>
+                      <TooltipHint hint="Usually 'Indian'. Enter as per passport or official ID." />
                     </Label>
-
                     <Input
                       name="nationality"
                       value={formData.nationality}
@@ -1408,17 +1454,14 @@ const EditEmployeePage = () => {
                       placeholder="Indian"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-
                     {fieldError(errors, "nationality")}
-
                   </div>
-
                   {/* Gender */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Gender <span className="text-red-500">*</span>
+                      <TooltipHint hint="Select from dropdown: Male, Female, or Other." />
                     </Label>
-
                     <Select
                       required
                       value={formData?.gender || ""}
@@ -1439,9 +1482,49 @@ const EditEmployeePage = () => {
                         <SelectItem value="OTHER">Other</SelectItem>
                       </SelectContent>
                     </Select>
-
                     {fieldError(errors, "gender")}
+                  </div>
+                  {/* PAN Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      PAN Number
+                      <TooltipHint hint="Permanent Account Number for tax purposes. Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)" />
+                    </Label>
+                    <Input
+                      name="panNumber"
+                      value={formData.panNumber || ""}
+                      onChange={handleValidatedChange}
+                      pattern="[A-Z0-9]{10}"
+                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
+                      maxLength={10}
+                      placeholder="e.g.ABCDE1234F"
+                      className="h-12"
+                    />
+                    {fieldError(errors, "panNumber")}
+                  </div>
 
+                  {/* Aadhar Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Aadhar Number
+                      <TooltipHint hint="12-digit unique ID issued by UIDAI. Format: 1234 5678 9012" />
+                    </Label>
+                    <Input
+                      name="aadharNumber"
+                      value={formData.aadharNumber || ""}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = onlyDigits;
+                        handleValidatedChange(e);
+                      }}
+                      pattern="[0-9]{12}"
+                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
+                      inputMode="numeric"
+                      maxLength={12}
+                      placeholder="e.g.123456789012"
+                      className="h-12"
+                    />
+                    {fieldError(errors, "aadharNumber")}
                   </div>
                 </div>
               </CardContent>
@@ -1463,8 +1546,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client <span className="text-red-500">*</span>
+                      <TooltipHint hint="Select the client/project the employee is assigned to. Use BENCH/INHOUSE if not assigned." />
                     </Label>
-
                     <Select
                       required
                       value={selectValue}
@@ -1530,19 +1613,16 @@ const EditEmployeePage = () => {
                       </SelectContent>
                     </Select>
 
-                    {getError("clientSelection") && (
-                      <p className="text-xs text-red-600">
-                        {getError("clientSelection")}
-                      </p>
-                    )}
+                    {fieldError(errors, "clientSelection")}
+
                   </div>
 
                   {/* Department */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Department<span className="text-red-500">*</span>
+                      <TooltipHint hint="Department where employee works (e.g., Development, QA, HR)." />
                     </Label>
-
                     <Select
                       required
                       value={
@@ -1615,12 +1695,14 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError(errors, "employeeEmploymentDetailsDTO.department")}
                   </div>
 
                   {/* Reporting Manager */}
                   <div>
                     <Label className="mb-2 block text-sm font-medium">
                       Reporting Manager
+                      <TooltipHint hint="Select the employee's direct reporting manager from the same department." />
                     </Label>
                     <Select
                       value={formData?.reportingManagerId || ""}
@@ -1683,6 +1765,7 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Designation <span className="text-red-500">*</span>
+                      <TooltipHint hint="Employee's job title. Example: Software Engineer, Senior Developer" />
                     </Label>
 
                     <Select
@@ -1703,27 +1786,22 @@ const EditEmployeePage = () => {
                       </SelectTrigger>
 
                       <SelectContent>
-                        {designations.map((d) => (
+                        {DESIGNATION_OPTIONS.map((d) => (
                           <SelectItem key={d} value={d}>
                             {d.replace(/_/g, " ")}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-
-                    {getError("designation") && (
-                      <p className="text-xs text-red-600">
-                        {getError("designation")}
-                      </p>
-                    )}
+                    {fieldError(errors, "designation")}
                   </div>
 
                   {/* Date of Joining */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date of Joining <span className="text-red-500">*</span>
+                      <TooltipHint hint="Employee's first official working day with the company. Must be in the past or today. Cannot be a future date. This date must be earlier than onboarding, billing start, offboarding, and billing end dates." />
                     </Label>
-
                     <Input
                       type="date"
                       name="dateOfJoining"
@@ -1732,7 +1810,6 @@ const EditEmployeePage = () => {
                       onChange={handleValidatedChange}
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-
                     {fieldError(errors, "dateOfJoining")}
                   </div>
 
@@ -1740,24 +1817,17 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Onboarding To Client
-                      {!isStatusClient && <span className="text-red-500">*</span>}
-                    </Label>
-
+                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}                    </Label>
+                    <TooltipHint hint="Date when the employee started working for the client. Must be after Date of Joining." />
                     <Input
                       type="date"
                       name="dateOfOnboardingToClient"
                       value={formData.dateOfOnboardingToClient ?? ""}
                       onChange={handleChange}
-                      required={!isStatusClient}
-                      // disabled={isStatusClient}
+                      required={!!(formData.clientSelection && !isStatusClient)}                      // disabled={isStatusClient}
                       className="h-12 text-base w-full"
                     />
-
-                    {getError("dateOfOnboardingToClient") && !isStatusClient && (
-                      <p className="text-xs text-red-600">
-                        {getError("dateOfOnboardingToClient")}
-                      </p>
-                    )}
+                    {fieldError(errors, "dateOfOnboardingToClient")}
                   </div>
 
 
@@ -1765,6 +1835,7 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Offboarding To Client
+                      <TooltipHint hint="Last working day with the client. Must be after Date of Joining, onboarding, and billing start. Can be the same as or before Client Billing End Date." />
                     </Label>
                     <Input
                       type="date"
@@ -1774,16 +1845,16 @@ const EditEmployeePage = () => {
                       className="h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
-                    {getError("dateOfOffboardingToClient") && (
-                      <p className="text-xs text-red-600">
-                        {getError("dateOfOffboardingToClient")}
-                      </p>
-                    )}
+                    {fieldError(errors, "dateOfOffboardingToClient")}
+
                   </div>
                   {/* Client Billing Start Date */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing Start Date
+                      <TooltipHint
+                        hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date."
+                      />
                     </Label>
                     <Input
                       type="date"
@@ -1793,16 +1864,16 @@ const EditEmployeePage = () => {
                       className="h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
-                    {getError("clientBillingStartDate") && (
-                      <p className="text-xs text-red-600">
-                        {getError("clientBillingStartDate")}
-                      </p>
-                    )}
+                    {fieldError(errors, "clientBillingStartDate")}
+
                   </div>
                   {/* client Billing Stop Date */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing End Date
+                      <TooltipHint
+                        hint="Date until which client billing continues for this employee. Must be strictly after Client Billing Start Date. Can be the same as or after Date of Offboarding to Client."
+                      />
                     </Label>
                     <Input
                       type="date"
@@ -1812,17 +1883,15 @@ const EditEmployeePage = () => {
                       className="h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
-                    {getError("clientBillingStopDate") && (
-                      <p className="text-xs text-red-600">
-                        {getError("clientBillingStopDate")}
-                      </p>
-                    )}
+                    {fieldError(errors, "clientBillingStopDate")}
                   </div>
 
                   {/* Employment Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Employment Type <span className="text-red-500">*</span>
+                      <TooltipHint hint="Full-time, Part-time, Contract, Intern, etc." />
+
                     </Label>
 
                     <Select
@@ -1843,7 +1912,7 @@ const EditEmployeePage = () => {
                       </SelectTrigger>
 
                       <SelectContent>
-                        {employmentTypes.map((t) => (
+                        {EMPLOYMENT_TYPE_OPTIONS.map((t) => (
                           <SelectItem key={t} value={t}>
                             {t}
                           </SelectItem>
@@ -1851,30 +1920,34 @@ const EditEmployeePage = () => {
                       </SelectContent>
                     </Select>
 
-                    {getError("employmentType") && (
-                      <p className="text-xs text-red-600">
-                        {getError("employmentType")}
-                      </p>
-                    )}
+                    {fieldError(errors, "employmentType")}
+
                   </div>
 
                   {/* Rate Card */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Rate Card
+                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
+                      <TooltipHint hint="Hourly or daily billing rate for client projects (in selected currency). Leave blank if not applicable." />
+
                     </Label>
                     <Input
                       type="number"
                       name="rateCard"
+                      required={!!(formData.clientSelection && !isStatusClient)}
                       value={formData.rateCard ?? ""}
                       onChange={handleValidatedChange}   // ← changed                      className="h-12 text-base w-full"
                       placeholder="45.00"
                     />
+                    {fieldError(errors, "rateCard")}
                   </div>
                   {/* CTC - Mandatory */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       CTC <span className="text-red-500">*</span>
+                      <TooltipHint hint="Cost to Company - Annual gross salary in rupees (before deductions)." />
+
                     </Label>
                     <Input
                       className="h-12 text-base w-full"
@@ -1885,16 +1958,17 @@ const EditEmployeePage = () => {
                       onChange={handleValidatedChange}
                       required
                     />
-                    {getError("ctc") && (
-                      <p className="text-xs text-red-600">{getError("ctc")}</p>
-                    )}
+                    {fieldError(errors, "employeeSalaryDTO.ctc")}
+
                   </div>
                   {/* Pay Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Pay Type <span className="text-red-500">*</span>
+                      <TooltipHint hint="How salary is structured: Fixed, Variable, Hourly, etc." />
                     </Label>
                     <Select
+                    required
                       value={formData?.employeeSalaryDTO?.payType || ""}
                       onValueChange={(v) => {
                         setIsDirty(true)
@@ -1933,15 +2007,16 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    {getError("payType") && (
-                      <p className="text-xs text-red-600">{getError("payType")}</p>
-                    )}
+                    {fieldError(errors, "employeeSalaryDTO.payType")}
+
                   </div>
 
                   {/* Standard Hours */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Standard Hours
+                                            <TooltipHint hint="Expected working hours per week. Default is 40." />
+                      
                     </Label>
                     <Input
                       type="number"
@@ -1949,12 +2024,16 @@ const EditEmployeePage = () => {
                       value={formData.employeeSalaryDTO?.standardHours ?? ""}
                       onChange={handleValidatedChange}   // ← changed                      className="h-12 text-base w-full"
                     />
+                                        {fieldError(errors, "employeeSalaryDTO.standardHours")}
+
                   </div>
 
                   {/* Pay Class */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Pay Class
+                                            <TooltipHint hint="Salary classification: A1, A2, INTERN, NA, B1, B2, CONTRACT" />
+                      
                     </Label>
 
                     <Select
@@ -1981,6 +2060,8 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError(errors, "employeeSalaryDTO.payClass")}
+
                   </div>
 
                   {/* Working Model */}
@@ -2017,12 +2098,16 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError(errors, "employeeEmploymentDetailsDTO.workingModel")} {/* ← Fixed error key */}
+
                   </div>
 
                   {/* Shift Timing */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Shift Timing
+                                            <TooltipHint hint="Employee's work shift: General, US Shift, UK Shift, etc." />
+                      
                     </Label>
 
                     <Select
@@ -2058,6 +2143,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date of Confirmation
+                                            <TooltipHint hint="Date when employee moved from probation to permanent. Leave blank if still on probation." />
+                      
                     </Label>
                     <Input
                       type="date"
@@ -2069,12 +2156,16 @@ const EditEmployeePage = () => {
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                     />
+                                        {fieldError(errors, "employeeEmploymentDetailsDTO.dateOfConfirmation")}
+
                   </div>
 
                   {/* Notice Period */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Notice Period
+                                            <TooltipHint hint="Number of days/months required for resignation after confirmation." />
+                      
                     </Label>
 
                     <Select
@@ -2125,6 +2216,8 @@ const EditEmployeePage = () => {
                     />
                     <Label className="text-sm font-semibold text-gray-700">
                       Probation Applicable
+                                            <TooltipHint hint="Check if the employee is currently on probation period." />
+                      
                     </Label>
                   </div>
 
@@ -2134,6 +2227,8 @@ const EditEmployeePage = () => {
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">
                           Probation Duration
+                                                  <TooltipHint hint="Length of probation period (e.g., 3 months, 6 months)." />
+                          
                         </Label>
 
                         <Select
@@ -2173,6 +2268,8 @@ const EditEmployeePage = () => {
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">
                           Probation Notice Period
+                                                  <TooltipHint hint="Notice period required during probation (usually shorter)." />
+                          
                         </Label>
 
                         <Select
@@ -2224,6 +2321,8 @@ const EditEmployeePage = () => {
                     />
                     <Label className="text-sm font-semibold text-gray-700">
                       Bond Applicable
+                                            <TooltipHint hint="Check if employee signed a service bond (e.g., training bond)." />
+                      
                     </Label>
                   </div>
 
@@ -2232,6 +2331,8 @@ const EditEmployeePage = () => {
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700">
                         Bond Duration
+                                                <TooltipHint hint="Duration employee must serve after training or bond period." />
+                        
                       </Label>
 
                       <Select
@@ -2271,6 +2372,8 @@ const EditEmployeePage = () => {
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">
                       Allowances
+                                            <TooltipHint hint="Common allowances: HRA (House Rent), Travel, Medical, Special Allowance, Conveyance, LTA" />
+                      
                     </Label>
 
                     <div className="space-y-4">
@@ -2449,6 +2552,8 @@ const EditEmployeePage = () => {
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">
                       Deductions
+                                            <TooltipHint hint="Add mandatory or voluntary deductions from salary, like PF, Professional Tax, TDS, etc." />
+                      
                     </Label>
 
                     <div className="space-y-4">
@@ -2514,12 +2619,8 @@ const EditEmployeePage = () => {
                               }}
                             />
 
-                            {/* ✅ error display */}
-                            {errors[`employeeSalaryDTO.deductions.${i}.deductionType`] && (
-                              <p className="text-red-500 text-xs">
-                                {errors[`employeeSalaryDTO.deductions.${i}.deductionType`]}
-                              </p>
-                            )}
+{fieldError(errors, `employeeSalaryDTO.deductions.${i}.deductionType`)}
+
                           </div>
                           {/* Amount */}
                           <Input
@@ -2626,8 +2727,8 @@ const EditEmployeePage = () => {
                 </div>
               </CardContent>
             </Card>
-   {/* Bank Details - RESPONSIVE & UNIFORM */}
-   <Card className="shadow-xl border-0">
+            {/* Bank Details - RESPONSIVE & UNIFORM */}
+            <Card className="shadow-xl border-0" data-bank-section>
               <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-2xl pb-6">
                 <CardTitle className="flex items-center gap-3 text-2xl font-bold text-rose-900">
                   <FileText className="w-7 h-7 text-rose-800" />
@@ -2636,51 +2737,7 @@ const EditEmployeePage = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* PAN Number – Optional */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      PAN Number
-                      <TooltipHint hint="Permanent Account Number for tax purposes. Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)" />
-                    </Label>
-                    <Input
-                      name="panNumber"
-                      value={formData.panNumber || ""}
-                        onChange={handleValidatedChange}
-                        pattern="[A-Z0-9]{10}"
-                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
 
-                      maxLength={10}
-                      placeholder="e.g.ABCDE1234F"
-                      className="h-12"
-                    />
-
-                    {fieldError(errors, "panNumber")}
-                  </div>
-
-                  {/* Aadhar Number – Optional */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      Aadhar Number
-                      <TooltipHint hint="12-digit unique ID issued by UIDAI. Format: 1234 5678 9012" />
-                    </Label>
-                    <Input
-                      name="aadharNumber"
-                      value={formData.aadharNumber || ""}
-                      onChange={(e) => {
-                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
-                        e.target.value = onlyDigits;
-                        handleValidatedChange(e);
-                      }}
-                      pattern="[0-9]{12}"
-                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
-                      inputMode="numeric"
-                      maxLength={12}
-                      placeholder="e.g.123456789012"
-                      className="h-12"
-                    />
-
-                    {fieldError(errors, "aadharNumber")}
-                  </div>
 
                   {/* Account Number – Optional */}
                   <div className="space-y-2">
@@ -2732,7 +2789,7 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="ifscCode"
-                      value={localIfsc}
+                      value={localIfsc || formData?.ifscCode || ""}
                       onChange={(e) => {
                         setLocalIfsc(e.target.value.toUpperCase());
                         handleValidatedChange(e);
@@ -2757,7 +2814,7 @@ const EditEmployeePage = () => {
                     <Input
                       name="bankName"
                       value={formData.bankName || ""}
-                      readOnly
+                      onChange={handleValidatedChange}
                       placeholder="Auto-filled from IFSC"
                       className="h-12 bg-gray-50 cursor-not-allowed"
                     />
@@ -2803,8 +2860,9 @@ const EditEmployeePage = () => {
                         {/* Document Type */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
-                            Document Type{" "}
-                            <span className="text-red-500">*</span>
+                            Document Type
+                                                      <TooltipHint hint="Common documents: Aadhar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
+                            
                           </Label>
 
                           <Select
@@ -2820,7 +2878,7 @@ const EditEmployeePage = () => {
                             </SelectTrigger>
 
                             <SelectContent>
-                              {documentTypes
+                              {DOCUMENT_TYPE_OPTIONS
                                 .filter((t) => {
                                   // allow current docType for this row
                                   if (t === doc.docType) return true;
@@ -2844,6 +2902,8 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Upload Document
+                                                      <TooltipHint hint="Supported formats: PDF, JPG, PNG. Max size 5MB recommended." />
+                            
                           </Label>
 
                           <FileInput
@@ -2934,6 +2994,8 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Equipment Type
+                                                      <TooltipHint hint="Common types: Laptop, Desktop, Monitor, Keyboard, Mouse, Headset, Docking Station" />
+                            
                           </Label>
                           <Input
                             value={eq.equipmentType || ""}
@@ -2964,6 +3026,8 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Serial Number
+                                                      <TooltipHint hint="Unique serial number printed on the device. Usually on the back or bottom." />
+                            
                           </Label>
                           <Input
                             value={eq.serialNumber || ""}
@@ -2985,13 +3049,7 @@ const EditEmployeePage = () => {
                                 );
                               }
                             }}
-                          />
-
-                          {checking.has(`employeeEquipmentDTO[${i}].serialNumber`) && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
-                            </div>
-                          )}
+                          />                     
                           {fieldError(errors, `employeeEquipmentDTO[${i}].serialNumber`)}
                         </div>
 
@@ -2999,6 +3057,8 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Issued Date
+                                                      <TooltipHint hint="Date when equipment was handed over to employee" />
+                            
                           </Label>
                           <Input
                             type="date"
@@ -3062,6 +3122,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">
                       Skills & Certification
+                                            <TooltipHint hint="List technical and soft skills, certifications. Example: React, AWS Certified Solutions Architect, Agile Scrum Master" />
+                      
                     </Label>
                     <textarea
                       name="skillsAndCertification"
@@ -3076,25 +3138,27 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Background Check Status
+                                            <TooltipHint hint="Status of verification: Cleared, Pending, Failed, Not Initiated" />
+                      
                     </Label>
                     <input
                       name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
                       value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ""}
                       maxLength={30}
+                      placeholder="e.g., Cleared, Pending"
                       onChange={handleValidatedChange}
                       className="w-full h-12 px-4 py-3 border rounded-xl"
                     />
+                    {fieldError(errors, "employeeAdditionalDetailsDTO.backgroundCheckStatus")}
 
-                    {fieldError(
-                      errors,
-                      "employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                    )}
                   </div>
 
-                  {/* ADDITIONAL REMARKS */}
+                  {/* A REMARKS */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">
-                      Additional Remarks
+                   Remarks
+                                            <TooltipHint hint="Any special notes about the employee: performance, behavior, relocation, etc." />
+                      
                     </Label>
                     <textarea
                       id="additionalRemarks"
@@ -3103,25 +3167,10 @@ const EditEmployeePage = () => {
                         formData.employeeAdditionalDetailsDTO?.remarks || ""
                       }
                       onChange={handleChange}
-                      placeholder="Any notes..."
+                      placeholder="Any additional notes..."
                       className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
-                  </div>
-
-                  {/* GENERAL REMARKS */}
-                  <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      General Remarks
-                    </Label>
-                    <textarea
-                      id="generalRemarks"
-                      name="remarks"
-                      value={formData.remarks || ""}
-                      onChange={handleChange}
-                      placeholder="General notes..."
-                      className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
-                    />
-                  </div>
+                  </div>       
                 </div>
               </CardContent>
             </Card>
@@ -3141,6 +3190,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Policy Number
+                                            <TooltipHint hint="Unique policy ID from insurance provider. Must be unique across employees." />
+                      
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.policyNumber"
@@ -3164,6 +3215,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Provider Name
+                                            <TooltipHint hint="Insurance company name. Example: LIC, Star Health, HDFC Life" />
+                      
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.providerName"
@@ -3181,6 +3234,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Coverage Start
+                                            <TooltipHint hint="Date when insurance coverage begins" />
+                      
                     </Label>
                     <Input
                       type="date"
@@ -3199,6 +3254,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Coverage End
+                                            <TooltipHint hint="Date when policy expires. Leave blank for lifelong policies." />
+                      
                     </Label>
                     <Input
                       type="date"
@@ -3215,6 +3272,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nominee Name
+                                            <TooltipHint hint="Person who will receive insurance benefit in case of claim" />
+                      
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeName"
@@ -3231,6 +3290,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nominee Relation
+                                            <TooltipHint hint="Relationship to employee: Spouse, Parent, Child, Sibling, etc." />
+                      
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeRelation"
@@ -3247,12 +3308,15 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nominee Contact
+                                            <TooltipHint hint="10-digit mobile number of nominee" />
+                      
                     </Label>
                     <div className="relative">
                       <Input
                         name="employeeInsuranceDetailsDTO.nomineeContact"
                         value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ""}
                         maxLength={10}
+                        type="tel"
                         onChange={(e) => {
                           const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
                           e.target.value = onlyDigits;
@@ -3292,6 +3356,8 @@ const EditEmployeePage = () => {
                       className="text-base font-medium cursor-pointer"
                     >
                       Group Insurance
+                                            <TooltipHint hint="Check if employee is covered under company group insurance plan" />
+                      
                     </Label>
                   </div>
                 </div>
@@ -3313,6 +3379,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Passport Number
+                                            <TooltipHint hint="Indian passport number. Format: One letter + 7 digits (e.g., A1234567). Must be unique." />
+                      
                     </Label>
                     <div className="relative">
                       <Input
@@ -3328,14 +3396,7 @@ const EditEmployeePage = () => {
                         placeholder="e.g., A1234567"
                         className="h-12 text-base"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has(
-                        "employeeStatutoryDetailsDTO.passportNumber",
-                      ) && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                          </div>
-                        )}
+                    
                     </div>
                     {fieldError(errors, "employeeStatutoryDetailsDTO.passportNumber")}
 
@@ -3345,6 +3406,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       PF UAN Number
+                                            <TooltipHint hint="12-digit Universal Account Number for Provident Fund. Must be unique across all employees." />
+                      
                     </Label>
                     <div className="relative">
                       <Input
@@ -3366,14 +3429,7 @@ const EditEmployeePage = () => {
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has(
-                        "employeeStatutoryDetailsDTO.pfUanNumber",
-                      ) && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                          </div>
-                        )}
+                     
                     </div>
                     {fieldError(errors, "employeeStatutoryDetailsDTO.pfUanNumber")}
 
@@ -3383,6 +3439,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Tax Regime
+                                            <TooltipHint hint="Income tax regime employee has opted for. Common options: Old Regime, New Regime" />
+                      
                     </Label>
                     <Input
                       name="employeeStatutoryDetailsDTO.taxRegime"
@@ -3394,17 +3452,16 @@ const EditEmployeePage = () => {
                       placeholder="e.g., Old Regime / New Regime"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-                    {errors["employeeStatutoryDetailsDTO.taxRegime"] && (
-                      <p className="text-red-600 text-xs font-medium mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                        {errors["employeeStatutoryDetailsDTO.taxRegime"]}
-                      </p>
-                    )}
+                                       {fieldError(errors, "employeeStatutoryDetailsDTO.taxRegime")}
+
                   </div>
 
                   {/* ESI Number */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       ESI Number
+                                            <TooltipHint hint="Employee State Insurance Number (usually 10–17 digits). Optional." />
+                      
                     </Label>
                     <div className="relative">
                       <Input
@@ -3426,14 +3483,7 @@ const EditEmployeePage = () => {
                         placeholder="e.g., 1234567890"
                         className="h-12 text-base"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has(
-                        "employeeStatutoryDetailsDTO.esiNumber",
-                      ) && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                          </div>
-                        )}
+                     
                     </div>
                     {fieldError(errors, "employeeStatutoryDetailsDTO.esiNumber")}
 
@@ -3443,6 +3493,8 @@ const EditEmployeePage = () => {
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       SSN Number
+                                            <TooltipHint hint="Social Security Number (for international employees, e.g., US format: 123456789). Optional." />
+                      
                     </Label>
                     <div className="relative">
                       <Input
@@ -3463,14 +3515,7 @@ const EditEmployeePage = () => {
                         placeholder="e.g., 123456789"
                         className="h-12 text-base"
                       />
-                      {/* Loading Spinner */}
-                      {checking.has(
-                        "employeeStatutoryDetailsDTO.ssnNumber",
-                      ) && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                          </div>
-                        )}
+                     
                     </div>
                     {fieldError(errors, "employeeStatutoryDetailsDTO.ssnNumber")}
 
@@ -3478,13 +3523,6 @@ const EditEmployeePage = () => {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-                {error}
-              </div>
-            )}
             {/* Submit */}
             <div className="flex justify-end space-x-4 pt-6">
               <Link

@@ -392,7 +392,15 @@ const EmployeeList = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
-                  <tr key={employee.employeeId} className="hover:bg-gray-50">
+                <tr
+                key={employee.employeeId}
+                className={`transition-colors duration-200 ${
+                  employee.createdFromExcel === true
+                    ? "bg-red-50 border-l-4 hover:bg-red-100"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+              
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 line-clamp-1">{`${employee.firstName} ${employee.lastName}`}</div>
                     </td>
