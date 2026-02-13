@@ -1,7 +1,11 @@
 import { UniqueField } from "@/lib/api/validationService";
 
 export function useFormFieldHandlers<TForm>(
-  handleChange: (e: any) => void,
+  handleChange: (
+    e: any,
+    index?: number,
+    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+  ) => void,
   setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>,
   checkUniqueness: (
     field: UniqueField,
@@ -11,27 +15,60 @@ export function useFormFieldHandlers<TForm>(
     excludeId?: string | null
   ) => void,
   getFormData: () => TForm | null,
-  validateField: (name: string, value: any, formData?: any) => string   // ← NEW PARAMETER
+  validateField: (name: string, value: any, formData?: any) => string
 ) {
-  // Remove this line completely:
-  // const { validateField } = useClientFieldValidation();
+  const formatValue = (name: string, value: string) => {
+    if (!name) return value;
+
+    if (name === "email" || name.endsWith(".email")) {
+      return value.toLowerCase().trim();
+    }
+
+    if (name === "gst" || name === "panNumber" || name === "tanNumber") {
+      return value.toUpperCase().trim();
+    }
+
+    if (name.endsWith("pincode") || name.endsWith("contactNumber")) {
+      return value.replace(/\D/g, "");
+    }
+
+    return value;
+  };
 
   const handleValidatedChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement |HTMLSelectElement>,
+    index?: number,
+    section?: "addresses" | "clientPocs" | "clientTaxDetails"
   ) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
 
-    handleChange(e);
+    const formattedValue = formatValue(name, e.target.value);
+    e.target.value = formattedValue;
 
-    const error = validateField(
-      name,
-      value,
-      getFormData() ?? undefined
-    );
-
-    setErrors(prev => {
+    // ✅ pass nested params
+    handleChange(e, index, section);
+    const currentForm = getFormData() ?? {};
+    let updatedForm: any = JSON.parse(JSON.stringify(currentForm));
+    
+    if (name.includes(".")) {
+      const keys = name.split(".");
+      let temp = updatedForm;
+    
+      for (let i = 0; i < keys.length - 1; i++) {
+        const key = isNaN(Number(keys[i])) ? keys[i] : Number(keys[i]);
+        temp = temp[key];
+      }
+    
+      const lastKey = keys[keys.length - 1];
+      temp[lastKey] = formattedValue;
+    } else {
+      updatedForm[name] = formattedValue;
+    }
+    const error = validateField(name, formattedValue, updatedForm);
+    setErrors((prev) => {
       const next = { ...prev };
-      error ? (next[name] = error) : delete next[name];
+      if (error) next[name] = error;
+      else delete next[name];
       return next;
     });
   };
@@ -45,13 +82,19 @@ export function useFormFieldHandlers<TForm>(
       minLen = 3
     ) =>
     (e: React.FocusEvent<HTMLInputElement>) => {
-      const val = e.target.value.trim();
-      if (!val || val.length < minLen) return;
+      const formattedValue = formatValue(errorKey, e.target.value);
 
-      const formatError = validateField(errorKey, val, getFormData() ?? undefined); // ← use the passed one
-      if (formatError) return;
+      if (!formattedValue || formattedValue.length < minLen) return;
 
-      checkUniqueness(field, val, errorKey, fieldColumn, excludeId);
+      const error = validateField(
+        errorKey,
+        formattedValue,
+        getFormData() ?? undefined
+      );
+
+      if (error) return;
+
+      checkUniqueness(field, formattedValue, errorKey, fieldColumn, excludeId);
     };
 
   const fieldError = (errors: Record<string, string>, name: string) =>

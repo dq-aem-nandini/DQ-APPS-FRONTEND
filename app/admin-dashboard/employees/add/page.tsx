@@ -45,8 +45,8 @@ import { User, Briefcase, FileText, Laptop, Shield, FileCheck, Upload, Trash2, P
 import { employeeService } from '@/lib/api/employeeService';
 import TooltipHint from '@/components/ui/TooltipHint';
 import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
-import { useEmployeeFieldValidation } from '@/hooks/useFieldValidation';
 import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
+import { useEmployeeFieldValidation } from '@/hooks/useEmployeeFieldValidation';
 interface Client {
   id: string;
   name: string;
@@ -564,24 +564,26 @@ const AddEmployeePage = () => {
         { value: formData.employeeEmploymentDetailsDTO?.department, name: 'department', label: 'Department' },
         { value: formData.designation, name: 'designation', label: 'Designation' },
         { value: formData.dateOfJoining, name: 'dateOfJoining', label: 'Date of Joining' },
-        ...(formData.clientSelection && !isStatusClient
-          ? []
-          : [{
-            value: formData.dateOfOnboardingToClient,
-            name: 'dateOfOnboardingToClient',
-            label: 'Date of Onboarding to Client',
-          }]
+        ...(!isStatusClient
+          ? [{
+              value: formData.dateOfOnboardingToClient,
+              name: 'dateOfOnboardingToClient',
+              label: 'Date of Onboarding to Client',
+            }]
+          : []
         ),
+        
         { value: formData.employeeSalaryDTO?.payType, name: 'employeeSalaryDTO.payType', label: 'Pay Type' },
         { value: formData.employmentType, name: 'employmentType', label: 'Employment Type' },
-        ...(formData.clientSelection && !isStatusClient
-          ? []
-          : [{
-            value: formData.rateCard,
-            name: 'rateCard',
-            label: 'Rate Card',
-          }]
+        ...(!isStatusClient
+          ? [{
+              value: formData.rateCard,
+              name: 'rateCard',
+              label: 'Rate Card',
+            }]
+          : []
         ),
+        
         { value: formData.employeeSalaryDTO?.ctc, name: 'employeeSalaryDTO.ctc', label: 'CTC' },
       ];
       const payload = {
@@ -917,6 +919,7 @@ const AddEmployeePage = () => {
     // Optional client dates only if not STATUS client
     if (!isStatusClient) {
       if (!formData.dateOfOnboardingToClient) return false;
+      if(!formData.rateCard) return false;
     }
 
     // No errors remaining
