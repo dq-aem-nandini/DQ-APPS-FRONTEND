@@ -36,7 +36,7 @@ class EmployeeService {
   async updateEmployee(employee: EmployeeModel): Promise<WebResponseDTO<EmployeeDTO>> {
     try {
       const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> = await api.put(
-        '/employee/update',
+        '/employee/update?isUpdatedThroughForm=true',
         employee
       );
 

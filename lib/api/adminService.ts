@@ -144,7 +144,7 @@ class AdminService {
     payload: FormData
   ): Promise<any> {
     try {
-      const response = await api.put(`/admin/updateemp/${empId}`, payload, {
+      const response = await api.put(`/admin/updateemp/${empId}?isUpdatedThroughForm=true`, payload, {
         // timeout: 90000,
         // Important: Do NOT set Content-Type header
         // Browser automatically sets it with correct boundary for FormData

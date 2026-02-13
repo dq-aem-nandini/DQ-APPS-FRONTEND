@@ -400,7 +400,9 @@ const EmployeeList = () => {
                 <tr
                 key={employee.employeeId}
                 className={`transition-colors duration-200 ${
-                  employee.createdFromExcel === true
+                  employee.updatedThroughForm === true
+                    ? "hover:bg-gray-50"
+                    : employee.createdFromExcel === true
                     ? "bg-red-50 border-l-4 hover:bg-red-100"
                     : "hover:bg-gray-50"
                 }`}
