@@ -23,7 +23,7 @@ const EmployeeList = () => {
   const { state } = useAuth();
   const router = useRouter();
   
-  useEffect(() => {
+  
     const fetchEmployees = async () => {
       try {
         const response = await adminService.getAllEmployees();
@@ -50,8 +50,10 @@ const EmployeeList = () => {
         setLoading(false);
       }
     };
+
+  useEffect(() => {
     fetchEmployees();
-  }, []);
+    }, []);
 
   useEffect(() => {
     let filtered = employees;
@@ -190,15 +192,18 @@ const EmployeeList = () => {
     try {
       const response = await employeesDownloadUploadService.bulkCreateEmployees(file);
   
-      const { message, response: result } = response;
+      const { flag, message, response: result } = response;
   
-      // ✅ Full success
-      if (result.failureCount === 0) {
-        Swal.fire({
+      //  Full success
+      if (flag === true) {
+        await Swal.fire({
           icon: 'success',
           title: 'Employees Created',
           text: `Successfully created ${result.successCount} employees.`,
         });
+      
+        await fetchEmployees(); //  Refresh list
+      
         return;
       }
   

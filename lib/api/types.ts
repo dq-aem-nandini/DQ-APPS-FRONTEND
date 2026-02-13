@@ -1713,3 +1713,9 @@ export interface HolidayDTO {
   holidayDate: string; // ISO date string (YYYY-MM-DD)
   comments: string | null;
 }
+
+export interface AttendanceStatusDTO {
+  nextAction: "IN" | "OUT";
+  firstClockIn: string;     // ISO date-time
+  lastClockOut: string;     // ISO date-time
+}

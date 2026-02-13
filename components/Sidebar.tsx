@@ -100,7 +100,13 @@ export default function Sidebar() {
               <SidebarLink
                 key={item.href}
                 href={item.href}
-                active={pathname.startsWith(item.href)}
+                // active={pathname.startsWith(item.href)}
+                active={
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname.startsWith(item.href)
+                }
+                
                 icon={getIcon(item.label)}
               >
                 {item.label}
