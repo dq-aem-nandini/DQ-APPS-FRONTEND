@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { adminService } from '@/lib/api/adminService';
@@ -27,6 +27,9 @@ import {
   WORKING_MODEL_OPTIONS,
   EmployeeDepartmentDTO,
   WorkingModel,
+  DESIGNATION_OPTIONS,
+  DOCUMENT_TYPE_OPTIONS,
+  EMPLOYMENT_TYPE_OPTIONS,
 } from '@/lib/api/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Swal from 'sweetalert2';
@@ -48,7 +51,6 @@ interface Client {
   id: string;
   name: string;
 }
-type DocumentFileKey = 'offerLetter' | 'contract' | 'taxDeclarationForm' | 'workPermit';
 const AddEmployeePage = () => {
 
   const [formData, setFormData] = useState<EmployeeModel>({
@@ -78,7 +80,7 @@ const AddEmployeePage = () => {
     clientBillingStartDate: '',
     clientBillingStopDate: '',
     rateCard: null,
-    employmentType: 'FULLTIME' as EmploymentType,
+    employmentType: '' as EmploymentType,
     panNumber: '',
     aadharNumber: '',
     accountNumber: '',
@@ -91,11 +93,11 @@ const AddEmployeePage = () => {
     employeeSalaryDTO: {
       employeeId: '',
       ctc: null,
-      payType: 'MONTHLY' as PayType,
+      payType: '' as PayType,
       standardHours: null,
       bankAccountNumber: '',
       ifscCode: '',
-      payClass: 'A1' as PayClass,
+      payClass: '' as PayClass,
       allowances: [],
       deductions: [],
     },
@@ -160,7 +162,7 @@ const AddEmployeePage = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [managers, setManagers] = useState<EmployeeDTO[]>([]);
   const [isDirty, setIsDirty] = useState(false);   // optional, but useful
-  const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+  const { checkUniqueness} = useUniquenessCheck(setErrors);
   const [localIfsc, setLocalIfsc] = useState<string>("");
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -202,7 +204,16 @@ const AddEmployeePage = () => {
       return { ...prev, [name]: value };
     });
   };
-
+  const isAnyBankFieldFilled = useMemo(() => {
+    const f = formData;
+    return !!(
+      f.accountNumber?.trim() ||
+      f.accountHolderName?.trim() ||
+      f.ifscCode?.trim() ||
+      f.bankName?.trim() ||
+      f.branchName?.trim() 
+    );
+  }, [formData]);
   const { handleValidatedChange, handleUniqueBlur, fieldError } = useFormFieldHandlers(
     handleChange,
     setErrors,
@@ -288,20 +299,20 @@ const AddEmployeePage = () => {
   };
 
 
-  const designations: Designation[] = [
-    'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
-    'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
-    'DIRECTOR', 'VP_ENGINEERING', 'CTO', 'HR', 'FINANCE', 'OPERATIONS'
-  ];
+  // const designations: Designation[] = [
+  //   'INTERN', 'TRAINEE', 'ASSOCIATE_ENGINEER', 'SOFTWARE_ENGINEER', 'SENIOR_SOFTWARE_ENGINEER',
+  //   'LEAD_ENGINEER', 'TEAM_LEAD', 'TECHNICAL_ARCHITECT', 'REPORTING_MANAGER', 'DELIVERY_MANAGER',
+  //   'DIRECTOR', 'VP_ENGINEERING', 'CTO', 'HR', 'FINANCE', 'OPERATIONS','HR_MANAGER'
+  // ];
   const managerDesignations: Designation[] = [
     'REPORTING_MANAGER', 'DELIVERY_MANAGER', 'DIRECTOR', 'VP_ENGINEERING', 'CTO'
   ];
-  const documentTypes: DocumentType[] = [
-    'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
-    'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
-    'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
-  ];
-  const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
+  // const documentTypes: DocumentType[] = [
+  //   'OFFER_LETTER', 'CONTRACT', 'TAX_DECLARATION_FORM', 'WORK_PERMIT', 'PAN_CARD',
+  //   'AADHAR_CARD', 'BANK_PASSBOOK', 'TENTH_CERTIFICATE', 'TWELFTH_CERTIFICATE',
+  //   'DEGREE_CERTIFICATE', 'POST_GRADUATION_CERTIFICATE', 'OTHER'
+  // ];
+  // const employmentTypes: EmploymentType[] = ['CONTRACTOR', 'FREELANCER', 'FULLTIME'];
   const staticClients = new Set(['BENCH', 'INHOUSE', 'HR', 'NA']);
   const realManagers = departmentEmployees.filter(
     (emp) => emp.employeeId && emp.designation
@@ -520,6 +531,7 @@ const AddEmployeePage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     // 🚫 Document validation
     if (hasAnyDocTypeSelected || hasAnyFileSelected) {
       if (!hasValidDocument) {
@@ -552,7 +564,7 @@ const AddEmployeePage = () => {
         { value: formData.employeeEmploymentDetailsDTO?.department, name: 'department', label: 'Department' },
         { value: formData.designation, name: 'designation', label: 'Designation' },
         { value: formData.dateOfJoining, name: 'dateOfJoining', label: 'Date of Joining' },
-        ...(isStatusClient
+        ...(formData.clientSelection && !isStatusClient
           ? []
           : [{
             value: formData.dateOfOnboardingToClient,
@@ -562,6 +574,14 @@ const AddEmployeePage = () => {
         ),
         { value: formData.employeeSalaryDTO?.payType, name: 'employeeSalaryDTO.payType', label: 'Pay Type' },
         { value: formData.employmentType, name: 'employmentType', label: 'Employment Type' },
+        ...(formData.clientSelection && !isStatusClient
+          ? []
+          : [{
+            value: formData.rateCard,
+            name: 'rateCard',
+            label: 'Rate Card',
+          }]
+        ),
         { value: formData.employeeSalaryDTO?.ctc, name: 'employeeSalaryDTO.ctc', label: 'CTC' },
       ];
       const payload = {
@@ -611,6 +631,64 @@ const AddEmployeePage = () => {
 
         setIsSubmitting(false);
         return;
+      }
+      if (isAnyBankFieldFilled) {
+        const missing: string[] = [];
+      
+        if (!formData.accountNumber?.trim())     missing.push("Account Number");
+        if (!formData.accountHolderName?.trim()) missing.push("Account Holder Name");
+        if (!formData.ifscCode?.trim())          missing.push("IFSC Code");
+        if (!formData.bankName?.trim())          missing.push("Bank Name");
+        // if (!formData.branchName?.trim())     missing.push("Branch Name");  ← add only if required
+      
+        if (missing.length > 0) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Incomplete Bank Details',
+            html: `
+              Please fill these fields when entering bank information:<br><br>
+              <ul style="text-align:left; margin:16px 0 16px 32px; list-style:disc;">
+                ${missing.map(m => `<li>${m}</li>`).join('')}
+              </ul>
+            `,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#4f46e5',   // indigo-600-ish
+            allowOutsideClick: false,        // ← helps prevent random jumps sometimes
+            allowEscapeKey: false,
+          }).then((result) => {
+            // This code runs AFTER user clicks OK
+            if (result.isConfirmed) {
+              const bankCard = document.querySelector('[data-bank-section]');
+      
+              if (bankCard) {
+                // 1. Scroll smoothly and try to center the card
+                bankCard.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'center',          // most important line
+                });
+      
+                // 2. Small delay + focus first visible input inside bank card
+                setTimeout(() => {
+                  const firstInput = bankCard.querySelector(
+                    'input:not([type="hidden"]):not([readonly])'
+                  ) as HTMLInputElement | null;
+      
+                  if (firstInput) {
+                    firstInput.focus();
+                    // Optional: visual pulse so user sees where to continue
+                    firstInput.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+                    setTimeout(() => {
+                      firstInput.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+                    }, 1800);
+                  }
+                }, 450);   // 450–600 ms is sweet spot after smooth scroll
+              }
+            }
+          });
+      
+          setIsSubmitting(false);
+          return;
+        }
       }
       // === CALL BACKEND ===
       const response = await adminService.addEmployee(
@@ -926,11 +1004,7 @@ const AddEmployeePage = () => {
                         placeholder="you@gmail.com"
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       />
-                      {checking.has("personalEmail") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-                        </div>
-                      )}
+            
                     </div>
                     {fieldError(errors, "personalEmail")}
                   </div>
@@ -960,12 +1034,7 @@ const AddEmployeePage = () => {
                         maxLength={50}
                         placeholder="you@company.com"
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                      />
-                      {checking.has("companyEmail") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-                        </div>
-                      )}
+                      />                    
                     </div>
                     {fieldError(errors, "companyEmail")}
                   </div>
@@ -999,11 +1068,7 @@ const AddEmployeePage = () => {
                         placeholder="9876543210"
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       />
-                      {checking.has("contactNumber") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-                        </div>
-                      )}
+                      
                     </div>
                     {fieldError(errors, "contactNumber")}
                   </div>
@@ -1078,6 +1143,50 @@ const AddEmployeePage = () => {
                       </SelectContent>
                     </Select>
                     {fieldError(errors, "gender")}
+                  </div>
+                   {/* PAN Number – Optional */}
+                   <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      PAN Number
+                      <TooltipHint hint="Permanent Account Number for tax purposes. Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)" />
+                    </Label>
+                    <Input
+                      name="panNumber"
+                      value={formData.panNumber || ""}
+                        onChange={handleValidatedChange}
+                        pattern="[A-Z0-9]{10}"
+                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
+
+                      maxLength={10}
+                      placeholder="e.g.ABCDE1234F"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "panNumber")}
+                  </div>
+
+                  {/* Aadhar Number – Optional */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      Aadhar Number
+                      <TooltipHint hint="12-digit unique ID issued by UIDAI. Format: 1234 5678 9012" />
+                    </Label>
+                    <Input
+                      name="aadharNumber"
+                      value={formData.aadharNumber || ""}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = onlyDigits;
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
+                      inputMode="numeric"
+                      maxLength={12}
+                      placeholder="e.g.123456789012"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "aadharNumber")}
                   </div>
                 </div>
               </CardContent>
@@ -1303,7 +1412,7 @@ const AddEmployeePage = () => {
                         <SelectValue placeholder="Select Designation" />
                       </SelectTrigger>
                       <SelectContent>
-                        {designations.map(d => (
+                        {DESIGNATION_OPTIONS.map(d => (
                           <SelectItem key={d} value={d}>
                             {d.replace(/_/g, ' ')}
                           </SelectItem>
@@ -1334,17 +1443,14 @@ const AddEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Onboarding To Client
-                      {!isStatusClient && <span className="text-red-500">*</span>}
-                      <TooltipHint
-                        hint="Date when the employee started working for the client. Must be after Date of Joining."
-                      />
+                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}                      
+                      <TooltipHint hint="Date when the employee started working for the client. Must be after Date of Joining."/>
                     </Label>
                     <Input
                       type="date"
                       name="dateOfOnboardingToClient"
                       value={formData.dateOfOnboardingToClient ?? ""}
-                      required={!isStatusClient}
-                      max={maxJoiningDateStr}
+                      required={!!(formData.clientSelection && !isStatusClient)}                      max={maxJoiningDateStr}
                       onChange={handleValidatedChange}
                       className="h-12 text-base w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     />
@@ -1438,7 +1544,7 @@ const AddEmployeePage = () => {
                         <SelectValue placeholder="Select Employment Type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {employmentTypes.map(t => (
+                        {EMPLOYMENT_TYPE_OPTIONS.map(t => (
                           <SelectItem key={t} value={t}>
                             {t}
                           </SelectItem>
@@ -1449,7 +1555,7 @@ const AddEmployeePage = () => {
                   </div>
                   {/* Rate Card */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Rate Card
+                    <Label className="text-sm font-semibold text-gray-700">Rate Card {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
                       <TooltipHint hint="Hourly or daily billing rate for client projects (in selected currency). Leave blank if not applicable." />
                     </Label>
                     <Input
@@ -1457,7 +1563,7 @@ const AddEmployeePage = () => {
                       min="0"
                       step="0.01"
                       name="rateCard"
-                      value={formData.rateCard ?? ''}
+                      required={!!(formData.clientSelection && !isStatusClient)}                      value={formData.rateCard ?? ''}
                       onChange={handleValidatedChange}
                       placeholder="45.00"
                       className="h-12 text-base w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
@@ -2055,7 +2161,7 @@ const AddEmployeePage = () => {
               </CardContent>
             </Card>
             {/* Bank Details - RESPONSIVE & UNIFORM */}
-            <Card className="shadow-xl border-0">
+            <Card className="shadow-xl border-0" data-bank-section>
               <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-2xl pb-6">
                 <CardTitle className="flex items-center gap-3 text-2xl font-bold text-rose-900">
                   <FileText className="w-7 h-7 text-rose-800" />
@@ -2064,50 +2170,7 @@ const AddEmployeePage = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* PAN Number – Optional */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      PAN Number
-                      <TooltipHint hint="Permanent Account Number for tax purposes. Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)" />
-                    </Label>
-                    <Input
-                      name="panNumber"
-                      value={formData.panNumber || ""}
-                        onChange={handleValidatedChange}
-                        pattern="[A-Z0-9]{10}"
-                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
-
-                      maxLength={10}
-                      placeholder="e.g.ABCDE1234F"
-                      className="h-12"
-                    />
-
-                    {fieldError(errors, "panNumber")}
-                  </div>
-
-                  {/* Aadhar Number – Optional */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      Aadhar Number
-                      <TooltipHint hint="12-digit unique ID issued by UIDAI. Format: 1234 5678 9012" />
-                    </Label>
-                    <Input
-                      name="aadharNumber"
-                      value={formData.aadharNumber || ""}
-                      onChange={(e) => {
-                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
-                        e.target.value = onlyDigits;
-                        handleValidatedChange(e);
-                      }}
-                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
-                      inputMode="numeric"
-                      maxLength={12}
-                      placeholder="e.g.123456789012"
-                      className="h-12"
-                    />
-
-                    {fieldError(errors, "aadharNumber")}
-                  </div>
+                 
 
                   {/* Account Number – Optional */}
                   <div className="space-y-2">
@@ -2250,7 +2313,7 @@ const AddEmployeePage = () => {
                             <SelectValue placeholder="Select Type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {documentTypes
+                            {DOCUMENT_TYPE_OPTIONS
                               .filter((t) => {
                                 // allow currently selected type for this row
                                 if (t === doc.docType) return true;
@@ -2515,6 +2578,7 @@ const AddEmployeePage = () => {
                       className="min-h-32 resize-none text-base"
                     />
                   </div>
+                  
                 </div>
               </CardContent>
             </Card>
@@ -2632,7 +2696,6 @@ const AddEmployeePage = () => {
                     </Label>
                     <Input
                       inputMode="numeric"
-                      pattern="[0-9]*"
                       name="employeeInsuranceDetailsDTO.nomineeContact"
                       value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ''}
                       maxLength={10}
@@ -2706,11 +2769,7 @@ const AddEmployeePage = () => {
                         placeholder="e.g., A1234567"
                         className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500 uppercase"
                       />
-                      {checking.has("employeeStatutoryDetailsDTO.passportNumber") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-5 w-5 animate-spin text-red-600" />
-                        </div>
-                      )}
+                     
                     </div>
                     {fieldError(errors, "employeeStatutoryDetailsDTO.passportNumber")}
                   </div>
@@ -2725,7 +2784,6 @@ const AddEmployeePage = () => {
                       <Input
                         type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
                         name="employeeStatutoryDetailsDTO.pfUanNumber"
                         value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ''}
                         onChange={(e) => {
@@ -2743,11 +2801,7 @@ const AddEmployeePage = () => {
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"
                       />
-                      {checking.has("employeeStatutoryDetailsDTO.pfUanNumber") && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-5 w-5 animate-spin text-red-600" />
-                        </div>
-                      )}
+                      
                     </div>
                     {fieldError(errors, "employeeStatutoryDetailsDTO.pfUanNumber")}
                   </div>

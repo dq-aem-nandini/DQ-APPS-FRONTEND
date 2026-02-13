@@ -3,7 +3,7 @@
 // Shared regex patterns (used by both client & employee)
 // ────────────────────────────────────────────────
 const phoneRegex = /^[6-9]\d{9}$/;
-const emailRegex = /^[^\s@]+@gmail\.com$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const nameRegex = /^[A-Za-z ]+$/;
 const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/;
 const gstRegex = /^[0-9]{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]$/;

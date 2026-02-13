@@ -114,6 +114,8 @@ const ViewEmployee = () => {
           hasValue(employee.emergencyContactName) ||
           hasValue(employee.emergencyContactNumber) ||
           hasValue(employee.skillsAndCertification) ||
+          hasValue(employee.panNumber) ||
+          hasValue(employee.aadharNumber) ||
           hasValue(employee.remarks)) && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-5 flex items-center">
@@ -154,6 +156,8 @@ const ViewEmployee = () => {
                 )}
                 {hasValue(employee.skillsAndCertification) && <InfoItem label="Skills & Certifications" value={employee.skillsAndCertification!} />}
                 {hasValue(employee.remarks) && <InfoItem label="Remarks" value={employee.remarks!} className="md:col-span-2" />}
+                {hasValue(employee.panNumber) && <InfoItem label="PAN Number" value={employee.panNumber!} />}
+                {hasValue(employee.aadharNumber) && <InfoItem label="Aadhar Number" value={employee.aadharNumber!} />}
               </div>
             </div>
           )}
@@ -228,9 +232,7 @@ const ViewEmployee = () => {
           hasValue(employee.bankName) ||
           hasValue(employee.accountNumber) ||
           hasValue(employee.ifscCode) ||
-          hasValue(employee.branchName) ||
-          hasValue(employee.panNumber) ||
-          hasValue(employee.aadharNumber)) && (
+          hasValue(employee.branchName)) && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-5 flex items-center">
                 <span className="w-2 h-2 bg-purple-600 rounded-full mr-3"></span>
@@ -242,8 +244,7 @@ const ViewEmployee = () => {
                 {hasValue(employee.accountNumber) && <InfoItem label="Account Number" value={employee.accountNumber!} />}
                 {hasValue(employee.ifscCode) && <InfoItem label="IFSC Code" value={employee.ifscCode!} />}
                 {hasValue(employee.branchName) && <InfoItem label="Branch" value={employee.branchName!} />}
-                {hasValue(employee.panNumber) && <InfoItem label="PAN Number" value={employee.panNumber!} />}
-                {hasValue(employee.aadharNumber) && <InfoItem label="Aadhar Number" value={employee.aadharNumber!} />}
+               
               </div>
             </div>
           )}
