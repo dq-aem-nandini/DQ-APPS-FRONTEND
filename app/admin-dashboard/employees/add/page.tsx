@@ -963,7 +963,7 @@ if (
     return Object.keys(errors).length === 0;
   };
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 md:p-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-10 flex items-center justify-between">

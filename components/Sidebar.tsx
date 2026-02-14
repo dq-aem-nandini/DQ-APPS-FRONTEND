@@ -54,7 +54,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
    TYPE GUARD
 ===================== */
 const isSidebarRole = (role: Role): role is SidebarRole =>
-  role === "MANAGER" || role === "FINANCE" || role === "SUPER_HR";
+  role === "MANAGER" || role === "FINANCE" || role === "SUPER_HR" || role === "HR_MANAGER";
 
 /* =====================
    SIDEBAR
@@ -69,7 +69,7 @@ export default function Sidebar() {
 
   const role = user.role.roleName as Role;
   const permissions: string[] = user.role.permissions ?? [];
-
+  const hasSubordinates = user?.hasSubordinates;
   const getIcon = (label: string) =>
     ICON_MAP[label] ?? <Home size={18} />;
 
@@ -119,7 +119,8 @@ export default function Sidebar() {
         {/* =====================
             HR ADMIN (NO PERMISSIONS)
         ===================== */}
-        {role === "HR" && sidebarConfig.HR_COMMON && (
+        
+        {role === "HR" || role === "HR_MANAGER" && sidebarConfig.HR_COMMON && (
           <SidebarSection title="Main">
             {sidebarConfig.HR_COMMON.map((item: SidebarItem) => (
               <SidebarLink
@@ -138,7 +139,7 @@ export default function Sidebar() {
             SUPER_HR COMMON (NO PERMISSIONS)
             👉 ONLY LEAVES
         ===================== */}
-        {/* {role === "SUPER_HR" && (
+        {role === "SUPER_HR" && (
           <SidebarSection title="Main">
             {sidebarConfig.SUPER_HR.map((item: SidebarItem) => (
               <SidebarLink
@@ -151,12 +152,12 @@ export default function Sidebar() {
               </SidebarLink>
             ))}
           </SidebarSection>
-        )} */}
+        )}
 
         {/* =====================
             ROLE-SPECIFIC (PERMISSION BASED)
         ===================== */}
-        {isSidebarRole(role) && sidebarConfig[role] && (
+        {/* {isSidebarRole(role) && sidebarConfig[role] && (
           <SidebarSection title={role.replace("_", " ")}>
             {sidebarConfig[role]
               .filter(
@@ -175,11 +176,39 @@ export default function Sidebar() {
                 </SidebarLink>
               ))}
           </SidebarSection>
-        )}
-      </div>
-    </aside>
-  );
-}
+        )} */}
+
+        {/* =====================
+          ROLE-SPECIFIC (PERMISSION BASED)
+          ===================== */}
+
+          {/* MANAGER or HR_MANAGER */}
+          {(role === "MANAGER" ||
+            (role === "HR_MANAGER" && hasSubordinates)) && (
+            <SidebarSection title="Manager">
+              {sidebarConfig.MANAGER
+                .filter(
+                  (item: SidebarItem) =>
+                    !item.permission ||
+                    permissions.includes(item.permission)
+                )
+                .map((item: SidebarItem) => (
+                  <SidebarLink
+                    key={item.href}
+                    href={item.href}
+                    active={pathname.startsWith(item.href)}
+                    icon={getIcon(item.label)}
+                  >
+                    {item.label}
+                  </SidebarLink>
+                ))}
+            </SidebarSection>
+          )}
+
+                </div>
+              </aside>
+            );
+          }
 
 /* =====================
    SUB COMPONENTS

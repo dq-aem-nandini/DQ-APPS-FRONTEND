@@ -171,7 +171,7 @@ const Leavespage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
+      if (!accessToken || !user || (user.role.roleName !== 'MANAGER' && user.role.roleName !== 'HR_MANAGER')) {
         throw new Error('Unauthorized access. Please log in as a manager.');
       }
       // Fetch manager's employees when switching to 'all' tab (only once)

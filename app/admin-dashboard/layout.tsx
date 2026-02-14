@@ -20,7 +20,7 @@ export default function AdminDashboardLayout({
   const role = state.user?.role.roleName;
 
   return (
-    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="flex h-screen overflow-hidden">
 
         {/* SIDEBAR */}

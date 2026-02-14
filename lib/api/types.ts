@@ -4,6 +4,7 @@ export type Role =
   | "EMPLOYEE"
   | "MANAGER"
   | "HR"
+  | "HR_MANAGER"
   | "FINANCE"
   | "SUPER_HR";
 

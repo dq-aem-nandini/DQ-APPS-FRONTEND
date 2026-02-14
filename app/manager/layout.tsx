@@ -4,7 +4,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute allowedRoles={['MANAGER', 'SUPER_HR']}>
+    <ProtectedRoute allowedRoles={['MANAGER', 'SUPER_HR', 'HR_MANAGER']}>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
         <div className="flex flex-col flex-1">

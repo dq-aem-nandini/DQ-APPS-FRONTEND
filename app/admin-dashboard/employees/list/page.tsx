@@ -264,7 +264,7 @@ const EmployeeList = () => {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
         <div className="flex flex-col items-center justify-center h-[80vh] space-y-4 p-4 sm:p-6 md:p-8">
           {/* Tailwind spinner */}
           <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
@@ -276,7 +276,7 @@ const EmployeeList = () => {
 
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 md:p-8">
         {/* Header */}
         <div className="relative flex items-center justify-center mb-4 sm:mb-6 md:mb-8">

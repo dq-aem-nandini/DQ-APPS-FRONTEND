@@ -75,9 +75,10 @@ const ClientList = () => {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
+        <div className="flex items-center justify-center h-[80vh] p-4 sm:p-6 md:p-8 text-center text-gray-600">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-sm sm:text-base">Loading clients...</p>
         </div>
       </ProtectedRoute>
     );
@@ -85,7 +86,7 @@ const ClientList = () => {
 
   if (error) {
     return (
-      <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
+      <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
         <div className="p-4 sm:p-6 md:p-8 text-center text-red-600">
           <p className="text-sm sm:text-base">{error}</p>
         </div>
@@ -94,7 +95,7 @@ const ClientList = () => {
   }
 
   return (
-    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
       <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

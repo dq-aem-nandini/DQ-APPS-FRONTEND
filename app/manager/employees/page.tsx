@@ -28,6 +28,8 @@ const ManagerEmployeesPage: React.FC = () => {
     'LEAD_ENGINEER',
     'TEAM_LEAD',
     'TECHNICAL_ARCHITECT',
+    'HR',
+    
   ];
 
   // Check authentication and fetch employees
