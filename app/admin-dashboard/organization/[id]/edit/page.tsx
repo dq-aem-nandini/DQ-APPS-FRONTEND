@@ -66,11 +66,12 @@ export default function EditOrganizationPage() {
     email: "",
     contactNumber: "",
     logo: null,
-    industryType: "OTHER" as IndustryType,
-    domain: "OTHER" as Domain,
+    industryType: "" as IndustryType,
+    domain: "" as Domain,
     establishedDate: "",
-    timezone: "Asia/Kolkata",
-    currencyCode: "INR" as CurrencyCode,
+    timezone: "",
+    autoClockOutTime: '',
+    currencyCode: "" as CurrencyCode,
     accountNumber: "",
     accountHolderName: "",
     bankName: "",
@@ -146,11 +147,14 @@ export default function EditOrganizationPage() {
           email: res.email ?? "",
           contactNumber: res.contactNumber ?? "",
           logo: null,
-          industryType: res.industryType ?? "OTHER",
-          domain: res.domain ?? "OTHER",
+          industryType: res.industryType ?? "",
+          domain: res.domain ?? "",
           establishedDate: res.establishedDate ?? "",
-          timezone: res.timezone ?? "Asia/Kolkata",
-          currencyCode: res.currencyCode ?? "INR",
+          timezone: res.timezone ?? "",
+          autoClockOutTime: res.autoClockOutTime
+            ? res.autoClockOutTime.slice(0, 5)
+            : "",
+          currencyCode: res.currencyCode ?? "",
           accountNumber: res.accountNumber ?? "",
           accountHolderName: res.accountHolderName ?? "",
           bankName: res.bankName ?? "",
@@ -166,7 +170,7 @@ export default function EditOrganizationPage() {
               state: a.state ?? "",
               country: a.country ?? "",
               pincode: a.pincode ?? "",
-              addressType: a.addressType ?? ("OFFICE" as AddressType),
+              addressType: a.addressType ?? ("" as AddressType),
             })) ?? [],
           prefix: res.prefix ?? "",
           sequenceNumber: res.sequenceNumber ?? undefined,
@@ -189,9 +193,17 @@ export default function EditOrganizationPage() {
 
   const hasChanges = useMemo(() => {
     if (!originalData) return false;
-    return JSON.stringify(formData) !== JSON.stringify(originalData);
+  
+    const clean = (data: OrganizationRequestDTO) => ({
+      ...data,
+      logo: undefined,
+      digitalSignature: undefined,
+    });
+  
+    return JSON.stringify(clean(formData)) !==
+           JSON.stringify(clean(originalData));
   }, [formData, originalData]);
-
+  
   // IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
     const code = String(ifsc ?? "")
@@ -311,8 +323,14 @@ export default function EditOrganizationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!hasChanges || !id) return;
+    console.log("SUBMIT CLICKED");
+    console.log("HAS CHANGES:", hasChanges);
+    console.log("ID:", id);
+  
+    if (!hasChanges || !id) {
+      console.log("STOPPED because no changes or no id");
+      return;
+    }
 
     setSaving(true);
     setErrors({});
@@ -336,11 +354,8 @@ export default function EditOrganizationPage() {
       "accountNumber",
       "accountHolderName",
       "ifscCode",
-      "prefix",
-      "sequenceNumber",
-      "companyType",
     ];
-
+    
     fieldsToValidate.forEach((name) => {
       const value = (formData as any)[name];
       const error = validateField(name, value, formData);
@@ -383,6 +398,15 @@ export default function EditOrganizationPage() {
       fd.append("industryType", formData.industryType || "");
       fd.append("establishedDate", formData.establishedDate || "");
       fd.append("timezone", formData.timezone || "");
+      if (formData.autoClockOutTime) {
+        fd.append(
+          "autoClockOutTime",
+          `${formData.autoClockOutTime}:00`
+        );
+      } else {
+        fd.append("autoClockOutTime", "");
+      }
+
       fd.append("currencyCode", formData.currencyCode || "");
       fd.append("accountNumber", formData.accountNumber || "");
       fd.append("accountHolderName", formData.accountHolderName || "");
@@ -408,9 +432,13 @@ export default function EditOrganizationPage() {
         fd.append(`addresses[${i}].pincode`, addr.pincode || "");
         fd.append(`addresses[${i}].addressType`, addr.addressType || "OFFICE");
       });
-
+   
+      for (let pair of fd.entries()) {
+       
+      }
+      
       const res = await organizationService.update(id, fd);
-
+     
       if (res.flag) {
         Swal.fire({
           title: "Success",
@@ -423,6 +451,8 @@ export default function EditOrganizationPage() {
         Swal.fire("Error", res.message || "Update failed", "error");
       }
     } catch (err: any) {
+      console.log("UPDATE ERROR:", err);
+      console.log("ERROR RESPONSE:", err?.response);
       Swal.fire("Error", err.message || "Something went wrong", "error");
     } finally {
       setSaving(false);
@@ -690,14 +720,14 @@ export default function EditOrganizationPage() {
                     }}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                      <SelectValue />
+                    <SelectValue placeholder="Select Domain" />
                     </SelectTrigger>
                     <SelectContent>
-                       {DOMAIN_OPTIONS.map(m => (
-                                                <SelectItem key={m} value={m}>
-                                                  {m}
-                                                </SelectItem>
-                                              ))}
+                      {DOMAIN_OPTIONS.map(m => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "domain")}
@@ -735,11 +765,11 @@ export default function EditOrganizationPage() {
                       <SelectValue placeholder="Select Industry Type" />
                     </SelectTrigger>
                     <SelectContent>
-                     {INDUSTRY_TYPE_OPTIONS.map((m) => (
-                                           <SelectItem key={m} value={m}>
-                                             {m}
-                                           </SelectItem>
-                                         ))}
+                      {INDUSTRY_TYPE_OPTIONS.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "industryType")}
@@ -775,7 +805,7 @@ export default function EditOrganizationPage() {
                     }
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                      <SelectValue />
+                    <SelectValue placeholder="Select TimeZone" />
                     </SelectTrigger>
                     <SelectContent>
                       {TIMEZONES.map((tz) => (
@@ -785,6 +815,24 @@ export default function EditOrganizationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                {/* Auto Clock Out Time */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Auto Clock Out Time <span className="text-red-500">*</span>
+                    <TooltipHint hint="Automatic clock-out time in 24-hour format (HH:mm)." />
+                  </Label>
+
+                  <Input
+                    name="autoClockOutTime"
+                    type="time"
+                    value={formData.autoClockOutTime ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    required
+                  />
+
+                  {fieldError(errors, "autoClockOutTime")}
                 </div>
 
                 {/* Currency Code */}
@@ -816,14 +864,14 @@ export default function EditOrganizationPage() {
                     }}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                      <SelectValue />
+                    <SelectValue placeholder="Select Currency" />
                     </SelectTrigger>
                     <SelectContent>
                       {CURRENCY_CODE_OPTIONS.map((m) => (
-                                           <SelectItem key={m} value={m}>
-                                             {m}
-                                           </SelectItem>
-                                         ))}
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "currencyCode")}
@@ -1003,10 +1051,10 @@ export default function EditOrganizationPage() {
                   className="h-12 text-base border-gray-300"
                 />
                 {errors.digitalSignature && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.digitalSignature}
-                </p>
-              )}
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.digitalSignature}
+                  </p>
+                )}
               </div>
 
               {/* Addresses */}
@@ -1026,15 +1074,15 @@ export default function EditOrganizationPage() {
                 </div>
 
                 {formData.addresses.length === 0 && (
-                   <div className="text-center py-20 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
-                   <MapPin className="h-16 w-16 text-indigo-300 mx-auto mb-4" />
-                   <p className="text-xl font-medium text-gray-700">
-                     No addresses added yet
-                   </p>
-                   <p className="text-sm text-gray-500 mt-3">
-                     Click the button above to add a registered or office address
-                   </p>
-                 </div>
+                  <div className="text-center py-20 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
+                    <MapPin className="h-16 w-16 text-indigo-300 mx-auto mb-4" />
+                    <p className="text-xl font-medium text-gray-700">
+                      No addresses added yet
+                    </p>
+                    <p className="text-sm text-gray-500 mt-3">
+                      Click the button above to add a registered or office address
+                    </p>
+                  </div>
                 )}
 
                 {formData.addresses.map((address, idx) => (

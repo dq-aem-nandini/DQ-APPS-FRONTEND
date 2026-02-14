@@ -12,7 +12,9 @@ export const patterns = {
   accountNumber: /^\d{9,18}$/,
   ifsc: /^[A-Z]{4}0[A-Z0-9]{6}$/,
   aadhar: /^\d{12}$/,
-  onlyPositiveDigits: /^[1-9]\d*$/
+  onlyPositiveDigits: /^[1-9]\d*$/,
+  registrationNumber: /^[A-Za-z0-9\-\/]{3,50}$/,
+
 } as const;
 
 // Error messages
@@ -31,6 +33,8 @@ const invalidAadhar = "Invalid Aadhar format (12 digits)";
 const onlyLettersSymbols =
   "Only letters, spaces, and common symbols (& . , - () ) allowed";
 const invalidPincode = "Pincode must be exactly 6 digits";
+const invalidRegistrationNumber =
+  "Registration number must be 3–50 characters (letters, numbers, - or / only)";
 
 export function createOrganizationValidator() {
   return function validateOrganizationField(
@@ -129,10 +133,11 @@ export function createOrganizationValidator() {
       return invalidPincode;
     }
 
-    /* ───── Registration Number ───── */
-    if (name === "registrationNumber" && val.length > 50) {
-      return max50Chars;
-    }
+  /* ───── Registration Number ───── */
+if (name === "registrationNumber" && !patterns.registrationNumber.test(val)) {
+  return invalidRegistrationNumber;
+}
+
 
     return "";
   };
