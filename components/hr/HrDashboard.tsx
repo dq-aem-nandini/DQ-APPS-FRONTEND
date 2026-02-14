@@ -16,7 +16,8 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { adminService } from '@/lib/api/adminService';
 import { leaveService } from '@/lib/api/leaveService';
-
+import { employeePunchService } from '@/lib/api/EmployeePunchService';
+import { employeeService } from '@/lib/api/employeeService';
 import { invoiceService } from '@/lib/api/invoiceService';
 import {
   Users,
@@ -30,6 +31,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { timesheetService } from '@/lib/api/timeSheetService';
+import { AttendanceStatusDTO } from '@/lib/api/types';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -45,47 +47,100 @@ const HrDashboard = () => {
   const monthLabel = format(today, 'MMMM yyyy');
   const monthStart = format(startOfMonth(today), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(today), 'yyyy-MM-dd');
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
+const [attendanceStatus, setAttendanceStatus] =
+  useState<AttendanceStatusDTO | null>(null);
+const [punchLoading, setPunchLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError('');
 
-        const [
-          clientsRes,
-          employeesRes,
-          pendingRes,
-          timesheetsRes,
-          
-        ] = await Promise.all([
-          adminService.getAllClients(),
-          adminService.getAllEmployees(),
-          leaveService.getPendingLeaves(),
-          timesheetService.getAllTimesheets({ startDate: monthStart, endDate: monthEnd, size: 1000 }),
-          
-        ]);
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError('');
 
-        setTotalClients(clientsRes.response?.length || 0);
-        setTotalEmployees(employeesRes.response?.length || 0);
-        setPendingLeaves(pendingRes);
-        
+      // 1️⃣ Get employee details (logged-in HR)
+      const employee = await employeeService.getEmployeeById();
+      setEmployeeId(employee.employeeId);
 
-        const days = eachDayOfInterval({ start: startOfMonth(today), end: endOfMonth(today) });
-        const trend = days.map(day => {
-          const dateStr = format(day, 'yyyy-MM-dd');
-          return timesheetsRes.response?.filter((t: any) => t.workDate === dateStr).length || 0;
-        });
-        setTimesheetTrend(trend);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard');
-      } finally {
-        setLoading(false);
+      // 2️⃣ Get punch status
+      const punchRes = await employeePunchService.getPunchStatus(
+        employee.employeeId
+      );
+
+      if (punchRes.flag && punchRes.response) {
+        setAttendanceStatus(punchRes.response);
       }
-    };
 
-    fetchData();
-  }, [monthStart, monthEnd]);
+      // 3️⃣ Existing dashboard data
+      const [
+        clientsRes,
+        employeesRes,
+        pendingRes,
+        timesheetsRes,
+      ] = await Promise.all([
+        adminService.getAllClients(),
+        adminService.getAllEmployees(),
+        leaveService.getPendingLeaves(),
+        timesheetService.getAllTimesheets({
+          startDate: monthStart,
+          endDate: monthEnd,
+          size: 1000,
+        }),
+      ]);
+
+      setTotalClients(clientsRes.response?.length || 0);
+      setTotalEmployees(employeesRes.response?.length || 0);
+      setPendingLeaves(pendingRes);
+
+      const days = eachDayOfInterval({
+        start: startOfMonth(today),
+        end: endOfMonth(today),
+      });
+
+      const trend = days.map(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        return (
+          timesheetsRes.response?.filter(
+            (t: any) => t.workDate === dateStr
+          ).length || 0
+        );
+      });
+
+      setTimesheetTrend(trend);
+
+    } catch (err: any) {
+      setError(err.message || 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, [monthStart, monthEnd]);
+
+const handlePunch = async () => {
+  try {
+    setPunchLoading(true);
+
+    await employeePunchService.punch();
+
+    // Refresh punch status after punching
+    if (employeeId) {
+      const punchRes =
+        await employeePunchService.getPunchStatus(employeeId);
+
+      if (punchRes.flag && punchRes.response) {
+        setAttendanceStatus(punchRes.response);
+      }
+    }
+  } catch (err: any) {
+    alert(err.message);
+  } finally {
+    setPunchLoading(false);
+  }
+};
+
 
   const timesheetChartData = {
     labels: Array.from({ length: new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() }, (_, i) => i + 1),
@@ -138,6 +193,61 @@ const HrDashboard = () => {
 
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen space-y-6 md:space-y-8">
+
+      {/* HR Self Attendance Card */}
+<div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+
+<div>
+  <p className="text-sm text-gray-500 font-medium">
+    My Attendance Status
+  </p>
+
+  <p className="text-xl font-bold mt-1">
+    {attendanceStatus?.nextAction === "OUT"
+      ? "🟢 Clocked In"
+      : "🔴 Clocked Out"}
+  </p>
+
+  {attendanceStatus?.nextAction === "OUT" &&
+    attendanceStatus?.firstClockIn && (
+      <p className="text-sm text-gray-500 mt-1">
+        Clocked In At:{" "}
+        {format(
+          new Date(attendanceStatus.firstClockIn),
+          "hh:mm a"
+        )}
+      </p>
+    )}
+
+  {attendanceStatus?.nextAction === "IN" &&
+    attendanceStatus?.lastClockOut && (
+      <p className="text-sm text-gray-500 mt-1">
+        Last Clock Out:{" "}
+        {format(
+          new Date(attendanceStatus.lastClockOut),
+          "hh:mm a"
+        )}
+      </p>
+    )}
+</div>
+
+<button
+  onClick={handlePunch}
+  disabled={punchLoading}
+  className={`px-6 py-2 rounded-xl text-white font-semibold transition ${
+    attendanceStatus?.nextAction === "OUT"
+      ? "bg-red-600 hover:bg-red-700"
+      : "bg-green-600 hover:bg-green-700"
+  } ${punchLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+>
+  {punchLoading
+    ? "Processing..."
+    : attendanceStatus?.nextAction === "OUT"
+    ? "Clock Out"
+    : "Clock In"}
+</button>
+</div>
+
 
       {/* Key Metrics - Responsive Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
