@@ -11,11 +11,13 @@ import {
   WebResponseDTOPageLeaveResponseDTO,
   WebResponseDTOListEmployeeDTO,
   HolidaysDTO,
+  AttendanceStatusDTO,
 } from '@/lib/api/types';
 import { format } from 'date-fns';
 import { CheckCircle, XCircle, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
- 
+import { employeePunchService } from '@/lib/api/EmployeePunchService';
+
 const DashboardContent: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
@@ -28,6 +30,42 @@ const DashboardContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatusDTO | null>(null);
+  const [punchLoading, setPunchLoading] = useState(false);
+
+  const handlePunch = async () => {
+    try {
+      setPunchLoading(true);
+  
+      const res = await employeePunchService.punch();
+  
+      if (res.flag) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: res.message,
+          timer: 2000,
+          showConfirmButton: false,
+        });
+  
+        // Refresh status after punching
+        const statusRes = await employeePunchService.getPunchStatus(user!.userId);
+        if (statusRes.flag) {
+          setAttendanceStatus(statusRes.response);
+        }
+      } else {
+        Swal.fire('Error', res.message, 'error');
+      }
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Punch failed', 'error');
+    } finally {
+      setPunchLoading(false);
+    }
+  };
+  
+
+
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,6 +135,18 @@ const DashboardContent: React.FC = () => {
         }
    
         setUpcomingHolidays(upcoming);
+
+        // Fetch Punch Status
+        try {
+          const statusRes = await employeePunchService.getPunchStatus(user.userId);
+
+          if (statusRes.flag) {
+            setAttendanceStatus(statusRes.response);
+          }
+        } catch (err) {
+          console.warn("Punch status not available");
+        }
+
    
       } catch (err: any) {
         // Only critical failures reach here (leaves, employees, etc.)
@@ -109,82 +159,7 @@ const DashboardContent: React.FC = () => {
     fetchData();
   }, [accessToken, user]);
 
-  // useEffect(() => {
-  //   const fetchData = async () => {
-  //     if (!accessToken || !user || user.role.roleName !== 'MANAGER') {
-  //       setError('Unauthorized access. Please log in as a manager.');
-  //       setLoading(false);
-  //       return;
-  //     }
 
-  //     try {
-  //       setLoading(true);
-  //       setError(null);
-
-  //       const [
-  //         pendingLeavesRes,
-  //         leaveSummaryRes,
-  //         employeesRes,
-  //         holidaysRes,
-  //       ] = await Promise.all([
-  //         leaveService.getPendingLeaves(),
-  //         // CORRECT CALL — matches your backend method exactly
-  //         leaveService.getLeaveSummary(
-  //           undefined, // employeeId
-  //           undefined, // month
-  //           undefined, // type
-  //           undefined, // status
-  //           undefined, // financialType
-  //           undefined, // futureApproved
-  //           undefined, // date
-  //           0,         // page
-  //           1000,      // size
-  //           'fromDate,desc' // sort
-  //         ),
-
-  //         adminService.getAllEmployees(),
-  //         holidayService.getAllHolidays(),
-  //       ]);
-
-  //       // Pending Leaves
-  //       setPendingLeavesCount(pendingLeavesRes.length);
-  //       setRecentPendingLeaves(pendingLeavesRes.slice(0, 5));
-
-  //       // Approved Leaves
-  //       const approved = leaveSummaryRes.response?.content?.filter(l => l.status === 'APPROVED') || [];
-  //       setApprovedLeavesCount(approved.length);
-
-  //       // Team Stats
-  //       const managerId = user.userId;
-  //       const teamMembers = employeesRes.response?.filter(emp => emp.reportingManagerId === managerId) || [];
-  //       setTeamCount(teamMembers.length);
-  //       const totalLeaves = teamMembers.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
-  //       setAverageLeaves(teamMembers.length > 0 ? Math.round(totalLeaves / teamMembers.length) : 0);
-  //       // Upcoming Holidays
-  //       if (holidaysRes.flag && Array.isArray(holidaysRes.response)) {
-  //         const today = new Date();
-  //         today.setHours(0, 0, 0, 0);
-  //         const upcoming = holidaysRes.response
-  //           .filter(h => {
-  //             const hDate = new Date(h.holidayDate);
-  //             hDate.setHours(0, 0, 0, 0);
-  //             return hDate >= today;
-  //           })
-  //           .sort((a, b) => new Date(a.holidayDate).getTime() - new Date(b.holidayDate).getTime())
-  //           .slice(0, 5);
-
-  //         setUpcomingHolidays(upcoming);
-  //       }
-
-  //     } catch (err: any) {
-  //       setError(err.message || 'Failed to load dashboard data. Please try again.');
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
- 
-  //   fetchData();
-  // }, [accessToken, user]);
   const handleReviewLeave = (leave: PendingLeavesResponseDTO) => {
     Swal.fire({
       title: 'Review Leave Request',
@@ -292,6 +267,68 @@ const DashboardContent: React.FC = () => {
             Welcome back! Here’s your team overview
           </p>
         </div>
+
+
+        {/* Clock In / Clock Out Card */}
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">
+                Attendance Status
+              </p>
+
+              <p className="text-2xl font-bold mt-2">
+                {attendanceStatus?.nextAction === "OUT"
+                  ? "🟢 Clocked In"
+                  : "🔴 Clocked Out"}
+              </p>
+
+              {attendanceStatus?.nextAction === "OUT" &&
+                attendanceStatus?.firstClockIn && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Clocked In At:{" "}
+                    {format(
+                      new Date(attendanceStatus.firstClockIn),
+                      "hh:mm a"
+                    )}
+                  </p>
+                )}
+
+              {attendanceStatus?.nextAction === "IN" &&
+                attendanceStatus?.lastClockOut && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Last Clock Out:{" "}
+                    {format(
+                      new Date(attendanceStatus.lastClockOut),
+                      "hh:mm a"
+                    )}
+                  </p>
+                )}
+            </div>
+
+            <button
+              onClick={handlePunch}
+              disabled={punchLoading}
+              className={`px-6 py-3 rounded-lg text-white font-semibold transition ${
+                attendanceStatus?.nextAction === "OUT"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-green-600 hover:bg-green-700"
+              } ${
+                punchLoading
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              {punchLoading
+                ? "Processing..."
+                : attendanceStatus?.nextAction === "OUT"
+                ? "Clock Out"
+                : "Clock In"}
+            </button>
+          </div>
+        </div>
+
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 hover:shadow-2xl transition">
@@ -329,9 +366,9 @@ const DashboardContent: React.FC = () => {
                   Pending Leave Requests
                 </h3>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 <table className="w-full">
-                  <thead className="bg-gray-50/80">
+                <thead className="bg-gray-50/80 sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Employee</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Type</th>
@@ -370,101 +407,58 @@ const DashboardContent: React.FC = () => {
           )}
           {/* Upcoming Holidays */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
-  <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-    <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-      <Calendar className="w-7 h-7 text-purple-600" />
-      Upcoming Holidays
-    </h3>
-  </div>
-  <div className="p-6">
-    {upcomingHolidays.length > 0 ? (
-      <div className="space-y-4">
-        {upcomingHolidays.map((holiday) => (
-          <div
-            key={holiday.holidayId}
-            className="flex items-center justify-between p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300 border border-purple-100"
-          >
-            <div className="flex-1">
-              <h4 className="font-bold text-gray-800 text-lg">{holiday.holidayName}</h4>
-              <p className="text-sm text-gray-600 mt-1">
-                {format(new Date(holiday.holidayDate), 'EEEE, MMMM d, yyyy')}
-              </p>
-              {holiday.comments && (
-                <p className="text-xs text-gray-500 mt-2 italic">"{holiday.comments}"</p>
+            <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <Calendar className="w-7 h-7 text-purple-600" />
+                Upcoming Holidays
+              </h3>
+            </div>
+            <div className="p-6">
+              {upcomingHolidays.length > 0 ? (
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-purple-100">
+                  {upcomingHolidays.map((holiday) => (
+                    <div
+                      key={holiday.holidayId}
+                      className="flex items-center justify-between p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300 border border-purple-100"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-800 text-lg">{holiday.holidayName}</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {format(new Date(holiday.holidayDate), 'EEEE, MMMM d, yyyy')}
+                        </p>
+                        {holiday.comments && (
+                          <p className="text-xs text-gray-500 mt-2 italic">"{holiday.comments}"</p>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-4xl font-bold text-purple-600">
+                          {format(new Date(holiday.holidayDate), 'dd')}
+                        </div>
+                        <div className="text-sm font-medium text-purple-600 uppercase tracking-wider">
+                          {format(new Date(holiday.holidayDate), 'MMM')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="text-center mt-6">
+                    <button
+                      onClick={() => router.push('/dashboard/holiday')}
+                      className="text-indigo-600 hover:text-indigo-800 font-medium text-sm hover:underline"
+                    >
+                      View Full Holiday Calendar →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-gray-600">No upcoming holidays :(</p>
+                  <p className="text-sm text-gray-500 mt-2">Time to focus on work!</p>
+                </div>
               )}
             </div>
-            <div className="text-right ml-4">
-              <div className="text-4xl font-bold text-purple-600">
-                {format(new Date(holiday.holidayDate), 'dd')}
-              </div>
-              <div className="text-sm font-medium text-purple-600 uppercase tracking-wider">
-                {format(new Date(holiday.holidayDate), 'MMM')}
-              </div>
-            </div>
           </div>
-        ))}
-        <div className="text-center mt-6">
-          <button
-            onClick={() => router.push('/dashboard/holiday')}
-            className="text-indigo-600 hover:text-indigo-800 font-medium text-sm hover:underline"
-          >
-            View Full Holiday Calendar →
-          </button>
-        </div>
-      </div>
-    ) : (
-      <div className="text-center py-12">
-        <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <p className="text-lg font-medium text-gray-600">No upcoming holidays :(</p>
-        <p className="text-sm text-gray-500 mt-2">Time to focus on work!</p>
-      </div>
-    )}
-  </div>
-</div>
-          {/* {upcomingHolidays.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
-              <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                  <Calendar className="w-7 h-7 text-purple-600" />
-                  Upcoming Holidays
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                {upcomingHolidays.map((holiday) => (
-                  <div
-                    key={holiday.holidayId}
-                    className="flex items-center justify-between p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300 border border-purple-100"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800 text-lg">{holiday.holidayName}</h4>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {format(new Date(holiday.holidayDate), 'EEEE, MMMM d, yyyy')}
-                      </p>
-                      {holiday.comments && (
-                        <p className="text-xs text-gray-500 mt-2 italic">"{holiday.comments}"</p>
-                      )}
-                    </div>
-                    <div className="text-right ml-4">
-                      <div className="text-4xl font-bold text-purple-600">
-                        {format(new Date(holiday.holidayDate), 'dd')}
-                      </div>
-                      <div className="text-sm font-medium text-purple-600 uppercase tracking-wider">
-                        {format(new Date(holiday.holidayDate), 'MMM')}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="text-center mt-6">
-                  <button
-                    onClick={() => router.push('/dashboard/holiday')}
-                    className="text-indigo-600 hover:text-indigo-800 font-medium text-sm hover:underline"
-                  >
-                    View Full Holiday Calendar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )} */}
+         
         </div>
       </div>
     </div>
