@@ -528,6 +528,36 @@ const AddEmployeePage = () => {
       return nextErrors;
     });
   };
+  useEffect(() => {
+    const p = formData.personalEmail?.trim().toLowerCase();
+    const c = formData.companyEmail?.trim().toLowerCase();
+  
+    if (!p || !c) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.personalEmail;
+        delete next.companyEmail;
+        return next;
+      });
+      return;
+    }
+  
+    if (p === c) {
+      setErrors(prev => ({
+        ...prev,
+        personalEmail: "Personal and company email cannot be the same",
+        companyEmail: "Personal and company email cannot be the same",
+      }));
+    } else {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.personalEmail;
+        delete next.companyEmail;
+        return next;
+      });
+    }
+  }, [formData.personalEmail, formData.companyEmail]);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -921,6 +951,13 @@ const AddEmployeePage = () => {
       if (!formData.dateOfOnboardingToClient) return false;
       if(!formData.rateCard) return false;
     }
+// 🚫 Personal and Company email cannot be same
+if (
+  formData.personalEmail.trim().toLowerCase() ===
+  formData.companyEmail.trim().toLowerCase()
+) {
+  return false;
+}
 
     // No errors remaining
     return Object.keys(errors).length === 0;

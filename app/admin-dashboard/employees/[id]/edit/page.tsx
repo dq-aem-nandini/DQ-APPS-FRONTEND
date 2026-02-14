@@ -413,10 +413,12 @@ const EditEmployeePage = () => {
   }, [params.id]);
 
   useEffect(() => {
-    if (!formData) return;
+    if (!formData?.personalEmail || !formData?.companyEmail) {
+      return;
+    }
   
-    const p = formData.personalEmail?.trim().toLowerCase();
-    const c = formData.companyEmail?.trim().toLowerCase();
+    const p = formData.personalEmail.trim().toLowerCase();
+    const c = formData.companyEmail.trim().toLowerCase();
   
     if (p && c && p === c) {
       setErrors(prev => ({
@@ -424,8 +426,16 @@ const EditEmployeePage = () => {
         personalEmail: "Personal and company email cannot be the same",
         companyEmail: "Personal and company email cannot be the same",
       }));
+    } else {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.personalEmail;
+        delete next.companyEmail;
+        return next;
+      });
     }
-  }, [formData]);
+  }, [formData?.personalEmail, formData?.companyEmail]);
+  
   
   useEffect(() => {
     if (formData?.ifscCode) {
