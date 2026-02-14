@@ -1147,6 +1147,7 @@ export interface OrganizationRequestDTO {
   establishedDate: string; // yyyy-mm-dd
 
   timezone: string;
+  autoClockOutTime:string;
 
   currencyCode: CurrencyCode;
 
@@ -1155,7 +1156,6 @@ export interface OrganizationRequestDTO {
   bankName: string;
   ifscCode: string;
   branchName: string;
-
   digitalSignature: File | null; // binary
 
   addresses: AddressModel[];
@@ -1181,6 +1181,7 @@ export interface OrganizationResponseDTO {
   domain: Domain;
   establishedDate: string;
   timezone: string;
+  autoClockOutTime:string;
   currencyCode: CurrencyCode;
   accountNumber: string;
   accountHolderName: string;
