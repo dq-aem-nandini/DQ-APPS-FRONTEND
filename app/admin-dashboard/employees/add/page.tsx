@@ -45,8 +45,8 @@ import { User, Briefcase, FileText, Laptop, Shield, FileCheck, Upload, Trash2, P
 import { employeeService } from '@/lib/api/employeeService';
 import TooltipHint from '@/components/ui/TooltipHint';
 import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
-import { useEmployeeFieldValidation } from '@/hooks/useFieldValidation';
 import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
+import { useEmployeeFieldValidation } from '@/hooks/useEmployeeFieldValidation';
 interface Client {
   id: string;
   name: string;
@@ -528,6 +528,36 @@ const AddEmployeePage = () => {
       return nextErrors;
     });
   };
+  useEffect(() => {
+    const p = formData.personalEmail?.trim().toLowerCase();
+    const c = formData.companyEmail?.trim().toLowerCase();
+  
+    if (!p || !c) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.personalEmail;
+        delete next.companyEmail;
+        return next;
+      });
+      return;
+    }
+  
+    if (p === c) {
+      setErrors(prev => ({
+        ...prev,
+        personalEmail: "Personal and company email cannot be the same",
+        companyEmail: "Personal and company email cannot be the same",
+      }));
+    } else {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.personalEmail;
+        delete next.companyEmail;
+        return next;
+      });
+    }
+  }, [formData.personalEmail, formData.companyEmail]);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -564,24 +594,26 @@ const AddEmployeePage = () => {
         { value: formData.employeeEmploymentDetailsDTO?.department, name: 'department', label: 'Department' },
         { value: formData.designation, name: 'designation', label: 'Designation' },
         { value: formData.dateOfJoining, name: 'dateOfJoining', label: 'Date of Joining' },
-        ...(formData.clientSelection && !isStatusClient
-          ? []
-          : [{
-            value: formData.dateOfOnboardingToClient,
-            name: 'dateOfOnboardingToClient',
-            label: 'Date of Onboarding to Client',
-          }]
+        ...(!isStatusClient
+          ? [{
+              value: formData.dateOfOnboardingToClient,
+              name: 'dateOfOnboardingToClient',
+              label: 'Date of Onboarding to Client',
+            }]
+          : []
         ),
+        
         { value: formData.employeeSalaryDTO?.payType, name: 'employeeSalaryDTO.payType', label: 'Pay Type' },
         { value: formData.employmentType, name: 'employmentType', label: 'Employment Type' },
-        ...(formData.clientSelection && !isStatusClient
-          ? []
-          : [{
-            value: formData.rateCard,
-            name: 'rateCard',
-            label: 'Rate Card',
-          }]
+        ...(!isStatusClient
+          ? [{
+              value: formData.rateCard,
+              name: 'rateCard',
+              label: 'Rate Card',
+            }]
+          : []
         ),
+        
         { value: formData.employeeSalaryDTO?.ctc, name: 'employeeSalaryDTO.ctc', label: 'CTC' },
       ];
       const payload = {
@@ -917,7 +949,15 @@ const AddEmployeePage = () => {
     // Optional client dates only if not STATUS client
     if (!isStatusClient) {
       if (!formData.dateOfOnboardingToClient) return false;
+      if(!formData.rateCard) return false;
     }
+// 🚫 Personal and Company email cannot be same
+if (
+  formData.personalEmail.trim().toLowerCase() ===
+  formData.companyEmail.trim().toLowerCase()
+) {
+  return false;
+}
 
     // No errors remaining
     return Object.keys(errors).length === 0;

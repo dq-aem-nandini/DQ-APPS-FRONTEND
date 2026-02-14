@@ -853,6 +853,7 @@ export interface EmployeeDTO {
   employeeEquipmentDTO?: EmployeeEquipmentDTO[];
   employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
   status: string;
+  updatedThroughForm: boolean;
   createdFromExcel: boolean;
   createdAt: string; // date-time
   updatedAt: string; // date-time

@@ -60,9 +60,8 @@ import BackButton from "@/components/ui/BackButton";
 import { employeeService } from "@/lib/api/employeeService";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
-import { useEmployeeFieldValidation } from "@/hooks/useFieldValidation";
 import TooltipHint from "@/components/ui/TooltipHint";
-
+import { useEmployeeFieldValidation } from "@/hooks/useEmployeeFieldValidation";
 
 interface FileInputProps {
   id: string;
@@ -79,7 +78,6 @@ export const FileInput: React.FC<FileInputProps> = ({
   onChange,
   onClear,
 }) => {
-
   return (
     <div className="space-y-2">
       {/* View existing document */}
@@ -137,8 +135,6 @@ export const FileInput: React.FC<FileInputProps> = ({
   );
 };
 
-
-
 const EditEmployeePage = () => {
   const params = useParams();
   const router = useRouter();
@@ -147,13 +143,14 @@ const EditEmployeePage = () => {
   const [clients, setClients] = useState<ClientDTO[]>([]);
   // const [documentFiles, setDocumentFiles] = useState<(File | null)[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const today = new Date().toISOString().split("T")[0];
   const [departmentEmployees, setDepartmentEmployees] = useState<
     EmployeeDepartmentDTO[]
   >([]);
   const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
-    undefined,);
+    undefined
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [localIfsc, setLocalIfsc] = useState<string>("");
@@ -205,22 +202,25 @@ const EditEmployeePage = () => {
     });
   };
 
-  const { handleValidatedChange, handleUniqueBlur, fieldError } = useFormFieldHandlers(
-    handleChange,
-    setErrors,
-    checkUniqueness,
-    () => formData,
-    validateField   // ← this makes it use EMPLOYEE rules
-  );
+  const { handleValidatedChange, handleUniqueBlur, fieldError } =
+    useFormFieldHandlers(
+      handleChange,
+      setErrors,
+      checkUniqueness,
+      () => formData,
+      validateField // ← this makes it use EMPLOYEE rules
+    );
   const isAnyBankFieldFilled = useMemo(() => {
     if (!formData) return false;
 
     return !!(
-      formData.accountNumber?.trim() ||
-      formData.accountHolderName?.trim() ||
-      formData.ifscCode?.trim() ||
-      formData.bankName?.trim() ||
-      formData.branchName?.trim()  // even branch is considered "filled"
+      (
+        formData.accountNumber?.trim() ||
+        formData.accountHolderName?.trim() ||
+        formData.ifscCode?.trim() ||
+        formData.bankName?.trim() ||
+        formData.branchName?.trim()
+      ) // even branch is considered "filled"
     );
   }, [formData]);
   // Handle IFSC lookup
@@ -233,7 +233,10 @@ const EditEmployeePage = () => {
     }
 
     if (code.length !== 11) {
-      setErrors((prev) => ({ ...prev, ifscCode: "IFSC must be exactly 11 characters" }));
+      setErrors((prev) => ({
+        ...prev,
+        ifscCode: "IFSC must be exactly 11 characters",
+      }));
       return;
     }
 
@@ -259,7 +262,7 @@ const EditEmployeePage = () => {
         }
 
         setFormData({
-          ...formData,                           // ← full object guaranteed
+          ...formData, // ← full object guaranteed
           ifscCode: code,
           bankName: BANK.trim() || formData.bankName || "",
           branchName: BRANCH.trim() || formData.branchName || "",
@@ -285,7 +288,6 @@ const EditEmployeePage = () => {
   // const [checking, setChecking] = useState<Set<string>>(new Set());
   const [employeeData, setEmployeeData] = useState<EmployeeDTO | null>(null); // ← This has all IDs
 
-
   const staticClients = new Set(["BENCH", "INHOUSE", "HR", "NA"]);
   const managerDesignations: Designation[] = [
     "REPORTING_MANAGER",
@@ -294,7 +296,6 @@ const EditEmployeePage = () => {
     "VP_ENGINEERING",
     "CTO",
   ];
-
 
   const timeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -318,7 +319,6 @@ const EditEmployeePage = () => {
   const hasNoManagerOption = departmentEmployees.some(
     (emp) => emp.employeeId === null
   );
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -349,8 +349,8 @@ const EditEmployeePage = () => {
           ...emp,
           clientSelection,
           // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
-          rateCard:
-            emp.rateCard === 0 || emp.rateCard == null ? null : emp.rateCard,
+          rateCard: emp.rateCard ?? null,
+
 
           documents: (emp.documents ?? []).map((d) => ({
             documentId: d.documentId,
@@ -365,11 +365,8 @@ const EditEmployeePage = () => {
               ...emp.employeeSalaryDTO,
               employeeId: emp.employeeSalaryDTO.employeeId || emp.employeeId,
               // Clean CTC and Standard Hours to show blank if 0/undefined
-              ctc:
-                emp.employeeSalaryDTO.ctc === 0 ||
-                  emp.employeeSalaryDTO.ctc == null
-                  ? null
-                  : emp.employeeSalaryDTO.ctc,
+              ctc: emp.employeeSalaryDTO.ctc ?? null,
+
               standardHours:
                 emp.employeeSalaryDTO.standardHours === 0 ||
                   emp.employeeSalaryDTO.standardHours == null ||
@@ -383,7 +380,7 @@ const EditEmployeePage = () => {
         if (emp.employeeEmploymentDetailsDTO?.department) {
           employeeService
             .getEmployeesByDepartment(
-              emp.employeeEmploymentDetailsDTO.department,
+              emp.employeeEmploymentDetailsDTO.department
             )
             .then(setDepartmentEmployees)
             .catch(() => setDepartmentEmployees([]));
@@ -394,13 +391,13 @@ const EditEmployeePage = () => {
         if (emp.employeeEmploymentDetailsDTO?.department) {
           try {
             const deptManagers = await employeeService.getEmployeesByDepartment(
-              emp.employeeEmploymentDetailsDTO.department,
+              emp.employeeEmploymentDetailsDTO.department
             );
             setDepartmentEmployees(deptManagers);
           } catch (err) {
             console.warn(
               "Could not load managers for department:",
-              emp.employeeEmploymentDetailsDTO.department,
+              emp.employeeEmploymentDetailsDTO.department
             );
             setDepartmentEmployees([]);
           }
@@ -415,7 +412,31 @@ const EditEmployeePage = () => {
     fetchData();
   }, [params.id]);
 
-
+  useEffect(() => {
+    if (!formData?.personalEmail || !formData?.companyEmail) {
+      return;
+    }
+  
+    const p = formData.personalEmail.trim().toLowerCase();
+    const c = formData.companyEmail.trim().toLowerCase();
+  
+    if (p && c && p === c) {
+      setErrors(prev => ({
+        ...prev,
+        personalEmail: "Personal and company email cannot be the same",
+        companyEmail: "Personal and company email cannot be the same",
+      }));
+    } else {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.personalEmail;
+        delete next.companyEmail;
+        return next;
+      });
+    }
+  }, [formData?.personalEmail, formData?.companyEmail]);
+  
+  
   useEffect(() => {
     if (formData?.ifscCode) {
       setLocalIfsc(formData.ifscCode.toUpperCase());
@@ -454,7 +475,18 @@ const EditEmployeePage = () => {
   }, [formData?.personalEmail, formData?.companyEmail]);
 
   const validateClientDates = (data: EmployeeModel) => {
-    if (!data.clientSelection) return;
+    if (!data.clientSelection) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.dateOfOnboardingToClient;
+        delete next.dateOfOffboardingToClient;
+        delete next.clientBillingStartDate;
+        delete next.clientBillingStopDate;
+        return next;
+      });
+      return;
+    }
+
 
     const newErrors: Record<string, string> = {};
 
@@ -507,8 +539,7 @@ const EditEmployeePage = () => {
        CLIENT → Onboarding mandatory
     ------------------------------ */
     if (!doOCT) {
-      newErrors.dateOfOnboardingToClient =
-        "Date of Onboarding is required";
+      newErrors.dateOfOnboardingToClient = "Date of Onboarding is required";
     }
 
     // Stop if mandatory missing
@@ -549,7 +580,6 @@ const EditEmployeePage = () => {
         "Billing end date must be after billing start date";
     }
 
-
     if (rawCbe && cbe && rawCbs && cbs && cbs >= cbe) {
       newErrors.clientBillingStopDate =
         "Billing end date must be after billing start date";
@@ -575,8 +605,6 @@ const EditEmployeePage = () => {
       };
     });
   };
-
-
 
   useEffect(() => {
     if (!formData || !isDirty) return;
@@ -634,17 +662,17 @@ const EditEmployeePage = () => {
   const handleDocumentFileChange = (
     index: number,
     field: string,
-    value: string | File | null,
+    value: string | File | null
   ) => {
     setFormData((prev) =>
       prev
         ? {
           ...prev,
           documents: prev.documents.map((doc, i) =>
-            i === index ? { ...doc, [field]: value } : doc,
+            i === index ? { ...doc, [field]: value } : doc
           ),
         }
-        : prev,
+        : prev
     );
   };
 
@@ -670,7 +698,7 @@ const EditEmployeePage = () => {
     if (doc.documentId) {
       const res = await adminService.deleteEmployeeDocument(
         params.id as string,
-        doc.documentId,
+        doc.documentId
       );
       if (!res.flag) {
         Swal.fire({ icon: "error", title: "Delete failed", text: res.message });
@@ -683,13 +711,13 @@ const EditEmployeePage = () => {
           ...prev,
           documents: prev.documents.filter((_, i) => i !== index),
         }
-        : prev,
+        : prev
     );
   };
 
   // EQUIPMENT
   const addEquipment = () => {
-    setIsDirty(true);  // ← ADD THIS LINE
+    setIsDirty(true); // ← ADD THIS LINE
     setFormData((prev) =>
       prev
         ? {
@@ -704,14 +732,14 @@ const EditEmployeePage = () => {
             },
           ],
         }
-        : prev,
+        : prev
     );
   };
 
   const handleEquipmentChange = (
     index: number,
     field: keyof EmployeeEquipmentDTO,
-    value: string,
+    value: string
   ) => {
     setFormData((prev) =>
       prev
@@ -719,10 +747,10 @@ const EditEmployeePage = () => {
           ...prev,
           employeeEquipmentDTO:
             prev.employeeEquipmentDTO?.map((eq, i) =>
-              i === index ? { ...eq, [field]: value } : eq,
+              i === index ? { ...eq, [field]: value } : eq
             ) ?? [],
         }
-        : prev,
+        : prev
     );
   };
 
@@ -747,7 +775,7 @@ const EditEmployeePage = () => {
     const eq = formData.employeeEquipmentDTO?.[index];
     if (eq?.equipmentId) {
       const res = await adminService.deleteEmployeeEquipmentInfo(
-        eq.equipmentId,
+        eq.equipmentId
       );
       if (!res.flag) {
         Swal.fire({ icon: "error", title: "Delete failed", text: res.message });
@@ -761,12 +789,12 @@ const EditEmployeePage = () => {
           employeeEquipmentDTO:
             prev.employeeEquipmentDTO?.filter((_, i) => i !== index) ?? [],
         }
-        : prev,
+        : prev
     );
   };
   const currentManagerName = formData?.reportingManagerId
     ? departmentEmployees.find(
-      (e) => e.employeeId === formData.reportingManagerId,
+      (e) => e.employeeId === formData.reportingManagerId
     )?.fullName
     : null;
 
@@ -798,7 +826,7 @@ const EditEmployeePage = () => {
       try {
         const res = await adminService.deleteEmployeeAllowance(
           params.id as string,
-          allowance.allowanceId,
+          allowance.allowanceId
         );
 
         // If HTTP 200 → success (even if flag is false – often means "already deleted")
@@ -809,7 +837,7 @@ const EditEmployeePage = () => {
         else if (!res.flag) {
           console.warn(
             "Backend returned flag: false but 200 OK – treating as success",
-            res,
+            res
           );
           wasDeletedFromServer = true;
         }
@@ -885,14 +913,14 @@ const EditEmployeePage = () => {
       try {
         const res = await adminService.deleteEmployeeDeduction(
           params.id as string,
-          deduction.deductionId,
+          deduction.deductionId
         );
 
         if (res.status === 200 || res.flag === true) {
           wasDeletedFromServer = true;
         } else if (!res.flag) {
           console.warn(
-            "Deduction delete: flag false but 200 OK → treating as success",
+            "Deduction delete: flag false but 200 OK → treating as success"
           );
           wasDeletedFromServer = true;
         }
@@ -940,40 +968,41 @@ const EditEmployeePage = () => {
     e.preventDefault();
     if (!params.id || !formData) return;
 
-    setSubmitting(true);
+    setIsSubmitting(true);
     // ──────────────────────────────────────────────
     // BANK DETAILS: All-or-nothing validation (same as Add page)
     // ──────────────────────────────────────────────
     if (isAnyBankFieldFilled) {
       const missing: string[] = [];
       if (!formData.accountNumber?.trim()) missing.push("Account Number");
-      if (!formData.accountHolderName?.trim()) missing.push("Account Holder Name");
+      if (!formData.accountHolderName?.trim())
+        missing.push("Account Holder Name");
       if (!formData.ifscCode?.trim()) missing.push("IFSC Code");
       if (!formData.bankName?.trim()) missing.push("Bank Name");
       // Branch Name is optional → not added here
 
       if (missing.length > 0) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Incomplete Bank Details',
+          icon: "warning",
+          title: "Incomplete Bank Details",
           html: `
         Please fill these fields when entering bank information:<br><br>
         <ul style="text-align:left; margin:16px 0 16px 32px; list-style:disc;">
-          ${missing.map(m => `<li>${m}</li>`).join('')}
+          ${missing.map((m) => `<li>${m}</li>`).join("")}
         </ul>
       `,
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#4f46e5',
+          confirmButtonText: "OK",
+          confirmButtonColor: "#4f46e5",
           allowOutsideClick: false,
           allowEscapeKey: false,
         }).then((result) => {
           if (result.isConfirmed) {
-            const bankCard = document.querySelector('[data-bank-section]');
+            const bankCard = document.querySelector("[data-bank-section]");
 
             if (bankCard) {
               bankCard.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
+                behavior: "smooth",
+                block: "center",
               });
 
               setTimeout(() => {
@@ -983,9 +1012,17 @@ const EditEmployeePage = () => {
 
                 if (firstInput) {
                   firstInput.focus();
-                  firstInput.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+                  firstInput.classList.add(
+                    "ring-2",
+                    "ring-red-500",
+                    "ring-offset-2"
+                  );
                   setTimeout(() => {
-                    firstInput.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+                    firstInput.classList.remove(
+                      "ring-2",
+                      "ring-red-500",
+                      "ring-offset-2"
+                    );
                   }, 1800);
                 }
               }, 450);
@@ -993,7 +1030,7 @@ const EditEmployeePage = () => {
           }
         });
 
-        setSubmitting(false);
+        setIsSubmitting(false);
         return; // ← STOP submission
       }
     }
@@ -1009,12 +1046,12 @@ const EditEmployeePage = () => {
         setTimeout(() => {
           const rateInput = document.querySelector('input[name="rateCard"]');
           if (rateInput) {
-            rateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            rateInput.scrollIntoView({ behavior: "smooth", block: "center" });
             (rateInput as HTMLInputElement).focus();
           }
         }, 150);
 
-        setSubmitting(false);
+        setIsSubmitting(false);
         return;
       }
     }
@@ -1038,7 +1075,7 @@ const EditEmployeePage = () => {
         "Please select both document type and file for new documents.",
         "warning"
       );
-      setSubmitting(false);
+      setIsSubmitting(false);
       return;
     }
     try {
@@ -1084,7 +1121,10 @@ const EditEmployeePage = () => {
         rateCard: formData.rateCard,
         employmentType: formData.employmentType,
         // reportingManagerId: formData.reportingManagerId ?? null,
-        reportingManagerId: formData.reportingManagerId === "NO_MANAGER" ? null : formData.reportingManagerId,
+        reportingManagerId:
+          formData.reportingManagerId === "NO_MANAGER"
+            ? null
+            : formData.reportingManagerId,
         clientId: formData.clientId ?? null,
         clientSelection: formData.clientSelection,
         panNumber: formData.panNumber,
@@ -1095,7 +1135,7 @@ const EditEmployeePage = () => {
         ifscCode: formData.ifscCode,
         branchName: formData.branchName,
         employeeEmploymentDetailsDTO: cleanEmploymentDetails(
-          formData.employeeEmploymentDetailsDTO,
+          formData.employeeEmploymentDetailsDTO
         ),
         employeeSalaryDTO: formData.employeeSalaryDTO,
         employeeEquipmentDTO: formData.employeeEquipmentDTO,
@@ -1184,14 +1224,13 @@ const EditEmployeePage = () => {
         });
       }
 
-
       const res = await adminService.updateEmployee(params.id as string, fd);
 
       if (res.flag) {
         await Swal.fire(
           "Success!",
           "Employee updated successfully!",
-          "success",
+          "success"
         );
         router.push("/admin-dashboard/employees/list");
       } else {
@@ -1201,10 +1240,9 @@ const EditEmployeePage = () => {
       console.error("Update failed:", err);
       Swal.fire("Error", err.message || "Update failed", "error");
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
-
 
   const hasValidDocumentChange =
     formData?.documents?.every((doc) => {
@@ -1228,13 +1266,82 @@ const EditEmployeePage = () => {
       return hasType === hasFile;
     }) ?? true;
 
+  // const canAddDocument =
+  //   !formData ||
+  //   formData.documents.every(
+  //     (d) => d.documentId || (d.docType && d.file instanceof File)
+  //   );
+
+  const { hasAnyDocTypeSelected, hasValidDocument } = useMemo(() => {
+    const docs = formData?.documents ?? [];
+  
+    return {
+      hasAnyDocTypeSelected: docs.some(d => !!d.docType),
+  
+      hasValidDocument: docs.some(d =>
+        // Existing document (already saved)
+        d.documentId ||
+  
+        // New complete document
+        (d.docType && d.file instanceof File)
+      ),
+    };
+  }, [formData?.documents]);
+  
   const canAddDocument =
-    !formData ||
-    formData.documents.every(
-      (d) => d.documentId || (d.docType && d.file instanceof File)
-    );
+    !hasAnyDocTypeSelected || hasValidDocument;
+  
 
+    const isFormValid = () => {
+      if (!formData) return false;
+    
+      if (!formData.firstName?.trim()) return false;
+      if (!formData.lastName?.trim()) return false;
+      if (!formData.personalEmail?.trim()) return false;
+      if (!formData.companyEmail?.trim()) return false;
+      if (!formData.contactNumber?.trim()) return false;
+      if (!formData.dateOfBirth) return false;
+      if (!formData.nationality?.trim()) return false;
+      if (!formData.gender) return false;
+    
+      if (!formData.clientSelection) return false;
 
+      const isRealClient =
+      formData.clientSelection?.startsWith("CLIENT:");
+    
+    
+      if (isRealClient && !formData.clientId) return false;
+    
+      if (!formData.employeeEmploymentDetailsDTO?.department) return false;
+      if (!formData.designation) return false;
+      if (!formData.dateOfJoining) return false;
+      if (!formData.employmentType) return false;
+    
+      if (!formData.employeeSalaryDTO?.payType) return false;
+      if (
+        formData.employeeSalaryDTO?.ctc == null ||
+        Number(formData.employeeSalaryDTO.ctc) <= 0
+      )
+        return false;
+      
+    
+      if (isRealClient) {
+        if (!formData.dateOfOnboardingToClient) return false;
+        if (!formData.rateCard || formData.rateCard <= 0) return false;
+      }
+    
+      // ❗ BLOCK if personal and company email same
+if (
+  formData.personalEmail?.trim().toLowerCase() ===
+  formData.companyEmail?.trim().toLowerCase()
+) {
+  return false;
+}
+
+      return true; // 🔥 no errors check
+    };
+    
+    
 
   // LOADING STATES
   if (loading) {
@@ -1262,9 +1369,10 @@ const EditEmployeePage = () => {
     );
   }
 
-  const selectValue = formData.clientSelection?.startsWith("STATUS:")
-    ? formData.clientSelection.replace("STATUS:", "")
-    : (formData.clientId ?? "");
+const selectValue =
+  formData.clientSelection?.startsWith("CLIENT:")
+    ? formData.clientSelection.replace("CLIENT:", "")
+    : formData.clientSelection?.replace("STATUS:", "") ?? "";
 
 
   const getError = (key: string) => errors[key] || "";
@@ -1298,7 +1406,7 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="firstName"
-                      value={formData.firstName}
+                      value={formData.firstName ?? ""}
                       required
                       onChange={handleValidatedChange}
                       maxLength={30}
@@ -1315,7 +1423,7 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="lastName"
-                      value={formData.lastName}
+                      value={formData.lastName ?? ""}
                       required
                       onChange={handleValidatedChange}
                       maxLength={50}
@@ -1334,7 +1442,7 @@ const EditEmployeePage = () => {
                       <Input
                         name="personalEmail"
                         type="email"
-                        value={formData.personalEmail}
+                        value={formData.personalEmail ?? ""}
                         required
                         onChange={(e) => {
                           e.target.value = e.target.value.toLowerCase();
@@ -1346,7 +1454,6 @@ const EditEmployeePage = () => {
                           "personalEmail",
                           employeeData?.employeeId
                         )}
-
                         maxLength={30}
                         placeholder="you@gmail.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1365,7 +1472,7 @@ const EditEmployeePage = () => {
                       <Input
                         name="companyEmail"
                         type="email"
-                        value={formData.companyEmail}
+                        value={formData.companyEmail ?? ""}
                         required
                         onChange={(e) => {
                           e.target.value = e.target.value.toLowerCase();
@@ -1377,7 +1484,6 @@ const EditEmployeePage = () => {
                           "companyEmail",
                           employeeData?.employeeId
                         )}
-
                         maxLength={50}
                         placeholder="you@company.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1398,20 +1504,23 @@ const EditEmployeePage = () => {
                         type="tel"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={formData.contactNumber}
+                        value={formData.contactNumber ?? ""}
                         required
                         onChange={(e) => {
-                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          const onlyDigits = e.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          );
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
-                        }} onBlur={handleUniqueBlur(
+                        }}
+                        onBlur={handleUniqueBlur(
                           "CONTACT_NUMBER",
                           "contact_number",
                           "contactNumber",
                           employeeData?.employeeId,
                           10
                         )}
-
                         maxLength={10}
                         placeholder="9876543210"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
@@ -1430,7 +1539,7 @@ const EditEmployeePage = () => {
                     <Input
                       type="date"
                       name="dateOfBirth"
-                      value={formData.dateOfBirth}
+                      value={formData.dateOfBirth ?? ""}
                       required
                       onChange={handleValidatedChange}
                       max={today}
@@ -1447,7 +1556,7 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       name="nationality"
-                      value={formData.nationality}
+                      value={formData.nationality ?? ""}
                       required
                       onChange={handleValidatedChange}
                       maxLength={30}
@@ -1467,9 +1576,9 @@ const EditEmployeePage = () => {
                       value={formData?.gender || ""}
                       onValueChange={(v) => {
                         setFormData((prev) =>
-                          prev ? { ...prev, gender: v } : prev,
+                          prev ? { ...prev, gender: v } : prev
                         );
-                        setIsDirty(true)
+                        setIsDirty(true);
                       }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
@@ -1495,7 +1604,11 @@ const EditEmployeePage = () => {
                       value={formData.panNumber || ""}
                       onChange={handleValidatedChange}
                       pattern="[A-Z0-9]{10}"
-                      onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber")}
+                      onBlur={handleUniqueBlur(
+                        "PAN_NUMBER",
+                        "pan_number",
+                        "panNumber"
+                      )}
                       maxLength={10}
                       placeholder="e.g.ABCDE1234F"
                       className="h-12"
@@ -1513,12 +1626,19 @@ const EditEmployeePage = () => {
                       name="aadharNumber"
                       value={formData.aadharNumber || ""}
                       onChange={(e) => {
-                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        const onlyDigits = e.target.value.replace(
+                          /[^0-9]/g,
+                          ""
+                        );
                         e.target.value = onlyDigits;
                         handleValidatedChange(e);
                       }}
                       pattern="[0-9]{12}"
-                      onBlur={handleUniqueBlur("AADHAR_NUMBER", "aadhar_number", "aadharNumber")}
+                      onBlur={handleUniqueBlur(
+                        "AADHAR_NUMBER",
+                        "aadhar_number",
+                        "aadharNumber"
+                      )}
                       inputMode="numeric"
                       maxLength={12}
                       placeholder="e.g.123456789012"
@@ -1555,15 +1675,17 @@ const EditEmployeePage = () => {
                         setFormData((prev) => {
                           if (!prev) return prev;
 
-                          const prevClient =
-                            prev.clientSelection?.startsWith("CLIENT:")
-                              ? prev.clientSelection
-                              : null;
+                          const prevClient = prev.clientSelection?.startsWith(
+                            "CLIENT:"
+                          )
+                            ? prev.clientSelection
+                            : null;
 
                           const nextClient = staticClients.has(v)
                             ? `STATUS:${v}`
                             : `CLIENT:${v}`;
-                          const clientChanged = prev.clientSelection !== nextClient;
+                          const clientChanged =
+                            prev.clientSelection !== nextClient;
                           return {
                             ...prev,
                             clientId: staticClients.has(v) ? null : v,
@@ -1595,7 +1717,6 @@ const EditEmployeePage = () => {
                         setIsDirty(true);
                       }}
                     >
-
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Client" />
                       </SelectTrigger>
@@ -1614,7 +1735,6 @@ const EditEmployeePage = () => {
                     </Select>
 
                     {fieldError(errors, "clientSelection")}
-
                   </div>
 
                   {/* Department */}
@@ -1630,7 +1750,7 @@ const EditEmployeePage = () => {
                       }
                       onValueChange={async (v) => {
                         const department = v as Department;
-                        setIsDirty(true)
+                        setIsDirty(true);
                         setFormData((prev) =>
                           prev
                             ? {
@@ -1646,20 +1766,20 @@ const EditEmployeePage = () => {
                               },
                               reportingManagerId: "", // temporarily clear
                             }
-                            : prev,
+                            : prev
                         );
 
                         // Fetch fresh list
                         const employees =
                           await employeeService.getEmployeesByDepartment(
-                            department,
+                            department
                           );
                         setDepartmentEmployees(employees);
 
                         const validManagers = employees.filter((emp) =>
                           managerDesignations.includes(
-                            emp.designation as Designation,
-                          ),
+                            emp.designation as Designation
+                          )
                         );
 
                         // Auto-select if only one manager
@@ -1671,7 +1791,7 @@ const EditEmployeePage = () => {
                                 reportingManagerId:
                                   validManagers[0].employeeId,
                               }
-                              : prev,
+                              : prev
                           );
                         }
                       }}
@@ -1695,7 +1815,10 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    {fieldError(errors, "employeeEmploymentDetailsDTO.department")}
+                    {fieldError(
+                      errors,
+                      "employeeEmploymentDetailsDTO.department"
+                    )}
                   </div>
 
                   {/* Reporting Manager */}
@@ -1708,11 +1831,10 @@ const EditEmployeePage = () => {
                       value={formData?.reportingManagerId || ""}
                       onValueChange={(v) => {
                         setFormData((prev) =>
-                          prev ? { ...prev, reportingManagerId: v } : prev,
-                        )
-                        setIsDirty(true)
-                      }
-                      }
+                          prev ? { ...prev, reportingManagerId: v } : prev
+                        );
+                        setIsDirty(true);
+                      }}
                       disabled={
                         !formData?.employeeEmploymentDetailsDTO?.department
                       }
@@ -1772,14 +1894,13 @@ const EditEmployeePage = () => {
                       required
                       value={formData?.designation || ""}
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         setFormData((prev) =>
                           prev
                             ? { ...prev, designation: v as Designation }
-                            : prev,
-                        )
-                      }
-                      }
+                            : prev
+                        );
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Designation" />
@@ -1817,19 +1938,19 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Onboarding To Client
-                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}                    </Label>
-                    <TooltipHint hint="Date when the employee started working for the client. Must be after Date of Joining." />
+                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
+                      <TooltipHint hint="Date when the employee started working for the client. Must be after Date of Joining." />
+                    </Label>
                     <Input
                       type="date"
                       name="dateOfOnboardingToClient"
                       value={formData.dateOfOnboardingToClient ?? ""}
-                      onChange={handleChange}
-                      required={!!(formData.clientSelection && !isStatusClient)}                      // disabled={isStatusClient}
+                      onChange={handleValidatedChange}
+                      required={!!(formData.clientSelection && !isStatusClient)} // disabled={isStatusClient}
                       className="h-12 text-base w-full"
                     />
                     {fieldError(errors, "dateOfOnboardingToClient")}
                   </div>
-
 
                   {/* Date of Offboarding To Client*/}
                   <div className="space-y-2">
@@ -1841,45 +1962,39 @@ const EditEmployeePage = () => {
                       type="date"
                       name="dateOfOffboardingToClient"
                       value={formData.dateOfOffboardingToClient ?? ""}
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       className="h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
                     {fieldError(errors, "dateOfOffboardingToClient")}
-
                   </div>
                   {/* Client Billing Start Date */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing Start Date
-                      <TooltipHint
-                        hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date."
-                      />
+                      <TooltipHint hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date." />
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStartDate"
                       value={formData.clientBillingStartDate ?? ""}
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       className="h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
                     {fieldError(errors, "clientBillingStartDate")}
-
                   </div>
                   {/* client Billing Stop Date */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Client Billing End Date
-                      <TooltipHint
-                        hint="Date until which client billing continues for this employee. Must be strictly after Client Billing Start Date. Can be the same as or after Date of Offboarding to Client."
-                      />
+                      <TooltipHint hint="Date until which client billing continues for this employee. Must be strictly after Client Billing Start Date. Can be the same as or after Date of Offboarding to Client." />
                     </Label>
                     <Input
                       type="date"
                       name="clientBillingStopDate"
                       value={formData.clientBillingStopDate ?? ""}
-                      onChange={handleChange}
+                      onChange={handleValidatedChange}
                       className="h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
@@ -1891,21 +2006,19 @@ const EditEmployeePage = () => {
                     <Label className="text-sm font-semibold text-gray-700">
                       Employment Type <span className="text-red-500">*</span>
                       <TooltipHint hint="Full-time, Part-time, Contract, Intern, etc." />
-
                     </Label>
 
                     <Select
                       required
-                      value={formData.employmentType}
+                      value={formData.employmentType ?? ""}
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         setFormData((prev) =>
                           prev
                             ? { ...prev, employmentType: v as EmploymentType }
-                            : prev,
-                        )
-                      }
-                      }
+                            : prev
+                        );
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Type" />
@@ -1921,23 +2034,23 @@ const EditEmployeePage = () => {
                     </Select>
 
                     {fieldError(errors, "employmentType")}
-
                   </div>
 
                   {/* Rate Card */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Rate Card
-                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
+                      {formData.clientSelection && !isStatusClient && (
+                        <span className="text-red-500">*</span>
+                      )}
                       <TooltipHint hint="Hourly or daily billing rate for client projects (in selected currency). Leave blank if not applicable." />
-
                     </Label>
                     <Input
                       type="number"
                       name="rateCard"
                       required={!!(formData.clientSelection && !isStatusClient)}
                       value={formData.rateCard ?? ""}
-                      onChange={handleValidatedChange}   // ← changed                      className="h-12 text-base w-full"
+                      onChange={handleValidatedChange} // ← changed                      className="h-12 text-base w-full"
                       placeholder="45.00"
                     />
                     {fieldError(errors, "rateCard")}
@@ -1947,7 +2060,6 @@ const EditEmployeePage = () => {
                     <Label className="text-sm font-semibold text-gray-700">
                       CTC <span className="text-red-500">*</span>
                       <TooltipHint hint="Cost to Company - Annual gross salary in rupees (before deductions)." />
-
                     </Label>
                     <Input
                       className="h-12 text-base w-full"
@@ -1959,7 +2071,6 @@ const EditEmployeePage = () => {
                       required
                     />
                     {fieldError(errors, "employeeSalaryDTO.ctc")}
-
                   </div>
                   {/* Pay Type */}
                   <div className="space-y-2">
@@ -1968,10 +2079,10 @@ const EditEmployeePage = () => {
                       <TooltipHint hint="How salary is structured: Fixed, Variable, Hourly, etc." />
                     </Label>
                     <Select
-                    required
+                      required
                       value={formData?.employeeSalaryDTO?.payType || ""}
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         setFormData((prev) =>
                           prev
                             ? {
@@ -1990,10 +2101,9 @@ const EditEmployeePage = () => {
                                 payType: v as PayType,
                               },
                             }
-                            : prev,
-                        )
-                      }
-                      }
+                            : prev
+                        );
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Type" />
@@ -2008,46 +2118,41 @@ const EditEmployeePage = () => {
                       </SelectContent>
                     </Select>
                     {fieldError(errors, "employeeSalaryDTO.payType")}
-
                   </div>
 
                   {/* Standard Hours */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Standard Hours
-                                            <TooltipHint hint="Expected working hours per week. Default is 40." />
-                      
+                      <TooltipHint hint="Expected working hours per week. Default is 40." />
                     </Label>
                     <Input
                       type="number"
                       name="employeeSalaryDTO.standardHours"
                       value={formData.employeeSalaryDTO?.standardHours ?? ""}
-                      onChange={handleValidatedChange}   // ← changed                      className="h-12 text-base w-full"
+                      onChange={handleValidatedChange} // ← changed                      className="h-12 text-base w-full"
                     />
-                                        {fieldError(errors, "employeeSalaryDTO.standardHours")}
-
+                    {fieldError(errors, "employeeSalaryDTO.standardHours")}
                   </div>
 
                   {/* Pay Class */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Pay Class
-                                            <TooltipHint hint="Salary classification: A1, A2, INTERN, NA, B1, B2, CONTRACT" />
-                      
+                      <TooltipHint hint="Salary classification: A1, A2, INTERN, NA, B1, B2, CONTRACT" />
                     </Label>
 
                     <Select
                       value={formData.employeeSalaryDTO?.payClass || ""}
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         handleChange({
                           target: {
                             name: "employeeSalaryDTO.payClass",
                             value: v,
                           },
-                        } as any)
-                      }
-                      }
+                        } as any);
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Pay Class" />
@@ -2061,30 +2166,28 @@ const EditEmployeePage = () => {
                       </SelectContent>
                     </Select>
                     {fieldError(errors, "employeeSalaryDTO.payClass")}
-
                   </div>
 
                   {/* Working Model */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Working Model
+                      <TooltipHint hint="Work arrangement: Remote, Hybrid, Onsite, etc." />
                     </Label>
-
                     <Select
                       value={
                         formData.employeeEmploymentDetailsDTO?.workingModel ||
                         ""
                       }
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         handleChange({
                           target: {
                             name: "employeeEmploymentDetailsDTO.workingModel",
                             value: v,
                           },
-                        } as any)
-                      }
-                      }
+                        } as any);
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Working Model" />
@@ -2098,16 +2201,18 @@ const EditEmployeePage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    {fieldError(errors, "employeeEmploymentDetailsDTO.workingModel")} {/* ← Fixed error key */}
-
+                    {fieldError(
+                      errors,
+                      "employeeEmploymentDetailsDTO.workingModel"
+                    )}{" "}
+                    {/* ← Fixed error key */}
                   </div>
 
                   {/* Shift Timing */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Shift Timing
-                                            <TooltipHint hint="Employee's work shift: General, US Shift, UK Shift, etc." />
-                      
+                      <TooltipHint hint="Employee's work shift: General, US Shift, UK Shift, etc." />
                     </Label>
 
                     <Select
@@ -2115,15 +2220,14 @@ const EditEmployeePage = () => {
                         formData.employeeEmploymentDetailsDTO?.shiftTiming || ""
                       }
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         handleChange({
                           target: {
                             name: "employeeEmploymentDetailsDTO.shiftTiming",
                             value: v,
                           },
-                        } as any)
-                      }
-                      }
+                        } as any);
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Shift" />
@@ -2143,8 +2247,7 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date of Confirmation
-                                            <TooltipHint hint="Date when employee moved from probation to permanent. Leave blank if still on probation." />
-                      
+                      <TooltipHint hint="Date when employee moved from probation to permanent. Leave blank if still on probation." />
                     </Label>
                     <Input
                       type="date"
@@ -2156,16 +2259,17 @@ const EditEmployeePage = () => {
                       onChange={handleChange}
                       className="h-12 text-base w-full"
                     />
-                                        {fieldError(errors, "employeeEmploymentDetailsDTO.dateOfConfirmation")}
-
+                    {fieldError(
+                      errors,
+                      "employeeEmploymentDetailsDTO.dateOfConfirmation"
+                    )}
                   </div>
 
                   {/* Notice Period */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Notice Period
-                                            <TooltipHint hint="Number of days/months required for resignation after confirmation." />
-                      
+                      <TooltipHint hint="Number of days/months required for resignation after confirmation." />
                     </Label>
 
                     <Select
@@ -2174,15 +2278,14 @@ const EditEmployeePage = () => {
                           ?.noticePeriodDuration || ""
                       }
                       onValueChange={(v) => {
-                        setIsDirty(true)
+                        setIsDirty(true);
                         handleChange({
                           target: {
                             name: "employeeEmploymentDetailsDTO.noticePeriodDuration",
                             value: v,
                           },
-                        } as any)
-                      }
-                      }
+                        } as any);
+                      }}
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Notice Period" />
@@ -2216,8 +2319,7 @@ const EditEmployeePage = () => {
                     />
                     <Label className="text-sm font-semibold text-gray-700">
                       Probation Applicable
-                                            <TooltipHint hint="Check if the employee is currently on probation period." />
-                      
+                      <TooltipHint hint="Check if the employee is currently on probation period." />
                     </Label>
                   </div>
 
@@ -2227,8 +2329,7 @@ const EditEmployeePage = () => {
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">
                           Probation Duration
-                                                  <TooltipHint hint="Length of probation period (e.g., 3 months, 6 months)." />
-                          
+                          <TooltipHint hint="Length of probation period (e.g., 3 months, 6 months)." />
                         </Label>
 
                         <Select
@@ -2237,15 +2338,14 @@ const EditEmployeePage = () => {
                               ?.probationDuration || ""
                           }
                           onValueChange={(v) => {
-                            setIsDirty(true)
+                            setIsDirty(true);
                             handleChange({
                               target: {
                                 name: "employeeEmploymentDetailsDTO.probationDuration",
                                 value: v,
                               },
-                            } as any)
-                          }
-                          }
+                            } as any);
+                          }}
                         >
                           <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                             <SelectValue placeholder="Select Duration" />
@@ -2268,8 +2368,7 @@ const EditEmployeePage = () => {
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">
                           Probation Notice Period
-                                                  <TooltipHint hint="Notice period required during probation (usually shorter)." />
-                          
+                          <TooltipHint hint="Notice period required during probation (usually shorter)." />
                         </Label>
 
                         <Select
@@ -2278,15 +2377,14 @@ const EditEmployeePage = () => {
                               ?.probationNoticePeriod || ""
                           }
                           onValueChange={(v) => {
-                            setIsDirty(true)
+                            setIsDirty(true);
                             handleChange({
                               target: {
                                 name: "employeeEmploymentDetailsDTO.probationNoticePeriod",
                                 value: v,
                               },
-                            } as any)
-                          }
-                          }
+                            } as any);
+                          }}
                         >
                           <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                             <SelectValue placeholder="Select Notice Period" />
@@ -2321,8 +2419,7 @@ const EditEmployeePage = () => {
                     />
                     <Label className="text-sm font-semibold text-gray-700">
                       Bond Applicable
-                                            <TooltipHint hint="Check if employee signed a service bond (e.g., training bond)." />
-                      
+                      <TooltipHint hint="Check if employee signed a service bond (e.g., training bond)." />
                     </Label>
                   </div>
 
@@ -2331,8 +2428,7 @@ const EditEmployeePage = () => {
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700">
                         Bond Duration
-                                                <TooltipHint hint="Duration employee must serve after training or bond period." />
-                        
+                        <TooltipHint hint="Duration employee must serve after training or bond period." />
                       </Label>
 
                       <Select
@@ -2341,15 +2437,14 @@ const EditEmployeePage = () => {
                           ""
                         }
                         onValueChange={(v) => {
-                          setIsDirty(true)
+                          setIsDirty(true);
                           handleChange({
                             target: {
                               name: "employeeEmploymentDetailsDTO.bondDuration",
                               value: v,
                             },
-                          } as any)
-                        }
-                        }
+                          } as any);
+                        }}
                       >
                         <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                           <SelectValue placeholder="Select Duration" />
@@ -2372,8 +2467,7 @@ const EditEmployeePage = () => {
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">
                       Allowances
-                                            <TooltipHint hint="Common allowances: HRA (House Rent), Travel, Medical, Special Allowance, Conveyance, LTA" />
-                      
+                      <TooltipHint hint="Common allowances: HRA (House Rent), Travel, Medical, Special Allowance, Conveyance, LTA" />
                     </Label>
 
                     <div className="space-y-4">
@@ -2386,7 +2480,7 @@ const EditEmployeePage = () => {
                           <div className="space-y-2">
                             <Input
                               placeholder="Type (e.g., HRA)"
-                              value={a.allowanceType}
+                              value={a.allowanceType ?? ""}
                               maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
@@ -2394,7 +2488,8 @@ const EditEmployeePage = () => {
 
                                 // 1️⃣ clone allowances safely
                                 const updated = [
-                                  ...(formData.employeeSalaryDTO?.allowances || []),
+                                  ...(formData.employeeSalaryDTO?.allowances ||
+                                    []),
                                 ];
 
                                 updated[i] = {
@@ -2406,12 +2501,18 @@ const EditEmployeePage = () => {
                                 const fieldKey = `employeeSalaryDTO.allowances.${i}.allowanceType`;
 
                                 // 3️⃣ validate
-                                const error = validateField(fieldKey, val, formData);
+                                const error = validateField(
+                                  fieldKey,
+                                  val,
+                                  formData
+                                );
 
                                 // 4️⃣ update errors correctly
                                 setErrors((prev) => {
                                   const next = { ...prev };
-                                  error ? (next[fieldKey] = error) : delete next[fieldKey];
+                                  error
+                                    ? (next[fieldKey] = error)
+                                    : delete next[fieldKey];
                                   return next;
                                 });
 
@@ -2441,9 +2542,11 @@ const EditEmployeePage = () => {
                             />
 
                             {/* ✅ correct error display */}
-                            {fieldError(errors, `employeeSalaryDTO.allowances.${i}.allowanceType`)}
+                            {fieldError(
+                              errors,
+                              `employeeSalaryDTO.allowances.${i}.allowanceType`
+                            )}
                           </div>
-
 
                           {/* Amount */}
                           <Input
@@ -2481,7 +2584,7 @@ const EditEmployeePage = () => {
                                       allowances: updated,
                                     },
                                   }
-                                  : prev,
+                                  : prev
                               );
                             }}
                           />
@@ -2494,7 +2597,7 @@ const EditEmployeePage = () => {
                               variant="ghost"
                               onClick={() => confirmAndRemoveAllowance(i)}
                               className="text-red-600 hover:bg-red-50"
-                              disabled={submitting}
+                              disabled={isSubmitting}
                             >
                               <Trash2 className="h-5 w-5" />
                             </Button>
@@ -2509,7 +2612,7 @@ const EditEmployeePage = () => {
                         variant="outline"
                         className="mt-4 h-12"
                         onClick={() => {
-                          setIsDirty(true);  // ← ADD THIS
+                          setIsDirty(true); // ← ADD THIS
                           const newAllowance: AllowanceDTO = {
                             allowanceId: "",
                             allowanceType: "",
@@ -2539,7 +2642,7 @@ const EditEmployeePage = () => {
                                   ],
                                 },
                               }
-                              : prev,
+                              : prev
                           );
                         }}
                       >
@@ -2552,8 +2655,7 @@ const EditEmployeePage = () => {
                   <div>
                     <Label className="text-lg font-bold text-gray-800 mb-4 block">
                       Deductions
-                                            <TooltipHint hint="Add mandatory or voluntary deductions from salary, like PF, Professional Tax, TDS, etc." />
-                      
+                      <TooltipHint hint="Add mandatory or voluntary deductions from salary, like PF, Professional Tax, TDS, etc." />
                     </Label>
 
                     <div className="space-y-4">
@@ -2566,7 +2668,7 @@ const EditEmployeePage = () => {
                           <div className="space-y-2">
                             <Input
                               placeholder="Type (e.g., PF)"
-                              value={d.deductionType}
+                              value={d.deductionType ?? ""}
                               maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
@@ -2574,7 +2676,8 @@ const EditEmployeePage = () => {
 
                                 // 1️⃣ build updated deductions
                                 const updated = [
-                                  ...(formData.employeeSalaryDTO?.deductions || []),
+                                  ...(formData.employeeSalaryDTO?.deductions ||
+                                    []),
                                 ];
                                 updated[i] = {
                                   ...updated[i],
@@ -2585,12 +2688,18 @@ const EditEmployeePage = () => {
                                 const fieldKey = `employeeSalaryDTO.deductions.${i}.deductionType`;
 
                                 // 3️⃣ validate
-                                const error = validateField(fieldKey, val, formData);
+                                const error = validateField(
+                                  fieldKey,
+                                  val,
+                                  formData
+                                );
 
                                 // 4️⃣ update errors correctly
                                 setErrors((prev) => {
                                   const next = { ...prev };
-                                  error ? (next[fieldKey] = error) : delete next[fieldKey];
+                                  error
+                                    ? (next[fieldKey] = error)
+                                    : delete next[fieldKey];
                                   return next;
                                 });
 
@@ -2619,8 +2728,10 @@ const EditEmployeePage = () => {
                               }}
                             />
 
-{fieldError(errors, `employeeSalaryDTO.deductions.${i}.deductionType`)}
-
+                            {fieldError(
+                              errors,
+                              `employeeSalaryDTO.deductions.${i}.deductionType`
+                            )}
                           </div>
                           {/* Amount */}
                           <Input
@@ -2658,7 +2769,7 @@ const EditEmployeePage = () => {
                                       deductions: updated,
                                     },
                                   }
-                                  : prev,
+                                  : prev
                               );
                             }}
                           />
@@ -2671,7 +2782,7 @@ const EditEmployeePage = () => {
                               variant="ghost"
                               onClick={() => confirmAndRemoveDeduction(i)}
                               className="text-red-600 hover:bg-red-50"
-                              disabled={submitting}
+                              disabled={isSubmitting}
                             >
                               <Trash2 className="h-5 w-5" />
                             </Button>
@@ -2686,7 +2797,7 @@ const EditEmployeePage = () => {
                         variant="outline"
                         className="mt-4 h-12"
                         onClick={() => {
-                          setIsDirty(true);  // ← ADD THIS
+                          setIsDirty(true); // ← ADD THIS
                           const newDeduction: DeductionDTO = {
                             deductionId: "",
                             deductionType: "",
@@ -2716,7 +2827,7 @@ const EditEmployeePage = () => {
                                   ],
                                 },
                               }
-                              : prev,
+                              : prev
                           );
                         }}
                       >
@@ -2737,8 +2848,6 @@ const EditEmployeePage = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-
                   {/* Account Number – Optional */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -2749,12 +2858,18 @@ const EditEmployeePage = () => {
                       name="accountNumber"
                       value={formData.accountNumber || ""}
                       onChange={(e) => {
-                        const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                        const onlyDigits = e.target.value.replace(
+                          /[^0-9]/g,
+                          ""
+                        );
                         e.target.value = onlyDigits;
                         handleValidatedChange(e);
                       }}
-                      onBlur={handleUniqueBlur("ACCOUNT_NUMBER", "account_number", "accountNumber")}
-
+                      onBlur={handleUniqueBlur(
+                        "ACCOUNT_NUMBER",
+                        "account_number",
+                        "accountNumber"
+                      )}
                       inputMode="numeric"
                       maxLength={18}
                       placeholder="123456789012"
@@ -2861,39 +2976,38 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Document Type
-                                                      <TooltipHint hint="Common documents: Aadhar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
-                            
+                            <TooltipHint hint="Common documents: Aadhar Card, PAN Card, Passport, Offer Letter, Resume, Educational Certificates, Bank Statement" />
                           </Label>
 
                           <Select
                             value={doc.docType ?? ""}
                             onValueChange={(v) => {
                               setIsDirty(true);
-                              handleDocumentFileChange(i, "docType", v as DocumentType);
+                              handleDocumentFileChange(
+                                i,
+                                "docType",
+                                v as DocumentType
+                              );
                             }}
                           >
-
                             <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                               <SelectValue placeholder="Select Type" />
                             </SelectTrigger>
 
                             <SelectContent>
-                              {DOCUMENT_TYPE_OPTIONS
-                                .filter((t) => {
-                                  // allow current docType for this row
-                                  if (t === doc.docType) return true;
+                              {DOCUMENT_TYPE_OPTIONS.filter((t) => {
+                                // allow current docType for this row
+                                if (t === doc.docType) return true;
 
-                                  // block already-selected docTypes from other rows
-                                  return !formData.documents.some(
-                                    (d, idx) => idx !== i && d.docType === t
-                                  );
-                                })
-                                .map((t) => (
-                                  <SelectItem key={t} value={t}>
-                                    {t.replace(/_/g, " ")}
-                                  </SelectItem>
-                                ))}
-
+                                // block already-selected docTypes from other rows
+                                return !formData.documents.some(
+                                  (d, idx) => idx !== i && d.docType === t
+                                );
+                              }).map((t) => (
+                                <SelectItem key={t} value={t}>
+                                  {t.replace(/_/g, " ")}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -2902,8 +3016,7 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Upload Document
-                                                      <TooltipHint hint="Supported formats: PDF, JPG, PNG. Max size 5MB recommended." />
-                            
+                            <TooltipHint hint="Supported formats: PDF, JPG, PNG. Max size 5MB recommended." />
                           </Label>
 
                           <FileInput
@@ -2921,7 +3034,7 @@ const EditEmployeePage = () => {
                                   }
                                   : prev
                               );
-                              setIsDirty(true);  // ← this was missing
+                              setIsDirty(true); // ← this was missing
                             }}
                             onClear={() => {
                               setFormData((prev) =>
@@ -2934,7 +3047,7 @@ const EditEmployeePage = () => {
                                   }
                                   : prev
                               );
-                              setIsDirty(true);  // ← also useful
+                              setIsDirty(true); // ← also useful
                             }}
                           />
                         </div>
@@ -2943,7 +3056,7 @@ const EditEmployeePage = () => {
                         <div className="flex items-end">
                           <Button
                             type="button"
-                            disabled={submitting}
+                            disabled={isSubmitting}
                             onClick={() => confirmAndRemoveDocument(i)}
                             className="bg-red-100 text-red-700 hover:bg-red-200 h-12 w-full sm:w-auto rounded-xl flex items-center gap-2 px-4 font-medium"
                           >
@@ -2994,8 +3107,7 @@ const EditEmployeePage = () => {
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Equipment Type
-                                                      <TooltipHint hint="Common types: Laptop, Desktop, Monitor, Keyboard, Mouse, Headset, Docking Station" />
-                            
+                            <TooltipHint hint="Common types: Laptop, Desktop, Monitor, Keyboard, Mouse, Headset, Docking Station" />
                           </Label>
                           <Input
                             value={eq.equipmentType || ""}
@@ -3005,34 +3117,47 @@ const EditEmployeePage = () => {
                               // FIXED: update correct field (was wrongly "serialNumber")
                               handleEquipmentChange(i, "equipmentType", val);
 
-                              const error = validateField("equipmentType", val, formData);
+                              const error = validateField(
+                                "equipmentType",
+                                val,
+                                formData
+                              );
 
                               setErrors((prev) => {
                                 const next = { ...prev };
                                 error
-                                  ? (next[`employeeEquipmentDTO[${i}].equipmentType`] = error)
-                                  : delete next[`employeeEquipmentDTO[${i}].equipmentType`];
+                                  ? (next[
+                                    `employeeEquipmentDTO[${i}].equipmentType`
+                                  ] = error)
+                                  : delete next[
+                                  `employeeEquipmentDTO[${i}].equipmentType`
+                                  ];
                                 return next;
                               });
                             }}
-
                             placeholder="Enter Type"
                             className="h-12 text-base"
                           />
-                          {fieldError(errors, `employeeEquipmentDTO[${i}].equipmentType`)}
+                          {fieldError(
+                            errors,
+                            `employeeEquipmentDTO[${i}].equipmentType`
+                          )}
                         </div>
 
                         {/* Serial Number */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Serial Number
-                                                      <TooltipHint hint="Unique serial number printed on the device. Usually on the back or bottom." />
-                            
+                            <TooltipHint hint="Unique serial number printed on the device. Usually on the back or bottom." />
                           </Label>
                           <Input
                             value={eq.serialNumber || ""}
                             onChange={(e) =>
-                              handleEquipmentChange(i, "serialNumber", e.target.value)
+                              handleEquipmentChange(
+                                i,
+                                "serialNumber",
+                                e.target.value
+                              )
                             }
                             placeholder="Enter Serial Number"
                             maxLength={30}
@@ -3049,16 +3174,18 @@ const EditEmployeePage = () => {
                                 );
                               }
                             }}
-                          />                     
-                          {fieldError(errors, `employeeEquipmentDTO[${i}].serialNumber`)}
+                          />
+                          {fieldError(
+                            errors,
+                            `employeeEquipmentDTO[${i}].serialNumber`
+                          )}
                         </div>
 
                         {/* Issued Date */}
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold text-gray-700">
                             Issued Date
-                                                      <TooltipHint hint="Date when equipment was handed over to employee" />
-                            
+                            <TooltipHint hint="Date when equipment was handed over to employee" />
                           </Label>
                           <Input
                             type="date"
@@ -3067,7 +3194,7 @@ const EditEmployeePage = () => {
                               handleEquipmentChange(
                                 i,
                                 "issuedDate",
-                                e.target.value,
+                                e.target.value
                               )
                             }
                             max={today}
@@ -3080,7 +3207,7 @@ const EditEmployeePage = () => {
                       <div className="mt-4 flex justify-end">
                         <Button
                           type="button"
-                          disabled={submitting}
+                          disabled={isSubmitting}
                           onClick={() => confirmAndRemoveEquipment(i)}
                           className="bg-red-100 text-red-700 hover:bg-red-200 h-11 px-5 rounded-xl flex items-center gap-2 font-medium"
                         >
@@ -3122,12 +3249,11 @@ const EditEmployeePage = () => {
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">
                       Skills & Certification
-                                            <TooltipHint hint="List technical and soft skills, certifications. Example: React, AWS Certified Solutions Architect, Agile Scrum Master" />
-                      
+                      <TooltipHint hint="List technical and soft skills, certifications. Example: React, AWS Certified Solutions Architect, Agile Scrum Master" />
                     </Label>
                     <textarea
                       name="skillsAndCertification"
-                      value={formData.skillsAndCertification}
+                      value={formData.skillsAndCertification ?? ""}
                       onChange={handleChange}
                       placeholder="e.g., React, Node.js, AWS Certified"
                       className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
@@ -3138,27 +3264,30 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Background Check Status
-                                            <TooltipHint hint="Status of verification: Cleared, Pending, Failed, Not Initiated" />
-                      
+                      <TooltipHint hint="Status of verification: Cleared, Pending, Failed, Not Initiated" />
                     </Label>
                     <input
                       name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
-                      value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ""}
+                      value={
+                        formData.employeeAdditionalDetailsDTO
+                          ?.backgroundCheckStatus || ""
+                      }
                       maxLength={30}
                       placeholder="e.g., Cleared, Pending"
                       onChange={handleValidatedChange}
                       className="w-full h-12 px-4 py-3 border rounded-xl"
                     />
-                    {fieldError(errors, "employeeAdditionalDetailsDTO.backgroundCheckStatus")}
-
+                    {fieldError(
+                      errors,
+                      "employeeAdditionalDetailsDTO.backgroundCheckStatus"
+                    )}
                   </div>
 
                   {/* A REMARKS */}
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                     <Label className="text-sm font-semibold text-gray-700">
-                   Remarks
-                                            <TooltipHint hint="Any special notes about the employee: performance, behavior, relocation, etc." />
-                      
+                      Remarks
+                      <TooltipHint hint="Any special notes about the employee: performance, behavior, relocation, etc." />
                     </Label>
                     <textarea
                       id="additionalRemarks"
@@ -3170,7 +3299,7 @@ const EditEmployeePage = () => {
                       placeholder="Any additional notes..."
                       className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
-                  </div>       
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -3190,12 +3319,13 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Policy Number
-                                            <TooltipHint hint="Unique policy ID from insurance provider. Must be unique across employees." />
-                      
+                      <TooltipHint hint="Unique policy ID from insurance provider. Must be unique across employees." />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.policyNumber"
-                      value={formData.employeeInsuranceDetailsDTO?.policyNumber || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.policyNumber || ""
+                      }
                       onChange={handleValidatedChange}
                       onBlur={handleUniqueBlur(
                         "POLICY_NUMBER",
@@ -3207,35 +3337,39 @@ const EditEmployeePage = () => {
                       className="h-12 text-base"
                     />
 
-                    {fieldError(errors, "employeeInsuranceDetailsDTO.policyNumber")}
-
+                    {fieldError(
+                      errors,
+                      "employeeInsuranceDetailsDTO.policyNumber"
+                    )}
                   </div>
 
                   {/* Provider Name */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Provider Name
-                                            <TooltipHint hint="Insurance company name. Example: LIC, Star Health, HDFC Life" />
-                      
+                      <TooltipHint hint="Insurance company name. Example: LIC, Star Health, HDFC Life" />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.providerName"
-                      value={formData.employeeInsuranceDetailsDTO?.providerName || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.providerName || ""
+                      }
                       onChange={handleValidatedChange}
                       placeholder="e.g., Star Health"
                       className="h-12 text-base"
                     />
 
-                    {fieldError(errors, "employeeInsuranceDetailsDTO.providerName")}
-
+                    {fieldError(
+                      errors,
+                      "employeeInsuranceDetailsDTO.providerName"
+                    )}
                   </div>
 
                   {/* Coverage Start */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Coverage Start
-                                            <TooltipHint hint="Date when insurance coverage begins" />
-                      
+                      <TooltipHint hint="Date when insurance coverage begins" />
                     </Label>
                     <Input
                       type="date"
@@ -3254,8 +3388,7 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Coverage End
-                                            <TooltipHint hint="Date when policy expires. Leave blank for lifelong policies." />
-                      
+                      <TooltipHint hint="Date when policy expires. Leave blank for lifelong policies." />
                     </Label>
                     <Input
                       type="date"
@@ -3272,63 +3405,76 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nominee Name
-                                            <TooltipHint hint="Person who will receive insurance benefit in case of claim" />
-                      
+                      <TooltipHint hint="Person who will receive insurance benefit in case of claim" />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeName"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeName || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.nomineeName || ""
+                      }
                       onChange={handleValidatedChange}
                       placeholder="e.g., Priya Sharma"
                     />
 
-                    {fieldError(errors, "employeeInsuranceDetailsDTO.nomineeName")}
-
+                    {fieldError(
+                      errors,
+                      "employeeInsuranceDetailsDTO.nomineeName"
+                    )}
                   </div>
 
                   {/* Nominee Relation */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nominee Relation
-                                            <TooltipHint hint="Relationship to employee: Spouse, Parent, Child, Sibling, etc." />
-                      
+                      <TooltipHint hint="Relationship to employee: Spouse, Parent, Child, Sibling, etc." />
                     </Label>
                     <Input
                       name="employeeInsuranceDetailsDTO.nomineeRelation"
-                      value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ""}
+                      value={
+                        formData.employeeInsuranceDetailsDTO?.nomineeRelation ||
+                        ""
+                      }
                       onChange={handleValidatedChange}
                       placeholder="e.g., Spouse"
                     />
 
-                    {fieldError(errors, "employeeInsuranceDetailsDTO.nomineeRelation")}
-
+                    {fieldError(
+                      errors,
+                      "employeeInsuranceDetailsDTO.nomineeRelation"
+                    )}
                   </div>
 
                   {/* Nominee Contact */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nominee Contact
-                                            <TooltipHint hint="10-digit mobile number of nominee" />
-                      
+                      <TooltipHint hint="10-digit mobile number of nominee" />
                     </Label>
                     <div className="relative">
                       <Input
                         name="employeeInsuranceDetailsDTO.nomineeContact"
-                        value={formData.employeeInsuranceDetailsDTO?.nomineeContact || ""}
+                        value={
+                          formData.employeeInsuranceDetailsDTO
+                            ?.nomineeContact || ""
+                        }
                         maxLength={10}
                         type="tel"
                         onChange={(e) => {
-                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          const onlyDigits = e.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          );
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
                         }}
                         placeholder="e.g., 9876543210"
                       />
 
-                      {fieldError(errors, "employeeInsuranceDetailsDTO.nomineeContact")}
-
+                      {fieldError(
+                        errors,
+                        "employeeInsuranceDetailsDTO.nomineeContact"
+                      )}
                     </div>
-
                   </div>
 
                   {/* Group Insurance */}
@@ -3356,8 +3502,7 @@ const EditEmployeePage = () => {
                       className="text-base font-medium cursor-pointer"
                     >
                       Group Insurance
-                                            <TooltipHint hint="Check if employee is covered under company group insurance plan" />
-                      
+                      <TooltipHint hint="Check if employee is covered under company group insurance plan" />
                     </Label>
                   </div>
                 </div>
@@ -3379,13 +3524,15 @@ const EditEmployeePage = () => {
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Passport Number
-                                            <TooltipHint hint="Indian passport number. Format: One letter + 7 digits (e.g., A1234567). Must be unique." />
-                      
+                      <TooltipHint hint="Indian passport number. Format: One letter + 7 digits (e.g., A1234567). Must be unique." />
                     </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.passportNumber"
-                        value={formData.employeeStatutoryDetailsDTO?.passportNumber || ""}
+                        value={
+                          formData.employeeStatutoryDetailsDTO
+                            ?.passportNumber || ""
+                        }
                         onChange={handleValidatedChange}
                         onBlur={handleUniqueBlur(
                           "PASSPORT_NUMBER",
@@ -3396,27 +3543,33 @@ const EditEmployeePage = () => {
                         placeholder="e.g., A1234567"
                         className="h-12 text-base"
                       />
-                    
                     </div>
-                    {fieldError(errors, "employeeStatutoryDetailsDTO.passportNumber")}
-
+                    {fieldError(
+                      errors,
+                      "employeeStatutoryDetailsDTO.passportNumber"
+                    )}
                   </div>
 
                   {/* PF UAN Number */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       PF UAN Number
-                                            <TooltipHint hint="12-digit Universal Account Number for Provident Fund. Must be unique across all employees." />
-                      
+                      <TooltipHint hint="12-digit Universal Account Number for Provident Fund. Must be unique across all employees." />
                     </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.pfUanNumber"
                         inputMode="numeric"
                         maxLength={12}
-                        value={formData.employeeStatutoryDetailsDTO?.pfUanNumber || ""}
+                        value={
+                          formData.employeeStatutoryDetailsDTO?.pfUanNumber ||
+                          ""
+                        }
                         onChange={(e) => {
-                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          const onlyDigits = e.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          );
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
                         }}
@@ -3429,18 +3582,18 @@ const EditEmployeePage = () => {
                         placeholder="e.g., 123456789012"
                         className="h-12 text-base"
                       />
-                     
                     </div>
-                    {fieldError(errors, "employeeStatutoryDetailsDTO.pfUanNumber")}
-
+                    {fieldError(
+                      errors,
+                      "employeeStatutoryDetailsDTO.pfUanNumber"
+                    )}
                   </div>
 
                   {/* Tax Regime */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       Tax Regime
-                                            <TooltipHint hint="Income tax regime employee has opted for. Common options: Old Regime, New Regime" />
-                      
+                      <TooltipHint hint="Income tax regime employee has opted for. Common options: Old Regime, New Regime" />
                     </Label>
                     <Input
                       name="employeeStatutoryDetailsDTO.taxRegime"
@@ -3452,25 +3605,31 @@ const EditEmployeePage = () => {
                       placeholder="e.g., Old Regime / New Regime"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
-                                       {fieldError(errors, "employeeStatutoryDetailsDTO.taxRegime")}
-
+                    {fieldError(
+                      errors,
+                      "employeeStatutoryDetailsDTO.taxRegime"
+                    )}
                   </div>
 
                   {/* ESI Number */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       ESI Number
-                                            <TooltipHint hint="Employee State Insurance Number (usually 10–17 digits). Optional." />
-                      
+                      <TooltipHint hint="Employee State Insurance Number (usually 10–17 digits). Optional." />
                     </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.esiNumber"
                         inputMode="numeric"
-                        autoComplete="off"                     // ← this is the key line
-                        value={formData.employeeStatutoryDetailsDTO?.esiNumber || ""}
+                        autoComplete="off" // ← this is the key line
+                        value={
+                          formData.employeeStatutoryDetailsDTO?.esiNumber || ""
+                        }
                         onChange={(e) => {
-                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          const onlyDigits = e.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          );
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
                         }}
@@ -3483,26 +3642,31 @@ const EditEmployeePage = () => {
                         placeholder="e.g., 1234567890"
                         className="h-12 text-base"
                       />
-                     
                     </div>
-                    {fieldError(errors, "employeeStatutoryDetailsDTO.esiNumber")}
-
+                    {fieldError(
+                      errors,
+                      "employeeStatutoryDetailsDTO.esiNumber"
+                    )}
                   </div>
 
                   {/* SSN Number */}
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold text-gray-700">
                       SSN Number
-                                            <TooltipHint hint="Social Security Number (for international employees, e.g., US format: 123456789). Optional." />
-                      
+                      <TooltipHint hint="Social Security Number (for international employees, e.g., US format: 123456789). Optional." />
                     </Label>
                     <div className="relative">
                       <Input
                         name="employeeStatutoryDetailsDTO.ssnNumber"
                         inputMode="numeric"
-                        value={formData.employeeStatutoryDetailsDTO?.ssnNumber || ""}
+                        value={
+                          formData.employeeStatutoryDetailsDTO?.ssnNumber || ""
+                        }
                         onChange={(e) => {
-                          const onlyDigits = e.target.value.replace(/[^0-9]/g, '');
+                          const onlyDigits = e.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          );
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
                         }}
@@ -3515,10 +3679,11 @@ const EditEmployeePage = () => {
                         placeholder="e.g., 123456789"
                         className="h-12 text-base"
                       />
-                     
                     </div>
-                    {fieldError(errors, "employeeStatutoryDetailsDTO.ssnNumber")}
-
+                    {fieldError(
+                      errors,
+                      "employeeStatutoryDetailsDTO.ssnNumber"
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -3532,36 +3697,24 @@ const EditEmployeePage = () => {
                 Cancel
               </Link>
 
-              <button
+              <Button
                 type="submit"
-                disabled={submitting || !isDirty || !hasValidDocumentChange}
-                // disabled={submitting}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2"
+                disabled={isSubmitting || !isFormValid()}
+                className={`min-w-[180px] transition-all ${isFormValid() && !isSubmitting
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
+                    : "bg-gray-400 cursor-not-allowed"
+                  } text-white`}
               >
-                {submitting && (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Employee'
                 )}
-                {submitting ? "Updating..." : "Update Employee"}
-              </button>
+              </Button>
+
             </div>
           </form>
         </div>
