@@ -41,7 +41,21 @@ const ForgotPassword: React.FC = () => {
       const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
+      // ✅ When timer expires
+  if (countdown === 0 && step === 'otp') {
+    setError('OTP expired. Please resend OTP.');
+    setSuccessMessage('');      // remove success message
+  }
   }, [countdown]);
+
+  // Show expired message when timer hits 0
+useEffect(() => {
+  if (countdown === 0 && canEnterOTP) {
+    setError('OTP expired. Please resend OTP.');
+    setSuccessMessage('');
+  }
+}, [countdown, canEnterOTP]);
+
 
   // Auto-focus first OTP input
   useEffect(() => {
@@ -98,14 +112,21 @@ const ForgotPassword: React.FC = () => {
   }, [newPassword, newPasswordError, confirmNewPassword, identifier]);
 
   const sendOTP = async (id: string) => {
+    setError('');
+setSuccessMessage('');
+setOtpDigits(['', '', '', '', '', '']);
+setIsLoading(true);
+
     setError(''); setIsLoading(true);
     try {
       const res = await passwordService.sendOTP(id);
       if (res.flag) {
+        setError(''); // important
         setSuccessMessage('OTP sent successfully to your email.');
         setOtpDigits(['', '', '', '', '', '']);
-        setCountdown(300);
+        setCountdown(10);
         setCanEnterOTP(true); // ✅ SHOW OTP UI
+        setStep('otp'); // ✅ MOVE HERE
       } else {
         setError(res.message || 'Failed to send OTP.');
         setCanEnterOTP(false); //  HIDE OTP UI
@@ -121,14 +142,26 @@ const ForgotPassword: React.FC = () => {
     }
   };
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    sendOTP(identifier);
-    setStep('otp');
+    await sendOTP(identifier);
   };
+  
 
-  const handleResendOTP = () => sendOTP(identifier);
-
+  // const handleResendOTP = () => {
+  //   setError('');              // clear "OTP expired"
+  //   setSuccessMessage('');     // clear old success
+  //   sendOTP(identifier);       // backend will send success
+  // };
+  const handleResendOTP = async () => {
+    setError('');                // clear old error
+    setSuccessMessage('');       // clear old success
+    setOtpDigits(['', '', '', '', '', '']); // clear OTP boxes
+    setOtpTyped(false);
+    await sendOTP(identifier);
+  };
+  
+  
   const handleOtpDigitChange = (index: number, value: string) => {
     if (!/[0-9]/.test(value) && value !== '') return;
     const newDigits = [...otpDigits];
@@ -145,6 +178,10 @@ const ForgotPassword: React.FC = () => {
   };
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (countdown === 0) {
+      setError('OTP expired. Please resend OTP.');
+      return;
+    }
     const fullOtp = otpDigits.join('');
     if (!fullOtp) {
       setError('Please enter the OTP.');

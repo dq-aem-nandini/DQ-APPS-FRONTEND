@@ -260,27 +260,42 @@ export const leaveService = {
   /**
  * Calculate working days between dates (POST with body + optional employeeId)
  */
-async calculateWorkingDays( range: DateRangeRequestDTO, employeeId?: string ): Promise<WorkdayResponseDTO> {
-  try {
-    const params = new URLSearchParams();
-    // pass only if valid UUID (SUPER_HR case)
-    if (employeeId && employeeId.includes('-')) {
-      params.append('employeeId', employeeId);
-    }
-    const response: AxiosResponse<WebResponseDTOWorkdayResponseDTO> = await api.post(
-        `/employee/workDays?${params.toString()}`,
-        range
+  async calculateWorkingDays(
+    range: DateRangeRequestDTO,
+    employeeId?: string,
+    leaveId?: string
+  ): Promise<WorkdayResponseDTO> {
+    try {
+      const params = new URLSearchParams();
+  
+      if (employeeId) {
+        params.append("employeeId", employeeId);
+      }
+  
+      if (leaveId) {
+        params.append("leaveId", leaveId);
+      }
+  
+      const queryString = params.toString();
+      const url = queryString
+        ? `/employee/workDays?${queryString}`
+        : `/employee/workDays`;
+  
+      const response: AxiosResponse<WebResponseDTOWorkdayResponseDTO> =
+        await api.post(url, range);
+  
+      if (response.data.flag && response.data.response) {
+        return response.data.response;
+      }
+  
+      throw new Error(
+        response.data.message || "Failed to calculate working days"
       );
-
-    if (response.data.flag && response.data.response) {
-      return response.data.response;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
     }
-
-    throw new Error( response.data.message || 'Failed to calculate working days');
-  } catch (error: any) {
-    throw new Error(getBackendError(error));
-  }
-},
+  },
+  
 
 
   /**

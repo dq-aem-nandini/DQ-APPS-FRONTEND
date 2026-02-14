@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { employeeService } from "@/lib/api/employeeService";
-import { EmployeeDTO, AddressModel } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { v4 as uuidv4 } from "uuid";
@@ -20,31 +19,22 @@ import {
   Building,
   Upload,
   Trash2,
-
   Eye,
   Camera,
   Loader2,
   Plus,
 } from "lucide-react";
 import Swal from "sweetalert2";
-import { DocumentType, EmployeeDocumentDTO } from "@/lib/api/types";
+import {
+  DocumentType,
+  EmployeeDocumentDTO,
+  EmployeeDTO,
+  AddressModel,
+  DOCUMENT_TYPE_OPTIONS,
+} from "@/lib/api/types";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
-export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
-  "OFFER_LETTER",
-  "CONTRACT",
-  "TAX_DECLARATION_FORM",
-  "WORK_PERMIT",
-  "PAN_CARD",
-  "AADHAR_CARD",
-  "BANK_PASSBOOK",
-  "TENTH_CERTIFICATE",
-  "TWELFTH_CERTIFICATE",
-  "DEGREE_CERTIFICATE",
-  "POST_GRADUATION_CERTIFICATE",
-  "OTHER",
-] as const;
 // Employee should NOT see offer letter or contract
 const EMPLOYEE_ALLOWED_DOCUMENTS = DOCUMENT_TYPE_OPTIONS.filter(
   (doc) => doc !== "OFFER_LETTER" && doc !== "CONTRACT"
@@ -57,10 +47,10 @@ const safe = (val: any) =>
 const formatDate = (date: string) =>
   date
     ? new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
     : "—";
 
 // Validate address
@@ -85,7 +75,10 @@ const deduplicateAddresses = (addresses: AddressModel[]): AddressModel[] => {
 };
 
 // Simple deep equality check for address objects (only the fields we care about)
-const isAddressEqual = (a: AddressModel | undefined, b: AddressModel | undefined): boolean => {
+const isAddressEqual = (
+  a: AddressModel | undefined,
+  b: AddressModel | undefined
+): boolean => {
   if (!a || !b) return false;
   return (
     (a.houseNo || "").trim() === (b.houseNo || "").trim() &&
@@ -116,11 +109,6 @@ const ProfilePage = () => {
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
-  // Bank search
-  // const [bankSearch, setBankSearch] = useState("");
-  // const [bankOptions, setBankOptions] = useState<BankMaster[]>([]);
-  // const [bankSearchTimeout, setBankSearchTimeout] =
-  //   useState<NodeJS.Timeout | null>(null);
   const [documents, setDocuments] = useState<FormDocument[]>([]);
   // IFSC local state (prevents focus loss)
   const [localIfsc, setLocalIfsc] = useState<string>("");
@@ -132,40 +120,46 @@ const ProfilePage = () => {
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
   const { validateField } = useOrganizationFieldValidation();
 
-  const {
-    handleValidatedChange,
-    handleUniqueBlur,
-    fieldError,
-  } = useFormFieldHandlers(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      let formatted = value;
+  const { handleValidatedChange, handleUniqueBlur, fieldError } =
+    useFormFieldHandlers(
+      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        let formatted = value;
 
-      // Reuse same formatting rules as organization
-      if (['panNumber', 'ifscCode'].includes(name)) {
-        formatted = value.toUpperCase();
-      }
-      if (name === 'personalEmail') {
-        formatted = value.toLowerCase();
-      }
-      if (['contactNumber', 'alternateContactNumber', 'emergencyContactNumber', 'accountNumber', 'aadharNumber'].includes(name)) {
-        formatted = value.replace(/[^0-9]/g, '');
-      }
-      if (name === 'gender' || name === 'maritalStatus') {
-        formatted = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-      }
+        // Reuse same formatting rules as organization
+        if (["panNumber", "ifscCode"].includes(name)) {
+          formatted = value.toUpperCase();
+        }
+        if (name === "personalEmail") {
+          formatted = value.toLowerCase();
+        }
+        if (
+          [
+            "contactNumber",
+            "alternateContactNumber",
+            "emergencyContactNumber",
+            "accountNumber",
+            "aadharNumber",
+          ].includes(name)
+        ) {
+          formatted = value.replace(/[^0-9]/g, "");
+        }
+        if (name === "gender" || name === "maritalStatus") {
+          formatted =
+            value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        }
 
-      setFormData(prev => prev ? { ...prev, [name]: formatted } : null);
-    },
-    setErrors,
-    checkUniqueness,
-    () => formData,
-    validateField
-  );
+        setFormData((prev) => (prev ? { ...prev, [name]: formatted } : null));
+      },
+      setErrors,
+      checkUniqueness,
+      () => formData,
+      validateField
+    );
   interface FormDocument extends EmployeeDocumentDTO {
     fileObj?: File | null;
     tempId?: string;
-    status?: 'unchanged' | 'new';
+    status?: "unchanged" | "new";
   }
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -179,15 +173,15 @@ const ProfilePage = () => {
         ...res,
         gender: res.gender
           ? res.gender.charAt(0).toUpperCase() +
-          res.gender.slice(1).toLowerCase()
+            res.gender.slice(1).toLowerCase()
           : "",
         maritalStatus: res.maritalStatus
           ? res.maritalStatus.charAt(0).toUpperCase() +
-          res.maritalStatus.slice(1).toLowerCase()
+            res.maritalStatus.slice(1).toLowerCase()
           : "",
         addresses: (res.addresses || []).map((a) => ({
           ...a,
-          addressId: a.addressId ?? uuidv4(),   // only if null/undefined
+          addressId: a.addressId ?? uuidv4(), // only if null/undefined
         })),
         documents: res.documents || [],
         employeeSalaryDTO: res.employeeSalaryDTO || undefined,
@@ -211,7 +205,7 @@ const ProfilePage = () => {
           ...d,
           fileObj: null,
           tempId: uuidv4(),
-          status: 'unchanged' as const,
+          status: "unchanged" as const,
         }))
       );
     } catch (err: any) {
@@ -229,7 +223,7 @@ const ProfilePage = () => {
         file: null,
         fileObj: null,
         tempId: uuidv4(),
-        status: 'new' as const,           // ← Important
+        status: "new" as const, // ← Important
       } as FormDocument,
     ]);
   };
@@ -247,7 +241,7 @@ const ProfilePage = () => {
     const doc = documents[index];
 
     // Case 1: New document (never saved) → just remove from UI
-    if (doc.status === 'new' || !doc.documentId) {
+    if (doc.status === "new" || !doc.documentId) {
       setDocuments((prev) => prev.filter((_, i) => i !== index));
       return;
     }
@@ -273,10 +267,6 @@ const ProfilePage = () => {
         title: "Delete Request Sent",
         text: "Admin will review your request.",
       });
-
-      // Optimistic UI update: remove from list immediately
-      // setDocuments((prev) => prev.filter((_, i) => i !== index));
-
     } catch (err: any) {
       Swal.fire({
         icon: "error",
@@ -287,37 +277,43 @@ const ProfilePage = () => {
   };
   // Handle IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
-    const code = (ifsc ?? '').trim().toUpperCase();
-
+    const code = (ifsc ?? "").trim().toUpperCase();
     if (!code || isLookingUp || errors.ifscCode) return;
-
     setIsLookingUp(true);
-
     try {
       const res = await employeeService.getIFSCDetails(code);
-
       if (res?.flag && res.response) {
         const data = res.response;
 
-        setFormData(prev => prev ? {
-          ...prev,
-          bankName: data.BANK ?? '',
-          branchName: data.BRANCH ?? '',
-          ifscCode: code,
-        } : null);
+        setFormData((prev) =>
+          prev
+            ? {
+                ...prev,
+                bankName: data.BANK ?? "",
+                branchName: data.BRANCH ?? "",
+                ifscCode: code,
+              }
+            : null
+        );
 
-        setSuccess('Bank details auto-filled!');
-        setErrors(prev => {
+        setSuccess("Bank details auto-filled!");
+        setErrors((prev) => {
           const n = { ...prev };
           delete n.ifscCode;
           return n;
         });
       } else {
-        setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
+        setErrors((prev) => ({
+          ...prev,
+          ifscCode: "Invalid IFSC or lookup failed",
+        }));
       }
     } catch (err: any) {
-      console.error('IFSC lookup error:', err);
-      setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
+      console.error("IFSC lookup error:", err);
+      setErrors((prev) => ({
+        ...prev,
+        ifscCode: "Invalid IFSC or lookup failed",
+      }));
     } finally {
       setIsLookingUp(false);
     }
@@ -343,13 +339,14 @@ const ProfilePage = () => {
     for (const field of requiredFields) {
       if (!formData[field as keyof EmployeeDTO]) {
         setError(
-          `Please fill ${field === "firstName"
-            ? "First Name"
-            : field === "lastName"
+          `Please fill ${
+            field === "firstName"
+              ? "First Name"
+              : field === "lastName"
               ? "Last Name"
               : field === "dateOfBirth"
-                ? "Date of Birth"
-                : field.charAt(0).toUpperCase() +
+              ? "Date of Birth"
+              : field.charAt(0).toUpperCase() +
                 field
                   .slice(1)
                   .replace(/([A-Z])/g, " $1")
@@ -383,23 +380,63 @@ const ProfilePage = () => {
       appendIfChanged("firstName", formData.firstName, profile.firstName);
       appendIfChanged("lastName", formData.lastName, profile.lastName);
       appendIfChanged("dateOfBirth", formData.dateOfBirth, profile.dateOfBirth);
-      appendIfChanged("gender", formData.gender, profile.gender);           // ← Fixed
-      appendIfChanged("maritalStatus", formData.maritalStatus, profile.maritalStatus); // ← Fixed
+      appendIfChanged("gender", formData.gender, profile.gender); // ← Fixed
+      appendIfChanged(
+        "maritalStatus",
+        formData.maritalStatus,
+        profile.maritalStatus
+      ); // ← Fixed
       appendIfChanged("nationality", formData.nationality, profile.nationality);
 
       // Optional personal fields
-      appendIfChanged("personalEmail", formData.personalEmail, profile.personalEmail);
-      appendIfChanged("contactNumber", formData.contactNumber, profile.contactNumber);
-      appendIfChanged("alternateContactNumber", formData.alternateContactNumber, profile.alternateContactNumber);
-      appendIfChanged("emergencyContactName", formData.emergencyContactName, profile.emergencyContactName);
-      appendIfChanged("emergencyContactNumber", formData.emergencyContactNumber, profile.emergencyContactNumber);
-      appendIfChanged("numberOfChildren", formData.numberOfChildren, profile.numberOfChildren);
+      appendIfChanged(
+        "personalEmail",
+        formData.personalEmail,
+        profile.personalEmail
+      );
+      appendIfChanged(
+        "contactNumber",
+        formData.contactNumber,
+        profile.contactNumber
+      );
+      appendIfChanged(
+        "alternateContactNumber",
+        formData.alternateContactNumber,
+        profile.alternateContactNumber
+      );
+      appendIfChanged(
+        "emergencyContactName",
+        formData.emergencyContactName,
+        profile.emergencyContactName
+      );
+      appendIfChanged(
+        "emergencyContactNumber",
+        formData.emergencyContactNumber,
+        profile.emergencyContactNumber
+      );
+      appendIfChanged(
+        "numberOfChildren",
+        formData.numberOfChildren,
+        profile.numberOfChildren
+      );
 
       // Identity & Bank Details
       appendIfChanged("panNumber", formData.panNumber, profile.panNumber);
-      appendIfChanged("aadharNumber", formData.aadharNumber, profile.aadharNumber);
-      appendIfChanged("accountNumber", formData.accountNumber, profile.accountNumber);
-      appendIfChanged("accountHolderName", formData.accountHolderName, profile.accountHolderName);
+      appendIfChanged(
+        "aadharNumber",
+        formData.aadharNumber,
+        profile.aadharNumber
+      );
+      appendIfChanged(
+        "accountNumber",
+        formData.accountNumber,
+        profile.accountNumber
+      );
+      appendIfChanged(
+        "accountHolderName",
+        formData.accountHolderName,
+        profile.accountHolderName
+      );
       appendIfChanged("bankName", formData.bankName, profile.bankName);
       appendIfChanged("branchName", formData.branchName, profile.branchName);
 
@@ -408,24 +445,42 @@ const ProfilePage = () => {
         payload.append("ifscCode", localIfsc.trim());
       }
 
-      // === Addresses ===
-      // Always send full list (backend handles upsert based on addressId)
-      let addressIndex = 0;
-      addresses.forEach((addr, index) => {
-
-        // If existing address → include addressId
-        if (addr.addressId && !addr.addressId.startsWith("temp-")) {
-          payload.append(`addresses[${index}].addressId`, addr.addressId);
-        }
-
-        payload.append(`addresses[${index}].houseNo`, addr.houseNo || "");
-        payload.append(`addresses[${index}].streetName`, addr.streetName || "");
-        payload.append(`addresses[${index}].city`, addr.city || "");
-        payload.append(`addresses[${index}].state`, addr.state || "");
-        payload.append(`addresses[${index}].country`, addr.country || "");
-        payload.append(`addresses[${index}].pincode`, addr.pincode || "");
-        payload.append(`addresses[${index}].addressType`, addr.addressType || "");
+      // === Addresses (Send only if changed) ===
+      const normalizeAddress = (addr: AddressModel) => ({
+        houseNo: addr.houseNo?.trim() || "",
+        streetName: addr.streetName?.trim() || "",
+        city: addr.city?.trim() || "",
+        state: addr.state?.trim() || "",
+        country: addr.country?.trim() || "",
+        pincode: addr.pincode?.trim() || "",
+        addressType: addr.addressType || "",
       });
+
+      const oldAddresses = (profile.addresses || []).map(normalizeAddress);
+      const newAddresses = addresses.map(normalizeAddress);
+
+      if (JSON.stringify(oldAddresses) !== JSON.stringify(newAddresses)) {
+        addresses.forEach((addr, index) => {
+          if (addr.addressId && !addr.addressId.startsWith("temp-")) {
+            payload.append(`addresses[${index}].addressId`, addr.addressId);
+          }
+
+          payload.append(`addresses[${index}].houseNo`, addr.houseNo || "");
+          payload.append(
+            `addresses[${index}].streetName`,
+            addr.streetName || ""
+          );
+          payload.append(`addresses[${index}].city`, addr.city || "");
+          payload.append(`addresses[${index}].state`, addr.state || "");
+          payload.append(`addresses[${index}].country`, addr.country || "");
+          payload.append(`addresses[${index}].pincode`, addr.pincode || "");
+          payload.append(
+            `addresses[${index}].addressType`,
+            addr.addressType || ""
+          );
+        });
+      }
+
       let docIndex = 0;
 
       documents.forEach((doc) => {
@@ -441,7 +496,9 @@ const ProfilePage = () => {
         }
 
         if (!doc.docType) {
-          throw new Error("Invariant violation: docType missing for uploaded document");
+          throw new Error(
+            "Invariant violation: docType missing for uploaded document"
+          );
         }
 
         payload.append(`documents[${docIndex}].docType`, doc.docType);
@@ -453,12 +510,9 @@ const ProfilePage = () => {
       // If no changes at all (except possibly photo/documents), prevent submission
       // Check if we have any real changes
       const hasRealChanges =
-        !payload.entries().next().done ||           // something was appended (fields, photo, addresses, etc.)
-        !!profilePhotoFile ||                       // photo changed
-        documents.some((d) =>
-          d.fileObj instanceof File ||
-          d.status === 'new'
-        );
+        !payload.entries().next().done || // something was appended (fields, photo, addresses, etc.)
+        !!profilePhotoFile || // photo changed
+        documents.some((d) => d.fileObj instanceof File || d.status === "new");
 
       if (!hasRealChanges) {
         Swal.fire({
@@ -496,7 +550,7 @@ const ProfilePage = () => {
 
     // Case 1: New / temporary address → instantly remove from UI (no prompt, no API)
     if (!addressId || addressId.startsWith("temp-")) {
-      setAddresses((prev) => prev.filter(a => a.addressId !== addressId));
+      setAddresses((prev) => prev.filter((a) => a.addressId !== addressId));
       return;
     }
 
@@ -519,16 +573,6 @@ const ProfilePage = () => {
         title: "Delete Request Sent",
         text: "Admin will review your request.",
       });
-
-      // Update UI: remove the address
-      // setAddresses((prev) => prev.filter(a => a.addressId !== addressId));
-
-      // Also update formData if needed (though setAddresses should suffice)
-      // setFormData(prev => ({
-      //   ...prev!,
-      //   addresses: prev!.addresses.filter(a => a.addressId !== addressId),
-      // }));
-
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -539,41 +583,12 @@ const ProfilePage = () => {
   };
 
   const onChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value: rawValue } = e.target;
     let normalizedValue = rawValue;
-
-    // // === Special field transformations ===
-    // if (name === "personalEmail") {
-    //   // Force lowercase for email
-    //   normalizedValue = rawValue.toLowerCase();
-    // }
-
-    // if (name === "panNumber") {
-    //   // Force uppercase for PAN
-    //   normalizedValue = rawValue.toUpperCase();
-    //   // Optional: Allow only alphanumeric (PAN format)
-    //   normalizedValue = normalizedValue.replace(/[^A-Z0-9]/g, "");
-    // }
-
-    // Prevent leading spaces for most fields
-    // if (!["personalEmail", "panNumber"].includes(name)) {
-    //   normalizedValue = rawValue.trimStart();
-    // }
-
-    // // Numeric-only fields (keep existing logic)
-    // if (
-    //   [
-    //     "accountNumber",
-    //     "aadharNumber",
-    //     "contactNumber",
-    //     "alternateContactNumber",
-    //     "emergencyContactNumber",
-    //   ].includes(name)
-    // ) {
-    //   normalizedValue = rawValue.replace(/\D/g, ""); // Only digits
-    // }
 
     // Normalize gender & maritalStatus
     if (name === "gender" || name === "maritalStatus") {
@@ -623,8 +638,7 @@ const ProfilePage = () => {
       newErrors[`addresses[${i}].${field}`] = "This field is required";
     }
     if (field === "houseNo" && value.length > 19) {
-      newErrors[`addresses[${i}].${field}`] =
-        "Maximum 20 characters allowed";
+      newErrors[`addresses[${i}].${field}`] = "Maximum 20 characters allowed";
     }
     if (field === "pincode" && value && !/^\d{6}$/.test(value)) {
       newErrors[`addresses[${i}].${field}`] = "PIN code must be 6 digits";
@@ -690,13 +704,11 @@ const ProfilePage = () => {
     }
 
     // Compare documents (new files uploaded)
-    const documentsChanged =
-      documents.some(
-        (d) =>
-          d.fileObj instanceof File &&          // file selected
-          !!d.docType                           // document type selected
-      );
-
+    const documentsChanged = documents.some(
+      (d) =>
+        d.fileObj instanceof File && // file selected
+        !!d.docType // document type selected
+    );
 
     if (documentsChanged) return true;
 
@@ -882,14 +894,17 @@ const ProfilePage = () => {
             {editing ? (
               <form onSubmit={handleUpdate} className="space-y-8">
                 {/* Personal Information */}
-                <Card title="Personal Information" icon={<User className="w-5 h-5" />}>
+                <Card
+                  title="Personal Information"
+                  icon={<User className="w-5 h-5" />}
+                >
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* REQUIRED FIELDS - No uniqueness check */}
                     <div className="space-y-2">
                       <Input
                         label="First Name"
                         name="firstName"
-                        value={formData?.firstName ?? ''}
+                        value={formData?.firstName ?? ""}
                         onChange={handleValidatedChange}
                         required
                       />
@@ -900,7 +915,7 @@ const ProfilePage = () => {
                       <Input
                         label="Last Name"
                         name="lastName"
-                        value={formData?.lastName ?? ''}
+                        value={formData?.lastName ?? ""}
                         onChange={handleValidatedChange}
                         required
                       />
@@ -912,7 +927,7 @@ const ProfilePage = () => {
                         label="Date of Birth"
                         name="dateOfBirth"
                         type="date"
-                        value={formData?.dateOfBirth ?? ''}
+                        value={formData?.dateOfBirth ?? ""}
                         onChange={handleValidatedChange}
                         required
                       />
@@ -947,20 +962,20 @@ const ProfilePage = () => {
                       <Input
                         label="Nationality"
                         name="nationality"
-                        value={formData?.nationality ?? ''}
+                        value={formData?.nationality ?? ""}
                         onChange={handleValidatedChange}
                         required
                       />
                       {fieldError(errors, "nationality")}
                     </div>
-                    
+
                     <div className="space-y-2">
                       {/* Personal Email */}
                       <Input
                         label="Personal Email Address"
                         name="personalEmail"
                         type="email"
-                        value={formData.personalEmail ?? ''}
+                        value={formData.personalEmail ?? ""}
                         onChange={handleValidatedChange}
                         onBlur={handleUniqueBlur(
                           "EMAIL",
@@ -971,7 +986,7 @@ const ProfilePage = () => {
                         maxLength={30}
                         placeholder="you@gmail.com"
                       />
-                      
+
                       {fieldError(errors, "personalEmail")}
                     </div>
 
@@ -980,7 +995,7 @@ const ProfilePage = () => {
                       <Input
                         label="Primary Contact Number"
                         name="contactNumber"
-                        value={formData?.contactNumber ?? ''}
+                        value={formData?.contactNumber ?? ""}
                         onChange={handleValidatedChange}
                         maxLength={10}
                         onBlur={handleUniqueBlur(
@@ -999,7 +1014,7 @@ const ProfilePage = () => {
                       <Input
                         label="Alternate Contact Number"
                         name="alternateContactNumber"
-                        value={formData?.alternateContactNumber ?? ''}
+                        value={formData?.alternateContactNumber ?? ""}
                         onChange={handleValidatedChange}
                         maxLength={10}
                         placeholder="Another 10-digit number (optional)"
@@ -1020,7 +1035,7 @@ const ProfilePage = () => {
                         label="Number of Children"
                         name="numberOfChildren"
                         type="number"
-                        value={formData?.numberOfChildren ?? ''}
+                        value={formData?.numberOfChildren ?? ""}
                         onChange={handleValidatedChange}
                         min="0"
                       />
@@ -1038,7 +1053,7 @@ const ProfilePage = () => {
                     <Input
                       label="Emergency Contact Name"
                       name="emergencyContactName"
-                      value={formData?.emergencyContactName ?? ''}
+                      value={formData?.emergencyContactName ?? ""}
                       onChange={handleValidatedChange}
                     />
                     {fieldError(errors, "emergencyContactName")}
@@ -1049,7 +1064,7 @@ const ProfilePage = () => {
                     <Input
                       label="Emergency Contact Number"
                       name="emergencyContactNumber"
-                      value={formData?.emergencyContactNumber ?? ''}
+                      value={formData?.emergencyContactNumber ?? ""}
                       onChange={handleValidatedChange}
                       maxLength={10}
                       onBlur={handleUniqueBlur(
@@ -1057,7 +1072,7 @@ const ProfilePage = () => {
                         "emergency_contact_number",
                         "emergencyContactNumber",
                         profile?.employeeId,
-                        10  // min length to trigger uniqueness check
+                        10 // min length to trigger uniqueness check
                       )}
                     />
                     {fieldError(errors, "emergencyContactNumber")}
@@ -1069,9 +1084,7 @@ const ProfilePage = () => {
                   title="Bank Details"
                   icon={<DollarSign className="w-5 h-5" />}
                 >
-                  <div
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-                  >
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Input
                         label="PAN Number"
@@ -1079,7 +1092,14 @@ const ProfilePage = () => {
                         value={formData.panNumber || ""}
                         onChange={handleValidatedChange}
                         pattern="[A-Z0-9]{10}"
-                        onBlur={handleUniqueBlur("PAN_NUMBER", "pan_number", "panNumber", profile?.employeeId, 10)} />
+                        onBlur={handleUniqueBlur(
+                          "PAN_NUMBER",
+                          "pan_number",
+                          "panNumber",
+                          profile?.employeeId,
+                          10
+                        )}
+                      />
                       {fieldError(errors, "panNumber")}
                     </div>
 
@@ -1097,7 +1117,6 @@ const ProfilePage = () => {
                           profile?.employeeId,
                           12
                         )}
-
                       />
                       {fieldError(errors, "aadharNumber")}
                     </div>
@@ -1107,22 +1126,28 @@ const ProfilePage = () => {
                         label="Account Number"
                         name="accountNumber"
                         value={formData.accountNumber || ""}
-                        onChange={handleValidatedChange} pattern="[0-9]{9,18}"
+                        onChange={handleValidatedChange}
+                        pattern="[0-9]{9,18}"
                         maxLength={18}
-                        onBlur={handleUniqueBlur("ACCOUNT_NUMBER", "account_number", "accountNumber", profile?.employeeId, 9)}
-
+                        onBlur={handleUniqueBlur(
+                          "ACCOUNT_NUMBER",
+                          "account_number",
+                          "accountNumber",
+                          profile?.employeeId,
+                          9
+                        )}
                       />
                       {fieldError(errors, "accountNumber")}
                     </div>
 
                     <div className="space-y-2">
-                    <Input
-  label="Account Holder Name"
-  name="accountHolderName"
-  value={formData.accountHolderName || ""}
-  onChange={handleValidatedChange}
-  placeholder="As per bank passbook / statement"
-/>
+                      <Input
+                        label="Account Holder Name"
+                        name="accountHolderName"
+                        value={formData.accountHolderName || ""}
+                        onChange={handleValidatedChange}
+                        placeholder="As per bank passbook / statement"
+                      />
 
                       {fieldError(errors, "accountHolderName")}
                     </div>
@@ -1136,13 +1161,12 @@ const ProfilePage = () => {
                         onChange={(e) => {
                           const val = e.target.value.toUpperCase().slice(0, 11);
                           setLocalIfsc(val);
-                        
+
                           handleValidatedChange({
                             ...e,
                             target: { ...e.target, value: val },
                           } as any);
                         }}
-                        
                         onBlur={() => handleIfscLookup(localIfsc)}
                         placeholder="HDFC0000123"
                         maxLength={11}
@@ -1169,7 +1193,8 @@ const ProfilePage = () => {
                         label="Branch Name"
                         name="branchName"
                         value={formData.branchName || ""}
-                        onChange={handleValidatedChange} />
+                        onChange={handleValidatedChange}
+                      />
                       {errors.branchName && (
                         <p className="text-red-600 text-sm font-medium">
                           {errors.branchName}
@@ -1198,17 +1223,16 @@ const ProfilePage = () => {
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
-
                       </div>
-                      <div
-                        className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4"
-                      >
+                      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4">
                         <div>
                           <Input
                             label="House Number"
                             value={addr.houseNo || ""}
                             maxLength={20}
-                            onChange={(e) => updateAddress(i, "houseNo", e.target.value)}
+                            onChange={(e) =>
+                              updateAddress(i, "houseNo", e.target.value)
+                            }
                           />
                           {errors[`addresses[${i}].houseNo`] && (
                             <p className="text-red-500 text-xs mt-1">
@@ -1317,7 +1341,11 @@ const ProfilePage = () => {
                   icon={<Upload className="w-5 h-5" />}
                 >
                   {documents
-                    .filter(doc => doc.docType !== "OFFER_LETTER" && doc.docType !== "CONTRACT")
+                    .filter(
+                      (doc) =>
+                        doc.docType !== "OFFER_LETTER" &&
+                        doc.docType !== "CONTRACT"
+                    )
                     .map((doc, i) => (
                       <div
                         key={doc.tempId || doc.documentId}
@@ -1329,7 +1357,11 @@ const ProfilePage = () => {
                             label="Document Type"
                             value={doc.docType}
                             onChange={(e) =>
-                              updateDocument(i, "docType", e.target.value as DocumentType)
+                              updateDocument(
+                                i,
+                                "docType",
+                                e.target.value as DocumentType
+                              )
                             }
                             options={EMPLOYEE_ALLOWED_DOCUMENTS.filter((t) => {
                               // allow current row's selected type
@@ -1341,7 +1373,6 @@ const ProfilePage = () => {
                               );
                             })}
                           />
-
                         </div>
 
                         {/* Current File Info - Col 2 */}
@@ -1362,8 +1393,6 @@ const ProfilePage = () => {
                             </div>
                           )}
                         </div>
-
-                        {/* Upload / Replace - Col 3 (flexible) */}
                         {/* Upload / Replace - Col 3 */}
                         <div className="lg:col-span-1 flex-1">
                           <label className="block text-sm font-semibold text-gray-800 mb-2">
@@ -1400,7 +1429,9 @@ const ProfilePage = () => {
                             {/* File name text logic */}
                             {!doc.fileUrl && (
                               <span className="text-sm text-gray-600 truncate max-w-[200px]">
-                                {doc.fileObj ? doc.fileObj.name : "No file selected"}
+                                {doc.fileObj
+                                  ? doc.fileObj.name
+                                  : "No file selected"}
                               </span>
                             )}
 
@@ -1417,7 +1448,6 @@ const ProfilePage = () => {
                             </p>
                           )}
                         </div>
-
 
                         {/* Trash - Col 4 */}
                         <div className="lg:col-span-1 flex items-start lg:items-center justify-center lg:justify-end pt-2 lg:pt-8">
@@ -1484,17 +1514,18 @@ const ProfilePage = () => {
                   <button
                     type="submit"
                     disabled={updating || !hasChanges}
-                    className={`px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl transition flex items-center gap-2 ${!hasChanges || updating
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:from-blue-700 hover:to-indigo-800 shadow-lg"
-                      }`}
+                    className={`px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl transition flex items-center gap-2 ${
+                      !hasChanges || updating
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:from-blue-700 hover:to-indigo-800 shadow-lg"
+                    }`}
                   >
                     <Save className="w-5 h-5" />
                     {updating
                       ? "Submitting..."
                       : hasChanges
-                        ? "Submit Request"
-                        : "No changes to submit"}
+                      ? "Submit Request"
+                      : "No changes to submit"}
                   </button>
                 </div>
               </form>
@@ -1579,7 +1610,8 @@ const ProfilePage = () => {
                   title="Emergency Contact"
                   icon={<Phone className="w-6 h-6 text-red-600" />}
                 >
-                  {profile.emergencyContactName || profile.emergencyContactNumber ? (
+                  {profile.emergencyContactName ||
+                  profile.emergencyContactNumber ? (
                     <>
                       <ShowIfFilled
                         label="Emergency Contact Name"
@@ -1602,28 +1634,44 @@ const ProfilePage = () => {
                   icon={<DollarSign className="w-6 h-6 text-green-600" />}
                 >
                   {profile.panNumber ||
-                    profile.aadharNumber ||
-                    profile.bankName ||
-                    profile.accountNumber ||
-                    profile.accountHolderName ||
-                    profile.ifscCode ||
-                    profile.branchName ? (
+                  profile.aadharNumber ||
+                  profile.bankName ||
+                  profile.accountNumber ||
+                  profile.accountHolderName ||
+                  profile.ifscCode ||
+                  profile.branchName ? (
                     <>
-                      <ShowIfFilled label="PAN Number" value={profile.panNumber} />
-                      <ShowIfFilled label="Aadhar Number" value={profile.aadharNumber} />
-                      <ShowIfFilled label="Bank Name" value={profile.bankName} />
-                      <ShowIfFilled label="Account Number" value={profile.accountNumber} />
+                      <ShowIfFilled
+                        label="PAN Number"
+                        value={profile.panNumber}
+                      />
+                      <ShowIfFilled
+                        label="Aadhar Number"
+                        value={profile.aadharNumber}
+                      />
+                      <ShowIfFilled
+                        label="Bank Name"
+                        value={profile.bankName}
+                      />
+                      <ShowIfFilled
+                        label="Account Number"
+                        value={profile.accountNumber}
+                      />
                       <ShowIfFilled
                         label="Account Holder Name"
                         value={profile.accountHolderName}
                       />
-                      <ShowIfFilled label="IFSC Code" value={profile.ifscCode} />
-                      <ShowIfFilled label="Branch Name" value={profile.branchName} />
+                      <ShowIfFilled
+                        label="IFSC Code"
+                        value={profile.ifscCode}
+                      />
+                      <ShowIfFilled
+                        label="Branch Name"
+                        value={profile.branchName}
+                      />
                     </>
                   ) : (
-                    <p className="text-gray-500 ">
-                      No bank details added .
-                    </p>
+                    <p className="text-gray-500 ">No bank details added .</p>
                   )}
                 </InfoCard>
 
@@ -1666,7 +1714,6 @@ const ProfilePage = () => {
                             {(doc.docType ?? "UNKNOWN").replace(/_/g, " ")}
                           </p>
 
-
                           {doc.fileUrl ? (
                             <a
                               href={doc.fileUrl}
@@ -1686,9 +1733,7 @@ const ProfilePage = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500">
-                      No documents uploaded .
-                    </p>
+                    <p className="text-gray-500">No documents uploaded .</p>
                   )}
                 </InfoCard>
 
@@ -1697,16 +1742,20 @@ const ProfilePage = () => {
                   icon={<DollarSign className="w-6 h-6 text-green-600" />}
                 >
                   {profile.employeeSalaryDTO &&
-                    (profile.employeeSalaryDTO.ctc ||
-                      profile.employeeSalaryDTO.payType ||
-                      profile.employeeSalaryDTO.standardHours ||
-                      profile.employeeSalaryDTO.payClass ||
-                      !!profile.employeeSalaryDTO.allowances?.length ||
-                      !!profile.employeeSalaryDTO.deductions?.length) ? (
+                  (profile.employeeSalaryDTO.ctc ||
+                    profile.employeeSalaryDTO.payType ||
+                    profile.employeeSalaryDTO.standardHours ||
+                    profile.employeeSalaryDTO.payClass ||
+                    !!profile.employeeSalaryDTO.allowances?.length ||
+                    !!profile.employeeSalaryDTO.deductions?.length) ? (
                     <>
                       <ShowIfFilled
                         label="CTC"
-                        value={profile.employeeSalaryDTO.ctc ? `₹${profile.employeeSalaryDTO.ctc}` : undefined}
+                        value={
+                          profile.employeeSalaryDTO.ctc
+                            ? `₹${profile.employeeSalaryDTO.ctc}`
+                            : undefined
+                        }
                       />
                       <ShowIfFilled
                         label="Pay Type"
@@ -1724,7 +1773,9 @@ const ProfilePage = () => {
                       {/* Allowances - safe rendering */}
                       {!!profile.employeeSalaryDTO.allowances?.length && (
                         <div className="md:col-span-2">
-                          <p className="font-medium text-green-700 mb-2">Allowances</p>
+                          <p className="font-medium text-green-700 mb-2">
+                            Allowances
+                          </p>
                           {profile.employeeSalaryDTO.allowances!.map((a, i) => (
                             <p key={i} className="text-sm">
                               • {a.allowanceType}: ₹{a.amount}
@@ -1736,7 +1787,9 @@ const ProfilePage = () => {
                       {/* Deductions - safe rendering */}
                       {!!profile.employeeSalaryDTO.deductions?.length && (
                         <div className="md:col-span-2">
-                          <p className="font-medium text-red-700 mb-2">Deductions</p>
+                          <p className="font-medium text-red-700 mb-2">
+                            Deductions
+                          </p>
                           {profile.employeeSalaryDTO.deductions!.map((d, i) => (
                             <p key={i} className="text-sm">
                               • {d.deductionType}: ₹{d.amount}
@@ -1746,9 +1799,7 @@ const ProfilePage = () => {
                       )}
                     </>
                   ) : (
-                    <p className="text-gray-500">
-                      No salary details added .
-                    </p>
+                    <p className="text-gray-500">No salary details added .</p>
                   )}
                 </InfoCard>
 
@@ -1757,14 +1808,15 @@ const ProfilePage = () => {
                   icon={<Shield className="w-6 h-6 text-teal-600" />}
                 >
                   {profile.employeeInsuranceDetailsDTO &&
-                    (profile.employeeInsuranceDetailsDTO.policyNumber ||
-                      profile.employeeInsuranceDetailsDTO.providerName ||
-                      profile.employeeInsuranceDetailsDTO.coverageStart ||
-                      profile.employeeInsuranceDetailsDTO.coverageEnd ||
-                      profile.employeeInsuranceDetailsDTO.nomineeName ||
-                      profile.employeeInsuranceDetailsDTO.nomineeRelation ||
-                      profile.employeeInsuranceDetailsDTO.nomineeContact ||
-                      profile.employeeInsuranceDetailsDTO.groupInsurance !== undefined) ? (
+                  (profile.employeeInsuranceDetailsDTO.policyNumber ||
+                    profile.employeeInsuranceDetailsDTO.providerName ||
+                    profile.employeeInsuranceDetailsDTO.coverageStart ||
+                    profile.employeeInsuranceDetailsDTO.coverageEnd ||
+                    profile.employeeInsuranceDetailsDTO.nomineeName ||
+                    profile.employeeInsuranceDetailsDTO.nomineeRelation ||
+                    profile.employeeInsuranceDetailsDTO.nomineeContact ||
+                    profile.employeeInsuranceDetailsDTO.groupInsurance !==
+                      undefined) ? (
                     <>
                       <ShowIfFilled
                         label="Policy Number"
@@ -1778,8 +1830,13 @@ const ProfilePage = () => {
                         label="Coverage Period"
                         value={
                           profile.employeeInsuranceDetailsDTO.coverageStart &&
-                            profile.employeeInsuranceDetailsDTO.coverageEnd
-                            ? `${formatDate(profile.employeeInsuranceDetailsDTO.coverageStart)} to ${formatDate(profile.employeeInsuranceDetailsDTO.coverageEnd)}`
+                          profile.employeeInsuranceDetailsDTO.coverageEnd
+                            ? `${formatDate(
+                                profile.employeeInsuranceDetailsDTO
+                                  .coverageStart
+                              )} to ${formatDate(
+                                profile.employeeInsuranceDetailsDTO.coverageEnd
+                              )}`
                             : undefined
                         }
                       />
@@ -1787,19 +1844,22 @@ const ProfilePage = () => {
                         label="Nominee Details"
                         value={
                           profile.employeeInsuranceDetailsDTO.nomineeName &&
-                            profile.employeeInsuranceDetailsDTO.nomineeRelation
+                          profile.employeeInsuranceDetailsDTO.nomineeRelation
                             ? `${profile.employeeInsuranceDetailsDTO.nomineeName} (${profile.employeeInsuranceDetailsDTO.nomineeRelation})`
                             : undefined
                         }
                       />
                       <ShowIfFilled
                         label="Nominee Contact Number"
-                        value={profile.employeeInsuranceDetailsDTO.nomineeContact}
+                        value={
+                          profile.employeeInsuranceDetailsDTO.nomineeContact
+                        }
                       />
                       <ShowIfFilled
                         label="Group Insurance"
                         value={
-                          profile.employeeInsuranceDetailsDTO.groupInsurance !== undefined
+                          profile.employeeInsuranceDetailsDTO.groupInsurance !==
+                          undefined
                             ? profile.employeeInsuranceDetailsDTO.groupInsurance
                               ? "Yes"
                               : "No"
@@ -1819,7 +1879,7 @@ const ProfilePage = () => {
                   icon={<Building className="w-6 h-6 text-orange-600" />}
                 >
                   {profile.employeeEquipmentDTO &&
-                    profile.employeeEquipmentDTO.length > 0 ? (
+                  profile.employeeEquipmentDTO.length > 0 ? (
                     <>
                       {profile.employeeEquipmentDTO.map((eq, i) => (
                         <div
@@ -1835,9 +1895,7 @@ const ProfilePage = () => {
                       ))}
                     </>
                   ) : (
-                    <p className="text-gray-500 t">
-                      No equipment assigned .
-                    </p>
+                    <p className="text-gray-500 t">No equipment assigned .</p>
                   )}
                 </InfoCard>
 
@@ -1846,15 +1904,17 @@ const ProfilePage = () => {
                   icon={<FileText className="w-6 h-6 text-gray-600" />}
                 >
                   {profile.employeeStatutoryDetailsDTO &&
-                    (profile.employeeStatutoryDetailsDTO.passportNumber ||
-                      profile.employeeStatutoryDetailsDTO.taxRegime ||
-                      profile.employeeStatutoryDetailsDTO.pfUanNumber ||
-                      profile.employeeStatutoryDetailsDTO.esiNumber ||
-                      profile.employeeStatutoryDetailsDTO.ssnNumber) ? (
+                  (profile.employeeStatutoryDetailsDTO.passportNumber ||
+                    profile.employeeStatutoryDetailsDTO.taxRegime ||
+                    profile.employeeStatutoryDetailsDTO.pfUanNumber ||
+                    profile.employeeStatutoryDetailsDTO.esiNumber ||
+                    profile.employeeStatutoryDetailsDTO.ssnNumber) ? (
                     <>
                       <ShowIfFilled
                         label="Passport Number"
-                        value={profile.employeeStatutoryDetailsDTO.passportNumber}
+                        value={
+                          profile.employeeStatutoryDetailsDTO.passportNumber
+                        }
                       />
                       <ShowIfFilled
                         label="Tax Regime"
@@ -1885,14 +1945,17 @@ const ProfilePage = () => {
                   icon={<Briefcase className="w-6 h-6 text-purple-600" />}
                 >
                   {profile.employeeEmploymentDetailsDTO &&
-                    (profile.employeeEmploymentDetailsDTO.department ||
-                      profile.employeeEmploymentDetailsDTO.location ||
-                      profile.employeeEmploymentDetailsDTO.workingModel ||
-                      profile.employeeEmploymentDetailsDTO.shiftTimingLabel ||
-                      profile.employeeEmploymentDetailsDTO.noticePeriodDurationLabel ||
-                      profile.employeeEmploymentDetailsDTO.bondDurationLabel ||
-                      profile.employeeEmploymentDetailsDTO.probationDurationLabel ||
-                      profile.employeeEmploymentDetailsDTO.probationNoticePeriodLabel) ? (
+                  (profile.employeeEmploymentDetailsDTO.department ||
+                    profile.employeeEmploymentDetailsDTO.location ||
+                    profile.employeeEmploymentDetailsDTO.workingModel ||
+                    profile.employeeEmploymentDetailsDTO.shiftTimingLabel ||
+                    profile.employeeEmploymentDetailsDTO
+                      .noticePeriodDurationLabel ||
+                    profile.employeeEmploymentDetailsDTO.bondDurationLabel ||
+                    profile.employeeEmploymentDetailsDTO
+                      .probationDurationLabel ||
+                    profile.employeeEmploymentDetailsDTO
+                      .probationNoticePeriodLabel) ? (
                     <>
                       <ShowIfFilled
                         label="Department"
@@ -1904,27 +1967,42 @@ const ProfilePage = () => {
                       />
                       <ShowIfFilled
                         label="Working Model"
-                        value={profile.employeeEmploymentDetailsDTO.workingModel}
+                        value={
+                          profile.employeeEmploymentDetailsDTO.workingModel
+                        }
                       />
                       <ShowIfFilled
                         label="Shift Timing"
-                        value={profile.employeeEmploymentDetailsDTO.shiftTimingLabel}
+                        value={
+                          profile.employeeEmploymentDetailsDTO.shiftTimingLabel
+                        }
                       />
                       <ShowIfFilled
                         label="Notice Period Duration"
-                        value={profile.employeeEmploymentDetailsDTO.noticePeriodDurationLabel}
+                        value={
+                          profile.employeeEmploymentDetailsDTO
+                            .noticePeriodDurationLabel
+                        }
                       />
                       <ShowIfFilled
                         label="Bond Duration"
-                        value={profile.employeeEmploymentDetailsDTO.bondDurationLabel}
+                        value={
+                          profile.employeeEmploymentDetailsDTO.bondDurationLabel
+                        }
                       />
                       <ShowIfFilled
                         label="Probation Duration"
-                        value={profile.employeeEmploymentDetailsDTO.probationDurationLabel}
+                        value={
+                          profile.employeeEmploymentDetailsDTO
+                            .probationDurationLabel
+                        }
                       />
                       <ShowIfFilled
                         label="Probation Notice Period"
-                        value={profile.employeeEmploymentDetailsDTO.probationNoticePeriodLabel}
+                        value={
+                          profile.employeeEmploymentDetailsDTO
+                            .probationNoticePeriodLabel
+                        }
                       />
                     </>
                   ) : (
