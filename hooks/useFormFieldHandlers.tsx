@@ -36,7 +36,9 @@ export function useFormFieldHandlers<TForm>(
   };
 
   const handleValidatedChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement |HTMLSelectElement>,
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
     index?: number,
     section?: "addresses" | "clientPocs" | "clientTaxDetails"
   ) => {
@@ -49,21 +51,34 @@ export function useFormFieldHandlers<TForm>(
     handleChange(e, index, section);
     const currentForm = getFormData() ?? {};
     let updatedForm: any = JSON.parse(JSON.stringify(currentForm));
-    
+
     if (name.includes(".")) {
       const keys = name.split(".");
       let temp = updatedForm;
     
       for (let i = 0; i < keys.length - 1; i++) {
-        const key = isNaN(Number(keys[i])) ? keys[i] : Number(keys[i]);
+        const rawKey = keys[i];
+        const key = isNaN(Number(rawKey)) ? rawKey : Number(rawKey);
+    
+        // 🔥 FIX: create parent object/array if missing
+        if (temp[key] === undefined || temp[key] === null) {
+          const nextRawKey = keys[i + 1];
+          const nextIsIndex = !isNaN(Number(nextRawKey));
+    
+          temp[key] = nextIsIndex ? [] : {};
+        }
+    
         temp = temp[key];
       }
     
-      const lastKey = keys[keys.length - 1];
+      const lastRawKey = keys[keys.length - 1];
+      const lastKey = isNaN(Number(lastRawKey)) ? lastRawKey : Number(lastRawKey);
+    
       temp[lastKey] = formattedValue;
     } else {
       updatedForm[name] = formattedValue;
     }
+    
     const error = validateField(name, formattedValue, updatedForm);
     setErrors((prev) => {
       const next = { ...prev };
