@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('ADMIN' | 'EMPLOYEE' | 'MANAGER' | 'HR' | 'FINANCE' | 'SUPER_HR')[];
+  allowedRoles?: ('ADMIN' | 'EMPLOYEE' | 'MANAGER' | 'HR' | 'FINANCE' | 'SUPER_HR' | 'HR_MANAGER')[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles = [] }) => {

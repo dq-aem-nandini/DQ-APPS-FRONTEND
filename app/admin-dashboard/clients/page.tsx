@@ -7,7 +7,7 @@ import { Plus, Building2 } from 'lucide-react';
 
 export default function ClientsPage() {
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6 md:p-8">
         {/* Header */}
         <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10 text-center">

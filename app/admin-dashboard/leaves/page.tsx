@@ -18,7 +18,7 @@ import Swal from 'sweetalert2';
 const Leavespage: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
-  const isHR = user?.role?.roleName === 'HR';
+  const isHR = user?.role?.roleName === 'HR' || user?.role?.roleName === 'HR_MANAGER';
   const isAdmin = user?.role?.roleName === 'ADMIN';
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'adjust'>('pending');
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
@@ -297,7 +297,7 @@ useEffect(() => {
       if (
         !accessToken ||
         !user ||
-        !['ADMIN', 'HR'].includes(user.role.roleName)
+        !['ADMIN', 'HR', 'HR_MANAGER'].includes(user.role.roleName)
       ) {
         throw new Error('Unauthorized access. Please log in as an admin or HR.');
       }
@@ -348,7 +348,7 @@ useEffect(() => {
       } else if (activeTab === 'adjust') {
         let response;
 
-        if (isHR) {
+        if (isHR ) {
           response = await leaveService.getAllEmployeesExceptLoginHR();
         } else if (isAdmin) {
           response = await adminService.getAllEmployees();

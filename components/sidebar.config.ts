@@ -10,7 +10,7 @@ export const sidebarConfig = {
     { label: 'Update Request', href: '/dashboard/updaterequest', },
     { label: 'Timesheet', href: '/dashboard/SHR-Timesheet', },
     { label: "Settings", href: "/dashboard/settings" },
-    // { label: "My Attendance", href: "/dashboard/attendance" },
+    { label: "My Attendance", href: "/dashboard/attendance" },
   ],
   HR_COMMON: [
     { label: "Employees", href: "/admin-dashboard/employees" },

@@ -459,7 +459,7 @@ export default function AddClientPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="relative flex items-center justify-center mb-8">
           <div className="absolute left-0">
