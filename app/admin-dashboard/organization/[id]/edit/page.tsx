@@ -1,15 +1,21 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Upload, Plus, Trash2 } from 'lucide-react';
-import { organizationService } from '@/lib/api/organizationService';
-import { employeeService } from '@/lib/api/employeeService';
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { organizationService } from "@/lib/api/organizationService";
+import { employeeService } from "@/lib/api/employeeService";
 import {
   Domain,
   CurrencyCode,
@@ -17,20 +23,26 @@ import {
   OrganizationResponseDTO,
   AddressModel,
   AddressType,
-  DOMAIN_LABELS,
-  CURRENCY_CODE_LABELS,
   IndustryType,
-  INDUSTRY_TYPE_LABELS,
-} from '@/lib/api/types';
-import BackButton from '@/components/ui/BackButton';
-import Swal from 'sweetalert2';
-import TooltipHint from '@/components/ui/TooltipHint';
-import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
-import { useOrganizationFieldValidation } from '@/hooks/organizationValidator';
-import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
+  DOMAIN_OPTIONS,
+  INDUSTRY_TYPE_OPTIONS,
+  CURRENCY_CODE_OPTIONS,
+} from "@/lib/api/types";
+import BackButton from "@/components/ui/BackButton";
+import Swal from "sweetalert2";
+import TooltipHint from "@/components/ui/TooltipHint";
+import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
+import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
+import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 
-const ADDRESS_TYPES: AddressType[] = ['PERMANENT', 'CURRENT', 'OFFICE'];
-const TIMEZONES = ['Asia/Kolkata', 'America/New_York', 'Europe/London', 'Australia/Sydney', 'Asia/Singapore'];
+const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"];
+const TIMEZONES = [
+  "Asia/Kolkata",
+  "America/New_York",
+  "Europe/London",
+  "Australia/Sydney",
+  "Asia/Singapore",
+];
 
 export default function EditOrganizationPage() {
   const params = useParams<{ id: string }>();
@@ -44,72 +56,72 @@ export default function EditOrganizationPage() {
   const [signaturePreview, setSignaturePreview] = useState("");
 
   const [formData, setFormData] = useState<OrganizationRequestDTO>({
-    organizationName: '',
-    organizationLegalName: '',
-    registrationNumber: '',
-    gstNumber: '',
-    panNumber: '',
-    cinNumber: '',
-    website: '',
-    email: '',
-    contactNumber: '',
+    organizationName: "",
+    organizationLegalName: "",
+    registrationNumber: "",
+    gstNumber: "",
+    panNumber: "",
+    cinNumber: "",
+    website: "",
+    email: "",
+    contactNumber: "",
     logo: null,
-    industryType: 'OTHER' as IndustryType,
-    domain: 'OTHER' as Domain,
-    establishedDate: '',
-    timezone: 'Asia/Kolkata',
-    currencyCode: 'INR' as CurrencyCode,
-    accountNumber: '',
-    accountHolderName: '',
-    bankName: '',
-    ifscCode: '',
-    branchName: '',
+    industryType: "OTHER" as IndustryType,
+    domain: "OTHER" as Domain,
+    establishedDate: "",
+    timezone: "Asia/Kolkata",
+    currencyCode: "INR" as CurrencyCode,
+    accountNumber: "",
+    accountHolderName: "",
+    bankName: "",
+    ifscCode: "",
+    branchName: "",
     digitalSignature: null,
     addresses: [],
-    prefix: '',
+    prefix: "",
     sequenceNumber: undefined,
-    companyType: '',
+    companyType: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [originalData, setOriginalData] = useState<OrganizationRequestDTO | null>(null);
-  const [success, setSuccess] = useState('');
+  const [originalData, setOriginalData] =
+    useState<OrganizationRequestDTO | null>(null);
+  const [success, setSuccess] = useState("");
 
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
   const { validateField } = useOrganizationFieldValidation();
 
-  const {
-    handleValidatedChange,
-    handleUniqueBlur,
-    fieldError,
-  } = useFormFieldHandlers(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      let formatted = value;
+  const { handleValidatedChange, handleUniqueBlur, fieldError } =
+    useFormFieldHandlers(
+      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        let formatted = value;
 
-      if (['panNumber', 'gstNumber', 'cinNumber', 'ifscCode'].includes(name)) {
-        formatted = value.toUpperCase();
-      }
-      if (name === 'email') {
-        formatted = value.toLowerCase();
-      }
-      if (name === 'contactNumber' || name === 'accountNumber') {
-        formatted = value.replace(/[^0-9]/g, '');
-      }
-      if (name === 'registrationNumber') {
-        formatted = value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
-      }
-      if (name === 'accountHolderName') {
-        formatted = value.replace(/[^A-Za-z\s.,&()-]/g, '');
-      }
+        if (
+          ["panNumber", "gstNumber", "cinNumber", "ifscCode"].includes(name)
+        ) {
+          formatted = value.toUpperCase();
+        }
+        if (name === "email") {
+          formatted = value.toLowerCase();
+        }
+        if (name === "contactNumber" || name === "accountNumber") {
+          formatted = value.replace(/[^0-9]/g, "");
+        }
+        if (name === "registrationNumber") {
+          formatted = value.replace(/[^A-Za-z0-9-]/g, "").toUpperCase();
+        }
+        if (name === "accountHolderName") {
+          formatted = value.replace(/[^A-Za-z\s.,&()-]/g, "");
+        }
 
-      setFormData(prev => ({ ...prev, [name]: formatted }));
-    },
-    setErrors,
-    checkUniqueness,
-    () => formData,
-    validateField
-  );
+        setFormData((prev) => ({ ...prev, [name]: formatted }));
+      },
+      setErrors,
+      checkUniqueness,
+      () => formData,
+      validateField
+    );
 
   // Load organization data
   useEffect(() => {
@@ -124,40 +136,41 @@ export default function EditOrganizationPage() {
         const res = await organizationService.getById(id);
 
         const loaded: OrganizationRequestDTO = {
-          organizationName: res.organizationName ?? '',
-          organizationLegalName: res.organizationLegalName ?? '',
-          registrationNumber: res.registrationNumber ?? '',
-          gstNumber: res.gstNumber ?? '',
-          panNumber: res.panNumber ?? '',
-          cinNumber: res.cinNumber ?? '',
-          website: res.website ?? '',
-          email: res.email ?? '',
-          contactNumber: res.contactNumber ?? '',
+          organizationName: res.organizationName ?? "",
+          organizationLegalName: res.organizationLegalName ?? "",
+          registrationNumber: res.registrationNumber ?? "",
+          gstNumber: res.gstNumber ?? "",
+          panNumber: res.panNumber ?? "",
+          cinNumber: res.cinNumber ?? "",
+          website: res.website ?? "",
+          email: res.email ?? "",
+          contactNumber: res.contactNumber ?? "",
           logo: null,
-          industryType: res.industryType ?? 'OTHER',
-          domain: res.domain ?? 'OTHER',
-          establishedDate: res.establishedDate ?? '',
-          timezone: res.timezone ?? 'Asia/Kolkata',
-          currencyCode: res.currencyCode ?? 'INR',
-          accountNumber: res.accountNumber ?? '',
-          accountHolderName: res.accountHolderName ?? '',
-          bankName: res.bankName ?? '',
-          ifscCode: res.ifscCode ?? '',
-          branchName: res.branchName ?? '',
+          industryType: res.industryType ?? "OTHER",
+          domain: res.domain ?? "OTHER",
+          establishedDate: res.establishedDate ?? "",
+          timezone: res.timezone ?? "Asia/Kolkata",
+          currencyCode: res.currencyCode ?? "INR",
+          accountNumber: res.accountNumber ?? "",
+          accountHolderName: res.accountHolderName ?? "",
+          bankName: res.bankName ?? "",
+          ifscCode: res.ifscCode ?? "",
+          branchName: res.branchName ?? "",
           digitalSignature: null,
-          addresses: res.addresses?.map(a => ({
-            addressId: a.addressId ?? null,
-            houseNo: a.houseNo ?? '',
-            streetName: a.streetName ?? '',
-            city: a.city ?? '',
-            state: a.state ?? '',
-            country: a.country ?? '',
-            pincode: a.pincode ?? '',
-            addressType: a.addressType ?? 'OFFICE' as AddressType,
-          })) ?? [],
-          prefix: res.prefix ?? '',
+          addresses:
+            res.addresses?.map((a) => ({
+              addressId: a.addressId ?? null,
+              houseNo: a.houseNo ?? "",
+              streetName: a.streetName ?? "",
+              city: a.city ?? "",
+              state: a.state ?? "",
+              country: a.country ?? "",
+              pincode: a.pincode ?? "",
+              addressType: a.addressType ?? ("OFFICE" as AddressType),
+            })) ?? [],
+          prefix: res.prefix ?? "",
           sequenceNumber: res.sequenceNumber ?? undefined,
-          companyType: res.companyType ?? '',
+          companyType: res.companyType ?? "",
         };
 
         setFormData(loaded);
@@ -181,7 +194,9 @@ export default function EditOrganizationPage() {
 
   // IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
-    const code = String(ifsc ?? '').trim().toUpperCase();
+    const code = String(ifsc ?? "")
+      .trim()
+      .toUpperCase();
 
     // Skip if empty, already looking up, or already has error
     if (!code || isLookingUp || errors.ifscCode) return;
@@ -194,32 +209,42 @@ export default function EditOrganizationPage() {
       if (res?.flag && res.response) {
         const data = res.response;
 
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          bankName: data.BANK ?? '',
-          branchName: data.BRANCH ?? '',
+          bankName: data.BANK ?? "",
+          branchName: data.BRANCH ?? "",
           ifscCode: code, // store cleaned version
         }));
 
-        setSuccess('Bank details auto-filled!');
-        setErrors(prev => {
+        setSuccess("Bank details auto-filled!");
+        setErrors((prev) => {
           const n = { ...prev };
           delete n.ifscCode;
           return n;
         });
       } else {
-        setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
+        setErrors((prev) => ({
+          ...prev,
+          ifscCode: "Invalid IFSC or lookup failed",
+        }));
       }
     } catch (err: any) {
-      console.error('IFSC lookup error:', err);
-      setErrors(prev => ({ ...prev, ifscCode: 'Invalid IFSC or lookup failed' }));
+      console.error("IFSC lookup error:", err);
+      setErrors((prev) => ({
+        ...prev,
+        ifscCode: "Invalid IFSC or lookup failed",
+      }));
     } finally {
       setIsLookingUp(false);
     }
   };
 
-  const handleAddressChange = (index: number, field: keyof AddressModel, value: string) => {
-    setFormData(prev => {
+  const handleAddressChange = (
+    index: number,
+    field: keyof AddressModel,
+    value: string
+  ) => {
+    setFormData((prev) => {
       const addrs = [...prev.addresses];
       addrs[index] = { ...addrs[index], [field]: value };
       return { ...prev, addresses: addrs };
@@ -227,7 +252,7 @@ export default function EditOrganizationPage() {
 
     const path = `addresses.${index}.${field}`;
     const error = validateField(path, value, formData);
-    setErrors(prev => {
+    setErrors((prev) => {
       const next = { ...prev };
       if (error) next[path] = error;
       else delete next[path];
@@ -236,39 +261,51 @@ export default function EditOrganizationPage() {
   };
 
   const addAddress = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       addresses: [
         ...prev.addresses,
-        { addressId: null, houseNo: '', streetName: '', city: '', state: '', country: '', pincode: '', addressType: 'OFFICE' as AddressType },
+        {
+          addressId: null,
+          houseNo: "",
+          streetName: "",
+          city: "",
+          state: "",
+          country: "",
+          pincode: "",
+          addressType: "OFFICE" as AddressType,
+        },
       ],
     }));
   };
 
   const removeAddress = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       addresses: prev.addresses.filter((_, i) => i !== index),
     }));
 
-    setErrors(prev => {
+    setErrors((prev) => {
       const next = { ...prev };
-      Object.keys(next).forEach(key => {
+      Object.keys(next).forEach((key) => {
         if (key.startsWith(`addresses.${index}.`)) delete next[key];
       });
       return next;
     });
   };
 
-  const handleFileChange = (field: 'logo' | 'digitalSignature', file: File | null) => {
-    setFormData(prev => ({ ...prev, [field]: file }));
+  const handleFileChange = (
+    field: "logo" | "digitalSignature",
+    file: File | null
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: file }));
     if (file) {
       const preview = URL.createObjectURL(file);
-      if (field === 'logo') setLogoPreview(preview);
-      if (field === 'digitalSignature') setSignaturePreview(preview);
+      if (field === "logo") setLogoPreview(preview);
+      if (field === "digitalSignature") setSignaturePreview(preview);
     } else {
-      if (field === 'logo') setLogoPreview("");
-      if (field === 'digitalSignature') setSignaturePreview("");
+      if (field === "logo") setLogoPreview("");
+      if (field === "digitalSignature") setSignaturePreview("");
     }
   };
 
@@ -284,14 +321,27 @@ export default function EditOrganizationPage() {
     const tempErrors: Record<string, string> = {};
 
     const fieldsToValidate = [
-      "organizationName", "organizationLegalName", "registrationNumber",
-      "gstNumber", "panNumber", "cinNumber", "email", "contactNumber",
-      "domain", "industryType", "establishedDate", "currencyCode",
-      "accountNumber", "accountHolderName", "ifscCode", "prefix",
-      "sequenceNumber", "companyType"
+      "organizationName",
+      "organizationLegalName",
+      "registrationNumber",
+      "gstNumber",
+      "panNumber",
+      "cinNumber",
+      "email",
+      "contactNumber",
+      "domain",
+      "industryType",
+      "establishedDate",
+      "currencyCode",
+      "accountNumber",
+      "accountHolderName",
+      "ifscCode",
+      "prefix",
+      "sequenceNumber",
+      "companyType",
     ];
 
-    fieldsToValidate.forEach(name => {
+    fieldsToValidate.forEach((name) => {
       const value = (formData as any)[name];
       const error = validateField(name, value, formData);
       if (error) tempErrors[name] = error;
@@ -299,7 +349,7 @@ export default function EditOrganizationPage() {
 
     // Validate addresses
     formData.addresses.forEach((addr, idx) => {
-      ["city", "state", "country", "pincode"].forEach(sub => {
+      ["city", "state", "country", "pincode"].forEach((sub) => {
         const value = (addr as any)[sub];
         const path = `addresses.${idx}.${sub}`;
         const error = validateField(path, value, formData);
@@ -310,7 +360,9 @@ export default function EditOrganizationPage() {
     if (Object.keys(tempErrors).length > 0) {
       setErrors(tempErrors);
       const firstError = Object.keys(tempErrors)[0];
-      document.querySelector(`[name="${firstError}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document
+        .querySelector(`[name="${firstError}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
       setSaving(false);
       return;
     }
@@ -342,10 +394,12 @@ export default function EditOrganizationPage() {
       fd.append("companyType", formData.companyType || "");
 
       if (formData.logo) fd.append("logo", formData.logo);
-      if (formData.digitalSignature) fd.append("digitalSignature", formData.digitalSignature);
+      if (formData.digitalSignature)
+        fd.append("digitalSignature", formData.digitalSignature);
 
       formData.addresses.forEach((addr, i) => {
-        if (addr.addressId) fd.append(`addresses[${i}].addressId`, addr.addressId);
+        if (addr.addressId)
+          fd.append(`addresses[${i}].addressId`, addr.addressId);
         fd.append(`addresses[${i}].houseNo`, addr.houseNo || "");
         fd.append(`addresses[${i}].streetName`, addr.streetName || "");
         fd.append(`addresses[${i}].city`, addr.city || "");
@@ -576,12 +630,7 @@ export default function EditOrganizationPage() {
                     onChange={handleValidatedChange}
                     onBlur={(e) => {
                       if (!id) return;
-                      handleUniqueBlur(
-                        "EMAIL",
-                        "email",
-                        "email",
-                        id
-                      )(e);
+                      handleUniqueBlur("EMAIL", "email", "email", id)(e);
                     }}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Enter email"
@@ -622,16 +671,20 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Domain <span className="text-red-500">*</span>
+                    <TooltipHint hint="Primary industry domain of the organization." />
                   </Label>
                   <Select
                     name="domain"
                     value={formData.domain}
                     onValueChange={(val) => {
-                      setFormData(prev => ({ ...prev, domain: val as Domain }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        domain: val as Domain,
+                      }));
                       const error = validateField("domain", val, formData);
-                      setErrors(prev => {
+                      setErrors((prev) => {
                         const next = { ...prev };
-                        error ? next.domain = error : delete next.domain;
+                        error ? (next.domain = error) : delete next.domain;
                         return next;
                       });
                     }}
@@ -640,9 +693,11 @@ export default function EditOrganizationPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(DOMAIN_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
+                       {DOMAIN_OPTIONS.map(m => (
+                                                <SelectItem key={m} value={m}>
+                                                  {m}
+                                                </SelectItem>
+                                              ))}
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "domain")}
@@ -652,16 +707,26 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Industry Type <span className="text-red-500">*</span>
+                    <TooltipHint hint="Specific industry type within the chosen domain." />
                   </Label>
                   <Select
                     name="industryType"
                     value={formData.industryType}
                     onValueChange={(val) => {
-                      setFormData(prev => ({ ...prev, industryType: val as IndustryType }));
-                      const error = validateField("industryType", val, formData);
-                      setErrors(prev => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        industryType: val as IndustryType,
+                      }));
+                      const error = validateField(
+                        "industryType",
+                        val,
+                        formData
+                      );
+                      setErrors((prev) => {
                         const next = { ...prev };
-                        error ? next.industryType = error : delete next.industryType;
+                        error
+                          ? (next.industryType = error)
+                          : delete next.industryType;
                         return next;
                       });
                     }}
@@ -670,9 +735,11 @@ export default function EditOrganizationPage() {
                       <SelectValue placeholder="Select Industry Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(INDUSTRY_TYPE_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
+                     {INDUSTRY_TYPE_OPTIONS.map((m) => (
+                                           <SelectItem key={m} value={m}>
+                                             {m}
+                                           </SelectItem>
+                                         ))}
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "industryType")}
@@ -697,17 +764,25 @@ export default function EditOrganizationPage() {
 
                 {/* Timezone */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">Timezone</Label>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Timezone
+                  </Label>
                   <Select
                     name="timezone"
                     value={formData.timezone}
-                    onValueChange={(val) => setFormData(prev => ({ ...prev, timezone: val }))}
+                    onValueChange={(val) =>
+                      setFormData((prev) => ({ ...prev, timezone: val }))
+                    }
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz} value={tz}>
+                          {tz}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -716,16 +791,26 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Currency Code <span className="text-red-500">*</span>
+                    <TooltipHint hint="Primary currency used by the organization for financial transactions." />
                   </Label>
                   <Select
                     name="currencyCode"
                     value={formData.currencyCode}
                     onValueChange={(val) => {
-                      setFormData(prev => ({ ...prev, currencyCode: val as CurrencyCode }));
-                      const error = validateField("currencyCode", val, formData);
-                      setErrors(prev => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        currencyCode: val as CurrencyCode,
+                      }));
+                      const error = validateField(
+                        "currencyCode",
+                        val,
+                        formData
+                      );
+                      setErrors((prev) => {
                         const next = { ...prev };
-                        error ? next.currencyCode = error : delete next.currencyCode;
+                        error
+                          ? (next.currencyCode = error)
+                          : delete next.currencyCode;
                         return next;
                       });
                     }}
@@ -734,9 +819,11 @@ export default function EditOrganizationPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(CURRENCY_CODE_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
+                      {CURRENCY_CODE_OPTIONS.map((m) => (
+                                           <SelectItem key={m} value={m}>
+                                             {m}
+                                           </SelectItem>
+                                         ))}
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "currencyCode")}
@@ -745,7 +832,10 @@ export default function EditOrganizationPage() {
 
               {/* Logo */}
               <div className="space-y-2">
-                <Label>Logo</Label>
+                <Label>
+                  Logo
+                  <TooltipHint hint="Upload organization logo (image files only). Max size: 2MB." />
+                </Label>
                 {logoPreview && (
                   <img
                     src={logoPreview}
@@ -776,7 +866,7 @@ export default function EditOrganizationPage() {
                   </Label>
                   <Input
                     name="accountNumber"
-                    value={formData.accountNumber ?? ''}
+                    value={formData.accountNumber ?? ""}
                     onChange={handleValidatedChange}
                     onBlur={(e) => {
                       if (!id) return;
@@ -803,7 +893,7 @@ export default function EditOrganizationPage() {
                   </Label>
                   <Input
                     name="accountHolderName"
-                    value={formData.accountHolderName ?? ''}
+                    value={formData.accountHolderName ?? ""}
                     onChange={handleValidatedChange}
                     onBlur={(e) => {
                       if (!id) return;
@@ -832,9 +922,9 @@ export default function EditOrganizationPage() {
                   <div className="relative">
                     <Input
                       name="ifscCode"
-                      value={formData.ifscCode ?? ''}
+                      value={formData.ifscCode ?? ""}
                       onChange={handleValidatedChange}
-                      onBlur={() => handleIfscLookup(formData.ifscCode ?? '')}
+                      onBlur={() => handleIfscLookup(formData.ifscCode ?? "")}
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-10 uppercase"
                       placeholder="Enter IFSC (auto-fills bank/branch)"
                       maxLength={11}
@@ -844,7 +934,6 @@ export default function EditOrganizationPage() {
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
                     )}
                   </div>
-
                   {fieldError(errors, "ifscCode")}
                 </div>
 
@@ -852,10 +941,11 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Bank Name <span className="text-red-500">*</span>
+                    <TooltipHint hint="Auto-filled based on IFSC code. Read-only." />
                   </Label>
                   <Input
                     name="bankName"
-                    value={formData.bankName ?? ''}
+                    value={formData.bankName ?? ""}
                     readOnly
                     className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
                     placeholder="auto-filled"
@@ -868,10 +958,11 @@ export default function EditOrganizationPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
                     Branch Name <span className="text-red-500">*</span>
+                    <TooltipHint hint="Auto-filled based on IFSC code. Read-only." />
                   </Label>
                   <Input
                     name="branchName"
-                    value={formData.branchName ?? ''}
+                    value={formData.branchName ?? ""}
                     readOnly
                     className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
                     placeholder="auto-filled"
@@ -883,7 +974,9 @@ export default function EditOrganizationPage() {
 
               {/* Digital Signature */}
               <div className="space-y-2">
-                <Label>Digital Signature</Label>
+                <Label>Digital Signature
+                  <TooltipHint hint="Upload digital signature file (e.g., .p12, .pfx, .cer) or an image. Max size: 2MB." />
+                </Label>
                 {signaturePreview && (
                   <img
                     src={signaturePreview}
@@ -909,21 +1002,39 @@ export default function EditOrganizationPage() {
                   }}
                   className="h-12 text-base border-gray-300"
                 />
+                {errors.digitalSignature && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.digitalSignature}
+                </p>
+              )}
               </div>
 
               {/* Addresses */}
               <div className="border-b border-gray-200 pb-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Addresses</h3>
-                  <Button type="button" variant="outline" size="sm" onClick={addAddress}>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Addresses
+                  </h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addAddress}
+                  >
                     <Plus className="h-4 w-4 mr-1" /> Add Address
                   </Button>
                 </div>
 
                 {formData.addresses.length === 0 && (
-                  <div className="p-6 text-gray-500 text-center border border-dashed rounded">
-                    Click “Add Address” to add address
-                  </div>
+                   <div className="text-center py-20 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
+                   <MapPin className="h-16 w-16 text-indigo-300 mx-auto mb-4" />
+                   <p className="text-xl font-medium text-gray-700">
+                     No addresses added yet
+                   </p>
+                   <p className="text-sm text-gray-500 mt-3">
+                     Click the button above to add a registered or office address
+                   </p>
+                 </div>
                 )}
 
                 {formData.addresses.map((address, idx) => (
@@ -942,51 +1053,76 @@ export default function EditOrganizationPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>House No.</Label>
+                        <Label>House No.
+                          <TooltipHint hint="House or building number for this address." />
+                        </Label>
                         <Input
                           value={address.houseNo || ""}
-                          onChange={(e) => handleAddressChange(idx, "houseNo", e.target.value)}
+                          onChange={(e) =>
+                            handleAddressChange(idx, "houseNo", e.target.value)
+                          }
                           placeholder="e.g. 221B"
                         />
                         {fieldError(errors, `addresses.${idx}.houseNo`)}
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Street Name</Label>
+                        <Label>Street Name
+                          <TooltipHint hint="Name of the street for this address." />
+                        </Label>
                         <Input
                           value={address.streetName || ""}
-                          onChange={(e) => handleAddressChange(idx, "streetName", e.target.value)}
+                          onChange={(e) =>
+                            handleAddressChange(
+                              idx,
+                              "streetName",
+                              e.target.value
+                            )
+                          }
                           placeholder="e.g. Baker Street"
                         />
                         {fieldError(errors, `addresses.${idx}.streetName`)}
                       </div>
 
                       <div className="space-y-2">
-                        <Label>City</Label>
+                        <Label>City
+                          <TooltipHint hint="Name of the city for this address." />
+                        </Label>
                         <Input
                           value={address.city || ""}
-                          onChange={(e) => handleAddressChange(idx, "city", e.target.value)}
+                          onChange={(e) =>
+                            handleAddressChange(idx, "city", e.target.value)
+                          }
                           placeholder="e.g. Mumbai"
                         />
                         {fieldError(errors, `addresses.${idx}.city`)}
                       </div>
 
                       <div className="space-y-2">
-                        <Label>State</Label>
+                        <Label>State
+                          <TooltipHint hint="Name of the state for this address." />
+                        </Label>
                         <Input
                           value={address.state || ""}
-                          onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
+                          onChange={(e) =>
+                            handleAddressChange(idx, "state", e.target.value)
+                          }
                           placeholder="e.g. Maharashtra"
                         />
                         {fieldError(errors, `addresses.${idx}.state`)}
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Pincode</Label>
+                        <Label>Pincode
+                          <TooltipHint hint="6-digit postal code for this address." />
+                        </Label>
                         <Input
                           value={address.pincode || ""}
                           onChange={(e) => {
-                            const digitsOnly = e.target.value.replace(/\D/g, '');
+                            const digitsOnly = e.target.value.replace(
+                              /\D/g,
+                              ""
+                            );
                             handleAddressChange(idx, "pincode", digitsOnly);
                           }}
                           maxLength={6}
@@ -996,26 +1132,38 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Country</Label>
+                        <Label>Country
+                          <TooltipHint hint="Country for this address." />
+                        </Label>
                         <Input
                           value={address.country || ""}
-                          onChange={(e) => handleAddressChange(idx, "country", e.target.value)}
+                          onChange={(e) =>
+                            handleAddressChange(idx, "country", e.target.value)
+                          }
                           placeholder="e.g. India"
                         />
                         {fieldError(errors, `addresses.${idx}.country`)}
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Address Type</Label>
+                        <Label>Address Type
+                          <TooltipHint hint="Type of address (e.g., Registered, Office)." />
+                        </Label>
                         <Select
                           value={address.addressType || ""}
-                          onValueChange={(val) => handleAddressChange(idx, "addressType", val as AddressType)}
+                          onValueChange={(val) =>
+                            handleAddressChange(
+                              idx,
+                              "addressType",
+                              val as AddressType
+                            )
+                          }
                         >
                           <SelectTrigger className="w-full min-w-[200px] !h-12">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {ADDRESS_TYPES.map(t => (
+                            {ADDRESS_TYPES.map((t) => (
                               <SelectItem key={t} value={t}>
                                 {t}
                               </SelectItem>
@@ -1030,7 +1178,11 @@ export default function EditOrganizationPage() {
               </div>
 
               <div className="flex justify-end gap-4 pt-8 border-t">
-                <Button type="button" variant="outline" onClick={() => router.back()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -1038,7 +1190,7 @@ export default function EditOrganizationPage() {
                   disabled={saving || !hasChanges || !id}
                   title={!hasChanges ? "No changes made" : ""}
                 >
-                  {saving ? 'Saving...' : 'Update Organization'}
+                  {saving ? "Saving..." : "Update Organization"}
                 </Button>
               </div>
             </form>

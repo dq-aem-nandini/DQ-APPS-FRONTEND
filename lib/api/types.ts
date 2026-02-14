@@ -1,4 +1,3 @@
-
 // Enums
 export type Role =
   | "ADMIN"
@@ -14,74 +13,6 @@ export interface SidebarItem {
   permission?: string;
 }
 export type SidebarRole = Extract<Role, "MANAGER" | "FINANCE" | "SUPER_HR">;
-export type Designation =
-  | "INTERN"
-  | "TRAINEE"
-  | "ASSOCIATE_ENGINEER"
-  | "SOFTWARE_ENGINEER"
-  | "SENIOR_SOFTWARE_ENGINEER"
-  | "LEAD_ENGINEER"
-  | "TEAM_LEAD"
-  | "TECHNICAL_ARCHITECT"
-  | "REPORTING_MANAGER"
-  | "DELIVERY_MANAGER"
-  | "DIRECTOR"
-  | "VP_ENGINEERING"
-  | "CTO"
-  | "HR"
-  | "FINANCE"
-  | "OPERATIONS";
-export type IndustryType =
-  | "IT"
-  | "FINANCE"
-  | "HEALTHCARE"
-  | "EDUCATION"
-  | "ECOMMERCE"
-  | "MANUFACTURING"
-  | "CONSULTING"
-  | "REAL_ESTATE"
-  | "HOSPITALITY"
-  | "TRANSPORT"
-  | "ENERGY"
-  | "AGRICULTURE"
-  | "PHARMACEUTICAL"
-  | "MEDIA"
-  | "OTHER";
-export const INDUSTRY_TYPE_LABELS: Record<IndustryType, string> = {
-  IT: "Information Technology",
-  FINANCE: "Finance",
-  HEALTHCARE: "Healthcare",
-  EDUCATION: "Education",
-  ECOMMERCE: "E-Commerce",
-  MANUFACTURING: "Manufacturing",
-  CONSULTING: "Consulting",
-  REAL_ESTATE: "Real Estate",
-  HOSPITALITY: "Hospitality",
-  TRANSPORT: "Transport & Logistics",
-  ENERGY: "Energy & Utilities",
-  AGRICULTURE: "Agriculture",
-  PHARMACEUTICAL: "Pharmaceuticals",
-  MEDIA: "Media & Advertising",
-  OTHER: "Other",
-};
-
-export type LeaveCategoryType = "SICK" | "CASUAL" | "PLANNED" | "UNPLANNED";
-export type FinancialType = "PAID" | "UNPAID";
-export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
-export type HolidayType =
-  | "PUBLIC"
-  | "RELIGIOUS"
-  | "REGIONAL"
-  | "COMPANY_SPECIFIC";
-export type RecurrenceRule = "ANNUAL" | "ONE_TIME";
-export type EmploymentType = "CONTRACTOR" | "FREELANCER" | "FULLTIME";
-export type DocumentType = "OFFER_LETTER" | "CONTRACT" | "TAX_DECLARATION_FORM" | "WORK_PERMIT" | "PAN_CARD" | "AADHAR_CARD" | "BANK_PASSBOOK" | "TENTH_CERTIFICATE" | "TWELFTH_CERTIFICATE" | "DEGREE_CERTIFICATE" | "POST_GRADUATION_CERTIFICATE" | "OTHER";
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY";
-export type ProjectStatus = "ACTIVE" | "INACTIVE" | "COMPLETED" | "ON_HOLD";
-export type AddressType = "CURRENT" | "PERMANENT" | "OFFICE";
-export type PayType = "HOURLY" | "MONTHLY" | "WEEKLY" | "YEARLY" | "NA";
-export type WorkingModel = "ONSITE" | "HYBRID" | "REMOTE" | "FLEXIBLE" | "NA";
-export type UpdateRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 export const WORKING_MODEL_OPTIONS = [
   "ONSITE",
   "HYBRID",
@@ -89,93 +20,29 @@ export const WORKING_MODEL_OPTIONS = [
   "FLEXIBLE",
   "NA",
 ] as const;
-export type PayClass = "A1" | "A2" | "B1" | "B2" | "CONTRACT" | "INTERN" | "NA";
-export type Domain =
-  | "IT_SERVICES"
-  | "FINANCE"
-  | "HEALTHCARE"
-  | "EDUCATION"
-  | "ECOMMERCE"
-  | "CONSULTING"
-  | "MANUFACTURING"
-  | "REAL_ESTATE"
-  | "MEDIA"
-  | "TELECOM"
-  | "OTHER";
 
-export type CurrencyCode =
-  | "INR"
-  | "USD"
-  | "EUR"
-  | "GBP"
-  | "AUD"
-  | "CAD"
-  | "SGD"
-  | "JPY";
+export type WorkingModel = (typeof WORKING_MODEL_OPTIONS)[number];
+export const DESIGNATION_OPTIONS = [
+  "INTERN",
+  "TRAINEE",
+  "ASSOCIATE_ENGINEER",
+  "SOFTWARE_ENGINEER",
+  "SENIOR_SOFTWARE_ENGINEER",
+  "LEAD_ENGINEER",
+  "TEAM_LEAD",
+  "TECHNICAL_ARCHITECT",
+  "REPORTING_MANAGER",
+  "DELIVERY_MANAGER",
+  "DIRECTOR",
+  "VP_ENGINEERING",
+  "CTO",
+  "HR",
+  "FINANCE",
+  "HR_MANAGER",
+  "OPERATIONS",
+] as const;
 
-export type InvoiceStatus =
-  | 'DRAFT'
-  | 'SENT'
-  | 'PAID'
-  | 'OVERDUE'
-  | 'APPROVED'
-  | 'REJECTED';
-export type Department =
-  | 'HR'
-  | 'IT'
-  | 'DEVELOPMENT'
-  | 'DELIVERY_MANAGEMENT'
-  | 'QA'
-  | 'DEVOPS'
-  | 'SALES'
-  | 'MARKETING'
-  | 'FINANCE'
-  | 'BENCH';
-
-export type ShiftTiming =
-  | 'MORNING'
-  | 'AFTERNOON'
-  | 'NIGHT'
-  | 'GENERAL'
-  | 'FLEXIBLE'
-  | 'NA';
-
-export type NoticePeriodDuration =
-  | 'FIFTEEN_DAYS'
-  | 'ONE_MONTH'
-  | 'TWO_MONTHS'
-  | 'THREE_MONTHS'
-  | 'SIX_MONTHS'
-  | 'NA';
-
-export type ProbationDuration =
-  | 'ONE_MONTH'
-  | 'TWO_MONTHS'
-  | 'THREE_MONTHS'
-  | 'SIX_MONTHS'
-  | 'ONE_YEAR'
-  | 'NA';
-
-export type ProbationNoticePeriod =
-  | 'SEVEN_DAYS'
-  | 'FIFTEEN_DAYS'
-  | 'ONE_MONTH'
-  | 'TWO_MONTHS'
-  | 'NA';
-
-export type BondDuration =
-  | 'SIX_MONTHS'
-  | 'ONE_YEAR'
-  | 'TWO_YEARS'
-  | 'THREE_YEARS'
-  | 'NA';
-
-export type UpdateRequestType =
-  | 'EMPLOYEE_UPDATE'
-  | 'ADDRESS_DELETE'
-  | 'CALENDAR_UPDATE'
-  | 'DOCUMENT_DELETE';
-
+export type Designation = (typeof DESIGNATION_OPTIONS)[number];
 export const PAY_TYPE_OPTIONS = [
   "HOURLY",
   "MONTHLY",
@@ -183,71 +50,10 @@ export const PAY_TYPE_OPTIONS = [
   "YEARLY",
   "NA",
 ] as const;
-export const PAY_CLASS_OPTIONS = [
-  "A1",
-  "A2",
-  "B1",
-  "B2",
-  "CONTRACT",
-  "INTERN",
-  "NA",
-] as const;
-export const DEPARTMENT_OPTIONS = [
-  'HR',
-  'IT',
-  'DEVELOPMENT',
-  'DELIVERY_MANAGEMENT',
-  'QA',
-  'DEVOPS',
-  'SALES',
-  'MARKETING',
-  'FINANCE',
-  'BENCH',
-] as const;
 
-export const SHIFT_TIMING_OPTIONS = [
-  'MORNING',
-  'AFTERNOON',
-  'NIGHT',
-  'GENERAL',
-  'FLEXIBLE',
-  'NA',
-] as const;
+export type PayType = (typeof PAY_TYPE_OPTIONS)[number];
 
-export const NOTICE_PERIOD_OPTIONS = [
-  'FIFTEEN_DAYS',
-  'ONE_MONTH',
-  'TWO_MONTHS',
-  'THREE_MONTHS',
-  'SIX_MONTHS',
-  'NA',
-] as const;
-
-export const PROBATION_DURATION_OPTIONS = [
-  'ONE_MONTH',
-  'TWO_MONTHS',
-  'THREE_MONTHS',
-  'SIX_MONTHS',
-  'ONE_YEAR',
-  'NA',
-] as const;
-
-export const PROBATION_NOTICE_OPTIONS = [
-  'SEVEN_DAYS',
-  'FIFTEEN_DAYS',
-  'ONE_MONTH',
-  'TWO_MONTHS',
-  'NA',
-] as const;
-
-export const BOND_DURATION_OPTIONS = [
-  'SIX_MONTHS',
-  'ONE_YEAR',
-  'TWO_YEARS',
-  'THREE_YEARS',
-  'NA',
-] as const;
-export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
+export const DOCUMENT_TYPE_OPTIONS = [
   "OFFER_LETTER",
   "CONTRACT",
   "TAX_DECLARATION_FORM",
@@ -261,45 +67,207 @@ export const DOCUMENT_TYPE_OPTIONS: DocumentType[] = [
   "POST_GRADUATION_CERTIFICATE",
   "OTHER",
 ] as const;
-export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  OFFER_LETTER: "Offer Letter",
-  CONTRACT: "Employment Contract",
-  TAX_DECLARATION_FORM: "Tax Declaration Form",
-  WORK_PERMIT: "Work Permit / Visa",
-  PAN_CARD: "PAN Card",
-  AADHAR_CARD: "Aadhar Card",
-  BANK_PASSBOOK: "Bank Passbook / Cancelled Cheque",
-  TENTH_CERTIFICATE: "10th Marksheet",
-  TWELFTH_CERTIFICATE: "12th Marksheet",
-  DEGREE_CERTIFICATE: "Degree Certificate",
-  POST_GRADUATION_CERTIFICATE: "Post Graduation Certificate",
-  OTHER: "Other Document",
-} as const;
 
-export const DOMAIN_LABELS: Record<Domain, string> = {
-  IT_SERVICES: "IT Services",
-  FINANCE: "Finance",
-  HEALTHCARE: "Healthcare",
-  EDUCATION: "Education",
-  ECOMMERCE: "E-Commerce",
-  CONSULTING: "Consulting",
-  MANUFACTURING: "Manufacturing",
-  REAL_ESTATE: "Real Estate",
-  MEDIA: "Media & Entertainment",
-  TELECOM: "Telecommunication",
-  OTHER: "Other",
-} as const;
+export type DocumentType = (typeof DOCUMENT_TYPE_OPTIONS)[number];
+export const INDUSTRY_TYPE_OPTIONS = [
+  "IT",
+  "FINANCE",
+  "HEALTHCARE",
+  "EDUCATION",
+  "ECOMMERCE",
+  "MANUFACTURING",
+  "CONSULTING",
+  "REAL_ESTATE",
+  "HOSPITALITY",
+  "TRANSPORT",
+  "ENERGY",
+  "AGRICULTURE",
+  "PHARMACEUTICAL",
+  "MEDIA",
+  "OTHER",
+] as const;
 
-export const CURRENCY_CODE_LABELS: Record<CurrencyCode, string> = {
-  INR: "Indian Rupee (₹)",
-  USD: "US Dollar ($)",
-  EUR: "Euro (€)",
-  GBP: "British Pound (£)",
-  AUD: "Australian Dollar (A$)",
-  CAD: "Canadian Dollar (C$)",
-  SGD: "Singapore Dollar (S$)",
-  JPY: "Japanese Yen (¥)",
-} as const;
+export type IndustryType = (typeof INDUSTRY_TYPE_OPTIONS)[number];
+export const LEAVE_CATEGORY_OPTIONS = [
+  "SICK",
+  "CASUAL",
+  "PLANNED",
+  "UNPLANNED",
+] as const;
+
+export type LeaveCategoryType = (typeof LEAVE_CATEGORY_OPTIONS)[number];
+export const FINANCIAL_TYPE_OPTIONS = ["PAID", "UNPAID"] as const;
+
+export type FinancialType = (typeof FINANCIAL_TYPE_OPTIONS)[number];
+export const LEAVE_STATUS_OPTIONS = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "WITHDRAWN",
+] as const;
+
+export type LeaveStatus = (typeof LEAVE_STATUS_OPTIONS)[number];
+
+export const HOLIDAY_TYPE_OPTIONS = [
+  "PUBLIC",
+  "RELIGIOUS",
+  "REGIONAL",
+  "COMPANY_SPECIFIC",
+] as const;
+
+export type HolidayType = (typeof HOLIDAY_TYPE_OPTIONS)[number];
+export const EMPLOYMENT_TYPE_OPTIONS = [
+  "CONTRACTOR",
+  "FREELANCER",
+  "FULLTIME",
+] as const;
+
+export type EmploymentType = (typeof EMPLOYMENT_TYPE_OPTIONS)[number];
+export const ATTENDANCE_STATUS_OPTIONS = [
+  "PRESENT",
+  "ABSENT",
+  "HALF_DAY",
+  "ON_LEAVE",
+  "HOLIDAY",
+] as const;
+
+export type AttendanceStatus = (typeof ATTENDANCE_STATUS_OPTIONS)[number];
+export const PROJECT_STATUS_OPTIONS = [
+  "ACTIVE",
+  "INACTIVE",
+  "COMPLETED",
+  "ON_HOLD",
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUS_OPTIONS)[number];
+export const ADDRESS_TYPE_OPTIONS = ["CURRENT", "PERMANENT", "OFFICE"] as const;
+
+export type AddressType = (typeof ADDRESS_TYPE_OPTIONS)[number];
+export const UPDATE_REQUEST_STATUS_OPTIONS = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+] as const;
+
+export type UpdateRequestStatus =
+  (typeof UPDATE_REQUEST_STATUS_OPTIONS)[number];
+export const PAY_CLASS_OPTIONS = [
+  "A1",
+  "A2",
+  "B1",
+  "B2",
+  "CONTRACT",
+  "INTERN",
+  "NA",
+] as const;
+
+export type PayClass = (typeof PAY_CLASS_OPTIONS)[number];
+export const DOMAIN_OPTIONS = [
+  "IT_SERVICES",
+  "FINANCE",
+  "HEALTHCARE",
+  "EDUCATION",
+  "ECOMMERCE",
+  "CONSULTING",
+  "MANUFACTURING",
+  "REAL_ESTATE",
+  "MEDIA",
+  "TELECOM",
+  "OTHER",
+] as const;
+
+export type Domain = (typeof DOMAIN_OPTIONS)[number];
+export const CURRENCY_CODE_OPTIONS = [
+  "INR",
+  "USD",
+  "EUR",
+  "GBP",
+  "AUD",
+  "CAD",
+  "SGD",
+  "JPY",
+] as const;
+
+export type CurrencyCode = (typeof CURRENCY_CODE_OPTIONS)[number];
+export const DEPARTMENT_OPTIONS = [
+  "HR",
+  "IT",
+  "DEVELOPMENT",
+  "DELIVERY_MANAGEMENT",
+  "QA",
+  "DEVOPS",
+  "SALES",
+  "MARKETING",
+  "FINANCE",
+  "BENCH",
+] as const;
+export type Department = (typeof DEPARTMENT_OPTIONS)[number];
+export const SHIFT_TIMING_OPTIONS = [
+  "MORNING",
+  "AFTERNOON",
+  "NIGHT",
+  "GENERAL",
+  "FLEXIBLE",
+  "NA",
+] as const;
+export type ShiftTiming = (typeof SHIFT_TIMING_OPTIONS)[number];
+export const NOTICE_PERIOD_OPTIONS = [
+  "FIFTEEN_DAYS",
+  "ONE_MONTH",
+  "TWO_MONTHS",
+  "THREE_MONTHS",
+  "SIX_MONTHS",
+  "NA",
+] as const;
+export type NoticePeriodDuration = (typeof NOTICE_PERIOD_OPTIONS)[number];
+export const PROBATION_DURATION_OPTIONS = [
+  "ONE_MONTH",
+  "TWO_MONTHS",
+  "THREE_MONTHS",
+  "SIX_MONTHS",
+  "ONE_YEAR",
+  "NA",
+] as const;
+export type ProbationDuration = (typeof PROBATION_DURATION_OPTIONS)[number];
+export const PROBATION_NOTICE_OPTIONS = [
+  "SEVEN_DAYS",
+  "FIFTEEN_DAYS",
+  "ONE_MONTH",
+  "TWO_MONTHS",
+  "NA",
+] as const;
+
+export type ProbationNoticePeriod = (typeof PROBATION_NOTICE_OPTIONS)[number];
+export const BOND_DURATION_OPTIONS = [
+  "SIX_MONTHS",
+  "ONE_YEAR",
+  "TWO_YEARS",
+  "THREE_YEARS",
+  "NA",
+] as const;
+export type BondDuration = (typeof BOND_DURATION_OPTIONS)[number];
+export const UPDATE_REQUEST_TYPE_OPTIONS = [
+  "EMPLOYEE_UPDATE",
+  "ADDRESS_DELETE",
+  "CALENDAR_UPDATE",
+  "DOCUMENT_DELETE",
+] as const;
+
+export type UpdateRequestType = (typeof UPDATE_REQUEST_TYPE_OPTIONS)[number];
+export const RECURRENCE_RULE_OPTIONS = ["ANNUAL", "ONE_TIME"] as const;
+
+export type RecurrenceRule = (typeof RECURRENCE_RULE_OPTIONS)[number];
+export const INVOICE_STATUS_OPTIONS = [
+  "DRAFT",
+  "SENT",
+  "PAID",
+  "OVERDUE",
+  "APPROVED",
+  "REJECTED",
+] as const;
+
+export type InvoiceStatus = (typeof INVOICE_STATUS_OPTIONS)[number];
+
 
 export interface EmployeeDepartmentDTO {
   employeeId: string;
@@ -319,7 +287,7 @@ export interface WebResponseDTOEmployeeDepartmentList {
 
 // Core Models
 export interface AddressModel {
-  addressId: string | null;   // uuid
+  addressId: string | null; // uuid
   houseNo?: string;
   streetName?: string;
   city?: string;
@@ -343,17 +311,16 @@ export interface WorkdayResponseDTO {
   leaveDuration: number; // double
 }
 
-
 export interface EmployeeUpdateRequestDTO {
-  requestId: string;              // UUID
-  employeeId: string;             // UUID
+  requestId: string; // UUID
+  employeeId: string; // UUID
   employeeName: string;
   requestType: UpdateRequestType;
-  updatedData: any;               // Holds changed fields (key-value pairs)
-  status: UpdateRequestStatus;    // "PENDING" | "APPROVED" | "REJECTED"
+  updatedData: any; // Holds changed fields (key-value pairs)
+  status: UpdateRequestStatus; // "PENDING" | "APPROVED" | "REJECTED"
   adminComment: string | null;
-  createdAt: string;              // ISO date-time string
-  approvedAt: string | null;      // ISO date-time string
+  createdAt: string; // ISO date-time string
+  approvedAt: string | null; // ISO date-time string
 }
 
 export interface LeaveAvailabilityDTO {
@@ -407,7 +374,6 @@ export interface LoginResponseInner {
   loginResponseDTO: LoginResponseDTO;
 }
 
-
 export interface RoleObject {
   roleId: string;
   roleName: Role;
@@ -452,9 +418,7 @@ export interface LeaveCalendarDTO {
   employees: LeaveCalendarEmployeeDTO[];
 }
 
-export type WebResponseDTOLeaveCalendarDTO =
-  WebResponseDTO<LeaveCalendarDTO[]>;
-
+export type WebResponseDTOLeaveCalendarDTO = WebResponseDTO<LeaveCalendarDTO[]>;
 
 export interface WebResponseDTO<T> {
   flag: boolean;
@@ -475,20 +439,19 @@ export type AuthState = {
 
 export type AuthAction =
   | {
-    type: "LOGIN_SUCCESS";
-    payload: {
-      user: User;
-      accessToken: string | null;
-      refreshToken: string | null;
-    };
-  }
+      type: "LOGIN_SUCCESS";
+      payload: {
+        user: User;
+        accessToken: string | null;
+        refreshToken: string | null;
+      };
+    }
   | {
-    type: "UPDATE_USER";
-    payload: Partial<LoggedInUser>;
-  }
+      type: "UPDATE_USER";
+      payload: Partial<LoggedInUser>;
+    }
   | { type: "LOGOUT" }
   | { type: "SET_LOADING"; payload: boolean };
-
 
 export interface PasswordCheckRequestDTO {
   companyEmail: string;
@@ -520,11 +483,11 @@ export interface WebResponseDTOLeaveStatusCount {
 
 // Additional Schemas
 export interface EmployeeDocumentDTO {
-  documentId: string | null;      // uuid
+  documentId: string | null; // uuid
   docType?: DocumentType;
-  file?: File | null;             // 👈 REAL uploaded file (optional)
-  fileUrl?: string | null;        // 👈 existing file from backend (read-only)
-  uploadedAt?: string;            // optional
+  file?: File | null; // 👈 REAL uploaded file (optional)
+  fileUrl?: string | null; // 👈 existing file from backend (read-only)
+  uploadedAt?: string; // optional
   verified?: boolean;
 }
 
@@ -550,8 +513,8 @@ export interface EmployeeAdditionalDetailsDTO {
 }
 
 export interface EmployeeEmploymentDetailsDTO {
-  employmentId: string;                     // UUID
-  employeeId: string;                       // UUID
+  employmentId: string; // UUID
+  employeeId: string; // UUID
   noticePeriodDuration?: NoticePeriodDuration;
   noticePeriodDurationLabel?: string;
   probationApplicable: boolean;
@@ -566,7 +529,7 @@ export interface EmployeeEmploymentDetailsDTO {
   shiftTiming?: ShiftTiming;
   shiftTimingLabel?: string;
   department?: Department;
-  dateOfConfirmation?: string;              // ISO date string (YYYY-MM-DD)
+  dateOfConfirmation?: string; // ISO date string (YYYY-MM-DD)
   location?: string;
 }
 
@@ -700,7 +663,7 @@ export interface EmployeeModel {
   skillsAndCertification: string;
   clientId: string | null;
   clientSelection: string;
-  reportingManagerId: string | null;// UUID
+  reportingManagerId: string | null; // UUID
   designation: Designation | null;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
@@ -727,16 +690,15 @@ export interface EmployeeModel {
   employeeEquipmentDTO?: EmployeeEquipmentDTO[];
 }
 
-
 // export type WebResponseDTOEmployee = WebResponseDTO<EmployeeDTO>;
 export type WebResponseDTOEmployeeList = WebResponseDTO<EmployeeDTO[]>;
 
 export interface ClientModel {
   companyName: string;
   contactNumber: string;
-  email: string | null; 
+  email: string | null;
   gst: string;
-  currency: string;
+  currency: CurrencyCode;
   netTerms: number | null;
   panNumber: string;
   tanNumber?: string;
@@ -745,14 +707,14 @@ export interface ClientModel {
   clientTaxDetails: ClientTaxDetail[]; // Array of tax detail objects
 }
 export interface ClientTaxDetail {
-  taxId: string | null;       // UUID
+  taxId: string | null; // UUID
   taxName: string;
   taxPercentage: number;
   // createdAt: string;     // ISO Date-Time format
   // updatedAt: string;     // ISO Date-Time format
 }
 export interface ClientPocModel {
-  pocId: string | null;  // uuid
+  pocId: string | null; // uuid
   name: string;
   email: string;
   contactNumber: string;
@@ -771,7 +733,7 @@ export interface BankDetails {
 }
 
 export interface HolidaySchemeDTO {
-  holidaySchemeId: string;          // <- ID from backend
+  holidaySchemeId: string; // <- ID from backend
   schemeName: string;
   schemeDescription: string;
   createdByAdminId: string;
@@ -780,7 +742,7 @@ export interface HolidaySchemeDTO {
   schemeCountryCode: string;
   schemeCreatedAt: string;
   schemeUpdatedAt: string;
-  holidayCalendarId: string[];      // <- Array of UUIDs
+  holidayCalendarId: string[]; // <- Array of UUIDs
   schemeActive: boolean;
 }
 
@@ -842,7 +804,7 @@ export interface Employee {
   updatedAt: string; // ISO date-time
 }
 export interface EmployeeDTO {
-  employeeId: string;               // UUID
+  employeeId: string; // UUID
   firstName: string;
   lastName: string;
   personalEmail: string;
@@ -852,7 +814,7 @@ export interface EmployeeDTO {
   gender: string;
   maritalStatus: string;
   numberOfChildren: number;
-  dateOfBirth: string;              // date
+  dateOfBirth: string; // date
   employeePhotoUrl: string;
   nationality: string;
   emergencyContactName: string;
@@ -864,7 +826,7 @@ export interface EmployeeDTO {
   dateOfOnboardingToClient: string;
   dateOfOffboardingToClient: string;
   clientBillingStartDate: string;
-  clientBillingStopDate: string;           // date
+  clientBillingStopDate: string; // date
   rateCard: number;
   availableLeaves: number;
   employmentType: EmploymentType;
@@ -877,10 +839,10 @@ export interface EmployeeDTO {
   branchName: string;
   panNumber: string;
   aadharNumber: string;
-  clientId: string | null;          // uuid
+  clientId: string | null; // uuid
   clientName: string;
   clientStatus: string;
-  reportingManagerId: string;       // uuid
+  reportingManagerId: string; // uuid
   reportingManagerName: string;
   documents: EmployeeDocumentDTO[];
   addresses: AddressModel[];
@@ -891,15 +853,15 @@ export interface EmployeeDTO {
   employeeEquipmentDTO?: EmployeeEquipmentDTO[];
   employeeStatutoryDetailsDTO?: EmployeeStatutoryDetailsDTO;
   status: string;
-  createdAt: string;                // date-time
-  updatedAt: string;                // date-time
+  updatedThroughForm: boolean;
+  createdFromExcel: boolean;
+  createdAt: string; // date-time
+  updatedAt: string; // date-time
 }
 
-
-
 export interface ClientDTO {
-  clientId: string;          // UUID
-  userId: string;            // UUID
+  clientId: string; // UUID
+  userId: string; // UUID
   companyName: string;
   contactNumber: string;
   email: string;
@@ -910,13 +872,11 @@ export interface ClientDTO {
   status: string;
   netTerms: number | null;
   clientTaxDetails: ClientTaxDetail[];
-  createdAt: string;         // ISO Date-Time string
-  updatedAt: string;         // ISO Date-Time string
+  createdAt: string; // ISO Date-Time string
+  updatedAt: string; // ISO Date-Time string
   addresses: AddressModel[];
   pocs: ClientPoc;
-
 }
-
 
 export interface RefreshTokenRequestDTO {
   refreshToken: string;
@@ -1011,7 +971,7 @@ export interface TimeSheetResponseDto {
   taskName: string;
   projectName?: string;
   projectStartedAt?: string; // date
-  projectEndedAt?: string; // date 
+  projectEndedAt?: string; // date
   status: string;
   createdAt: string; // date-time
   updatedAt: string; // date-time
@@ -1025,7 +985,7 @@ export interface NotificationDTO {
   read: boolean;
   createdAt: string; // Date-time
   updatedAt: string; // Date-time
-  notificationType: 'TIMESHEET' | 'LEAVE';
+  notificationType: "TIMESHEET" | "LEAVE";
 }
 
 export interface SortObject {
@@ -1109,10 +1069,10 @@ export interface WebResponseDTOListHolidaysDTO {
   totalRecords: number;
   otherInfo?: any;
 }
-export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> { }
+export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> {}
 
 export interface WebResponseDTOListBankMaster
-  extends WebResponseDTO<BankMaster[]> { }
+  extends WebResponseDTO<BankMaster[]> {}
 // WebResponse Wrappers
 export interface WebResponseDTOString {
   flag: boolean;
@@ -1142,14 +1102,14 @@ export type TokenInfo = {
 };
 
 export type DeviceSessionDTO = {
-  deviceId: string;                    // UUID as string (e.g., "a1b2c3d4-...")
-  deviceName: string;                  // e.g., "Chrome-Win" or "Unknown Device"
-  ipAddress: string;                   // e.g., "192.168.1.1" or "Unknown IP"
-  userAgent: string;                   // full UA string
-  loginTime: string;                   // ISO string: "2025-04-05T10:30:45"
-  logoutTime: string | null;           // null if active
-  status: "Active" | "De-Activate";    // exactly as in your DTO
-  token: TokenInfo | null;             // currently null from backend
+  deviceId: string; // UUID as string (e.g., "a1b2c3d4-...")
+  deviceName: string; // e.g., "Chrome-Win" or "Unknown Device"
+  ipAddress: string; // e.g., "192.168.1.1" or "Unknown IP"
+  userAgent: string; // full UA string
+  loginTime: string; // ISO string: "2025-04-05T10:30:45"
+  logoutTime: string | null; // null if active
+  status: "Active" | "De-Activate"; // exactly as in your DTO
+  token: TokenInfo | null; // currently null from backend
 };
 
 export type MySessionsResponseDTO = {
@@ -1184,7 +1144,6 @@ export interface OrganizationRequestDTO {
 
   domain: Domain;
 
-
   establishedDate: string; // yyyy-mm-dd
 
   timezone: string;
@@ -1205,7 +1164,6 @@ export interface OrganizationRequestDTO {
   sequenceNumber?: number;
   companyType?: string;
 }
-
 
 export interface OrganizationResponseDTO {
   organizationId: string;
@@ -1247,7 +1205,6 @@ export interface WebResponseDTOListOrganizationResponseDTO {
   totalRecords: number;
   otherInfo: any;
 }
-
 
 export interface WebResponseDTOEmployeeDTO {
   flag: boolean;
@@ -1501,7 +1458,15 @@ export interface UpdatePasswordRequestDTO {
 
 export interface PasswordResponseDTO {
   identifier: string;
-  status: 'OTP_SENT' | 'OTP_VERIFIED' | 'OTP_INVALID' | 'OTP_EXPIRED' | 'PASSWORD_RESET' | 'RESET_FAILED' | 'USER_NOT_FOUND' | 'MAX_ATTEMPTS_EXCEEDED';
+  status:
+    | "OTP_SENT"
+    | "OTP_VERIFIED"
+    | "OTP_INVALID"
+    | "OTP_EXPIRED"
+    | "PASSWORD_RESET"
+    | "RESET_FAILED"
+    | "USER_NOT_FOUND"
+    | "MAX_ATTEMPTS_EXCEEDED";
   timestamp: string;
   expiry?: string;
   verified: boolean;
@@ -1527,7 +1492,7 @@ export interface WebResponseDTOObject {
 }
 // Invoice Types
 export interface InvoiceDTO {
-  invoiceId: string;       // UUID
+  invoiceId: string; // UUID
   clientId: string;
   clientName: string;
   invoiceNumber: string;
@@ -1535,11 +1500,11 @@ export interface InvoiceDTO {
   taxAmount: number;
   totalAmount: number;
   totalHours: number;
-  status: InvoiceStatus;   // Enum type
-  invoiceDate: string;     // ISO Date (YYYY-MM-DD)
-  dueDate: string;         // ISO Date (YYYY-MM-DD)
-  fromDate: string;        // ISO Date (YYYY-MM-DD)
-  toDate: string;          // ISO Date (YYYY-MM-DD)
+  status: InvoiceStatus; // Enum type
+  invoiceDate: string; // ISO Date (YYYY-MM-DD)
+  dueDate: string; // ISO Date (YYYY-MM-DD)
+  fromDate: string; // ISO Date (YYYY-MM-DD)
+  toDate: string; // ISO Date (YYYY-MM-DD)
   locked: boolean;
 }
 
@@ -1579,7 +1544,6 @@ export interface ClientInvoiceSummaryDTO {
   toDate: string;
   employeeWorkSummaries: EmployeeWorkSummaryDTO[];
 }
-
 
 // WebResponseDTOListClientInvoiceSummaryDTO
 export interface WebResponseDTOListClientInvoiceSummaryDTO {
@@ -1631,9 +1595,9 @@ export interface WebResponseDTOListHolidaysDTO {
 }
 
 export interface RevertTimesheetRequest {
-  employeeId: string;   // UUID
-  startDate: string;    // yyyy-MM-dd
-  endDate: string;      // yyyy-MM-dd
+  employeeId: string; // UUID
+  startDate: string; // yyyy-MM-dd
+  endDate: string; // yyyy-MM-dd
   workRequest: string;
 }
 
@@ -1669,7 +1633,7 @@ export interface ClientMinDTO {
 }
 
 export type ClientEmployeeMinResponseDTO = {
-  currency: 'INR' | 'USD';
+  currency: "INR" | "USD";
   employees: EmployeeMinDTO[];
 };
 
@@ -1682,8 +1646,8 @@ export interface EmployeeMinDTO {
 }
 export interface ManualInvoiceItemRequestDTO {
   employeeId: string;
-  hoursWorked: number;      // decimal allowed
-  ratePerHour: number;      // decimal allowed
+  hoursWorked: number; // decimal allowed
+  ratePerHour: number; // decimal allowed
   description?: string;
 }
 export interface ManualInvoiceRequestDTO {
@@ -1693,27 +1657,27 @@ export interface ManualInvoiceRequestDTO {
 
   invoiceNumber: string;
   invoiceDate?: string; // yyyy-MM-dd
-  dueDate?: string;     // yyyy-MM-dd
+  dueDate?: string; // yyyy-MM-dd
 
   items: ManualInvoiceItemRequestDTO[];
 }
 
 export interface LeaveAdjustmentRequestDTO {
-  employeeId: string;   // UUID as string
-  adjustment: number;   // +ve or -ve
+  employeeId: string; // UUID as string
+  adjustment: number; // +ve or -ve
 }
 
 export type LeaveAdjustmentResponse = Record<string, number>;
 
 export interface SuperHrHolidayRequestDTO {
-  holidayDate: string;        // yyyy-MM-dd
+  holidayDate: string; // yyyy-MM-dd
   holidayName: string;
-  employeeIds: string[];      // UUIDs
+  employeeIds: string[]; // UUIDs
 }
 
 export interface DeleteEmployeeHolidayRequestDTO {
-  holidayId: string;          // UUID
-  employeeId: string;         // UUID
+  holidayId: string; // UUID
+  employeeId: string; // UUID
 }
 
 export type EmployeePasswordState = {

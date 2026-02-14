@@ -1,21 +1,22 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { adminService } from '@/lib/api/adminService';
-import { ClientDTO } from '@/lib/api/types';
-import Link from 'next/link';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import BackButton from '@/components/ui/BackButton';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { adminService } from "@/lib/api/adminService";
+import { ClientDTO } from "@/lib/api/types";
+import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import BackButton from "@/components/ui/BackButton";
+import { Loader2 } from "lucide-react";
 
 const ClientList = () => {
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [filteredClients, setFilteredClients] = useState<ClientDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const { state } = useAuth();
   const router = useRouter();
 
@@ -28,7 +29,7 @@ const ClientList = () => {
         setClients(clientList);
         setFilteredClients(clientList);
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch clients');
+        setError(err.message || "Failed to fetch clients");
       } finally {
         setLoading(false);
       }
@@ -48,14 +49,13 @@ const ClientList = () => {
           client.email?.toLowerCase().includes(term) ||
           client.contactNumber?.includes(term)
       );
-      
     }
     setFilteredClients(filtered);
   }, [searchTerm, clients]);
 
   // Delete handler
   const handleDelete = async (clientId: string) => {
-    if (!confirm('Are you sure you want to delete this client?')) return;
+    if (!confirm("Are you sure you want to delete this client?")) return;
 
     setDeletingId(clientId);
     try {
@@ -63,22 +63,21 @@ const ClientList = () => {
       setClients((prev) => prev.filter((c) => c.clientId !== clientId));
       setFilteredClients((prev) => prev.filter((c) => c.clientId !== clientId));
     } catch (err: any) {
-      setError(err.message || 'Failed to delete client');
+      setError(err.message || "Failed to delete client");
     } finally {
       setDeletingId(null);
     }
   };
 
   const handleClearFilters = () => {
-    setSearchTerm('');
+    setSearchTerm("");
   };
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
-        <div className="flex items-center justify-center h-[80vh] p-4 sm:p-6 md:p-8 text-center text-gray-600">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-sm sm:text-base">Loading clients...</p>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
         </div>
       </ProtectedRoute>
     );
@@ -86,7 +85,7 @@ const ClientList = () => {
 
   if (error) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
         <div className="p-4 sm:p-6 md:p-8 text-center text-red-600">
           <p className="text-sm sm:text-base">{error}</p>
         </div>
@@ -95,7 +94,7 @@ const ClientList = () => {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
       <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -128,13 +127,12 @@ const ClientList = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                 />
               </div>
-
-
             </div>
 
             {filteredClients.length !== clients.length && (
               <p className="text-xs sm:text-sm text-gray-500 mt-3 text-center sm:text-left">
-                Showing <strong>{filteredClients.length}</strong> of <strong>{clients.length}</strong> clients
+                Showing <strong>{filteredClients.length}</strong> of{" "}
+                <strong>{clients.length}</strong> clients
               </p>
             )}
           </div>
@@ -167,7 +165,10 @@ const ClientList = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredClients.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 sm:px-6 py-8 sm:py-12 text-center text-gray-500">
+                    <td
+                      colSpan={6}
+                      className="px-3 sm:px-6 py-8 sm:py-12 text-center text-gray-500"
+                    >
                       No clients found.
                     </td>
                   </tr>
@@ -189,16 +190,17 @@ const ClientList = () => {
                           {client.contactNumber}
                         </td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
-                          {primaryAddress?.city || '-'}
+                          {primaryAddress?.city || "-"}
                         </td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
                           <span
-                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${client.status === 'ACTIVE'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                              }`}
+                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                              client.status === "ACTIVE"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
                           >
-                            {client.status || 'UNKNOWN'}
+                            {client.status || "UNKNOWN"}
                           </span>
                         </td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-medium space-x-1 sm:space-x-3 flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-0">
@@ -219,7 +221,9 @@ const ClientList = () => {
                             disabled={deletingId === client.clientId}
                             className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                           >
-                            {deletingId === client.clientId ? 'Deleting...' : 'Delete'}
+                            {deletingId === client.clientId
+                              ? "Deleting..."
+                              : "Delete"}
                           </button>
                         </td>
                       </tr>

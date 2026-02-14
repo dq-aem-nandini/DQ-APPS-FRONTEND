@@ -1,9 +1,8 @@
 // /lib/api/employeeService.ts
-import api from './axios';
+import api from "./axios";
 import {
   EmployeeModel,
   WebResponseDTOListEmployeeDTO,
-
   Designation,
   WebResponseDTOListString,
   EmployeeDTO,
@@ -17,9 +16,9 @@ import {
   WebResponseDTOEmployeeDepartmentList,
   WebResponseDTOVoid,
   AddressModel,
-  EmployeeDocumentDTO
-} from './types';
-import { AxiosResponse, AxiosError } from 'axios';
+  EmployeeDocumentDTO,
+} from "./types";
+import { AxiosResponse, AxiosError } from "axios";
 function getBackendError(error: any): string {
   return (
     error?.response?.data?.message ||
@@ -32,37 +31,51 @@ function getBackendError(error: any): string {
 }
 
 class EmployeeService {
-
-  async updateEmployee(employee: EmployeeModel): Promise<WebResponseDTO<EmployeeDTO>> {
+  async updateEmployee(
+    employee: EmployeeModel
+  ): Promise<WebResponseDTO<EmployeeDTO>> {
     try {
-      const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> = await api.put(
-        '/employee/update',
-        employee
-      );
+      const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> =
+        await api.put(
+          // '/employee/update',
+          "/employee/update?isUpdatedThroughForm=true",
+          employee
+        );
 
-      console.log('🧩 Full update employee API response:', response.data);
+      console.log("🧩 Full update employee API response:", response.data);
 
-      const { flag, message, status, response: data, totalRecords, otherInfo } = response.data;
+      const {
+        flag,
+        message,
+        status,
+        response: data,
+        totalRecords,
+        otherInfo,
+      } = response.data;
 
       return {
         flag,
-        message: message || (flag ? 'Employee updated successfully' : 'Failed to update employee'),
+        message:
+          message ||
+          (flag
+            ? "Employee updated successfully"
+            : "Failed to update employee"),
         status: status ?? (flag ? 200 : 400),
         response: data ?? ({} as EmployeeDTO), // ✅ use empty object for non-nullable type
         totalRecords: totalRecords ?? 0,
         otherInfo: otherInfo ?? null,
       };
     } catch (error: unknown) {
-      console.error('❌ Error updating employee:', error);
+      console.error("❌ Error updating employee:", error);
 
-      let errorMessage = 'Failed to update employee';
+      let errorMessage = "Failed to update employee";
       let errorStatus = 500;
 
       if (error instanceof AxiosError) {
         errorMessage =
           error.response?.data?.message ||
           error.message ||
-          'Failed to update employee';
+          "Failed to update employee";
         errorStatus = error.response?.status || 500;
       }
 
@@ -78,18 +91,18 @@ class EmployeeService {
     }
   }
 
-
   /**
    * Get current employee's details (GET no params; for authenticated user).
    */
   async getEmployeeById(): Promise<EmployeeDTO> {
     try {
-      const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> = await api.get('/employee/view');
+      const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> =
+        await api.get("/employee/view");
       // console.log('🧩 Full get employee by ID API response:', response.data);
       if (response.data.flag && response.data.response) {
         return response.data.response;
       }
-      throw new Error(response.data.message || 'Failed to fetch employee');
+      throw new Error(response.data.message || "Failed to fetch employee");
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
@@ -100,32 +113,40 @@ class EmployeeService {
    */
   async getEmployeeByIdAdmin(empId: string): Promise<EmployeeDTO> {
     try {
-      const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> = await api.get(`/admin/emp/${empId}`);
-      console.log('🧩 Full get employee by ID (admin) API response:', response.data.response);
+      const response: AxiosResponse<WebResponseDTO<EmployeeDTO>> =
+        await api.get(`/admin/emp/${empId}`);
+      console.log(
+        "🧩 Full get employee by ID (admin) API response:",
+        response.data.response
+      );
       if (response.data.flag && response.data.response) {
         return response.data.response;
       }
-      throw new Error(response.data.message || 'Failed to fetch employee');
+      throw new Error(response.data.message || "Failed to fetch employee");
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
   }
 
-
-
   /**
    * Get employees by designation (GET with path param).
    */
-  async getEmployeesByDesignation(designation: Designation): Promise<EmployeeDTO[]> {
+  async getEmployeesByDesignation(
+    designation: Designation
+  ): Promise<EmployeeDTO[]> {
     try {
-      const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get(
-        `/employee/designation/${designation}`
+      const response: AxiosResponse<WebResponseDTOListEmployeeDTO> =
+        await api.get(`/employee/designation/${designation}`);
+      console.log(
+        "🧩 Full get employees by designation API response:",
+        response.data.response
       );
-      console.log('🧩 Full get employees by designation API response:', response.data.response);
       if (response.data.flag && response.data.response) {
         return response.data.response;
       }
-      throw new Error(response.data.message || 'Failed to get employees by designation');
+      throw new Error(
+        response.data.message || "Failed to get employees by designation"
+      );
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
@@ -136,12 +157,19 @@ class EmployeeService {
    */
   async getDesignationList(): Promise<string[]> {
     try {
-      const response: AxiosResponse<WebResponseDTOListString> = await api.get('/employee/designationList');
-      console.log('🧩 Full get designation list API response:', response.data.response);
+      const response: AxiosResponse<WebResponseDTOListString> = await api.get(
+        "/employee/designationList"
+      );
+      console.log(
+        "🧩 Full get designation list API response:",
+        response.data.response
+      );
       if (response.data.flag && response.data.response) {
         return response.data.response;
       }
-      throw new Error(response.data.message || 'Failed to get designation list');
+      throw new Error(
+        response.data.message || "Failed to get designation list"
+      );
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
@@ -159,10 +187,10 @@ class EmployeeService {
       );
 
       if (!response.data.flag) {
-        throw new Error(response.data.message || 'Delete failed');
+        throw new Error(response.data.message || "Delete failed");
       }
 
-      console.log('Success:', response.data);
+      console.log("Success:", response.data);
       return response.data;
     } catch (error: any) {
       throw new Error(getBackendError(error));
@@ -182,12 +210,12 @@ class EmployeeService {
     }
   }
   // submit update
-  async submitUpdateRequest(
-    payload: any
-  ): Promise<WebResponseDTOString> {
+  async submitUpdateRequest(payload: any): Promise<WebResponseDTOString> {
     try {
-      const response: AxiosResponse<WebResponseDTOString> =
-        await api.post("/employee/update-request/submit", payload);
+      const response: AxiosResponse<WebResponseDTOString> = await api.post(
+        "/employee/update-request/submit",
+        payload
+      );
 
       console.log("📌 Submit Update Request:", response.data);
 
@@ -201,8 +229,10 @@ class EmployeeService {
     address: AddressModel
   ): Promise<WebResponseDTOVoid> {
     try {
-      const response: AxiosResponse<WebResponseDTOVoid> =
-        await api.post("/employee/update-request/submit/delete/address", address);
+      const response: AxiosResponse<WebResponseDTOVoid> = await api.post(
+        "/employee/update-request/submit/delete/address",
+        address
+      );
 
       console.log("Submit Delete Address Request:", response.data);
 
@@ -212,31 +242,30 @@ class EmployeeService {
     }
   }
 
-// submit delete document request
-async submitDeleteDocumentRequest(
-  document: EmployeeDocumentDTO
-): Promise<WebResponseDTOVoid> {
-  try {
-    //  Remove frontend-only fields before sending
-    const payload = {
-      documentId: document.documentId,
-      docType: document.docType,
-      fileUrl: document.fileUrl ?? null,
-    };
+  // submit delete document request
+  async submitDeleteDocumentRequest(
+    document: EmployeeDocumentDTO
+  ): Promise<WebResponseDTOVoid> {
+    try {
+      //  Remove frontend-only fields before sending
+      const payload = {
+        documentId: document.documentId,
+        docType: document.docType,
+        fileUrl: document.fileUrl ?? null,
+      };
 
-    const response: AxiosResponse<WebResponseDTOVoid> =
-      await api.post(
+      const response: AxiosResponse<WebResponseDTOVoid> = await api.post(
         "/employee/update-request/submit/delete/document",
         payload
       );
 
-    console.log("📌 Submit Delete Document Request:", response.data);
+      console.log("📌 Submit Delete Document Request:", response.data);
 
-    return response.data;
-  } catch (error: any) {
-    throw new Error(getBackendError(error));
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
   }
-}
 
   // =====================================================
   // GET ALL ADMIN UPDATE REQUESTS
@@ -384,9 +413,7 @@ async submitDeleteDocumentRequest(
   // ✅ SEARCH BANK MASTER
   // GET /banks/search?query=
   // =====================================================
-  async searchBankMaster(
-    query: string
-  ): Promise<WebResponseDTOListBankMaster> {
+  async searchBankMaster(query: string): Promise<WebResponseDTOListBankMaster> {
     if (!query.trim()) {
       return {
         flag: false,
@@ -416,20 +443,18 @@ async submitDeleteDocumentRequest(
       const response = await api.get<WebResponseDTOEmployeeDepartmentList>(
         `/employee/department/${department}`
       );
-  
+
       console.log("📌 Department employees API:", response.data);
-  
+
       if (response.data.flag) {
         return response.data.response;
       }
-  
+
       throw new Error(response.data.message || "Failed to fetch employees");
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
   }
-  
-
 }
 
 export const employeeService = new EmployeeService();
