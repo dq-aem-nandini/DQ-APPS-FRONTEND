@@ -23,12 +23,10 @@ import {
   AddressType,
   IndustryType,
   DOMAIN_OPTIONS,
-  WORKING_MODEL_OPTIONS,
   CURRENCY_CODE_OPTIONS,
   INDUSTRY_TYPE_OPTIONS,
 } from "@/lib/api/types";
 import useLoading from "@/hooks/useLoading";
-import Spinner from "@/components/ui/Spinner";
 import BackButton from "@/components/ui/BackButton";
 import Swal from "sweetalert2";
 import TooltipHint from "@/components/ui/TooltipHint";
@@ -62,11 +60,12 @@ export default function AddOrganizationPage() {
     email: "",
     contactNumber: "",
     logo: null,
-    industryType: "HEALTHCARE" as IndustryType,
-    domain: "OTHER" as Domain, // Default
+    industryType: "" as IndustryType,
+    domain: "" as Domain, // Default
     establishedDate: "",
-    timezone: "Asia/Kolkata", // Default
-    currencyCode: "INR" as CurrencyCode, // Default
+    timezone: "", // Default
+    autoClockOutTime: "",
+    currencyCode: "" as CurrencyCode, // Default
     accountNumber: "",
     accountHolderName: "",
     bankName: "",
@@ -251,7 +250,6 @@ export default function AddOrganizationPage() {
       { name: "gstNumber", value: formData.gstNumber },
       { name: "panNumber", value: formData.panNumber },
       { name: "cinNumber", value: formData.cinNumber },
-      { name: "website", value: formData.website },
       { name: "email", value: formData.email },
       { name: "contactNumber", value: formData.contactNumber },
       { name: "domain", value: formData.domain },
@@ -329,6 +327,14 @@ export default function AddOrganizationPage() {
       form.append("industryType", formData.industryType || "");
       form.append("establishedDate", formData.establishedDate || "");
       form.append("timezone", formData.timezone || "");
+      if (formData.autoClockOutTime) {
+        form.append(
+          "autoClockOutTime",
+          `${formData.autoClockOutTime}:00`
+        );
+      } else {
+        form.append("autoClockOutTime", "");
+      }
       form.append("currencyCode", formData.currencyCode || "");
       form.append("accountNumber", formData.accountNumber || "");
       form.append("accountHolderName", formData.accountHolderName || "");
@@ -439,11 +445,6 @@ export default function AddOrganizationPage() {
       </div>
       <Card>
         <CardContent>
-          {loading && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <Spinner size="lg" />
-            </div>
-          )}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Info Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -663,14 +664,9 @@ export default function AddOrganizationPage() {
                   }}
                 >
                   <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue />
+                    <SelectValue placeholder="Select Domain" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* {Object.entries(DOMAIN_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {key}
-                      </SelectItem>
-                    ))} */}
                     {DOMAIN_OPTIONS.map((m) => (
                       <SelectItem key={m} value={m}>
                         {m}
@@ -709,13 +705,6 @@ export default function AddOrganizationPage() {
                     <SelectValue placeholder="Select Industry Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* {Object.entries(INDUSTRY_TYPE_LABELS).map(
-                      ([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      )
-                    )} */}
                     {INDUSTRY_TYPE_OPTIONS.map((m) => (
                       <SelectItem key={m} value={m}>
                         {m}
@@ -756,7 +745,7 @@ export default function AddOrganizationPage() {
                   }
                 >
                   <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue />
+                    <SelectValue placeholder="Select TimeZone" />
                   </SelectTrigger>
                   <SelectContent>
                     {TIMEZONES.map((tz) => (
@@ -767,6 +756,28 @@ export default function AddOrganizationPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Auto Clock-Out Time */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Auto Clock-Out Time <span className="text-red-500">*</span>
+                </Label>
+
+                <Input
+                  required
+                  name="autoClockOutTime"
+                  type="time"
+                  step="60"
+                  value={formData.autoClockOutTime ?? ""}
+                  onChange={handleValidatedChange}
+                  className="h-12"
+                />
+
+
+                {fieldError(errors, "autoClockOutTime")}
+              </div>
+
+
 
               {/* Currency Code */}
               <div className="space-y-2">
@@ -793,16 +804,9 @@ export default function AddOrganizationPage() {
                   }}
                 >
                   <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue />
+                    <SelectValue placeholder="Select Currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* {Object.entries(CURRENCY_CODE_LABELS).map(
-                      ([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      )
-                    )} */}
                     {CURRENCY_CODE_OPTIONS.map((m) => (
                       <SelectItem key={m} value={m}>
                         {m}
