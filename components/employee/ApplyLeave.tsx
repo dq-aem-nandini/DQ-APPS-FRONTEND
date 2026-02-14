@@ -151,8 +151,12 @@ const ApplyLeavePage: React.FC = () => {
       setError(null);
 
       const range = { fromDate: formData.fromDate, toDate: formData.toDate, partialDay: formData.partialDay };
-      const response = await leaveService.calculateWorkingDays(range);
-      const calculatedDuration = response.leaveDuration || 0;
+      const response = await leaveService.calculateWorkingDays(
+        range,
+        employeeId,
+        leaveId || undefined
+      );
+            const calculatedDuration = response.leaveDuration || 0;
 
       setFormData((prev) => ({ ...prev, leaveDuration: calculatedDuration }));
       setHasCalculated(true);
