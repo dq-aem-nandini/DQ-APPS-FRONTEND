@@ -21,6 +21,7 @@ import { employeePunchService } from '@/lib/api/EmployeePunchService';
 const DashboardContent: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
+  // console.log("DashboardContent rendered with user:", user);
   const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
   const [approvedLeavesCount, setApprovedLeavesCount] = useState(0);
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidaysDTO[]>([]);
@@ -49,7 +50,7 @@ const DashboardContent: React.FC = () => {
         });
   
         // Refresh status after punching
-        const statusRes = await employeePunchService.getPunchStatus(user!.userId);
+        const statusRes = await employeePunchService.getPunchStatus(user!.entityId);
         if (statusRes.flag) {
           setAttendanceStatus(statusRes.response);
         }
@@ -101,7 +102,7 @@ const DashboardContent: React.FC = () => {
         const approved = leaveSummaryRes.response?.content?.filter(l => l.status === 'APPROVED') || [];
         setApprovedLeavesCount(approved.length);
    
-        const managerId = user.userId;
+        const managerId = user.entityId;
         const teamMembers = employeesRes.response?.filter(emp => emp.reportingManagerId === managerId) || [];
         setTeamCount(teamMembers.length);
         const totalLeaves = teamMembers.reduce((sum, emp) => sum + (emp.availableLeaves || 0), 0);
@@ -138,7 +139,7 @@ const DashboardContent: React.FC = () => {
 
         // Fetch Punch Status
         try {
-          const statusRes = await employeePunchService.getPunchStatus(user.userId);
+          const statusRes = await employeePunchService.getPunchStatus(user.entityId);
 
           if (statusRes.flag) {
             setAttendanceStatus(statusRes.response);

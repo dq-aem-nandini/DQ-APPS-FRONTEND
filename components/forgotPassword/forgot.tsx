@@ -113,9 +113,9 @@ useEffect(() => {
 
   const sendOTP = async (id: string) => {
     setError('');
-setSuccessMessage('');
-setOtpDigits(['', '', '', '', '', '']);
-setIsLoading(true);
+    setSuccessMessage('');
+    setOtpDigits(['', '', '', '', '', '']);
+    setIsLoading(true);
 
     setError(''); setIsLoading(true);
     try {
@@ -124,9 +124,9 @@ setIsLoading(true);
         setError(''); // important
         setSuccessMessage('OTP sent successfully to your email.');
         setOtpDigits(['', '', '', '', '', '']);
-        setCountdown(10);
-        setCanEnterOTP(true); // ✅ SHOW OTP UI
-        setStep('otp'); // ✅ MOVE HERE
+        setCountdown(300);
+        setCanEnterOTP(true); //  SHOW OTP UI
+        setStep('otp'); // MOVE HERE
       } else {
         setError(res.message || 'Failed to send OTP.');
         setCanEnterOTP(false); //  HIDE OTP UI
