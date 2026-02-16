@@ -8,11 +8,13 @@ import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 import { useAuth } from "@/context/AuthContext";
 import { leaveService } from "@/lib/api/leaveService";
+import {timesheetService} from "@/lib/api/timeSheetService";
 import {
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
 } from "@/lib/api/types";
 import Swal from "sweetalert2";
+import dayjs from "dayjs";
 
 interface NotificationBellProps {
   className?: string;
@@ -249,7 +251,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   });
 
     try {
-      // ✅ Mark as read
+      //  Mark as read
       if (!notification.read) {
         await notificationService.markAsRead([notification.id]);
         setNotifications(prev =>
@@ -261,11 +263,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   
       setDropdownOpen(false);
   
-            // ✅ BASE PATH
+            // BASE PATH
       const isAdmin = userRole === "ADMIN";
       const basePath = isAdmin ? "/admin-dashboard" : "/dashboard";
   
-            // ✅ TARGET PATH
+            //TARGET PATH
       let targetPath = basePath;
       const type = (notification.notificationType || "").toUpperCase();
   
@@ -287,12 +289,51 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
           targetPath = "/dashboard/leaves/history";
         }
   
-      } else if (type.includes("TIMESHEET")) {
-        targetPath = isAdmin
-          ? `${basePath}/timesheet`
-          : `${basePath}/TimeSheetRegister`;
+      } 
   
-      } else if (type.includes("HOLIDAY")) {
+      else if (type.includes("TIMESHEET")) {
+        // MANAGER / HR_MANAGER / ADMIN
+        if (
+          userRole === "MANAGER" ||
+          userRole === "HR_MANAGER" ||
+          userRole === "ADMIN"
+        ) {
+          try {
+            const res = await timesheetService.getTimesheetById(
+              notification.referenceId
+            );
+      
+            const ts = res.response;
+      
+            if (!ts?.workDate) {
+              setSelectedNotification(notification);
+              setShowModal(true);
+              return;
+            }
+      
+            const workDate = dayjs(ts.workDate);
+            const weekStart = workDate.startOf("isoWeek");
+      
+            const base =
+              userRole === "ADMIN"
+                ? "/admin-dashboard/timesheet"
+                : "/manager/timesheets";
+      
+            window.location.href =
+              `${base}?employeeId=${notification.employeeId}` +
+              `&week=${weekStart.format("YYYY-MM-DD")}`;
+      
+            return;
+          } catch (err) {
+            console.error("Failed to load timesheet:", err);
+            setSelectedNotification(notification);
+            setShowModal(true);
+            return;
+          }
+        }
+      }
+      
+      else if (type.includes("HOLIDAY")) {
         targetPath = `${basePath}/holiday`;
   
       } else if (type.includes("INVOICE")) {
