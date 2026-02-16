@@ -1353,7 +1353,7 @@ useEffect(() => {
             <tfoot className="bg-gradient-to-r from-indigo-50 to-purple-50">
               <tr>
                 <td className="px-6 py-3 text-right text-sm font-semibold text-gray-900 border-r border-gray-200">Total Hours</td>
-                {dayTotals.map((t, i) => <td key={i} className="px-3 py-3 text-center text-sm font-semibold text-gray-900 border-r border-gray-200">{t}</td>)}
+                {dayTotals.map((t, i) => <td key={i} className="px-3 py-3 text-center text-sm font-semibold text-gray-900 border-r border-gray-200">{Number(t.toFixed(2))}</td>)}
               </tr>
             </tfoot>
           </table>
@@ -1362,7 +1362,8 @@ useEffect(() => {
 
       <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-b-lg flex items-center justify-start space-x-4">
         <span className="text-sm font-semibold text-gray-700">Total Hours for the Week:</span>
-        <span className="text-lg font-bold text-indigo-700">{totalWeekHours.toFixed(totalWeekHours % 1 === 0 ? 0 : 1)} hours</span>
+        <span className="text-lg font-bold text-indigo-700">{Number(totalWeekHours.toFixed(2))} hours
+        </span>
       </div>
 
 
