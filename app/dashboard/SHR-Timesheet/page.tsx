@@ -1353,7 +1353,7 @@ useEffect(() => {
             <tfoot className="bg-gradient-to-r from-indigo-50 to-purple-50">
               <tr>
                 <td className="px-6 py-3 text-right text-sm font-semibold text-gray-900 border-r border-gray-200">Total Hours</td>
-                {dayTotals.map((t, i) => <td key={i} className="px-3 py-3 text-center text-sm font-semibold text-gray-900 border-r border-gray-200">{t.toFixed(1)}</td>)}
+                {dayTotals.map((t, i) => <td key={i} className="px-3 py-3 text-center text-sm font-semibold text-gray-900 border-r border-gray-200">{t}</td>)}
               </tr>
             </tfoot>
           </table>

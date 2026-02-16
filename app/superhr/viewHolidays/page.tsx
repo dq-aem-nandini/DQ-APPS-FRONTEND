@@ -112,15 +112,23 @@ const ViewHolidaysPage: React.FC = () =>{
   };
 
   // filtering the Upcoming Holidays Pagination
+  // const allUpcomingHolidays = holidays
+  //   .filter((h) => {
+  //     if (!h.holidayDate) return false;
+  //     const hDate = new Date(h.holidayDate);
+  //     const today = new Date();
+  //     today.setHours(0, 0, 0, 0);
+  //     hDate.setHours(0, 0, 0, 0);
+  //     return hDate > today;
+  //   });
+  
   const allUpcomingHolidays = holidays
-    .filter((h) => {
-      if (!h.holidayDate) return false;
-      const hDate = new Date(h.holidayDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      hDate.setHours(0, 0, 0, 0);
-      return hDate > today;
-    });
+  .filter((h) => h.holidayDate) // only remove invalid dates
+  .sort((a, b) =>
+    new Date(a.holidayDate!).getTime() -
+    new Date(b.holidayDate!).getTime()
+  );
+
 
   const totalUpcomingPages = Math.ceil(
     allUpcomingHolidays.length / ITEMS_PER_PAGE,
@@ -273,46 +281,46 @@ const ViewHolidaysPage: React.FC = () =>{
 
                       {/* Delete icon (edit mode only) */}
                       {editMode && (
-  <button
-    onClick={async () => {
-      if (!selectedEmployeeId|| !holiday.holidayId) return;
+                        <button
+                          onClick={async () => {
+                            if (!selectedEmployeeId|| !holiday.holidayId) return;
 
-      const confirm = await Swal.fire({
-        title: "Delete Holiday?",
-        text: "This holiday will be removed for the selected employee.",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#ef4444",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, Delete",
-      });
+                            const confirm = await Swal.fire({
+                              title: "Delete Holiday?",
+                              text: "This holiday will be removed for the selected employee.",
+                              icon: "warning",
+                              showCancelButton: true,
+                              confirmButtonColor: "#ef4444",
+                              cancelButtonColor: "#6b7280",
+                              confirmButtonText: "Yes, Delete",
+                            });
 
-      if (!confirm.isConfirmed) return;
+                            if (!confirm.isConfirmed) return;
 
-      try {
-        const payload: DeleteEmployeeHolidayRequestDTO = {
-          holidayId: holiday.holidayId,
-          employeeId: selectedEmployeeId,
-        };
+                            try {
+                              const payload: DeleteEmployeeHolidayRequestDTO = {
+                                holidayId: holiday.holidayId,
+                                employeeId: selectedEmployeeId,
+                              };
 
-        const res =
-          await superHrHolidayService.deleteEmployeeHoliday(payload);
+                              const res =
+                                await superHrHolidayService.deleteEmployeeHoliday(payload);
 
-        if (res.flag) {
-          Swal.fire("Deleted!", res.message, "success");
-          await refreshHolidays();
-        } else {
-          Swal.fire("Error", res.message || "Delete failed", "error");
-        }
-      } catch (err: any) {
-        Swal.fire("Error", err.message || "Failed to delete holiday", "error");
-      }
-    }}
-    className="text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition"
-  >
-    <X className="w-5 h-5" />
-  </button>
-)}
+                              if (res.flag) {
+                                Swal.fire("Deleted!", res.message, "success");
+                                await refreshHolidays();
+                              } else {
+                                Swal.fire("Error", res.message || "Delete failed", "error");
+                              }
+                            } catch (err: any) {
+                              Swal.fire("Error", err.message || "Failed to delete holiday", "error");
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
 
                     </div>
                   </div>
