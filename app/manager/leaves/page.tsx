@@ -18,6 +18,7 @@ import { adminService } from '@/lib/api/adminService';
 const Leavespage: React.FC = () => {
   const router = useRouter();
   const { state: { accessToken, user } } = useAuth();
+  const isHRManager = user?.role?.roleName === 'HR_MANAGER';
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
   const [allLeaves, setAllLeaves] = useState<LeaveResponseDTO[]>([]);
@@ -112,7 +113,8 @@ const Leavespage: React.FC = () => {
           undefined,
           0,
           BIG_PAGE,
-          pagination.sort
+          pagination.sort,
+          isHRManager
         );
   
         if (!res.flag || !res.response?.content) return;
@@ -187,7 +189,7 @@ const Leavespage: React.FC = () => {
         }
       }
       if (activeTab === 'pending') {
-        const response = await leaveService.getPendingLeaves();
+        const response = await leaveService.getPendingLeaves(isHRManager);
         // console.log('🧩 Pending leaves fetched:', response);
         setPendingLeaves(response);
         setTotalPages(1); // No pagination for pending leaves
@@ -202,7 +204,8 @@ const Leavespage: React.FC = () => {
           undefined, // date
           pagination.page,
           pagination.size,
-          pagination.sort
+          pagination.sort,
+          isHRManager
         );
         // console.log('🧩 All leaves fetched:', response);
         if (!response.flag || !response.response) {

@@ -85,7 +85,6 @@ useEffect(() => {
         timesheetService.getAllTimesheets({
           startDate: monthStart,
           endDate: monthEnd,
-          size: 1000,
         }),
       ]);
 

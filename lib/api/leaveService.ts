@@ -1,6 +1,5 @@
 //lib/api/leaveService.ts
 import api from './axios';
-import { employeeService } from './employeeService';
 import {
   LeaveRequestDTO,
   LeaveResponseDTO,
@@ -347,6 +346,7 @@ export const leaveService = {
     page: number = 0,
     size: number = 10,
     sort: string = 'fromDate,desc',
+    teamView?: boolean,
     maxRetries: number = 3
   ): Promise<WebResponseDTOPageLeaveResponseDTO> {
     let retryCount = 0;
@@ -360,6 +360,9 @@ export const leaveService = {
         if (financialType) params.append('financialType', financialType);
         if (futureApproved !== undefined) params.append('futureApproved', futureApproved.toString());
         if (date) params.append('date', date);
+        if (teamView !== undefined) {
+          params.append('teamView', teamView.toString());
+        }        
         params.append('page', page.toString());
         params.append('size', size.toString());
         params.append('sort', sort);
@@ -405,27 +408,35 @@ export const leaveService = {
   /**
    * Get pending leaves for manager dashboard (GET no params).
    */
-  async getPendingLeaves(maxRetries: number = 3): Promise<PendingLeavesResponseDTO[]> {
+  async getPendingLeaves(
+    teamView: boolean = false,
+    maxRetries: number = 3
+  ): Promise<PendingLeavesResponseDTO[]> {
+  
     let retryCount = 0;
+  
     while (retryCount <= maxRetries) {
       try {
-        const response: AxiosResponse<WebResponseDTOListPendingLeavesResponseDTO> = await api.get(
-          '/employee/leave/pendingLeaves'
-        );
-
-        // console.log('🧩 Full pending leaves API response:', response.data.response);
-
+        const response: AxiosResponse<WebResponseDTOListPendingLeavesResponseDTO> =
+          await api.get('/employee/leave/pendingLeaves', {
+            params: {
+              teamView
+            }
+          });
+  
         if (response.data.flag && response.data.response) {
           return response.data.response;
         }
-
+  
         throw new Error(response.data.message || 'Failed to fetch pending leaves');
       } catch (error: any) {
         throw new Error(getBackendError(error));
       }
     }
+  
     return [];
   },
+  
   // Get leave status counts for dashboard (GET no params).
   async getLeaveStatusCount(): Promise<LeaveStatusCountResponseDTO> {
     try {
