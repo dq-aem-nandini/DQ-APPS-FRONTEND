@@ -111,17 +111,7 @@ const ViewHolidaysPage: React.FC = () =>{
     });
   };
 
-  // filtering the Upcoming Holidays Pagination
-  // const allUpcomingHolidays = holidays
-  //   .filter((h) => {
-  //     if (!h.holidayDate) return false;
-  //     const hDate = new Date(h.holidayDate);
-  //     const today = new Date();
-  //     today.setHours(0, 0, 0, 0);
-  //     hDate.setHours(0, 0, 0, 0);
-  //     return hDate > today;
-  //   });
-  
+
   const allUpcomingHolidays = holidays
   .filter((h) => h.holidayDate) // only remove invalid dates
   .sort((a, b) =>

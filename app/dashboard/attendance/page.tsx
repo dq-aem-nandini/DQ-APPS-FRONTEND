@@ -112,23 +112,24 @@ function AttendancePage() {
   // =========================
   // Timeline Utilities
   // =========================
-  function buildTimeSegments(logs: any[]) {
-    if (!logs || logs.length === 0) return [];
 
+  function buildTimeSegments(logs: any[], dateStr: string) {
+    if (!logs || logs.length === 0) return [];
+  
     const sorted = [...logs].sort(
       (a, b) =>
         new Date(a.punchTime).getTime() -
         new Date(b.punchTime).getTime()
     );
-
+  
     const segments = [];
-    let lastIn = null;
-
+    let lastIn: Date | null = null;
+  
     for (const log of sorted) {
       if (log.punchType === "IN") {
         lastIn = new Date(log.punchTime);
       }
-
+  
       if (log.punchType === "OUT" && lastIn) {
         segments.push({
           start: lastIn,
@@ -137,9 +138,23 @@ function AttendancePage() {
         lastIn = null;
       }
     }
-
+  
+    // If last punch was IN and no OUT exists
+    if (lastIn) {
+      const today = format(new Date(), "yyyy-MM-dd");
+  
+      // Only extend till current time if it's today
+      if (dateStr === today) {
+        segments.push({
+          start: lastIn,
+          end: new Date(),
+        });
+      }
+    }
+  
     return segments;
   }
+  
 
   function getPositionPercent(date: Date) {
     const minutes = date.getHours() * 60 + date.getMinutes();
@@ -251,7 +266,8 @@ function AttendancePage() {
 
       {!loading &&
         data.map((day) => {
-          const segments = buildTimeSegments(day.logs);
+          // const segments = buildTimeSegments(day.logs);
+          const segments = buildTimeSegments(day.logs, day.date);
           const dateObj = new Date(day.date);
 
           const isWeekend =
@@ -298,7 +314,7 @@ function AttendancePage() {
                 </div>
 
                 {/* TIMELINE */}
-                <div className="col-span-6 sm:col-span-8 relative h-10 bg-gray-100 rounded-xl overflow-hidden">
+                <div className="col-span-6 sm:col-span-8 relative h-10 bg-gray-100 rounded-xl overflow-visible">
 
                   {/* Hour Grid */}
                   {Array.from({ length: 24 }).map((_, hour) => (
@@ -319,12 +335,23 @@ function AttendancePage() {
                     return (
                       <div
                         key={index}
-                        className="absolute h-8 top-1 bg-green-400 rounded-xl"
+                        className="absolute top-1 h-8 group"
                         style={{
                           left: `${left}%`,
                           width: `${width}%`,
                         }}
-                      />
+                      >
+                        {/* Green Bar */}
+                        <div className="h-8 bg-green-400 rounded-xl" />
+
+                        {/* Tooltip */}
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 
+                                        hidden group-hover:block
+                                        bg-black text-white text-xs px-3 py-1 
+                                        rounded-md whitespace-nowrap shadow-lg z-50">
+                          {format(seg.start, "hh:mm a")} – {format(seg.end, "hh:mm a")}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
