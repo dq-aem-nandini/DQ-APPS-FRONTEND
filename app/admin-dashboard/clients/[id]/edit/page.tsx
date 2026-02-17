@@ -437,7 +437,7 @@ export default function EditClientPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR", 'HR_MANAGER']}>
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="relative flex items-center justify-center mb-8">
