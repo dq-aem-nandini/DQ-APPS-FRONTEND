@@ -10,6 +10,8 @@ import {
   LeaveStatus,
   LeaveCategoryType,
   EmployeeDTO,
+  LEAVE_STATUS_OPTIONS,
+  LEAVE_CATEGORY_OPTIONS,
 } from '@/lib/api/types';
 import {ChevronLeft, ChevronRight} from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -53,7 +55,6 @@ const Leavespage: React.FC = () => {
     size: 5,
     sort: 'fromDate,desc',
   });
-  const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
  useEffect(() => {
     if (!openLeaveId) return;
   
@@ -453,10 +454,11 @@ const Leavespage: React.FC = () => {
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="WITHDRAWN">Withdrawn</option>
+                {LEAVE_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -492,7 +494,7 @@ const Leavespage: React.FC = () => {
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
-                {categoryTypes.map((type) => (
+                {LEAVE_CATEGORY_OPTIONS.map((type) => (
                   <option key={type} value={type}>{getLabel(type)}</option>
                 ))}
               </select>

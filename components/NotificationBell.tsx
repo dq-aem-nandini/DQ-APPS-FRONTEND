@@ -9,12 +9,11 @@ import { Stomp } from "@stomp/stompjs";
 import { useAuth } from "@/context/AuthContext";
 import { leaveService } from "@/lib/api/leaveService";
 import {timesheetService} from "@/lib/api/timeSheetService";
-import {
-  LeaveResponseDTO,
-  PendingLeavesResponseDTO,
-} from "@/lib/api/types";
+import { LeaveResponseDTO, PendingLeavesResponseDTO } from "@/lib/api/types";
 import Swal from "sweetalert2";
 import dayjs from "dayjs";
+import { employeeService } from "@/lib/api/employeeService";
+import { useRouter } from "next/navigation";
 
 interface NotificationBellProps {
   className?: string;
@@ -35,6 +34,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   const { state } = useAuth();
   const userRole = state.user?.role.roleName;
   const userId = state.user?.userId;
+  const [loggedInEmployeeId, setLoggedInEmployeeId] = useState<string | null>(
+    null
+  );
+  const router = useRouter();
 
   // Reuse the exact same token logic as axios.ts
   const getStoredToken = (): string | null => {
@@ -75,7 +78,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
     const stompClient = Stomp.over(() => new SockJS(SOCKET_URL));
 
     stompClient.reconnect_delay = 5000; // Reconnect every 5 seconds if disconnected
-    stompClient.debug = () => { }; // Silence verbose logs (optional)
+    stompClient.debug = () => {}; // Silence verbose logs (optional)
 
     const connectHeaders = {
       Authorization: `Bearer ${token}`,
@@ -138,7 +141,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setDropdownOpen(false); // CLOSE THE DROPDOWN
-        setOpenMenuId(null);    // also close 3-dot menus
+        setOpenMenuId(null); // also close 3-dot menus
         setShowModal(false);
       }
     }
@@ -146,6 +149,21 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const loadEmployee = async () => {
+      try {
+        const emp = await employeeService.getEmployeeById();
+        setLoggedInEmployeeId(emp.employeeId);
+      } catch (e) {
+          
+      }
+    };
+
+    if (userRole === "MANAGER") {
+      loadEmployee();
+    }
+  }, [userRole]);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -173,22 +191,30 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
     const getLabel = (value: string): string => {
       return value
         .toLowerCase()
-        .split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
     };
 
     Swal.fire({
-      title: 'Review Leave Request',
+      title: "Review Leave Request",
       width: 600,
       html: `
         <div class="text-left text-sm text-gray-600 space-y-3">
-          <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
-          <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
+          <p><strong>Employee:</strong> ${leave.employeeName ?? "Unknown"}</p>
+          <p><strong>Type:</strong> ${
+            leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : "N/A"
+          }</p>
           <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
-          <p><strong>From:</strong> ${new Date(leave.fromDate!).toLocaleDateString()}</p>
-          <p><strong>To:</strong> ${new Date(leave.toDate!).toLocaleDateString()}</p>
-          <p><strong>Reason:</strong> ${leave.context || 'No reason provided'}</p>
+          <p><strong>From:</strong> ${new Date(
+            leave.fromDate!
+          ).toLocaleDateString()}</p>
+          <p><strong>To:</strong> ${new Date(
+            leave.toDate!
+          ).toLocaleDateString()}</p>
+          <p><strong>Reason:</strong> ${
+            leave.context || "No reason provided"
+          }</p>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Comment (optional)</label>
             <textarea id="review-reason" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="3" placeholder="Add a comment..."></textarea>
@@ -202,24 +228,37 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       cancelButtonText: "Cancel",
       buttonsStyling: false,
       customClass: {
-        confirmButton: "mx-2 px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700",
-        denyButton: "mx-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700",
-        cancelButton: "mx-2 px-5 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+        confirmButton:
+          "mx-2 px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700",
+        denyButton:
+          "mx-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700",
+        cancelButton:
+          "mx-2 px-5 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400",
       },
       preConfirm: () => ({
         action: "APPROVED" as const,
-        reason: (document.getElementById("review-reason") as HTMLTextAreaElement)?.value?.trim() || ""
+        reason:
+          (
+            document.getElementById("review-reason") as HTMLTextAreaElement
+          )?.value?.trim() || "",
       }),
       preDeny: () => ({
         action: "REJECTED" as const,
-        reason: (document.getElementById("review-reason") as HTMLTextAreaElement)?.value?.trim() || ""
-      })
+        reason:
+          (
+            document.getElementById("review-reason") as HTMLTextAreaElement
+          )?.value?.trim() || "",
+      }),
     }).then(async (result) => {
       if (!result.isConfirmed && !result.isDenied) return;
 
       const { action, reason } = result.value!;
 
-      Swal.fire({ title: "Processing...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      Swal.fire({
+        title: "Processing...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
 
       try {
         await leaveService.updateLeaveStatus(leave.leaveId!, action, reason);
@@ -229,9 +268,8 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
           title: action === "APPROVED" ? "Leave Approved" : "Leave Rejected",
           text: reason || undefined,
           timer: 2000,
-          showConfirmButton: false
+          showConfirmButton: false,
         });
-
       } catch (err: any) {
         Swal.fire("Error", err.message || "Failed to update leave", "error");
       }
@@ -243,24 +281,22 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   // ------------------------------------------------------------
   const handleOpenNotification = async (notification: NotificationDTO) => {
     console.log("[NOTIF CLICK] Starting handler for notification:", {
-    id: notification.id,
-    type: notification.notificationType,
-    referenceId: notification.referenceId,
-    read: notification.read,
-    userRole,
-  });
+      id: notification.id,
+      type: notification.notificationType,
+      referenceId: notification.referenceId,
+      read: notification.read,
+      userRole,
+    });
 
     try {
       //  Mark as read
       if (!notification.read) {
         await notificationService.markAsRead([notification.id]);
-        setNotifications(prev =>
-          prev.map(n =>
-            n.id === notification.id ? { ...n, read: true } : n
-          )
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
         );
       }
-  
+
       setDropdownOpen(false);
   
             // BASE PATH
@@ -270,19 +306,19 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
             //TARGET PATH
       let targetPath = basePath;
       const type = (notification.notificationType || "").toUpperCase();
-  
+
       if (type.includes("LEAVE")) {
         if (userRole === "MANAGER") {
-          const loggedInUserId = state.user?.userId;
-          const notifEmployeeId = notification.employeeId;
-          const message = notification.message?.toLowerCase() || "";
-  
-          if (loggedInUserId === notifEmployeeId) {
+          console.log("[LEAVE ROUTING CHECK]", {
+            managerEmployeeId: loggedInEmployeeId,
+            notificationEmployeeId: notification.employeeId,
+          });
+
+          if (loggedInEmployeeId === notification.employeeId) {
             targetPath = "/dashboard/leaves/history";
           } else {
             targetPath = "/manager/leaves";
           }
-  
         } else if (userRole === "ADMIN") {
           targetPath = "/admin-dashboard/leaves";
         } else {
@@ -335,15 +371,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       
       else if (type.includes("HOLIDAY")) {
         targetPath = `${basePath}/holiday`;
-  
       } else if (type.includes("INVOICE")) {
         targetPath = `${basePath}/invoice`;
-  
       } else if (type.includes("SALARY")) {
-        targetPath = isAdmin
-          ? `${basePath}/salaries`
-          : `${basePath}/salary`;
-  
+        targetPath = isAdmin ? `${basePath}/salaries` : `${basePath}/salary`;
       } else if (
         type.includes("UPDATEREQUEST") ||
         type.includes("UPDATE_REQUEST") ||
@@ -351,16 +382,23 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       ) {
         targetPath = `${basePath}/updaterequest`;
       }
-  
-      
+
+      console.log("========== NOTIFICATION ROUTING ==========");
+      console.log("ROLE:", userRole);
+      console.log("LoggedInEmployee:", loggedInEmployeeId);
+      console.log("NotificationEmployee:", notification.employeeId);
+      console.log("REFERENCE:", notification.referenceId);
+      console.log("=========================================");
+
       let finalUrl = targetPath;
-  
+
       if (notification.referenceId) {
-        finalUrl += `?requestId=${encodeURIComponent(notification.referenceId)}`;
+        finalUrl += `?requestId=${encodeURIComponent(
+          notification.referenceId
+        )}`;
       }
-  
-      window.location.href = finalUrl;
-  
+
+      router.push(finalUrl); // ✅ DO THIS
     } catch (error) {
       console.error("Notification handling failed:", error);
       setSelectedNotification(notification);
@@ -370,7 +408,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
 
   return (
     <div ref={dropdownRef} className="relative">
-      <button onClick={() => setDropdownOpen(!isDropdownOpen)} className="relative">
+      <button
+        onClick={() => setDropdownOpen(!isDropdownOpen)}
+        className="relative"
+      >
         <Bell className={`${className}`} />
         {notifications.some((n) => !n.read) && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
@@ -388,14 +429,18 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`group flex items-center px-5 py-4 border-b border-gray-100 last:border-none hover:bg-indigo-50/40 transition-all duration-150 cursor-pointer ${notification.read ? "bg-gray-50/70" : "bg-white"
-                    }`}
+                  className={`group flex items-center px-5 py-4 border-b border-gray-100 last:border-none hover:bg-indigo-50/40 transition-all duration-150 cursor-pointer ${
+                    notification.read ? "bg-gray-50/70" : "bg-white"
+                  }`}
                   onClick={() => handleOpenNotification(notification)}
                 >
                   <div className="flex-1 min-w-0">
                     <p
-                      className={`text-sm leading-relaxed ${notification.read ? "text-gray-600" : "text-gray-900 font-semibold"
-                        }`}
+                      className={`text-sm leading-relaxed ${
+                        notification.read
+                          ? "text-gray-600"
+                          : "text-gray-900 font-semibold"
+                      }`}
                     >
                       {notification.message}
                     </p>
@@ -427,7 +472,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setOpenMenuId(openMenuId === notification.id ? null : notification.id);
+                        setOpenMenuId(
+                          openMenuId === notification.id
+                            ? null
+                            : notification.id
+                        );
                       }}
                       className="p-1 rounded-full hover:bg-gray-200 transition-colors"
                     >
@@ -499,7 +548,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-lg font-semibold mb-3 text-gray-800">Notification Details</h2>
+            <h2 className="text-lg font-semibold mb-3 text-gray-800">
+              Notification Details
+            </h2>
 
             <p className="text-gray-700 mb-4 whitespace-pre-wrap">
               {selectedNotification.message}

@@ -994,8 +994,7 @@ if (
                       name="firstName"
                       value={formData.firstName}
                       required
-                      onChange={handleValidatedChange}
-                      maxLength={30}
+                      onChange={handleValidatedChange} 
                       placeholder="Enter first name"
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     />
@@ -1012,7 +1011,6 @@ if (
                       value={formData.lastName}
                       required
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="Enter last name"
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     />
@@ -1040,7 +1038,6 @@ if (
                           "personalEmail",
                           null // no excludeId in ADD mode
                         )}
-                        maxLength={50}
                         placeholder="you@gmail.com"
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       />
@@ -1071,7 +1068,6 @@ if (
                           "companyEmail",
                           null // ADD mode
                         )}
-                        maxLength={50}
                         placeholder="you@company.com"
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       />                    
@@ -1140,7 +1136,6 @@ if (
                       value={formData.nationality}
                       required
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="Indian"
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     />
@@ -2014,7 +2009,6 @@ if (
                                   return next;
                                 });
                               }}
-                              maxLength={30}
                               className="h-12 text-base"
                             />
                             {fieldError(errors, `employeeSalaryDTO.allowances.${i}.allowanceType`)}
@@ -2127,7 +2121,6 @@ if (
                                   return next;
                                 });
                               }}
-                              maxLength={30}
                               className="h-12 text-base"
                             />
 
@@ -2248,7 +2241,6 @@ if (
                       value={formData.accountHolderName || ""}
                       onChange={handleValidatedChange}
                       placeholder="e.g. As per bank passbook / statement"
-                      maxLength={100}
                       className="h-12"
                     />
                     {fieldError(errors, "accountHolderName")}
@@ -2304,7 +2296,6 @@ if (
                       value={formData.branchName || ""}
                       onChange={handleValidatedChange}
                       placeholder="e.g. Mumbai Main Branch"
-                      maxLength={100}
                       className="h-12"
                     />
                     {fieldError(errors, "branchName")}
@@ -2438,7 +2429,6 @@ if (
                         </Label>
                         <Input
                           placeholder="e.g., Laptop, Monitor"
-                          maxLength={30}
                           className="h-12 text-base border-gray-300 focus:border-teal-500 focus:ring-teal-500"
                           value={eq.equipmentType || ''}
                           onChange={(e) => {
@@ -2598,7 +2588,6 @@ if (
                       name="employeeAdditionalDetailsDTO.backgroundCheckStatus"
                       value={formData.employeeAdditionalDetailsDTO?.backgroundCheckStatus || ''}
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="e.g., Cleared, Pending"
                       className="h-12 text-base"
                     />
@@ -2663,7 +2652,6 @@ if (
                       name="employeeInsuranceDetailsDTO.providerName"
                       value={formData.employeeInsuranceDetailsDTO?.providerName || ''}
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="e.g., LIC, Star Health"
                       className="h-12 text-base border-gray-300 focus:border-amber-500 focus:ring-amber-500"
                     />
@@ -2706,7 +2694,6 @@ if (
                       name="employeeInsuranceDetailsDTO.nomineeName"
                       value={formData.employeeInsuranceDetailsDTO?.nomineeName || ''}
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="e.g., Priya Sharma"
                       className="h-12 text-base border-gray-300 focus:border-amber-500 focus:ring-amber-500"
                     />
@@ -2722,7 +2709,6 @@ if (
                       name="employeeInsuranceDetailsDTO.nomineeRelation"
                       value={formData.employeeInsuranceDetailsDTO?.nomineeRelation || ''}
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="e.g., Spouse, Parent"
                       className="h-12 text-base border-gray-300 focus:border-amber-500 focus:ring-amber-500"
                     />
@@ -2856,7 +2842,6 @@ if (
                       name="employeeStatutoryDetailsDTO.taxRegime"
                       value={formData.employeeStatutoryDetailsDTO?.taxRegime || ''}
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="e.g., Old Regime, New Regime"
                       className="h-12 text-base border-gray-300 focus:border-red-500 focus:ring-red-500"
                     />

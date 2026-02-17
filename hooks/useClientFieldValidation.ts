@@ -28,7 +28,7 @@ export function useClientFieldValidation() {
     if (["companyName", "accountHolderName"].includes(name)) {
       if (val && !common.nameRegex.test(val)) return common.onlyLettersSpaces;
 
-      if (val.length > 30) return common.max30Chars;
+      if (val.length > 50) return common.max50Chars;
     }
     // ================= POC NAME =================
     if (name.includes("clientPocs") && name.endsWith(".name")) {
@@ -36,7 +36,7 @@ export function useClientFieldValidation() {
 
       if (!common.nameRegex.test(val)) return common.onlyLettersSpaces;
 
-      if (val.length > 30) return common.max30Chars;
+      if (val.length > 50) return common.max50Chars;
     }
 
     // ================= EMAIL =================

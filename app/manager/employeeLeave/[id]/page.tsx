@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { leaveService } from '@/lib/api/leaveService';
-import { LeaveResponseDTO, LeaveStatus, WebResponseDTOPageLeaveResponseDTO, LeaveCategoryType, FinancialType } from '@/lib/api/types';
+import { LeaveResponseDTO, LeaveStatus, WebResponseDTOPageLeaveResponseDTO, LeaveCategoryType, FinancialType, LEAVE_CATEGORY_OPTIONS, LEAVE_STATUS_OPTIONS, FINANCIAL_TYPE_OPTIONS } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import BackButton from '@/components/ui/BackButton';
@@ -25,9 +25,9 @@ const EmployeeLeavesPage: React.FC = () => {
   const [month, setMonth] = useState<string>('');
   const [date, setDate] = useState<string>('');
   // Filter options
-  const categories: (LeaveCategoryType | 'All')[] = ['All', 'SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
-  const statuses: (LeaveStatus | 'All')[] = ['All', 'PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN'];
-  const financials: (FinancialType | 'All')[] = ['All', 'PAID', 'UNPAID'];
+  // const categories: (LeaveCategoryType | 'All')[] = ['All', 'SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
+  // const statuses: (LeaveStatus | 'All')[] = ['All', 'PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN'];
+  // const financials: (FinancialType | 'All')[] = ['All', 'PAID', 'UNPAID'];
   // Fetch employee leaves
   useEffect(() => {
     if (!employeeId) {
@@ -237,7 +237,8 @@ const EmployeeLeavesPage: React.FC = () => {
               onChange={(e) => setSelectedCategory(e.target.value as LeaveCategoryType | 'All')}
               className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
             >
-              {categories.map((cat) => (
+              <option value="">All</option>
+              {LEAVE_CATEGORY_OPTIONS.map((cat) => (
                 <option key={cat} value={cat}>
                   {formatType(cat)}
                 </option>
@@ -251,7 +252,8 @@ const EmployeeLeavesPage: React.FC = () => {
               onChange={(e) => setSelectedStatus(e.target.value as LeaveStatus | 'All')}
               className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
             >
-              {statuses.map((stat) => (
+              <option value="">All</option>
+              {LEAVE_STATUS_OPTIONS.map((stat) => (
                 <option key={stat} value={stat}>
                   {formatType(stat)}
                 </option>
@@ -265,7 +267,8 @@ const EmployeeLeavesPage: React.FC = () => {
               onChange={(e) => setSelectedFinancial(e.target.value as FinancialType | 'All')}
               className="block w-full rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
             >
-              {financials.map((fin) => (
+               <option value="">All</option>
+              {FINANCIAL_TYPE_OPTIONS.map((fin) => (
                 <option key={fin} value={fin}>
                   {formatType(fin)}
                 </option>

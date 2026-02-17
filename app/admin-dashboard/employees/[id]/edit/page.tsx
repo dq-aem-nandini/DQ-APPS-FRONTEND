@@ -1409,7 +1409,6 @@ const selectValue =
                       value={formData.firstName ?? ""}
                       required
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="Enter first name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
@@ -1426,7 +1425,6 @@ const selectValue =
                       value={formData.lastName ?? ""}
                       required
                       onChange={handleValidatedChange}
-                      maxLength={50}
                       placeholder="Enter last name"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
@@ -1454,7 +1452,6 @@ const selectValue =
                           "personalEmail",
                           employeeData?.employeeId
                         )}
-                        maxLength={30}
                         placeholder="you@gmail.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                       />
@@ -1484,7 +1481,6 @@ const selectValue =
                           "companyEmail",
                           employeeData?.employeeId
                         )}
-                        maxLength={50}
                         placeholder="you@company.com"
                         className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                       />
@@ -1559,7 +1555,6 @@ const selectValue =
                       value={formData.nationality ?? ""}
                       required
                       onChange={handleValidatedChange}
-                      maxLength={30}
                       placeholder="Indian"
                       className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
                     />
@@ -2481,7 +2476,6 @@ const selectValue =
                             <Input
                               placeholder="Type (e.g., HRA)"
                               value={a.allowanceType ?? ""}
-                              maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -2669,7 +2663,6 @@ const selectValue =
                             <Input
                               placeholder="Type (e.g., PF)"
                               value={d.deductionType ?? ""}
-                              maxLength={30}
                               className="h-12 text-base"
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -2890,7 +2883,6 @@ const selectValue =
                       value={formData.accountHolderName || ""}
                       onChange={handleValidatedChange}
                       placeholder="e.g. As per bank passbook / statement"
-                      maxLength={100}
                       className="h-12"
                     />
                     {fieldError(errors, "accountHolderName")}
@@ -2946,7 +2938,6 @@ const selectValue =
                       value={formData.branchName || ""}
                       onChange={handleValidatedChange}
                       placeholder="e.g. Mumbai Main Branch"
-                      maxLength={100}
                       className="h-12"
                     />
                     {fieldError(errors, "branchName")}
@@ -3272,7 +3263,6 @@ const selectValue =
                         formData.employeeAdditionalDetailsDTO
                           ?.backgroundCheckStatus || ""
                       }
-                      maxLength={30}
                       placeholder="e.g., Cleared, Pending"
                       onChange={handleValidatedChange}
                       className="w-full h-12 px-4 py-3 border rounded-xl"

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { adminService } from '@/lib/api/adminService';
 import { leaveService } from '@/lib/api/leaveService';
-import { EmployeeDTO, LeaveResponseDTO, LeaveStatus, LeaveCategoryType, FinancialType, WebResponseDTOPageLeaveResponseDTO } from '@/lib/api/types';
+import { EmployeeDTO, LeaveResponseDTO, LeaveStatus, LeaveCategoryType, FinancialType, WebResponseDTOPageLeaveResponseDTO, DESIGNATION_OPTIONS } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 
@@ -16,21 +16,6 @@ const ManagerEmployeesPage: React.FC = () => {
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-
-  // Filter options (only non-managerial designations)
-  const designations: string[] = [
-    'All',
-    'INTERN',
-    'TRAINEE',
-    'ASSOCIATE_ENGINEER',
-    'SOFTWARE_ENGINEER',
-    'SENIOR_SOFTWARE_ENGINEER',
-    'LEAD_ENGINEER',
-    'TEAM_LEAD',
-    'TECHNICAL_ARCHITECT',
-    'HR',
-    
-  ];
 
   // Check authentication and fetch employees
   useEffect(() => {
@@ -54,7 +39,7 @@ const ManagerEmployeesPage: React.FC = () => {
           const filteredEmployees = employeeResponse.response.filter(
             (employee: EmployeeDTO) =>
               (employee.reportingManagerId === managerId || managerId === 'manager-id-placeholder') &&
-              designations.includes(employee.designation)
+              DESIGNATION_OPTIONS.includes(employee.designation)
           );
           setEmployees(filteredEmployees);
         } else {
@@ -120,7 +105,7 @@ const ManagerEmployeesPage: React.FC = () => {
               onChange={(e) => setSelectedDesignation(e.target.value)}
               className="block w-48 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2 text-center"
             >
-              {designations.map((designation) => (
+              {DESIGNATION_OPTIONS.map((designation) => (
                 <option key={designation} value={designation}>
                   {formatType(designation)}
                 </option>
@@ -173,7 +158,7 @@ const ManagerEmployeesPage: React.FC = () => {
                     const filteredEmployees = employeeResponse.response.filter(
                       (employee: EmployeeDTO) =>
                         (employee.reportingManagerId === managerId || managerId === 'manager-id-placeholder') &&
-                        designations.includes(employee.designation)
+                        DESIGNATION_OPTIONS.includes(employee.designation)
                     );
                     setEmployees(filteredEmployees);
                   }

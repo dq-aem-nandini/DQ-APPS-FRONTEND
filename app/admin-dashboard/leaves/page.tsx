@@ -10,7 +10,8 @@ import {
   PendingLeavesResponseDTO,
   LeaveStatus,
   LeaveCategoryType,
-  EmployeeDTO
+  EmployeeDTO,
+  LEAVE_STATUS_OPTIONS
 } from '@/lib/api/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -683,10 +684,12 @@ useEffect(() => {
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="WITHDRAWN">Withdrawn</option>
+                {LEAVE_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+
               </select>
             </div>
             <div>

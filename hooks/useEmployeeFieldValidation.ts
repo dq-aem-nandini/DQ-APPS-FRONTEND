@@ -38,7 +38,7 @@ export function useEmployeeFieldValidation() {
     if (["firstName", "lastName", "accountHolderName"].includes(name)) {
       if (val && !common.nameRegex.test(val)) return common.onlyLettersSpaces;
 
-      if (val.length > 30) return common.max30Chars;
+      if (val.length > 50) return common.max50Chars;
     }
 
     // ================= EMAIL =================

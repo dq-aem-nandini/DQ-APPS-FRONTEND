@@ -11,6 +11,8 @@ import {
   ClientMinDTO,
   EmployeeMinDTO,
   ClientEmployeeMinResponseDTO,
+  LEAVE_CATEGORY_OPTIONS,
+  FINANCIAL_TYPE_OPTIONS,
 } from '@/lib/api/types';
 import { manualInvoiceService } from '@/lib/api/manualInvoiceService';
 import BackButton from '@/components/ui/BackButton';
@@ -43,12 +45,6 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [insufficientLeave, setInsufficientLeave] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  /* =========================
-     CONSTANTS
-  ========================= */
-  const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
-  const financialTypes: FinancialType[] = ['PAID', 'UNPAID'];
 
   /* =========================
      DATE LIMITS
@@ -313,7 +309,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
             className="w-full border rounded-lg px-4 py-2"
           >
             <option value="">Select Leave Type</option>
-            {categoryTypes.map(t => (
+            {LEAVE_CATEGORY_OPTIONS.map(t => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
@@ -400,7 +396,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
               required
             >
               <option value="">Select Financial Type</option>
-              {financialTypes.map((type) => (
+              {FINANCIAL_TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>
                   {getLabel(type, false)}
                 </option>

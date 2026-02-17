@@ -154,11 +154,13 @@ export default function UpdateRequestPage() {
                     <div
                         key={req.requestId}
                         id={`request-${req.requestId}`} // ID for scrolling
-                        className={`bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow border space-y-4 sm:space-y-6 overflow-hidden transition-all duration-500
-                        ${highlightedId === req.requestId
+                        className={`bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow border space-y-4 sm:space-y-6 transition-all duration-500
+                            break-words overflow-hidden max-w-full
+                            ${highlightedId === req.requestId
                                 ? 'bg-indigo-50 ring-4 ring-indigo-500 ring-offset-2 shadow-2xl scale-[1.02]'
                                 : ''
                             }`}
+                            
                     >
                         {/* Header */}
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
