@@ -2,13 +2,14 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { format, getMonth, getYear } from "date-fns";
 import { useRouter } from "next/navigation";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 import { adminService } from "@/lib/api/adminService";
 import { invoiceService } from "@/lib/api/invoiceService";
 import {
   ClientDTO,
   InvoiceDTO,
   ClientInvoiceSummaryDTO,
+  INVOICE_STATUS_OPTIONS,
 } from "@/lib/api/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,7 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
+import { SelectContent, SelectItem } from "@/components/ui/select";
 
 interface Filters {
   clientId: string;
@@ -59,10 +61,12 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceDTO[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
-  const [lockingInvoices, setLockingInvoices] = useState<Set<string>>(new Set());
+  const [lockingInvoices, setLockingInvoices] = useState<Set<string>>(
+    new Set()
+  );
   // 1. Add these states (replace old fromDate/toDate)
-  const [selectedYear, setSelectedYear] = useState<number | ''>('');
-  const [selectedMonth, setSelectedMonth] = useState<number | ''>('');
+  const [selectedYear, setSelectedYear] = useState<number | "">("");
+  const [selectedMonth, setSelectedMonth] = useState<number | "">("");
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
   // 2. Year & Month options
@@ -71,20 +75,23 @@ export default function InvoicesPage() {
     return Array.from({ length: 11 }, (_, i) => currentYear - i);
   }, []);
 
-  const availableMonths = useMemo(() => [
-    { value: 1, label: "January" },
-    { value: 2, label: "February" },
-    { value: 3, label: "March" },
-    { value: 4, label: "April" },
-    { value: 5, label: "May" },
-    { value: 6, label: "June" },
-    { value: 7, label: "July" },
-    { value: 8, label: "August" },
-    { value: 9, label: "September" },
-    { value: 10, label: "October" },
-    { value: 11, label: "November" },
-    { value: 12, label: "December" },
-  ], []);
+  const availableMonths = useMemo(
+    () => [
+      { value: 1, label: "January" },
+      { value: 2, label: "February" },
+      { value: 3, label: "March" },
+      { value: 4, label: "April" },
+      { value: 5, label: "May" },
+      { value: 6, label: "June" },
+      { value: 7, label: "July" },
+      { value: 8, label: "August" },
+      { value: 9, label: "September" },
+      { value: 10, label: "October" },
+      { value: 11, label: "November" },
+      { value: 12, label: "December" },
+    ],
+    []
+  );
   const [filters, setFilters] = useState<Filters>({
     clientId: "",
     search: "",
@@ -105,9 +112,9 @@ export default function InvoicesPage() {
       } catch (e: any) {
         console.error("Failed to load clients:", e);
         Swal.fire({
-          icon: 'error',
-          title: 'Oops...',
-          text: 'Failed to load clients. Please try again.',
+          icon: "error",
+          title: "Oops...",
+          text: "Failed to load clients. Please try again.",
         });
       } finally {
         setLoadingClients(false);
@@ -124,7 +131,7 @@ export default function InvoicesPage() {
 
       if (filters.clientId) {
         data = await invoiceService.getInvoicesByClient(filters.clientId, {
-          status: filters.status || undefined
+          status: filters.status || undefined,
         });
       } else {
         data = await invoiceService.getAllInvoices();
@@ -133,9 +140,9 @@ export default function InvoicesPage() {
       setInvoices(data || []);
     } catch (e: any) {
       Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: e.message || 'Failed to load invoices.',
+        icon: "error",
+        title: "Oops...",
+        text: e.message || "Failed to load invoices.",
       });
     } finally {
       setLoadingInvoices(false);
@@ -155,12 +162,15 @@ export default function InvoicesPage() {
       if (!invDate || isNaN(invDate.getTime())) return true;
 
       const yearMatch = !selectedYear || getYear(invDate) === selectedYear;
-      const monthMatch = !selectedMonth || (getMonth(invDate) + 1) === selectedMonth;
+      const monthMatch =
+        !selectedMonth || getMonth(invDate) + 1 === selectedMonth;
 
       const statusMatch = !filters.status || inv.status === filters.status;
       const searchMatch =
         !filters.search ||
-        inv.invoiceNumber.toLowerCase().includes(filters.search.toLowerCase()) ||
+        inv.invoiceNumber
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()) ||
         inv.clientName.toLowerCase().includes(filters.search.toLowerCase());
 
       return yearMatch && monthMatch && statusMatch && searchMatch;
@@ -168,27 +178,32 @@ export default function InvoicesPage() {
   }, [invoices, selectedYear, selectedMonth, filters.status, filters.search]);
 
   /* -------------------------- STATS -------------------------- */
-  const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const overdueCount = filteredInvoices.filter((i) => i.status === "OVERDUE").length;
+  const totalRevenue = filteredInvoices.reduce(
+    (sum, inv) => sum + inv.totalAmount,
+    0
+  );
+  const overdueCount = filteredInvoices.filter(
+    (i) => i.status === "OVERDUE"
+  ).length;
   const paidCount = filteredInvoices.filter((i) => i.status === "PAID").length;
 
   /* -------------------------- STATUS COLORS -------------------------- */
   const getStatusColor = (status: string) => {
     const s = status.toUpperCase();
     switch (s) {
-      case 'PAID':
-      case 'APPROVED':
-        return 'bg-green-100 text-green-800 border border-green-200';
-      case 'SENT':
+      case "PAID":
+      case "APPROVED":
+        return "bg-green-100 text-green-800 border border-green-200";
+      case "SENT":
       // case 'PENDING':
       //   return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      case 'OVERDUE':
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800 border border-red-200';
-      case 'DRAFT':
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+      case "OVERDUE":
+      case "REJECTED":
+        return "bg-red-100 text-red-800 border border-red-200";
+      case "DRAFT":
+        return "bg-gray-100 text-gray-800 border border-gray-200";
       default:
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
+        return "bg-blue-100 text-blue-800 border border-blue-200";
     }
   };
 
@@ -196,9 +211,9 @@ export default function InvoicesPage() {
   const handleDownloadPDF = async (invoiceId: string) => {
     const key = `${invoiceId}-PDF`;
     if (downloading.has(key)) return;
-  
-    setDownloading(prev => new Set(prev).add(key));
-  
+
+    setDownloading((prev) => new Set(prev).add(key));
+
     try {
       const blob = await invoiceService.downloadInvoicePDF(invoiceId);
       const url = URL.createObjectURL(blob);
@@ -211,107 +226,116 @@ export default function InvoicesPage() {
         text: error.message || "Failed to download PDF. Please try again.",
       });
     } finally {
-      setDownloading(prev => {
+      setDownloading((prev) => {
         const next = new Set(prev);
         next.delete(key);
         return next;
       });
     }
   };
-  
 
-      /* -------------------------- Excel DOWNLOAD HANDLER -------------------------- */
-      const handleDownloadExcel = async (invoiceId: string) => {
-        const key = `${invoiceId}-EXCEL`;
-        if (downloading.has(key)) return;
-      
-        setDownloading(prev => new Set(prev).add(key));
-      
-        try {
-          const blob = await invoiceService.downloadInvoiceExcel(invoiceId);
-          const url = URL.createObjectURL(blob);
-      
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `invoice-${invoiceId}.xlsx`;
-          a.click();
-      
-          URL.revokeObjectURL(url);
-        } catch (error: any) {
-          console.error("Excel download failed:", error);
-          Swal.fire({
-            icon: "error",
-            title: "Oops...",
-            text: error?.message || "Failed to download Excel. Please try again.",
-          });
-        } finally {
-          setDownloading(prev => {
-            const next = new Set(prev);
-            next.delete(key);
-            return next;
-          });
-        }
-      };
+  /* -------------------------- Excel DOWNLOAD HANDLER -------------------------- */
+  const handleDownloadExcel = async (invoiceId: string) => {
+    const key = `${invoiceId}-EXCEL`;
+    if (downloading.has(key)) return;
+
+    setDownloading((prev) => new Set(prev).add(key));
+
+    try {
+      const blob = await invoiceService.downloadInvoiceExcel(invoiceId);
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${invoiceId}.xlsx`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error("Excel download failed:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Oops...",
+        text: error?.message || "Failed to download Excel. Please try again.",
+      });
+    } finally {
+      setDownloading((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
 
   /* -------------------------- DELETE HANDLER -------------------------- */
   const handleDelete = async (invoiceId: string) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
+      title: "Are you sure?",
       text: "You won't be able to revert this!",
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
     });
 
     if (result.isConfirmed) {
       try {
         await invoiceService.deleteInvoice(invoiceId);
-        Swal.fire('Deleted!', 'Your invoice has been deleted.', 'success');
+        Swal.fire("Deleted!", "Your invoice has been deleted.", "success");
         fetchInvoices();
       } catch (error: any) {
-        console.error('Failed to delete invoice:', error);
-        Swal.fire('Error!', error.message || 'Failed to delete invoice.', 'error');
+        console.error("Failed to delete invoice:", error);
+        Swal.fire(
+          "Error!",
+          error.message || "Failed to delete invoice.",
+          "error"
+        );
       }
     }
   };
 
   /* -------------------------- LOCK/UNLOCK HANDLER -------------------------- */
-  const handleLockToggle = async (invoiceId: string, currentLocked: boolean) => {
-    const action = currentLocked ? 'UNLOCK' : 'LOCK';
+  const handleLockToggle = async (
+    invoiceId: string,
+    currentLocked: boolean
+  ) => {
+    const action = currentLocked ? "UNLOCK" : "LOCK";
     const loadingKey = `${invoiceId}-${action}`;
 
     if (lockingInvoices.has(loadingKey)) return;
 
-    setLockingInvoices(prev => new Set(prev).add(loadingKey));
+    setLockingInvoices((prev) => new Set(prev).add(loadingKey));
 
     try {
-      const updatedInvoice = await invoiceService.updateInvoiceLockStatus(invoiceId, action);
+      const updatedInvoice = await invoiceService.updateInvoiceLockStatus(
+        invoiceId,
+        action
+      );
 
       // Update local state
-      setInvoices(prev =>
-        prev.map(inv =>
-          inv.invoiceId === invoiceId ? updatedInvoice : inv
-        )
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.invoiceId === invoiceId ? updatedInvoice : inv))
       );
 
       Swal.fire({
-        icon: 'success',
-        title: 'Success',
-        text: `Invoice ${action === 'LOCK' ? 'locked' : 'unlocked'} successfully.`,
+        icon: "success",
+        title: "Success",
+        text: `Invoice ${
+          action === "LOCK" ? "locked" : "unlocked"
+        } successfully.`,
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (error: any) {
       console.error(`Failed to ${action.toLowerCase()} invoice:`, error);
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
+        icon: "error",
+        title: "Error",
         text: error.message || `Failed to ${action.toLowerCase()} invoice.`,
       });
     } finally {
-      setLockingInvoices(prev => {
+      setLockingInvoices((prev) => {
         const next = new Set(prev);
         next.delete(loadingKey);
         return next;
@@ -338,7 +362,9 @@ export default function InvoicesPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Invoices
+            </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -388,12 +414,16 @@ export default function InvoicesPage() {
                 id="client"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                 value={filters.clientId}
-                onChange={(e) => setFilters(f => ({ ...f, clientId: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, clientId: e.target.value }))
+                }
                 disabled={loadingClients}
               >
                 <option value="">All Invoices</option>
-                {clients.map(c => (
-                  <option key={c.clientId} value={c.clientId}>{c.companyName}</option>
+                {clients.map((c) => (
+                  <option key={c.clientId} value={c.clientId}>
+                    {c.companyName}
+                  </option>
                 ))}
               </select>
             </div>
@@ -407,7 +437,9 @@ export default function InvoicesPage() {
                   placeholder="Invoice # or Client"
                   className="pl-8 cursor-pointer"
                   value={filters.search}
-                  onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, search: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -416,18 +448,18 @@ export default function InvoicesPage() {
               <Label htmlFor="status">Status</Label>
               <select
                 id="status"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer"
                 value={filters.status}
-                onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, status: e.target.value }))
+                }
               >
                 <option value="">All Status</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                {/* <option value="PENDING">Pending</option> */}
-                <option value="PAID">Paid</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="OVERDUE">Overdue</option>
+                {INVOICE_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
               </select>
             </div>
             {/* Year */}
@@ -437,11 +469,15 @@ export default function InvoicesPage() {
                 id="year"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : '')}
+                onChange={(e) =>
+                  setSelectedYear(e.target.value ? Number(e.target.value) : "")
+                }
               >
                 <option value="">All Years</option>
-                {availableYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
                 ))}
               </select>
             </div>
@@ -453,12 +489,16 @@ export default function InvoicesPage() {
                 id="month"
                 className="w-full rounded-md border cursor-pointer border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value ? Number(e.target.value) : '')}
-              // disabled={!selectedYear}
+                onChange={(e) =>
+                  setSelectedMonth(e.target.value ? Number(e.target.value) : "")
+                }
+                // disabled={!selectedYear}
               >
                 <option value="">All Months</option>
-                {availableMonths.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
+                {availableMonths.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -472,7 +512,9 @@ export default function InvoicesPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Invoices</CardTitle>
-              <CardDescription>{filteredInvoices.length} invoice(s) found</CardDescription>
+              <CardDescription>
+                {filteredInvoices.length} invoice(s) found
+              </CardDescription>
             </div>
             {loadingInvoices && <Loader2 className="h-5 w-5 animate-spin" />}
           </div>
@@ -486,9 +528,13 @@ export default function InvoicesPage() {
             </div>
           ) : filteredInvoices.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground mb-2">No results found for your current filters.</p>
+              <p className="text-muted-foreground mb-2">
+                No results found for your current filters.
+              </p>
               <p className="text-sm text-muted-foreground">
-                {filters.clientId ? 'No invoices for this client.' : 'No invoices available.'}
+                {filters.clientId
+                  ? "No invoices for this client."
+                  : "No invoices available."}
               </p>
             </div>
           ) : (
@@ -513,33 +559,63 @@ export default function InvoicesPage() {
                 <TableBody>
                   {filteredInvoices.map((inv) => {
                     const isLocked = inv.locked === true;
-                    const isLocking = lockingInvoices.has(`${inv.invoiceId}-LOCK`) || lockingInvoices.has(`${inv.invoiceId}-UNLOCK`);
-                    const isDownloadingPDF = downloading.has(`${inv.invoiceId}-PDF`);
-                    const isDownloadingExcel = downloading.has(`${inv.invoiceId}-EXCEL`);
-                  
+                    const isLocking =
+                      lockingInvoices.has(`${inv.invoiceId}-LOCK`) ||
+                      lockingInvoices.has(`${inv.invoiceId}-UNLOCK`);
+                    const isDownloadingPDF = downloading.has(
+                      `${inv.invoiceId}-PDF`
+                    );
+                    const isDownloadingExcel = downloading.has(
+                      `${inv.invoiceId}-EXCEL`
+                    );
+
                     return (
                       <TableRow
                         key={inv.invoiceId}
                         className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => router.push(`/admin-dashboard/invoice/${inv.invoiceId}`)}
+                        onClick={() =>
+                          router.push(
+                            `/admin-dashboard/invoice/${inv.invoiceId}`
+                          )
+                        }
                       >
-                        <TableCell className="font-medium">{inv.invoiceNumber}</TableCell>
+                        <TableCell className="font-medium">
+                          {inv.invoiceNumber}
+                        </TableCell>
                         <TableCell>{inv.clientName}</TableCell>
-                        <TableCell>{format(new Date(inv.invoiceDate), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell>{format(new Date(inv.dueDate), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell>{format(new Date(inv.fromDate), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell>{format(new Date(inv.toDate), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell className="text-right">{inv.totalHours || 0}h</TableCell>
-                        <TableCell className="text-right font-medium">{inv.taxAmount.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-medium">{inv.subtotal.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-medium">{inv.totalAmount.toFixed(2)}</TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(inv.status)}>{inv.status}</Badge>
+                          {format(new Date(inv.invoiceDate), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(inv.dueDate), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(inv.fromDate), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(inv.toDate), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {inv.totalHours || 0}h
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {inv.taxAmount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {inv.subtotal.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {inv.totalAmount.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(inv.status)}>
+                            {inv.status}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end space-x-1">
                             {/* Download */}
-                           
+
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -547,7 +623,11 @@ export default function InvoicesPage() {
                               }}
                               disabled={isDownloadingPDF}
                               className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
-                                ${isDownloadingPDF ? "opacity-50 cursor-not-allowed" : "bg-background hover:bg-accent hover:text-accent-foreground"}`}
+                                ${
+                                  isDownloadingPDF
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "bg-background hover:bg-accent hover:text-accent-foreground"
+                                }`}
                               title="Download PDF"
                             >
                               {isDownloadingPDF ? (
@@ -564,7 +644,11 @@ export default function InvoicesPage() {
                               }}
                               disabled={isDownloadingExcel}
                               className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
-                                ${isDownloadingExcel ? "opacity-50 cursor-not-allowed" : "bg-background hover:bg-accent hover:text-accent-foreground"}`}
+                                ${
+                                  isDownloadingExcel
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "bg-background hover:bg-accent hover:text-accent-foreground"
+                                }`}
                               title="Download Excel"
                             >
                               {isDownloadingExcel ? (
@@ -581,11 +665,16 @@ export default function InvoicesPage() {
                                 handleLockToggle(inv.invoiceId, isLocked);
                               }}
                               disabled={isLocking}
-                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0 transition-all cursor-pointer ${isLocked
-                                ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                } ${isLocking ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              title={isLocked ? 'Unlock Invoice' : 'Lock Invoice'}
+                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0 transition-all cursor-pointer ${
+                                isLocked
+                                  ? "bg-orange-100 hover:bg-orange-200 text-orange-700"
+                                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                              } ${
+                                isLocking ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
+                              title={
+                                isLocked ? "Unlock Invoice" : "Lock Invoice"
+                              }
                             >
                               {isLocking ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

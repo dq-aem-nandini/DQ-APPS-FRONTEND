@@ -983,7 +983,6 @@ const ProfilePage = () => {
                           "personalEmail",
                           profile?.employeeId
                         )}
-                        maxLength={30}
                         placeholder="you@gmail.com"
                       />
 

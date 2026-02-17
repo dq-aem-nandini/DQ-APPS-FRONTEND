@@ -8,6 +8,8 @@ import {
   LeaveCategoryType,
   WebResponseDTOPageLeaveResponseDTO,
   LeaveStatus,
+  LEAVE_CATEGORY_OPTIONS,
+  LEAVE_STATUS_OPTIONS,
 } from '@/lib/api/types';
 
 const LeaveList: React.FC = () => {
@@ -114,9 +116,11 @@ const LeaveList: React.FC = () => {
           className="border rounded px-2 py-1"
         >
           <option value="ALL">All Types</option>
-          <option value="PAID">Paid</option>
-          <option value="SICK">Sick</option>
-          <option value="CASUAL">Casual</option>
+           {LEAVE_CATEGORY_OPTIONS.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
         </select>
 
         <select
@@ -124,11 +128,12 @@ const LeaveList: React.FC = () => {
           onChange={(e) => setStatusFilter(e.target.value as LeaveStatus | 'ALL')}
           className="border rounded px-2 py-1"
         >
-          <option value="ALL">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="WITHDRAWN">Withdrawn</option>
+          <option value="ALL">All Status</option>
+           {LEAVE_STATUS_OPTIONS.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
         </select>
       </div>
 
