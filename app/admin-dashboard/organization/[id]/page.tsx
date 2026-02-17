@@ -295,6 +295,25 @@ export default function ViewOrganizationPage() {
                         <p className="font-mono text-xl font-bold">{$(org.cinNumber)}</p>
                       </div>
                     )}
+                    {/* Prefix */}
+                      {org.prefix && (
+                        <div>
+                          <p className="text-gray-500 text-xs mb-2">Invoice Prefix</p>
+                          <p className="font-mono text-xl font-bold text-indigo-600">
+                            {$(org.prefix)}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Company Type */}
+                      {org.companyType && (
+                        <div>
+                          <p className="text-gray-500 text-xs mb-2">Company Type</p>
+                          <p className="text-xl font-bold">
+                            {$(org.companyType)}
+                          </p>
+                        </div>
+                      )}
                   </div>
                 </div>
               </Card>
