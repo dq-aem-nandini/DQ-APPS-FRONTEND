@@ -354,6 +354,7 @@ export default function EditOrganizationPage() {
       "accountNumber",
       "accountHolderName",
       "ifscCode",
+      "prefix", 
     ];
     
     fieldsToValidate.forEach((name) => {
@@ -1055,6 +1056,42 @@ export default function EditOrganizationPage() {
                     {errors.digitalSignature}
                   </p>
                 )}
+              </div>
+
+              {/* Prefix */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Prefix <span className="text-red-500">*</span>
+                  <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
+                </Label>
+                <Input
+                  required
+                  name="prefix"
+                  value={formData.prefix ?? ""}
+                  onChange={handleValidatedChange}
+                  className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                  placeholder="INV"
+                  maxLength={10}
+                />
+                {fieldError(errors, "prefix")}
+              </div>
+
+              {/* Company Type */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Company Type <span className="text-red-500">*</span>
+                  <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
+                </Label>
+                <Input
+                  required
+                  name="companyType"
+                  value={formData.companyType ?? ""}
+                  onChange={handleValidatedChange}
+                  className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                  placeholder="Private Limited"
+                  maxLength={50}
+                />
+                {fieldError(errors, "companyType")}
               </div>
 
               {/* Addresses */}

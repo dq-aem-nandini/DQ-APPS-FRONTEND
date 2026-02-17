@@ -28,6 +28,10 @@ export function useFormFieldHandlers<TForm>(
       return value.toUpperCase().trim();
     }
 
+    if (name === "prefix") {
+      return value.replace(/[^A-Za-z]/g, "").toUpperCase();
+    }
+
     if (name.endsWith("pincode") || name.endsWith("contactNumber")) {
       return value.replace(/\D/g, "");
     }
