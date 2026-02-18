@@ -41,6 +41,7 @@ import {
   Trash2,
   Lock,
   Unlock,
+  XCircle,
 } from "lucide-react";
 import { SelectContent, SelectItem } from "@/components/ui/select";
 
@@ -298,7 +299,7 @@ export default function InvoicesPage() {
   /* -------------------------- LOCK/UNLOCK HANDLER -------------------------- */
   const handleLockToggle = async (
     invoiceId: string,
-    currentLocked: boolean
+    currentLocked: boolean,
   ) => {
     const action = currentLocked ? "UNLOCK" : "LOCK";
     const loadingKey = `${invoiceId}-${action}`;
@@ -310,12 +311,12 @@ export default function InvoicesPage() {
     try {
       const updatedInvoice = await invoiceService.updateInvoiceLockStatus(
         invoiceId,
-        action
+        action,
       );
 
       // Update local state
       setInvoices((prev) =>
-        prev.map((inv) => (inv.invoiceId === invoiceId ? updatedInvoice : inv))
+        prev.map((inv) => (inv.invoiceId === invoiceId ? updatedInvoice : inv)),
       );
 
       Swal.fire({
@@ -340,6 +341,34 @@ export default function InvoicesPage() {
         next.delete(loadingKey);
         return next;
       });
+    }
+  };
+
+  /* -------------------------- CANCEL INVOICE HANDLER -------------------------- */
+  const handleCancel = async (invoiceId: string) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, cancel it!",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await invoiceService.cancelInvoice(invoiceId);
+        Swal.fire("Cancelled!", "Your invoice has been cancelled.", "success");
+        fetchInvoices();
+      } catch (error: any) {
+        console.error("Failed to cancel invoice:", error);
+        Swal.fire(
+          "Error!",
+          error.message || "Failed to cancel invoice.",
+          "error",
+        );
+      }
     }
   };
 
@@ -560,6 +589,7 @@ export default function InvoicesPage() {
                   {filteredInvoices.map((inv) => {
                     const isLocked = inv.locked === true;
                     const isLatest = inv.latest;
+                    const isCancelled = inv.canceled;
                     const isLocking =
                       lockingInvoices.has(`${inv.invoiceId}-LOCK`) ||
                       lockingInvoices.has(`${inv.invoiceId}-UNLOCK`);
@@ -573,7 +603,11 @@ export default function InvoicesPage() {
                     return (
                       <TableRow
                         key={inv.invoiceId}
-                        className="hover:bg-gray-50 cursor-pointer"
+                        className={`cursor-pointer ${
+                          isCancelled
+                            ? "bg-red-50 hover:bg-red-100"
+                            : "hover:bg-gray-50"
+                        }`}
                         onClick={() =>
                           router.push(
                             `/admin-dashboard/invoice/${inv.invoiceId}`
@@ -699,6 +733,19 @@ export default function InvoicesPage() {
                               <Trash2 className="h-4 w-4" />
                             </button>
                              )}
+
+                             {/* Cancel */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancel(inv.invoiceId);
+                              }}
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0"
+                              title="Cancel Invoice"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+
                           </div>
                         </TableCell>
                       </TableRow>

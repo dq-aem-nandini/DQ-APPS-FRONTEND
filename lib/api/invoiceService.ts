@@ -154,6 +154,29 @@ class InvoiceService {
   }
 
   /**
+   * Cancel an invoice by invoiceId
+   * Endpoint: CANCEL /web/api/v1/invoice/cancel/{invoiceId}
+   */
+  async cancelInvoice(invoiceId: string): Promise<string> {
+    try {
+      const response: AxiosResponse<WebResponseDTOInvoiceDTO> =
+        await api.post(`/invoice/cancel/${invoiceId}`);
+
+      console.log('Full cancel invoice API response:', response.data);
+
+      if (response.data?.flag) {
+        return response.data.message || 'Invoice cancelled successfully';
+      }
+
+      throw new Error(response.data?.message || 'Failed to cancel invoice');
+    } catch (error: unknown) {
+      console.error('Error cancelling invoice:', error);
+      const errorMessage = this.getErrorMessage(error);
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
    * Update invoice status (Approve / Reject / Draft / Sent / Paid / Overdue)
    * Endpoint: PATCH /web/api/v1/invoice/approve/{invoiceId}/status/{status}
    */
