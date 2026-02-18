@@ -1728,12 +1728,14 @@ export interface AttendanceLogDTO {
   punchType: "IN" | "OUT";
 }
 
+export type AttendanceHistoryStatus = "ABSENT" | "HALF_DAY" | "PRESENT";
 export interface AttendanceHistoryDTO {
   date: string;
   firstClockIn?: string | null;
   lastClockOut?: string | null;
-  totalHours?: number | null;
-  status?: string;
+  workHours?: number | null;     
+  workMinutes?: number | null;
+  status?: AttendanceHistoryStatus;
   logs: AttendanceLogDTO[];
 }
 
