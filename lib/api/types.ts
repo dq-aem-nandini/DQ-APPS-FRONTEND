@@ -1494,6 +1494,7 @@ export interface WebResponseDTOObject {
 }
 // Invoice Types
 export interface InvoiceDTO {
+  latest: any;
   invoiceId: string; // UUID
   clientId: string;
   clientName: string;

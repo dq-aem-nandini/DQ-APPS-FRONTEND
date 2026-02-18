@@ -559,6 +559,7 @@ export default function InvoicesPage() {
                 <TableBody>
                   {filteredInvoices.map((inv) => {
                     const isLocked = inv.locked === true;
+                    const isLatest = inv.latest;
                     const isLocking =
                       lockingInvoices.has(`${inv.invoiceId}-LOCK`) ||
                       lockingInvoices.has(`${inv.invoiceId}-UNLOCK`);
@@ -686,6 +687,7 @@ export default function InvoicesPage() {
                             </button>
 
                             {/* Delete */}
+                            {isLatest && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -696,6 +698,7 @@ export default function InvoicesPage() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
+                             )}
                           </div>
                         </TableCell>
                       </TableRow>
