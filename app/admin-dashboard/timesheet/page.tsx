@@ -40,7 +40,7 @@ export default function ManagerTimesheetReview() {
     id: string;
     name: string;
     dateOfJoining: string;
-    clientName?: string;
+    clientName?: string[];
     reportingManagerName?: string;
     designation?: string;
   } | null>(null);
@@ -65,6 +65,7 @@ export default function ManagerTimesheetReview() {
   const [selectedDate, setSelectedDate] = useState<string | undefined>(
     undefined,
   );
+  const [weeklyClients, setWeeklyClients] = useState<string[]>([]);
 
   // Safe fallback (never undefined)
   const weekStart = currentWeekStart ?? dayjs().startOf("isoWeek");
@@ -279,27 +280,39 @@ export default function ManagerTimesheetReview() {
   // ------------------------------------------------------------------
   const fetchTimesheets = useCallback(async () => {
     if (!selectedEmployee?.id) return;
-
+  
     try {
       setLoading(true);
       const start = weekStart.format("YYYY-MM-DD");
       const end = currentWeekEnd.format("YYYY-MM-DD");
-
+  
       const res = await managerTimeSheetService.getEmployeeTimesheets(
         selectedEmployee.id,
         start,
         end,
       );
-
+  
       const data = Array.isArray(res.response) ? res.response : [];
       setTimesheets(data);
+  
+      const uniqueClients = [
+        ...new Set(
+          data
+            .map((ts) => ts.clientName)
+            .filter(Boolean)
+        ),
+      ];
+  
+      setWeeklyClients(uniqueClients); //  clean solution
+  
     } catch (err) {
       console.error("Error fetching timesheets:", err);
       setTimesheets([]);
+      setWeeklyClients([]); // reset if error
     } finally {
       setLoading(false);
     }
-  }, [selectedEmployee, weekStart, currentWeekEnd]);
+  }, [selectedEmployee?.id, weekStart, currentWeekEnd]);  
 
   useEffect(() => {
     fetchTimesheets();
@@ -446,7 +459,7 @@ export default function ManagerTimesheetReview() {
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10 text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-          Review Timesheeet
+          Review Timesheet
         </h1>
       </div>
       {/* Employee Dropdown */}
@@ -484,7 +497,9 @@ export default function ManagerTimesheetReview() {
                 <div className="flex items-center">
                   <span className="font-medium text-gray-600">Client:</span>
                   <span className="font-semibold text-gray-800 ml-3">
-                    {selectedEmployee.clientName || "—"}
+                  {weeklyClients.length > 0
+                    ? weeklyClients.join(", ")
+                    : "—"}
                   </span>
                 </div>
                 <div className="flex items-center border-t border-blue-100 pt-2">

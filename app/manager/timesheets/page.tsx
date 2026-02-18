@@ -57,7 +57,7 @@ export default function ManagerTimesheetReview() {
   const [selectedDate, setSelectedDate] = useState<string | undefined>(
     undefined,
   );
-
+  const [weeklyClients, setWeeklyClients] = useState<string[]>([]);
   // Safe fallback (never undefined)
   const weekStart = currentWeekStart ?? dayjs().startOf("isoWeek");
   const weekDays = useMemo(
@@ -229,27 +229,41 @@ export default function ManagerTimesheetReview() {
   // ------------------------------------------------------------------
   const fetchTimesheets = useCallback(async () => {
     if (!selectedEmployee?.id) return;
-
+  
     try {
       setLoading(true);
       const start = weekStart.format("YYYY-MM-DD");
       const end = currentWeekEnd.format("YYYY-MM-DD");
-
+  
       const res = await managerTimeSheetService.getEmployeeTimesheets(
         selectedEmployee.id,
         start,
         end,
       );
-
+  
       const data = Array.isArray(res.response) ? res.response : [];
       setTimesheets(data);
+  
+      // Extract client names from timesheet response
+      const uniqueClients = [
+        ...new Set(
+          data
+            .map((ts) => ts.clientName)
+            .filter(Boolean)
+        ),
+      ];
+  
+      setWeeklyClients(uniqueClients);
+  
     } catch (err) {
       console.error("Error fetching timesheets:", err);
       setTimesheets([]);
+      setWeeklyClients([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedEmployee, weekStart, currentWeekEnd]);
+  }, [selectedEmployee?.id, weekStart, currentWeekEnd]);
+  
 
   useEffect(() => {
     fetchTimesheets();
@@ -399,7 +413,7 @@ export default function ManagerTimesheetReview() {
                 <div className="flex items-center">
                   <span className="font-medium text-gray-600">Client:</span>
                   <span className="font-semibold text-gray-800 ml-3">
-                    {selectedEmployee.clientName || "—"}
+                  {weeklyClients.length > 0 ? weeklyClients.join(", ") : "—"}
                   </span>
                 </div>
               {/* <div className="flex items-center border-t border-blue-100 pt-2">

@@ -421,12 +421,10 @@ function getBackendError(error: any): string {
       const uniqueClients = [...new Set(list.map(i => i.clientName))];
       console.log("Clients in this week:", uniqueClients);
 
-        if (role !== 'SUPER_HR') {
         setEmployeeDetails(prev => ({
           ...prev,
           clientName: uniqueClients,
-        }));
-        }
+        }));        
 
       const statuses = list.map(i => i.status).filter(Boolean);
       const status = statuses.includes('APPROVED') ? 'APPROVED' :
@@ -1047,70 +1045,70 @@ useEffect(() => {
 
       {role === 'SUPER_HR' &&(<div className="mb-6 p-6 bg-white rounded-xl shadow-sm border space-y-6">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* Client Selection */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Client <span className="text-teal-600">*</span>
-          </label>
+            {/* Client Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Client <span className="text-teal-600">*</span>
+              </label>
 
-          <select
-            value={clientId}
-            onChange={(e) => {
-              setClientId(e.target.value);
-              setSelectedEmployee(null); // reset employee on client change
-            }}
-            className="w-full border border-slate-200 rounded-lg px-4 py-2.5
-                      focus:border-teal-400 focus:ring-2 focus:ring-teal-100
-                      focus:outline-none transition cursor-pointer"
-          >
-            <option value="">Select client</option>
-            {clients.map((c) => (
-              <option key={c.clientId} value={c.clientId}>
-                {c.companyName}
-              </option>
-            ))}
-          </select>
-        </div>
+              <select
+                value={clientId}
+                onChange={(e) => {
+                  setClientId(e.target.value);
+                  setSelectedEmployee(null); // reset employee on client change
+                }}
+                className="w-full border border-slate-200 rounded-lg px-4 py-2.5
+                          focus:border-teal-400 focus:ring-2 focus:ring-teal-100
+                          focus:outline-none transition cursor-pointer"
+              >
+                <option value="">Select client</option>
+                {clients.map((c) => (
+                  <option key={c.clientId} value={c.clientId}>
+                    {c.companyName}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        {/* Employee Selection */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Employee <span className="text-teal-600">*</span>
-          </label>
-            <select
-              disabled={!clientId || employees.length === 0}
-              value={selectedEmployeeId || ""}
-              onChange={(e) => {
-                const empId = e.target.value || null;
-                setSelectedEmployeeId(empId);
+            {/* Employee Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Employee <span className="text-teal-600">*</span>
+              </label>
+                <select
+                  disabled={!clientId || employees.length === 0}
+                  value={selectedEmployeeId || ""}
+                  onChange={(e) => {
+                    const empId = e.target.value || null;
+                    setSelectedEmployeeId(empId);
 
-                const emp = employees.find(emp => emp.employeeId === empId) || null;
-                setSelectedEmployee(emp);
+                    const emp = employees.find(emp => emp.employeeId === empId) || null;
+                    setSelectedEmployee(emp);
 
-                setJoiningDate(
-                  emp?.dateOfJoining ? dayjs(emp.dateOfJoining) : null
-                );
-              }}
-              className={`w-full border rounded-lg px-4 py-2.5 transition
-                ${!clientId
-                  ? "bg-slate-100 border-slate-200 cursor-not-allowed"
-                  : "border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100"}
-              `}
-            >
-              <option value="">
-                {!clientId ? "Select client first" : "Select employee"}
-              </option>
+                    setJoiningDate(
+                      emp?.dateOfJoining ? dayjs(emp.dateOfJoining) : null
+                    );
+                  }}
+                  className={`w-full border rounded-lg px-4 py-2.5 transition
+                    ${!clientId
+                      ? "bg-slate-100 border-slate-200 cursor-not-allowed"
+                      : "border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100"}
+                  `}
+                >
+                  <option value="">
+                    {!clientId ? "Select client first" : "Select employee"}
+                  </option>
 
-              {employees.map((emp) => (
-                <option key={emp.employeeId} value={emp.employeeId}>
-                  {emp.employeeName}
-                </option>
-              ))}
-            </select>
-        </div>
-      </div>
+                  {employees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.employeeName}
+                    </option>
+                  ))}
+                </select>
+            </div>
+          </div>
       </div>)}
 
 
@@ -1169,10 +1167,11 @@ useEffect(() => {
         />
       </div>
     </div>
-          {employeeDetails && role !== 'SUPER_HR' && (
+    {employeeDetails && (
             <div className="w-full md:w-auto p-4 bg-gradient-to-b from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm text-sm">
               <div className="space-y-2">
-                {/* <div className="flex items-center"><span className="font-medium text-gray-600">Client:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.clientName || '—'}</span></div> */}
+
+                {/* Client */}
                 <div className="flex items-start">
                   <span className="font-medium text-gray-600">Client:</span>
                   <div className="ml-3 space-y-1">
@@ -1192,10 +1191,30 @@ useEffect(() => {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Manager:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.reportingManagerName || '—'}</span></div>
-                <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Role:</span><span className="font-semibold text-gray-800 ml-3">
-                  {employeeDetails.designation ? employeeDetails.designation.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : '—'}
-                </span></div>
+
+                {/* Manager – hide only for SUPER_HR */}
+                {role !== 'SUPER_HR' && (
+                  <div className="flex items-center border-t border-blue-100 pt-2">
+                    <span className="font-medium text-gray-600">Manager:</span>
+                    <span className="font-semibold text-gray-800 ml-3">
+                      {employeeDetails.reportingManagerName || '—'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Role */}
+                <div className="flex items-center border-t border-blue-100 pt-2">
+                  <span className="font-medium text-gray-600">Role:</span>
+                  <span className="font-semibold text-gray-800 ml-3">
+                    {employeeDetails.designation
+                      ? employeeDetails.designation
+                          .replace(/_/g, ' ')
+                          .toLowerCase()
+                          .replace(/\b\w/g, l => l.toUpperCase())
+                      : '—'}
+                  </span>
+                </div>
+
               </div>
             </div>
           )}

@@ -366,6 +366,8 @@ function AttendancePage() {
                         ? "bg-blue-100 text-blue-700"
                         : day.status === "PRESENT"
                         ? "bg-green-100 text-green-700"
+                        : day.status === "HALF_DAY"
+                        ? "bg-orange-100 text-orange-700"
                         : "bg-red-100 text-red-600"
                     }`}
                   >
@@ -375,11 +377,13 @@ function AttendancePage() {
                       ? "W"
                       : day.status === "PRESENT"
                       ? "P"
+                      : day.status === "HALF_DAY"
+                      ? "HD"
                       : "A"}
                   </span>
 
                   <p className="text-sm text-gray-600 min-w-[40px] text-right">
-                    {day.totalHours ? `${day.totalHours.toFixed(2)}h` : "0h"}
+                    {day.workHours ?? 0}h {day.workMinutes ?? 0}m
                   </p>
                 </div>
               </div>
