@@ -271,7 +271,7 @@ export default function InvoicesPage() {
   /* -------------------------- DELETE HANDLER -------------------------- */
   const handleDelete = async (invoiceId: string) => {
     const result = await Swal.fire({
-      title: "Are you sure?",
+      title: "Are you sure to delete it?",
       text: "You won't be able to revert this!",
       icon: "warning",
       showCancelButton: true,
@@ -347,7 +347,7 @@ export default function InvoicesPage() {
   /* -------------------------- CANCEL INVOICE HANDLER -------------------------- */
   const handleCancel = async (invoiceId: string) => {
     const result = await Swal.fire({
-      title: "Are you sure?",
+      title: "Are you sure to cancel it?",
       text: "You won't be able to revert this!",
       icon: "warning",
       showCancelButton: true,
