@@ -158,9 +158,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               payload: { user, accessToken: token, refreshToken },
             });
 
-            setTimeout(() => {
+            // setTimeout(() => {
+            //   handlePostAuthRedirect(user, currentPath, router);
+            // }, 0);
+            if (
+              currentPath === '/auth/login' ||
+              currentPath === '/auth/setup'
+            ) {
               handlePostAuthRedirect(user, currentPath, router);
-            }, 0);
+            }
+            
 
             dispatch({ type: 'SET_LOADING', payload: false });
             return;
