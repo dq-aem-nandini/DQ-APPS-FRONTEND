@@ -124,7 +124,7 @@ useEffect(() => {
 
       setShowGenerateModal(false);
       setTimeout(() => {
-        window.open(`/admin-dashboard/invoice/${invoice.invoiceId}`, '_blank');
+        router.push(`/admin-dashboard/invoice/${invoice.invoiceId}`);
       }, 1000);
     } catch (err: any) {
       const status = err?.response?.status;
@@ -495,17 +495,17 @@ useEffect(() => {
                 </div>
 
                 <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Invoice Date
-  </label>
-  <input
-    type="date"
-    value={invoiceDate}
-    onChange={(e) => setInvoiceDate(e.target.value)}
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-    required
-  />
-</div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Invoice Date
+                  </label>
+                  <input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                  />
+                </div>
 
               </div>
 
