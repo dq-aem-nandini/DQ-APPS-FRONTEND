@@ -76,6 +76,10 @@ export default function AddOrganizationPage() {
     prefix: "",
     sequenceNumber: undefined,
     companyType: "",
+    attendancePolicy: {
+      absentMaxMinutes: undefined,
+      fullDayMinMinutes: undefined,
+    },
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -328,10 +332,7 @@ export default function AddOrganizationPage() {
       form.append("establishedDate", formData.establishedDate || "");
       form.append("timezone", formData.timezone || "");
       if (formData.autoClockOutTime) {
-        form.append(
-          "autoClockOutTime",
-          `${formData.autoClockOutTime}:00`
-        );
+        form.append("autoClockOutTime", `${formData.autoClockOutTime}:00`);
       } else {
         form.append("autoClockOutTime", "");
       }
@@ -348,6 +349,25 @@ export default function AddOrganizationPage() {
       if (formData.logo) form.append("logo", formData.logo);
       if (formData.digitalSignature)
         form.append("digitalSignature", formData.digitalSignature);
+      // Attendance Policy
+if (formData.attendancePolicy?.absentMaxMinutes != null) {
+  form.append(
+    "attendancePolicy.absentMaxMinutes",
+    String(
+      Math.round(formData.attendancePolicy.absentMaxMinutes * 60)
+    )
+  );
+}
+
+if (formData.attendancePolicy?.fullDayMinMinutes != null) {
+  form.append(
+    "attendancePolicy.fullDayMinMinutes",
+    String(
+      Math.round(formData.attendancePolicy.fullDayMinMinutes * 60)
+    )
+  );
+}
+
 
       formData.addresses.forEach((addr, i) => {
         form.append(`addresses[${i}].houseNo`, addr.houseNo || "");
@@ -773,11 +793,8 @@ export default function AddOrganizationPage() {
                   className="h-12"
                 />
 
-
                 {fieldError(errors, "autoClockOutTime")}
               </div>
-
-
 
               {/* Currency Code */}
               <div className="space-y-2">
@@ -815,6 +832,54 @@ export default function AddOrganizationPage() {
                   </SelectContent>
                 </Select>
                 {fieldError(errors, "currencyCode")}
+              </div>
+
+              {/* Absent Max Minutes */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Absent Max Hours
+                </Label>
+                <Input
+                  required
+                  type="number"
+                  name="absentMaxMinutes"
+                  value={formData.attendancePolicy.absentMaxMinutes ?? ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      attendancePolicy: {
+                        ...prev.attendancePolicy,
+                        absentMaxMinutes: Number(e.target.value),
+                      },
+                    }))
+                  }
+                  className="h-12"
+                  placeholder="e.g. 30"
+                />
+              </div>
+
+              {/* Full Day Minimum Minutes */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Full Day Min Hours
+                </Label>
+                <Input
+                  required
+                  type="number"
+                  name="fullDayMinMinutes"
+                  value={formData.attendancePolicy.fullDayMinMinutes ?? ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      attendancePolicy: {
+                        ...prev.attendancePolicy,
+                        fullDayMinMinutes: Number(e.target.value),
+                      },
+                    }))
+                  }
+                  className="h-12"
+                  placeholder="e.g. 480"
+                />
               </div>
             </div>
 

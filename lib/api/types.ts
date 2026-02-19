@@ -1126,6 +1126,20 @@ export interface WebResponseDTOVoid {
   otherInfo: any;
 }
 
+export interface AttendancePolicyDTO {
+  id?: string; // uuid (optional for create)
+  organizationId?: string; // uuid (optional for create)
+  absentMaxMinutes?: number;
+  fullDayMinMinutes?: number;
+}
+
+export interface AttendancePolicyResponseDTO {
+  id: string;
+  organizationId: string;
+  absentMaxMinutes: number;
+  fullDayMinMinutes: number;
+}
+
 export interface OrganizationRequestDTO {
   organizationName: string;
   organizationLegalName: string;
@@ -1164,6 +1178,7 @@ export interface OrganizationRequestDTO {
   prefix?: string;
   sequenceNumber?: number;
   companyType?: string;
+  attendancePolicy: AttendancePolicyDTO;
 }
 
 export interface OrganizationResponseDTO {
@@ -1180,6 +1195,7 @@ export interface OrganizationResponseDTO {
   logoUrl: string;
   industryType: IndustryType;
   domain: Domain;
+  employeeStrength: number;
   establishedDate: string;
   timezone: string;
   autoClockOutTime:string;
@@ -1194,6 +1210,7 @@ export interface OrganizationResponseDTO {
   prefix?: string;
   sequenceNumber?: number;
   companyType?: string;
+  attendancePolicyDto: AttendancePolicyResponseDTO; 
   createdAt: string;
   updatedAt: string;
   status: "ACTIVE" | "INACTIVE";
@@ -1510,6 +1527,7 @@ export interface InvoiceDTO {
   fromDate: string; // ISO Date (YYYY-MM-DD)
   toDate: string; // ISO Date (YYYY-MM-DD)
   locked: boolean;
+
 }
 
 // For list responses
