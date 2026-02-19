@@ -1035,25 +1035,25 @@ const EditEmployeePage = () => {
       }
     }
     // Rate Card required check for real clients
-    if (formData.clientSelection && !isStatusClient) {
-      if (formData.rateCard == null || formData.rateCard <= 0) {
-        setErrors((prev) => ({
-          ...prev,
-          rateCard: "Rate Card is required when a client is selected",
-        }));
+if (formData.clientSelection && !isStatusClient) {
+  if (formData.rateCard == null || formData.rateCard <= 0) {
+    setErrors((prev) => ({
+      ...prev,
+      rateCard: "Rate Card is required when a client is selected",
+    }));
 
         // Scroll to Rate Card field
-        setTimeout(() => {
-          const rateInput = document.querySelector('input[name="rateCard"]');
-          if (rateInput) {
-            rateInput.scrollIntoView({ behavior: "smooth", block: "center" });
-            (rateInput as HTMLInputElement).focus();
-          }
-        }, 150);
-
-        setIsSubmitting(false);
-        return;
+    setTimeout(() => {
+      const rateInput = document.querySelector('input[name="rateCard"]');
+      if (rateInput) {
+        rateInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        (rateInput as HTMLInputElement).focus();
       }
+    }, 150);
+
+    setIsSubmitting(false);
+    return;
+  }
     }
     const fd = new FormData();
 
@@ -1669,48 +1669,48 @@ const selectValue =
                       onValueChange={(v) => {
                         setFormData((prev) => {
                           if (!prev) return prev;
-
-                          const prevClient = prev.clientSelection?.startsWith(
-                            "CLIENT:"
-                          )
-                            ? prev.clientSelection
-                            : null;
-
-                          const nextClient = staticClients.has(v)
-                            ? `STATUS:${v}`
-                            : `CLIENT:${v}`;
-                          const clientChanged =
-                            prev.clientSelection !== nextClient;
+                      
+                          const isRealClient =
+                            prev.clientSelection?.startsWith("CLIENT:");
+                      
+                          const hasActiveClient =
+                            isRealClient &&
+                            !prev.dateOfOffboardingToClient;
+                      
+                          if (hasActiveClient) {
+                            Swal.fire({
+                              icon: "warning",
+                              title: "Offboarding Required",
+                              text: "Please set Date of Offboarding for current client before changing client.",
+                              confirmButtonColor: "#4f46e5",
+                            });
+                      
+                            return prev; // ❌ Block change
+                          }
+                      
+                          // ✅ Allow change
+                          const nextClient =
+                            staticClients.has(v)
+                              ? `STATUS:${v}`
+                              : `CLIENT:${v}`;
+                      
                           return {
                             ...prev,
                             clientId: staticClients.has(v) ? null : v,
                             clientSelection: nextClient,
-
-                            // 🔴 Reset client-dependent dates if client changed
-                            ...(clientChanged
-                              ? {
-                                dateOfOnboardingToClient: "",
-                                dateOfOffboardingToClient: "",
-                                clientBillingStartDate: "",
-                                clientBillingStopDate: "",
-                              }
-                              : {}),
+                      
+                            // Reset client dependent fields
+                            dateOfOnboardingToClient: "",
+                            dateOfOffboardingToClient: "",
+                            clientBillingStartDate: "",
+                            clientBillingStopDate: "",
+                            rateCard: null,
                           };
                         });
-
-                        // Clear date-related validation errors
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.dateOfOnboardingToClient;
-                          delete newErrors.dateOfOffboardingToClient;
-                          delete newErrors.clientBillingStartDate;
-                          delete newErrors.clientBillingStopDate;
-                          delete newErrors.clientSelection;
-                          return newErrors;
-                        });
-
+                      
                         setIsDirty(true);
                       }}
+                      
                     >
                       <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
                         <SelectValue placeholder="Select Client" />
