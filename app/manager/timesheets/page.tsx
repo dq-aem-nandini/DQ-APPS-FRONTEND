@@ -371,9 +371,34 @@ export default function ManagerTimesheetReview() {
     }
   };
 
-  // ------------------------------------------------------------------
-  // Render
-  // ------------------------------------------------------------------
+  
+  const sortedTimesheets = useMemo(() => {
+    return [...timesheets].sort(
+      (a, b) =>
+        new Date(a.workDate).getTime() -
+        new Date(b.workDate).getTime()
+    );
+  }, [timesheets]);
+
+  const statusToCheck = useMemo(() => {
+    if (sortedTimesheets.length === 0) return null;
+  
+    if (!isSplitWeek) {
+      return sortedTimesheets[0]?.status;
+    }
+  
+    // Split week logic
+    const firstMonth = dayjs(sortedTimesheets[0].workDate).month();
+  
+    const lastDateOfFirstMonth = sortedTimesheets
+      .filter(
+        (ts) => dayjs(ts.workDate).month() === firstMonth
+      )
+      .pop(); // last date of first month
+  
+    return lastDateOfFirstMonth?.status || null;
+  }, [sortedTimesheets, isSplitWeek]);
+  
   return (
     <div className="p-6">
       <h2 className="text-xl font-semibold mb-6">Manager Timesheet Review</h2>
@@ -621,9 +646,9 @@ export default function ManagerTimesheetReview() {
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
-      ) : !isSplitWeek && (timesheets.length === 0 || timesheets[0]?.status === "DRAFTED") ? (
+      ) : timesheets.length === 0 || statusToCheck === "DRAFTED" ? (
         <p className="text-center text-gray-500 mt-10">
-          {timesheets[0]?.status === "DRAFTED"
+          {statusToCheck === "DRAFTED"
             ? "Timesheet in draft state."
             : "No data found for this week."}
         </p>
