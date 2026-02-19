@@ -70,7 +70,7 @@ export default function EditOrganizationPage() {
     domain: "" as Domain,
     establishedDate: "",
     timezone: "",
-    autoClockOutTime: '',
+    autoClockOutTime: "",
     currencyCode: "" as CurrencyCode,
     accountNumber: "",
     accountHolderName: "",
@@ -82,6 +82,10 @@ export default function EditOrganizationPage() {
     prefix: "",
     sequenceNumber: undefined,
     companyType: "",
+    attendancePolicy: {
+      absentMaxMinutes: undefined,
+      fullDayMinMinutes: undefined,
+    },
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -175,6 +179,21 @@ export default function EditOrganizationPage() {
           prefix: res.prefix ?? "",
           sequenceNumber: res.sequenceNumber ?? undefined,
           companyType: res.companyType ?? "",
+          attendancePolicy: res.attendancePolicyDto
+            ? {
+                absentMaxMinutes:
+                  res.attendancePolicyDto.absentMaxMinutes != null
+                    ? res.attendancePolicyDto.absentMaxMinutes / 60
+                    : undefined,
+                fullDayMinMinutes:
+                  res.attendancePolicyDto.fullDayMinMinutes != null
+                    ? res.attendancePolicyDto.fullDayMinMinutes / 60
+                    : undefined,
+              }
+            : {
+                absentMaxMinutes: undefined,
+                fullDayMinMinutes: undefined,
+              },
         };
 
         setFormData(loaded);
@@ -193,17 +212,18 @@ export default function EditOrganizationPage() {
 
   const hasChanges = useMemo(() => {
     if (!originalData) return false;
-  
+
     const clean = (data: OrganizationRequestDTO) => ({
       ...data,
       logo: undefined,
       digitalSignature: undefined,
     });
-  
-    return JSON.stringify(clean(formData)) !==
-           JSON.stringify(clean(originalData));
+
+    return (
+      JSON.stringify(clean(formData)) !== JSON.stringify(clean(originalData))
+    );
   }, [formData, originalData]);
-  
+
   // IFSC lookup
   const handleIfscLookup = async (ifsc: string) => {
     const code = String(ifsc ?? "")
@@ -326,7 +346,7 @@ export default function EditOrganizationPage() {
     console.log("SUBMIT CLICKED");
     console.log("HAS CHANGES:", hasChanges);
     console.log("ID:", id);
-  
+
     if (!hasChanges || !id) {
       console.log("STOPPED because no changes or no id");
       return;
@@ -354,9 +374,9 @@ export default function EditOrganizationPage() {
       "accountNumber",
       "accountHolderName",
       "ifscCode",
-      "prefix", 
+      "prefix",
     ];
-    
+
     fieldsToValidate.forEach((name) => {
       const value = (formData as any)[name];
       const error = validateField(name, value, formData);
@@ -400,10 +420,7 @@ export default function EditOrganizationPage() {
       fd.append("establishedDate", formData.establishedDate || "");
       fd.append("timezone", formData.timezone || "");
       if (formData.autoClockOutTime) {
-        fd.append(
-          "autoClockOutTime",
-          `${formData.autoClockOutTime}:00`
-        );
+        fd.append("autoClockOutTime", `${formData.autoClockOutTime}:00`);
       } else {
         fd.append("autoClockOutTime", "");
       }
@@ -417,7 +434,19 @@ export default function EditOrganizationPage() {
       fd.append("prefix", formData.prefix || "");
       fd.append("sequenceNumber", String(formData.sequenceNumber ?? ""));
       fd.append("companyType", formData.companyType || "");
-
+      if (formData.attendancePolicy?.absentMaxMinutes != null) {
+        fd.append(
+          "attendancePolicy.absentMaxMinutes",
+          String(Math.round(formData.attendancePolicy.absentMaxMinutes * 60))
+        );
+      }
+      
+      if (formData.attendancePolicy?.fullDayMinMinutes != null) {
+        fd.append(
+          "attendancePolicy.fullDayMinMinutes",
+          String(Math.round(formData.attendancePolicy.fullDayMinMinutes * 60))
+        );
+      }
       if (formData.logo) fd.append("logo", formData.logo);
       if (formData.digitalSignature)
         fd.append("digitalSignature", formData.digitalSignature);
@@ -433,13 +462,12 @@ export default function EditOrganizationPage() {
         fd.append(`addresses[${i}].pincode`, addr.pincode || "");
         fd.append(`addresses[${i}].addressType`, addr.addressType || "OFFICE");
       });
-   
+
       for (let pair of fd.entries()) {
-       
       }
-      
+
       const res = await organizationService.update(id, fd);
-     
+
       if (res.flag) {
         Swal.fire({
           title: "Success",
@@ -721,10 +749,10 @@ export default function EditOrganizationPage() {
                     }}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select Domain" />
+                      <SelectValue placeholder="Select Domain" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DOMAIN_OPTIONS.map(m => (
+                      {DOMAIN_OPTIONS.map((m) => (
                         <SelectItem key={m} value={m}>
                           {m}
                         </SelectItem>
@@ -806,7 +834,7 @@ export default function EditOrganizationPage() {
                     }
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select TimeZone" />
+                      <SelectValue placeholder="Select TimeZone" />
                     </SelectTrigger>
                     <SelectContent>
                       {TIMEZONES.map((tz) => (
@@ -865,7 +893,7 @@ export default function EditOrganizationPage() {
                     }}
                   >
                     <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select Currency" />
+                      <SelectValue placeholder="Select Currency" />
                     </SelectTrigger>
                     <SelectContent>
                       {CURRENCY_CODE_OPTIONS.map((m) => (
@@ -876,6 +904,54 @@ export default function EditOrganizationPage() {
                     </SelectContent>
                   </Select>
                   {fieldError(errors, "currencyCode")}
+                </div>
+
+                {/* Absent Max Hours */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Absent Max Hours
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.attendancePolicy?.absentMaxMinutes ?? ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        attendancePolicy: {
+                          ...prev.attendancePolicy,
+                          absentMaxMinutes:
+                            e.target.value === ""
+                              ? undefined
+                              : Number(e.target.value),
+                        },
+                      }))
+                    }
+                    className="h-12"
+                  />
+                </div>
+
+                {/* Full Day Min Hours */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Full Day Min Hours
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.attendancePolicy?.fullDayMinMinutes ?? ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        attendancePolicy: {
+                          ...prev.attendancePolicy,
+                          fullDayMinMinutes:
+                            e.target.value === ""
+                              ? undefined
+                              : Number(e.target.value),
+                        },
+                      }))
+                    }
+                    className="h-12"
+                  />
                 </div>
               </div>
 
@@ -1023,7 +1099,8 @@ export default function EditOrganizationPage() {
 
               {/* Digital Signature */}
               <div className="space-y-2">
-                <Label>Digital Signature
+                <Label>
+                  Digital Signature
                   <TooltipHint hint="Upload digital signature file (e.g., .p12, .pfx, .cer) or an image. Max size: 2MB." />
                 </Label>
                 {signaturePreview && (
@@ -1117,7 +1194,8 @@ export default function EditOrganizationPage() {
                       No addresses added yet
                     </p>
                     <p className="text-sm text-gray-500 mt-3">
-                      Click the button above to add a registered or office address
+                      Click the button above to add a registered or office
+                      address
                     </p>
                   </div>
                 )}
@@ -1138,7 +1216,8 @@ export default function EditOrganizationPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>House No.
+                        <Label>
+                          House No.
                           <TooltipHint hint="House or building number for this address." />
                         </Label>
                         <Input
@@ -1152,7 +1231,8 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Street Name
+                        <Label>
+                          Street Name
                           <TooltipHint hint="Name of the street for this address." />
                         </Label>
                         <Input
@@ -1170,7 +1250,8 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>City
+                        <Label>
+                          City
                           <TooltipHint hint="Name of the city for this address." />
                         </Label>
                         <Input
@@ -1184,7 +1265,8 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>State
+                        <Label>
+                          State
                           <TooltipHint hint="Name of the state for this address." />
                         </Label>
                         <Input
@@ -1198,7 +1280,8 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Pincode
+                        <Label>
+                          Pincode
                           <TooltipHint hint="6-digit postal code for this address." />
                         </Label>
                         <Input
@@ -1217,7 +1300,8 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Country
+                        <Label>
+                          Country
                           <TooltipHint hint="Country for this address." />
                         </Label>
                         <Input
@@ -1231,7 +1315,8 @@ export default function EditOrganizationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Address Type
+                        <Label>
+                          Address Type
                           <TooltipHint hint="Type of address (e.g., Registered, Office)." />
                         </Label>
                         <Select
