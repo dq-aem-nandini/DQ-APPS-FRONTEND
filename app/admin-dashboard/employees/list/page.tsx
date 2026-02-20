@@ -1,74 +1,86 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { adminService } from '@/lib/api/adminService';
-import { EmployeeDTO } from '@/lib/api/types';
-import Link from 'next/link';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import Swal from 'sweetalert2';
-import BackButton from '@/components/ui/BackButton';
-import { employeesDownloadUploadService } from '@/lib/api/employeesDownloadUpload';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { adminService } from "@/lib/api/adminService";
+import { EmployeeDTO } from "@/lib/api/types";
+import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Swal from "sweetalert2";
+import BackButton from "@/components/ui/BackButton";
+import { employeesDownloadUploadService } from "@/lib/api/employeesDownloadUpload";
+import Spinner from "@/components/ui/Spinner";
 
 const EmployeeList = () => {
   const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<EmployeeDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof EmployeeDTO; direction: 'asc' | 'desc' } | null>(null);
-  const [filterDesignation, setFilterDesignation] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof EmployeeDTO;
+    direction: "asc" | "desc";
+  } | null>(null);
+  const [filterDesignation, setFilterDesignation] = useState("");
   const [designations, setDesignations] = useState<string[]>([]);
   const { state } = useAuth();
   const router = useRouter();
-  
-  
-    const fetchEmployees = async () => {
-      try {
-        const response = await adminService.getAllEmployees();
-        if (response.flag && Array.isArray(response.response)) {
-          // Filter to show only ACTIVE employees
-          const activeEmployees = response.response.filter((emp: EmployeeDTO) => emp.status === 'ACTIVE');
-          setEmployees(activeEmployees);
 
-          // Extract unique designations
-          const uniqueDesignations = [...new Set(
+  const fetchEmployees = async () => {
+    try {
+      const response = await adminService.getAllEmployees();
+      if (response.flag && Array.isArray(response.response)) {
+        // Filter to show only ACTIVE employees
+        const activeEmployees = response.response.filter(
+          (emp: EmployeeDTO) => emp.status === "ACTIVE"
+        );
+        setEmployees(activeEmployees);
+
+        // Extract unique designations
+        const uniqueDesignations = [
+          ...new Set(
             activeEmployees.map((emp: EmployeeDTO) => emp.designation)
-          )].sort();
-          setDesignations(uniqueDesignations);
-        } else {
-          throw new Error(response.message || 'Failed to fetch employees');
-        }
-      } catch (err: any) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.message || 'Failed to fetch employees',
-        });
-      } finally {
-        setLoading(false);
+          ),
+        ].sort();
+        setDesignations(uniqueDesignations);
+      } else {
+        throw new Error(response.message || "Failed to fetch employees");
       }
-    };
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message || "Failed to fetch employees",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchEmployees();
-    }, []);
+  }, []);
 
   useEffect(() => {
     let filtered = employees;
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter((emp) =>
-        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.companyEmail.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (emp) =>
+          `${emp.firstName} ${emp.lastName}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          emp.companyEmail.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Designation filter
     if (filterDesignation) {
-      filtered = filtered.filter((emp) => emp.designation === filterDesignation);
+      filtered = filtered.filter(
+        (emp) => emp.designation === filterDesignation
+      );
     }
 
     // Sorting
@@ -77,17 +89,17 @@ const EmployeeList = () => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
 
-        if (aVal === null || aVal === undefined) aVal = '';
-        if (bVal === null || bVal === undefined) bVal = '';
+        if (aVal === null || aVal === undefined) aVal = "";
+        if (bVal === null || bVal === undefined) bVal = "";
 
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-          return sortConfig.direction === 'asc'
+        if (typeof aVal === "string" && typeof bVal === "string") {
+          return sortConfig.direction === "asc"
             ? aVal.localeCompare(bVal)
             : bVal.localeCompare(aVal);
         }
 
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
@@ -97,13 +109,13 @@ const EmployeeList = () => {
 
   const handleDelete = async (empId: string) => {
     const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Are you sure?',
-      text: 'This will set the employee status to inactive.',
+      icon: "warning",
+      title: "Are you sure?",
+      text: "This will set the employee status to inactive.",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
     });
 
     if (!result.isConfirmed) return;
@@ -113,100 +125,105 @@ const EmployeeList = () => {
       const response = await adminService.deleteEmployeeById(empId);
       if (response.flag) {
         await Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'Employee deleted successfully!',
-          confirmButtonColor: '#3085d6',
+          icon: "success",
+          title: "Success",
+          text: "Employee deleted successfully!",
+          confirmButtonColor: "#3085d6",
         });
         // Filter out the deleted employee from local state
         setEmployees(employees.filter((emp) => emp.employeeId !== empId));
       } else {
-        throw new Error(response.message || 'Failed to delete employee');
+        throw new Error(response.message || "Failed to delete employee");
       }
     } catch (err: any) {
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: err.message || 'Failed to delete employee',
+        icon: "error",
+        title: "Error",
+        text: err.message || "Failed to delete employee",
       });
     } finally {
       setDeletingId(null);
     }
   };
 
-  const getFieldValue = (value: string | undefined) => value || 'N/A';
+  const getFieldValue = (value: string | undefined) => value || "N/A";
 
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'INACTIVE':
-        return 'bg-red-100 text-red-800';
+      case "ACTIVE":
+        return "bg-green-100 text-green-800";
+      case "INACTIVE":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const requestSort = (key: keyof EmployeeDTO) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+    let direction: "asc" | "desc" = "asc";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
+      direction = "desc";
     }
     setSortConfig({ key, direction });
   };
 
   const getSortIcon = (key: keyof EmployeeDTO) => {
     if (!sortConfig || sortConfig.key !== key) return null;
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
+    return sortConfig.direction === "asc" ? "↑" : "↓";
   };
 
   const handleDownloadEmployees = async () => {
     try {
       const blob = await employeesDownloadUploadService.downloadEmployees();
 
-  
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = 'employees.xlsx';
+      link.download = "employees.xlsx";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-  
+
       Swal.fire({
-        icon: 'success',
-        title: 'Downloaded',
-        text: 'Employees data downloaded successfully',
+        icon: "success",
+        title: "Downloaded",
+        text: "Employees data downloaded successfully",
       });
     } catch (err: any) {
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: err.message || 'Failed to download employees',
+        icon: "error",
+        title: "Error",
+        text: err.message || "Failed to download employees",
       });
     }
   };
-  
+
   const createEmployees = async (file: File) => {
     try {
-      const response = await employeesDownloadUploadService.bulkCreateEmployees(file);
-  
+      const response = await employeesDownloadUploadService.bulkCreateEmployees(
+        file
+      );
+
       const { flag, message, response: result } = response;
-  
+
       //  Full success
       if (flag === true) {
         await Swal.fire({
-          icon: 'success',
-          title: 'Employees Created',
+          icon: "success",
+          title: "Employees Created",
           text: `Successfully created ${result.successCount} employees.`,
         });
-      
+
         await fetchEmployees(); //  Refresh list
-      
+
         return;
       }
-  
+
       // Build error list HTML (safe + readable)
       const errorListHtml = Array.isArray(result.errors)
         ? result.errors
@@ -219,13 +236,13 @@ const EmployeeList = () => {
                 </div>
               `
             )
-            .join('')
-        : '<div>No detailed error information available.</div>';
-  
+            .join("")
+        : "<div>No detailed error information available.</div>";
+
       // ⚠️ Partial / Failed upload with scrollable errors
       Swal.fire({
-        icon: 'warning',
-        title: 'Bulk Upload Completed with Errors',
+        icon: "warning",
+        title: "Bulk Upload Completed with Errors",
         width: 700,
         html: `
           <p>${message}</p>
@@ -247,36 +264,29 @@ const EmployeeList = () => {
             ${errorListHtml}
           </div>
         `,
-        confirmButtonText: 'OK',
+        confirmButtonText: "OK",
       });
-  
     } catch (err: any) {
       Swal.fire({
-        icon: 'error',
-        title: 'Upload Failed',
-        text: err.message || 'Failed to bulk create employees',
+        icon: "error",
+        title: "Upload Failed",
+        text: err.message || "Failed to bulk create employees",
       });
     }
   };
-  
-  
-  
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
-        <div className="flex flex-col items-center justify-center h-[80vh] space-y-4 p-4 sm:p-6 md:p-8">
-          {/* Tailwind spinner */}
-          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
-          <p className="text-gray-700 text-base sm:text-lg font-medium text-center">Loading employees...</p>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
+          <Spinner size="lg" />
         </div>
       </ProtectedRoute>
     );
   }
 
-
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 md:p-8">
         {/* Header */}
         <div className="relative flex items-center justify-center mb-4 sm:mb-6 md:mb-8">
@@ -307,7 +317,7 @@ const EmployeeList = () => {
               onChange={(e) => {
                 if (e.target.files?.[0]) {
                   createEmployees(e.target.files[0]);
-                  e.target.value = '';
+                  e.target.value = "";
                 }
               }}
             />
@@ -326,7 +336,12 @@ const EmployeeList = () => {
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 md:p-6 mb-4 sm:mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label htmlFor="search" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Search by Name or Email</label>
+              <label
+                htmlFor="search"
+                className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+              >
+                Search by Name or Email
+              </label>
               <input
                 id="search"
                 type="text"
@@ -337,7 +352,12 @@ const EmployeeList = () => {
               />
             </div>
             <div>
-              <label htmlFor="filterDesignation" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Filter by Designation</label>
+              <label
+                htmlFor="filterDesignation"
+                className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+              >
+                Filter by Designation
+              </label>
               <select
                 id="filterDesignation"
                 value={filterDesignation}
@@ -346,7 +366,9 @@ const EmployeeList = () => {
               >
                 <option value="">All Designations</option>
                 {designations.map((des) => (
-                  <option key={des} value={des}>{des}</option>
+                  <option key={des} value={des}>
+                    {des}
+                  </option>
                 ))}
               </select>
             </div>
@@ -364,59 +386,69 @@ const EmployeeList = () => {
                 <tr>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('firstName')}
+                    onClick={() => requestSort("firstName")}
                   >
-                    Name {getSortIcon('firstName')}
+                    Name {getSortIcon("firstName")}
                   </th>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
-                    onClick={() => requestSort('companyEmail')}
+                    onClick={() => requestSort("companyEmail")}
                   >
-                    Email {getSortIcon('companyEmail')}
+                    Email {getSortIcon("companyEmail")}
                   </th>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden md:table-cell"
-                    onClick={() => requestSort('clientName')}
+                    onClick={() => requestSort("clientName")}
                   >
-                    Client {getSortIcon('clientName')}
+                    Client {getSortIcon("clientName")}
                   </th>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('designation')}
+                    onClick={() => requestSort("designation")}
                   >
-                    Designation {getSortIcon('designation')}
+                    Designation {getSortIcon("designation")}
                   </th>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
-                    onClick={() => requestSort('status')}
+                    onClick={() => requestSort("status")}
                   >
-                    Status {getSortIcon('status')}
+                    Status {getSortIcon("status")}
                   </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
-         <tr
-         key={employee.employeeId}
-         className={`transition-colors duration-200 ${
-           employee.updatedThroughForm === true
-             ? "hover:bg-gray-50"
-             : employee.createdFromExcel === true
-             ? "bg-red-50 border-l-4 hover:bg-red-100"
-             : "hover:bg-gray-50"
-         }`}
-       >
-
-              
+                  <tr
+                    key={employee.employeeId}
+                    className={`transition-colors duration-200 ${
+                      employee.updatedThroughForm === true
+                        ? "hover:bg-gray-50"
+                        : employee.createdFromExcel === true
+                        ? "bg-red-50 border-l-4 hover:bg-red-100"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 line-clamp-1">{`${employee.firstName} ${employee.lastName}`}</div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{getFieldValue(employee.companyEmail)}</td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">{getFieldValue(employee.clientName)}</td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 line-clamp-1">{getFieldValue(employee.designation)}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                      {getFieldValue(employee.companyEmail)}
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                      {getFieldValue(employee.clientName)}
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 line-clamp-1">
+                      {getFieldValue(employee.designation)}
+                    </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.status)}`}>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                          employee.status
+                        )}`}
+                      >
                         {employee.status}
                       </span>
                     </td>
@@ -449,11 +481,10 @@ const EmployeeList = () => {
                             Deleting...
                           </>
                         ) : (
-                          'Delete'
+                          "Delete"
                         )}
                       </button>
                     </td>
-
                   </tr>
                 ))}
               </tbody>
@@ -466,3 +497,4 @@ const EmployeeList = () => {
 };
 
 export default EmployeeList;
+

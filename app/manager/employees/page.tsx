@@ -2,12 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Swal from 'sweetalert2';
 import { adminService } from '@/lib/api/adminService';
-import { leaveService } from '@/lib/api/leaveService';
-import { EmployeeDTO, LeaveResponseDTO, LeaveStatus, LeaveCategoryType, FinancialType, WebResponseDTOPageLeaveResponseDTO, DESIGNATION_OPTIONS } from '@/lib/api/types';
-import { format, parseISO } from 'date-fns';
-import { ArrowLeft } from 'lucide-react';
+import { EmployeeDTO, DESIGNATION_OPTIONS } from '@/lib/api/types';
+
 
 const ManagerEmployeesPage: React.FC = () => {
   const router = useRouter();
@@ -19,52 +16,28 @@ const ManagerEmployeesPage: React.FC = () => {
 
   // Check authentication and fetch employees
   useEffect(() => {
-    const accessToken = localStorage.getItem('accessToken');
-    if (!accessToken) {
-      console.warn('⚠️ No access token found, redirecting to login');
-      router.push('/auth/login');
-      return;
-    }
-
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      try {
-        const managerId = localStorage.getItem('userId') || 'manager-id-placeholder';
-        console.log('🧩 Manager ID:', managerId);
 
+      try {
         const employeeResponse = await adminService.getAllManagerEmployees();
-        console.log('🧩 Employees Response:', employeeResponse);
+
         if (employeeResponse.flag && employeeResponse.response) {
-          const filteredEmployees = employeeResponse.response.filter(
-            (employee: EmployeeDTO) =>
-              (employee.reportingManagerId === managerId || managerId === 'manager-id-placeholder') &&
-              DESIGNATION_OPTIONS.includes(employee.designation)
-          );
-          setEmployees(filteredEmployees);
+          setEmployees(employeeResponse.response);
         } else {
-          throw new Error(employeeResponse.message || 'Failed to fetch employees');
+          throw new Error(employeeResponse.message);
         }
-      } catch (err: unknown) {
-        let errorMessage = 'Failed to fetch data';
-        let errorStatus: number | undefined;
-        if (err instanceof Error) {
-          try {
-            const parsedError = JSON.parse(err.message);
-            errorMessage = parsedError.message;
-            errorStatus = parsedError.status;
-          } catch {
-            errorMessage = err.message;
-          }
-        }
-        setError({ message: errorMessage, status: errorStatus });
+
+      } catch (err) {
+        setError({ message: "Failed to fetch data" });
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [router]);
+  }, []);
 
   // Filter employees by designation and search term
   const filteredEmployees = employees.filter(
@@ -105,6 +78,7 @@ const ManagerEmployeesPage: React.FC = () => {
               onChange={(e) => setSelectedDesignation(e.target.value)}
               className="block w-48 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2 text-center"
             >
+              <option value="All">All</option>
               {DESIGNATION_OPTIONS.map((designation) => (
                 <option key={designation} value={designation}>
                   {formatType(designation)}
@@ -210,37 +184,46 @@ const ManagerEmployeesPage: React.FC = () => {
             </thead>
 
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.map((employee) => (
-                <tr
-                  key={employee.employeeId}
-                  className="hover:bg-gray-50 transition-colors duration-150 text-center"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-center">
-                    {employee.firstName} {employee.lastName}
-                  </td>
+              {filteredEmployees.length > 0 ? (
+                filteredEmployees.map((employee) => (
+                  <tr
+                    key={employee.employeeId}
+                    className="hover:bg-gray-50 transition-colors duration-150 text-center"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-center">
+                      {employee.firstName} {employee.lastName}
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
-                    {formatType(employee.designation)}
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                      {formatType(employee.designation)}
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
-                    {employee.availableLeaves?.toFixed(2) || "0.00"}
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                      {employee.availableLeaves?.toFixed(2) || "0.00"}
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                    <div className="flex justify-center">
-                      <button
-                        onClick={() =>
-                          router.push(`/manager/employeeLeave/${employee.employeeId}`)
-                        }
-                        className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition duration-300"
-                      >
-                        View Leaves
-                      </button>
-                    </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() =>
+                            router.push(`/manager/employeeLeave/${employee.employeeId}`)
+                          }
+                          className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition duration-300"
+                        >
+                          View Leaves
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    No employees found .
                   </td>
                 </tr>
-              ))}
+              )
+              }
             </tbody>
           </table>
 

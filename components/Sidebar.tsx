@@ -120,7 +120,7 @@ export default function Sidebar() {
             HR ADMIN (NO PERMISSIONS)
         ===================== */}
         
-        {role === "HR" || role === "HR_MANAGER" && sidebarConfig.HR_COMMON && (
+        {(role === "HR" || role === "HR_MANAGER") && sidebarConfig.HR_COMMON && (
           <SidebarSection title="Main">
             {sidebarConfig.HR_COMMON.map((item: SidebarItem) => (
               <SidebarLink

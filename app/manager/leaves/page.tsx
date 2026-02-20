@@ -13,7 +13,7 @@ import {
   LEAVE_STATUS_OPTIONS,
   LEAVE_CATEGORY_OPTIONS,
 } from '@/lib/api/types';
-import {ChevronLeft, ChevronRight} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { adminService } from '@/lib/api/adminService';
 
@@ -55,25 +55,25 @@ const Leavespage: React.FC = () => {
     size: 5,
     sort: 'fromDate,desc',
   });
- useEffect(() => {
-    if (!openLeaveId) return;
-  
-    pendingHighlightLeaveId.current = openLeaveId;
-    hasAutoOpenedRef.current = false; // reset auto open
-  
-  }, [openLeaveId]); // ✅ MUST depend on openLeaveId
-  
   useEffect(() => {
     if (!openLeaveId) return;
-  
+
+    pendingHighlightLeaveId.current = openLeaveId;
+    hasAutoOpenedRef.current = false; // reset auto open
+
+  }, [openLeaveId]); // ✅ MUST depend on openLeaveId
+
+  useEffect(() => {
+    if (!openLeaveId) return;
+
     // 🔥 Remove query params so refresh does NOTHING
     router.replace(window.location.pathname, { scroll: false });
   }, [openLeaveId, router]);
-  
+
   useEffect(() => {
     const targetLeaveId = pendingHighlightLeaveId.current;
     if (!targetLeaveId) return;
-  
+
     // 1️⃣ Pending tab → open modal
     const pending = pendingLeaves.find(l => l.leaveId === targetLeaveId);
     if (pending) {
@@ -82,13 +82,13 @@ const Leavespage: React.FC = () => {
       pendingHighlightLeaveId.current = null;
       return;
     }
-  
+
     // 2️⃣ Switch to ALL tab
     if (activeTab !== 'all') {
       setActiveTab('all');
       return;
     }
-  
+
     // 3️⃣ Already on correct page → highlight
     if (allLeaves.some(l => l.leaveId === targetLeaveId)) {
       setTimeout(() => {
@@ -98,12 +98,12 @@ const Leavespage: React.FC = () => {
       }, 200);
       return;
     }
-  
+
     // 4️⃣ Find correct page
     (async () => {
       try {
         const BIG_PAGE = 100;
-  
+
         const res = await leaveService.getLeaveSummary(
           selectedEmployeeId || undefined,
           filters.month,
@@ -117,27 +117,27 @@ const Leavespage: React.FC = () => {
           pagination.sort,
           isHRManager
         );
-  
+
         if (!res.flag || !res.response?.content) return;
-  
+
         const index = res.response.content.findIndex(
           l => l.leaveId === targetLeaveId
         );
-  
+
         if (index === -1) return;
-  
+
         const targetPage = Math.floor(index / pagination.size);
-  
+
         if (pagination.page !== targetPage) {
           isAutoNavigatingRef.current = true;   // 🔒 LOCK
           setPagination(prev => ({ ...prev, page: targetPage }));
         }
-        
+
       } catch {
         // silent
       }
     })();
-  
+
   }, [
     activeTab,
     pendingLeaves,
@@ -146,8 +146,8 @@ const Leavespage: React.FC = () => {
     selectedEmployeeId,
     pagination.sort
   ]);
-  
-  
+
+
   const scrollAndHighlight = (leaveId: string) => {
     const row = rowRefs.current[leaveId];
     if (!row) return;
@@ -251,7 +251,7 @@ const Leavespage: React.FC = () => {
   useEffect(() => {
     console.log('🟢 CURRENT PAGE:', pagination.page);
   }, [pagination.page]);
-  
+
   // Handle filter changes
   const handleFilterChange = (key: keyof typeof filters, value: string | boolean | undefined) => {
     setFilters((prev) => ({
@@ -261,7 +261,7 @@ const Leavespage: React.FC = () => {
     if (!isAutoNavigatingRef.current) {
       setPagination(prev => ({ ...prev, page: 0 }));
     }
-      };
+  };
 
   // Handle sort changes
   const handleSortChange = (newSort: string) => {
@@ -273,7 +273,7 @@ const Leavespage: React.FC = () => {
       page: isAutoNavigatingRef.current ? prev.page : 0,
     }));
   };
-  
+
 
   const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
     Swal.fire({
@@ -473,7 +473,7 @@ const Leavespage: React.FC = () => {
                   if (!isAutoNavigatingRef.current) {
                     setPagination(prev => ({ ...prev, page: 0 }));
                   }
-                                  }}
+                }}
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All Employees</option>
@@ -527,9 +527,8 @@ const Leavespage: React.FC = () => {
           {activeTab === 'pending' ? 'Pending Leave Requests' : 'All Leave Requests'}
         </h3>
         {(activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
-   <div className="overflow-x-auto">
-   <div className="min-w-[1100px]"> {/* 👈 force width so pagination aligns */}
-     <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-center">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
@@ -657,35 +656,34 @@ const Leavespage: React.FC = () => {
               </tbody>
             </table>
             {activeTab === 'all' && (
-      <div className="flex justify-between items-center mt-4 px-2">
-        <button
-          onClick={() =>
-            setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))
-          }
-          disabled={pagination.page === 0}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-        >
-          <ChevronLeft size={20} />
-          <span>Previous</span>
-        </button>
+              <div className="flex justify-between items-center mt-4 px-2">
+                <button
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))
+                  }
+                  disabled={pagination.page === 0}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <ChevronLeft size={20} />
+                  <span>Previous</span>
+                </button>
 
-        <span className="text-sm text-gray-600 whitespace-nowrap">
-          Page {pagination.page + 1} of {totalPages}
-        </span>
+                <span className="text-sm text-gray-600 whitespace-nowrap">
+                  Page {pagination.page + 1} of {totalPages}
+                </span>
 
-        <button
-          onClick={() =>
-            setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
-          }
-          disabled={pagination.page >= totalPages - 1}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-        >
-          <span>Next</span>
-          <ChevronRight size={20} />
-        </button>
-      </div>
-    )}
-            </div>
+                <button
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
+                  disabled={pagination.page >= totalPages - 1}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
