@@ -19,12 +19,13 @@ function getBackendError(error: any): string {
 export const LeaveCalendarService = {
     async getLeaveCalendar(
       month: number,
-      year: number
+      year: number,
+      teamView: Boolean = false,
     ): Promise<LeaveCalendarDTO[]> {
       try {
         const response: AxiosResponse<WebResponseDTOLeaveCalendarDTO> =
           await api.get("/employee/leave/calendar", {
-            params: { month, year },
+            params: { month, year , teamView},
           });
     
         console.log(
@@ -45,12 +46,12 @@ export const LeaveCalendarService = {
      // ---------------------------------------
   // Export Leave Calendar
   // ---------------------------------------
-  async exportLeaveCalendar(month: number, year: number): Promise<string> {
+  async exportLeaveCalendar(month: number, year: number ,teamView: Boolean = false, ): Promise<string> {
     try {
       const response = await api.get(
         "/employee/leave/calendar/export",
         {
-          params: { month, year },
+          params: { month, year, teamView },
         }
       );
   

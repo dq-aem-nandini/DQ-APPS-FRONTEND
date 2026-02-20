@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { LeaveCalendarService } from '@/lib/api/leaveCalendarService';
-
+import { useAuth } from '@/context/AuthContext';
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -35,19 +35,19 @@ const MONTHS = [
 
 export default function LeaveCalendarPage() {
   const today = new Date();
-
+  const { state: { accessToken, user } } = useAuth();
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
   const [data, setData] = useState<LeaveCalendarDTO[]>([]);
   const [selectedDay, setSelectedDay] = useState<LeaveCalendarDTO | null>(null);
   const [exporting, setExporting] = useState(false);
-
+  const isHRManager = user?.role?.roleName === 'HR_MANAGER';
   // -------------------------------
   // Fetch calendar data
   // -------------------------------
   useEffect(() => {
     LeaveCalendarService
-      .getLeaveCalendar(month, year)
+      .getLeaveCalendar(month, year, isHRManager)
       .then(setData)
       .catch(console.error);
   }, [month, year]);
@@ -105,7 +105,7 @@ export default function LeaveCalendarPage() {
       setExporting(true);
   
       const result =
-        await LeaveCalendarService.exportLeaveCalendar(month, year);
+        await LeaveCalendarService.exportLeaveCalendar(month, year, isHRManager );
   
       // CASE 1: backend returns a URL
       if (typeof result === "string" && result.startsWith("http")) {

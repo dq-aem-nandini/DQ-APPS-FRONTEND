@@ -673,6 +673,7 @@ export interface EmployeeModel {
   clientBillingStartDate: string;
   clientBillingStopDate: string;
   rateCard: number | null;
+  rateCardType?: RateCardType | null;
   employmentType: EmploymentType;
   panNumber: string;
   aadharNumber: string;
@@ -829,6 +830,7 @@ export interface EmployeeDTO {
   clientBillingStartDate: string;
   clientBillingStopDate: string; // date
   rateCard: number;
+  rateCardType?: RateCardType | null;
   availableLeaves: number;
   employmentType: EmploymentType;
   companyId: string;
@@ -1766,3 +1768,12 @@ export interface MonthlyAttendanceResponseDTO {
   totalPages: number;
   data: AttendanceHistoryDTO[];
 }
+
+export const RATE_CARD_TYPE_OPTIONS = [
+  "HOURLY",
+  "DAILY",
+  "WEEKLY",
+  "MONTHLY",
+] as const;
+
+export type RateCardType = typeof RATE_CARD_TYPE_OPTIONS[number];
