@@ -29,6 +29,8 @@ import {
   DESIGNATION_OPTIONS,
   EMPLOYMENT_TYPE_OPTIONS,
   DOCUMENT_TYPE_OPTIONS,
+  RateCardType,
+  RATE_CARD_TYPE_OPTIONS
 } from "@/lib/api/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
@@ -201,7 +203,7 @@ const EditEmployeePage = () => {
       };
     });
   };
-
+  
   const { handleValidatedChange, handleUniqueBlur, fieldError } =
     useFormFieldHandlers(
       handleChange,
@@ -321,6 +323,12 @@ const EditEmployeePage = () => {
   );
 
   useEffect(() => {
+    if (!formData?.rateCard || formData.rateCard <= 0) {
+      setFormData(prev => prev ? { ...prev, rateCardType: null } : null);
+    }
+  }, [formData?.rateCard]);
+
+  useEffect(() => {
     const fetchData = async () => {
       if (!params.id || typeof params.id !== "string") {
         Swal.fire({ icon: "error", title: "Invalid ID" });
@@ -350,8 +358,8 @@ const EditEmployeePage = () => {
           clientSelection,
           // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
           rateCard: emp.rateCard ?? null,
-
-
+          rateCardType: emp.rateCardType ?? null,
+          
           documents: (emp.documents ?? []).map((d) => ({
             documentId: d.documentId,
             docType: d.docType,
@@ -1035,26 +1043,47 @@ const EditEmployeePage = () => {
       }
     }
     // Rate Card required check for real clients
-if (formData.clientSelection && !isStatusClient) {
-  if (formData.rateCard == null || formData.rateCard <= 0) {
-    setErrors((prev) => ({
-      ...prev,
-      rateCard: "Rate Card is required when a client is selected",
-    }));
+    if (formData.clientSelection && !isStatusClient) {
+      if (formData.rateCard == null || formData.rateCard <= 0) {
+        setErrors((prev) => ({
+          ...prev,
+          rateCard: "Rate Card is required when a client is selected",
+        }));
 
-        // Scroll to Rate Card field
-    setTimeout(() => {
-      const rateInput = document.querySelector('input[name="rateCard"]');
-      if (rateInput) {
-        rateInput.scrollIntoView({ behavior: "smooth", block: "center" });
-        (rateInput as HTMLInputElement).focus();
+            // Scroll to Rate Card field
+        setTimeout(() => {
+          const rateInput = document.querySelector('input[name="rateCard"]');
+          if (rateInput) {
+            rateInput.scrollIntoView({ behavior: "smooth", block: "center" });
+            (rateInput as HTMLInputElement).focus();
+          }
+        }, 150);
+
+        setIsSubmitting(false);
+        return;
       }
-    }, 150);
+        }
 
-    setIsSubmitting(false);
-    return;
-  }
-    }
+    // Rate Type required when rateCard > 0 (for real clients)
+      if (formData.clientSelection && !isStatusClient) {
+        if (formData.rateCard && formData.rateCard > 0 && !formData.rateCardType) {
+          setErrors(prev => ({
+            ...prev,
+            rateCardType: "Rate card type is required when rate card amount is provided"
+          }));
+
+          setTimeout(() => {
+            const el = document.querySelector('input[name="rateCard"]')?.closest('.space-y-2');
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }, 150);
+
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
     const fd = new FormData();
 
     // 🚫 Block partial document updates
@@ -1119,6 +1148,7 @@ if (formData.clientSelection && !isStatusClient) {
         clientBillingStartDate: formData.clientBillingStartDate,
         clientBillingStopDate: formData.clientBillingStopDate,
         rateCard: formData.rateCard,
+        rateCardType: formData.rateCardType,
         employmentType: formData.employmentType,
         // reportingManagerId: formData.reportingManagerId ?? null,
         reportingManagerId:
@@ -1328,6 +1358,7 @@ if (formData.clientSelection && !isStatusClient) {
       if (isRealClient) {
         if (!formData.dateOfOnboardingToClient) return false;
         if (!formData.rateCard || formData.rateCard <= 0) return false;
+        if (formData.rateCard > 0 && !formData.rateCardType) return false;
       }
     
       // ❗ BLOCK if personal and company email same
@@ -2032,24 +2063,65 @@ const selectValue =
                   </div>
 
                   {/* Rate Card */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Rate Card
-                      {formData.clientSelection && !isStatusClient && (
-                        <span className="text-red-500">*</span>
-                      )}
-                      <TooltipHint hint="Hourly or daily billing rate for client projects (in selected currency). Leave blank if not applicable." />
-                    </Label>
-                    <Input
-                      type="number"
-                      name="rateCard"
-                      required={!!(formData.clientSelection && !isStatusClient)}
-                      value={formData.rateCard ?? ""}
-                      onChange={handleValidatedChange} // ← changed                      className="h-12 text-base w-full"
-                      placeholder="45.00"
-                    />
-                    {fieldError(errors, "rateCard")}
-                  </div>
+                  {/* Rate Card + Rate Type – span 2 columns on large screens */}
+<div className="space-y-2 xl:col-span-2">
+  <Label className="text-sm font-semibold text-gray-700">
+    Rate Card
+    {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
+    <TooltipHint hint="Hourly / daily / weekly / monthly billing rate for client projects" />
+  </Label>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {/* Rate value */}
+    <div className="space-y-1">
+      <Input
+        type="number"
+        min="0"
+        step="0.01"
+        name="rateCard"
+        required={!!(formData.clientSelection && !isStatusClient)}
+        value={formData.rateCard ?? ''}
+        onChange={handleValidatedChange}
+        placeholder="45.00"
+        className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+      />
+      {fieldError(errors, "rateCard")}
+    </div>
+
+    {/* Rate Type Dropdown */}
+    <div className="space-y-1">
+      <Select
+        value={formData.rateCardType || ""}
+        onValueChange={(value) => {
+          setFormData(prev => ({
+            ...prev!,
+            rateCardType: value as RateCardType || null,
+          }));
+          setIsDirty(true);
+        }}
+        disabled={!formData.rateCard || formData.rateCard <= 0}
+      >
+        <SelectTrigger className="h-12">
+          <SelectValue placeholder="Select Rate Type" />
+        </SelectTrigger>
+        <SelectContent>
+          {RATE_CARD_TYPE_OPTIONS.map(type => (
+            <SelectItem key={type} value={type}>
+              {type}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Conditional error message */}
+      {formData.rateCard && formData.rateCard > 0 && !formData.rateCardType && (
+        <p className="text-xs text-red-600 mt-1">
+          Please select rate type when rate card amount is provided
+        </p>
+      )}
+    </div>
+  </div>
+</div>
                   {/* CTC - Mandatory */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">

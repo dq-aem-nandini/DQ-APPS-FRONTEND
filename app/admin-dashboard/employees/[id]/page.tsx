@@ -169,6 +169,7 @@ const ViewEmployee = () => {
           hasValue(employee.clientStatus) ||
           hasValue(employee.employmentType) ||
           hasValue(employee.rateCard) ||
+          hasValue(employee.rateCardType) ||
           hasValue(employee.availableLeaves) ||
           hasValue(employee.reportingManagerName)) && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -183,7 +184,12 @@ const ViewEmployee = () => {
                 {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
                 {hasValue(employee.dateOfJoining) && <InfoItem label=" Date of Joining" value={employee.dateOfJoining!} />}                
                 {employee.rateCard != null && employee.rateCard > 0 && (
-                  <InfoItem label="Rate Card" value={String(employee.rateCard)} />
+                  <InfoItem
+                    label="Rate Card"
+                    value={ employee.rateCardType? `${employee.rateCard} (${employee.rateCardType})`
+                        : String(employee.rateCard)
+                    }
+                  />
                 )}
                 {/* {hasValue(employee.rateCard) && employee.rateCard !== 0 && <InfoItem label="Rate Card" value={String(employee.rateCard!)} />} */}
                 {/* {hasValue(employee.rateCard) && <InfoItem label="Rate Card" value={String(employee.rateCard!)} />}               */}
