@@ -9,6 +9,7 @@ import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import BackButton from "@/components/ui/BackButton";
 import { Loader2 } from "lucide-react";
+import Spinner from "@/components/ui/Spinner";
 
 const ClientList = () => {
   const [clients, setClients] = useState<ClientDTO[]>([]);
@@ -75,10 +76,9 @@ const ClientList = () => {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
-        <div className="flex items-center justify-center h-[80vh] p-4 sm:p-6 md:p-8 text-center text-gray-600">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-sm sm:text-base">Loading clients...</p>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
+          <Spinner size="lg" />
         </div>
       </ProtectedRoute>
     );
@@ -86,7 +86,7 @@ const ClientList = () => {
 
   if (error) {
     return (
-      <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
+      <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
         <div className="p-4 sm:p-6 md:p-8 text-center text-red-600">
           <p className="text-sm sm:text-base">{error}</p>
         </div>
@@ -95,7 +95,7 @@ const ClientList = () => {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -241,3 +241,4 @@ const ClientList = () => {
 };
 
 export default ClientList;
+
