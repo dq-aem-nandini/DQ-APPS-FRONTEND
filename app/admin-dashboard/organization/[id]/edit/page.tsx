@@ -181,19 +181,19 @@ export default function EditOrganizationPage() {
           companyType: res.companyType ?? "",
           attendancePolicy: res.attendancePolicyDto
             ? {
-                absentMaxMinutes:
-                  res.attendancePolicyDto.absentMaxMinutes != null
-                    ? res.attendancePolicyDto.absentMaxMinutes / 60
-                    : undefined,
-                fullDayMinMinutes:
-                  res.attendancePolicyDto.fullDayMinMinutes != null
-                    ? res.attendancePolicyDto.fullDayMinMinutes / 60
-                    : undefined,
-              }
+              absentMaxMinutes:
+                res.attendancePolicyDto.absentMaxMinutes != null
+                  ? res.attendancePolicyDto.absentMaxMinutes / 60
+                  : undefined,
+              fullDayMinMinutes:
+                res.attendancePolicyDto.fullDayMinMinutes != null
+                  ? res.attendancePolicyDto.fullDayMinMinutes / 60
+                  : undefined,
+            }
             : {
-                absentMaxMinutes: undefined,
-                fullDayMinMinutes: undefined,
-              },
+              absentMaxMinutes: undefined,
+              fullDayMinMinutes: undefined,
+            },
         };
 
         setFormData(loaded);
@@ -440,7 +440,7 @@ export default function EditOrganizationPage() {
           String(Math.round(formData.attendancePolicy.absentMaxMinutes * 60))
         );
       }
-      
+
       if (formData.attendancePolicy?.fullDayMinMinutes != null) {
         fd.append(
           "attendancePolicy.fullDayMinMinutes",
@@ -748,7 +748,7 @@ export default function EditOrganizationPage() {
                       });
                     }}
                   >
-                    <SelectTrigger className="w-full min-w-[200px] !h-12">
+                    <SelectTrigger className="!h-12 text-base w-full">
                       <SelectValue placeholder="Select Domain" />
                     </SelectTrigger>
                     <SelectContent>
@@ -790,7 +790,7 @@ export default function EditOrganizationPage() {
                       });
                     }}
                   >
-                    <SelectTrigger className="w-full min-w-[200px] !h-12">
+                    <SelectTrigger className="!h-12 text-base w-full">
                       <SelectValue placeholder="Select Industry Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -833,7 +833,7 @@ export default function EditOrganizationPage() {
                       setFormData((prev) => ({ ...prev, timezone: val }))
                     }
                   >
-                    <SelectTrigger className="w-full min-w-[200px] !h-12">
+                    <SelectTrigger className="!h-12 text-base w-full">
                       <SelectValue placeholder="Select TimeZone" />
                     </SelectTrigger>
                     <SelectContent>
@@ -892,7 +892,7 @@ export default function EditOrganizationPage() {
                       });
                     }}
                   >
-                    <SelectTrigger className="w-full min-w-[200px] !h-12">
+                    <SelectTrigger className="!h-12 text-base w-full">
                       <SelectValue placeholder="Select Currency" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1226,6 +1226,8 @@ export default function EditOrganizationPage() {
                             handleAddressChange(idx, "houseNo", e.target.value)
                           }
                           placeholder="e.g. 221B"
+                          className="!h-12 text-base w-full"
+
                         />
                         {fieldError(errors, `addresses.${idx}.houseNo`)}
                       </div>
@@ -1244,6 +1246,8 @@ export default function EditOrganizationPage() {
                               e.target.value
                             )
                           }
+                          className="!h-12 text-base w-full"
+
                           placeholder="e.g. Baker Street"
                         />
                         {fieldError(errors, `addresses.${idx}.streetName`)}
@@ -1260,6 +1264,8 @@ export default function EditOrganizationPage() {
                             handleAddressChange(idx, "city", e.target.value)
                           }
                           placeholder="e.g. Mumbai"
+                          className="!h-12 text-base w-full"
+
                         />
                         {fieldError(errors, `addresses.${idx}.city`)}
                       </div>
@@ -1275,6 +1281,8 @@ export default function EditOrganizationPage() {
                             handleAddressChange(idx, "state", e.target.value)
                           }
                           placeholder="e.g. Maharashtra"
+                          className="!h-12 text-base w-full"
+
                         />
                         {fieldError(errors, `addresses.${idx}.state`)}
                       </div>
@@ -1295,6 +1303,8 @@ export default function EditOrganizationPage() {
                           }}
                           maxLength={6}
                           placeholder="e.g. 400001"
+                          className="!h-12 text-base w-full"
+
                         />
                         {fieldError(errors, `addresses.${idx}.pincode`)}
                       </div>
@@ -1310,6 +1320,8 @@ export default function EditOrganizationPage() {
                             handleAddressChange(idx, "country", e.target.value)
                           }
                           placeholder="e.g. India"
+                          className="!h-12 text-base w-full"
+
                         />
                         {fieldError(errors, `addresses.${idx}.country`)}
                       </div>
@@ -1329,7 +1341,7 @@ export default function EditOrganizationPage() {
                             )
                           }
                         >
-                          <SelectTrigger className="w-full min-w-[200px] !h-12">
+                          <SelectTrigger className="!h-12 text-base w-full">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>

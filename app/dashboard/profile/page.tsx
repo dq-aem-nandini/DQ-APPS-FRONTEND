@@ -862,7 +862,7 @@ const ProfilePage = () => {
                     {profile.firstName} {profile.lastName}
                   </h1>
                   <p className="text-lg opacity-90 mt-1">
-                    {profile.designation?.replace("_", " ") || "Employee"}
+                    {profile.designationName?.replace("_", " ") || "Employee"}
                   </p>
                 </div>
               </div>
@@ -1585,7 +1585,7 @@ const ProfilePage = () => {
                 >
                   <ShowIfFilled
                     label="Designation"
-                    value={profile.designation?.replace("_", " ")}
+                    value={profile.designationName?.replace("_", " ")}
                   />
                   <ShowIfFilled
                     label="Date of Joining"

@@ -653,7 +653,7 @@ export default function AddClientPage() {
                       }))
                     }
                   >
-                    <SelectTrigger className="w-full min-w-[200px] !h-11">
+                    <SelectTrigger className="!h-11 text-base w-full">
                       <SelectValue placeholder="Select Currency" />
                     </SelectTrigger>
 
@@ -899,7 +899,7 @@ export default function AddClientPage() {
                         value={addr.addressType || ""}
                         onChange={(e) => handleChange(e, i, "addresses")}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
+                        className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                       >
                         <option value="">Select Address Type</option>
                         {ADDRESS_TYPE_OPTIONS.map((d) => (
@@ -1081,10 +1081,10 @@ export default function AddClientPage() {
 
               {(!formData.clientTaxDetails ||
                 formData.clientTaxDetails.length === 0) && (
-                <div className="p-6 text-gray-500 text-center border border-dashed rounded">
-                  Click “Add Tax” to add tax details
-                </div>
-              )}
+                  <div className="p-6 text-gray-500 text-center border border-dashed rounded">
+                    Click “Add Tax” to add tax details
+                  </div>
+                )}
 
               {(formData.clientTaxDetails || []).map((tax, i) => (
                 <div

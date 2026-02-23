@@ -279,7 +279,7 @@ function getBackendError(error: any): string {
             setEmployeeDetails({
               // clientName: employee.clientName,
               reportingManagerName: employee.reportingManagerName,
-              designation: employee.designation,
+              designation: employee.designationName,
             });
       
           } catch (err) {
@@ -1204,7 +1204,7 @@ useEffect(() => {
 
                 {/* Role */}
                 <div className="flex items-center border-t border-blue-100 pt-2">
-                  <span className="font-medium text-gray-600">Role:</span>
+                  <span className="font-medium text-gray-600">Designation:</span>
                   <span className="font-semibold text-gray-800 ml-3">
                     {employeeDetails.designation
                       ? employeeDetails.designation

@@ -629,7 +629,7 @@ export default function EditClientPage() {
                       }))
                     }
                   >
-                    <SelectTrigger className="w-full min-w-[200px] !h-11">
+                    <SelectTrigger className="!h-11 text-base w-full">
                       <SelectValue placeholder="Select Currency" />
                     </SelectTrigger>
 
@@ -815,7 +815,7 @@ export default function EditClientPage() {
                             handleValidatedChange(fakeEvent, i, "addresses");
                           }}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="!h-10 text-base w-full">
                             <SelectValue placeholder="Select State" />
                           </SelectTrigger>
                           <SelectContent>
@@ -853,7 +853,7 @@ export default function EditClientPage() {
                         onChange={(e) =>
                           handleValidatedChange(e, i, "addresses")
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
+                        className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                         required
                       >
                         <option value="">Select Address Type</option>

@@ -79,7 +79,8 @@ const ViewEmployee = () => {
               {employee.firstName} {employee.lastName}
             </h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">
-              {employee.designation} {employee.clientName ? `• ${employee.clientName}` : ''}
+            {employee.designationName}
+            {employee.clientName ? ` • ${employee.clientName}` : ''}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -163,7 +164,7 @@ const ViewEmployee = () => {
           )}
 
         {/* Professional Details */}
-        {(hasValue(employee.designation) ||
+        {(hasValue(employee.designationName) ||
           hasValue(employee.dateOfJoining) ||
           hasValue(employee.clientName) ||
           hasValue(employee.clientStatus) ||
@@ -179,7 +180,7 @@ const ViewEmployee = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {employee.employeeEmploymentDetailsDTO && hasValue(employee.employeeEmploymentDetailsDTO.department) && <InfoItem label="Department" value={employee.employeeEmploymentDetailsDTO.department!} />}
-                {hasValue(employee.designation) && <InfoItem label="Designation" value={employee.designation!} />}
+                {hasValue(employee.designationName) && <InfoItem label="Designation" value={employee.designationName!} />}
                 {hasValue(employee.employmentType) && <InfoItem label="Employment Type" value={employee.employmentType!} />}
                 {hasValue(employee.clientStatus) && <InfoItem label="Client Status" value={employee.clientStatus!} />}
                 {hasValue(employee.dateOfJoining) && <InfoItem label=" Date of Joining" value={employee.dateOfJoining!} />}                

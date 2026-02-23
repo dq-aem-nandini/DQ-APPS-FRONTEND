@@ -26,11 +26,11 @@ import {
   PAY_TYPE_OPTIONS,
   EmployeeDepartmentDTO,
   EmployeeDTO,
-  DESIGNATION_OPTIONS,
   EMPLOYMENT_TYPE_OPTIONS,
   DOCUMENT_TYPE_OPTIONS,
   RateCardType,
-  RATE_CARD_TYPE_OPTIONS
+  RATE_CARD_TYPE_OPTIONS,
+  DesignationResponseDTO
 } from "@/lib/api/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
@@ -153,6 +153,7 @@ const EditEmployeePage = () => {
   const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
     undefined
   );
+  const [designations, setDesignations] = useState<DesignationResponseDTO[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [localIfsc, setLocalIfsc] = useState<string>("");
@@ -203,7 +204,7 @@ const EditEmployeePage = () => {
       };
     });
   };
-  
+
   const { handleValidatedChange, handleUniqueBlur, fieldError } =
     useFormFieldHandlers(
       handleChange,
@@ -340,6 +341,7 @@ const EditEmployeePage = () => {
         const [empRes, clientRes] = await Promise.all([
           adminService.getEmployeeById(params.id),
           adminService.getAllClients(),
+          adminService.getAllDesignations(),
         ]);
 
         if (!empRes.flag || !empRes.response)
@@ -353,13 +355,29 @@ const EditEmployeePage = () => {
         } else {
           clientSelection = `STATUS:${emp.clientStatus || ""}`;
         }
+        const designationRes = await adminService.getAllDesignations();
+
+        if (Array.isArray(designationRes)) {
+          setDesignations(designationRes);
+        } else {
+          setDesignations([]);
+        }
         setFormData({
           ...emp,
           clientSelection,
+
+          // ✅ DESIGNATION (safe + consistent)
+          designationId: emp.designationId ?? null,
+
+          customDesignation:
+            emp.designationId === null
+              ? emp.designationName ?? ""
+              : "",
+
           // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
           rateCard: emp.rateCard ?? null,
           rateCardType: emp.rateCardType ?? null,
-          
+
           documents: (emp.documents ?? []).map((d) => ({
             documentId: d.documentId,
             docType: d.docType,
@@ -424,10 +442,10 @@ const EditEmployeePage = () => {
     if (!formData?.personalEmail || !formData?.companyEmail) {
       return;
     }
-  
+
     const p = formData.personalEmail.trim().toLowerCase();
     const c = formData.companyEmail.trim().toLowerCase();
-  
+
     if (p && c && p === c) {
       setErrors(prev => ({
         ...prev,
@@ -443,8 +461,8 @@ const EditEmployeePage = () => {
       });
     }
   }, [formData?.personalEmail, formData?.companyEmail]);
-  
-  
+
+
   useEffect(() => {
     if (formData?.ifscCode) {
       setLocalIfsc(formData.ifscCode.toUpperCase());
@@ -975,7 +993,7 @@ const EditEmployeePage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!params.id || !formData) return;
-
+    console.log("Submitting:", formData);
     setIsSubmitting(true);
     // ──────────────────────────────────────────────
     // BANK DETAILS: All-or-nothing validation (same as Add page)
@@ -1050,7 +1068,7 @@ const EditEmployeePage = () => {
           rateCard: "Rate Card is required when a client is selected",
         }));
 
-            // Scroll to Rate Card field
+        // Scroll to Rate Card field
         setTimeout(() => {
           const rateInput = document.querySelector('input[name="rateCard"]');
           if (rateInput) {
@@ -1062,27 +1080,27 @@ const EditEmployeePage = () => {
         setIsSubmitting(false);
         return;
       }
-        }
+    }
 
     // Rate Type required when rateCard > 0 (for real clients)
-      if (formData.clientSelection && !isStatusClient) {
-        if (formData.rateCard && formData.rateCard > 0 && !formData.rateCardType) {
-          setErrors(prev => ({
-            ...prev,
-            rateCardType: "Rate card type is required when rate card amount is provided"
-          }));
+    if (formData.clientSelection && !isStatusClient) {
+      if (formData.rateCard && formData.rateCard > 0 && !formData.rateCardType) {
+        setErrors(prev => ({
+          ...prev,
+          rateCardType: "Rate card type is required when rate card amount is provided"
+        }));
 
-          setTimeout(() => {
-            const el = document.querySelector('input[name="rateCard"]')?.closest('.space-y-2');
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          }, 150);
+        setTimeout(() => {
+          const el = document.querySelector('input[name="rateCard"]')?.closest('.space-y-2');
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 150);
 
-          setIsSubmitting(false);
-          return;
-        }
+        setIsSubmitting(false);
+        return;
       }
+    }
 
     const fd = new FormData();
 
@@ -1139,8 +1157,11 @@ const EditEmployeePage = () => {
         emergencyContactNumber: formData.emergencyContactNumber,
         remarks: formData.remarks,
         skillsAndCertification: formData.skillsAndCertification,
-
-        designation: formData.designation,
+        designationId: formData.designationId ?? null,
+        customDesignation:
+          formData.designationId === null
+            ? formData.customDesignation
+            : null,
         dateOfBirth: formData.dateOfBirth,
         dateOfJoining: formData.dateOfJoining,
         dateOfOnboardingToClient: formData.dateOfOnboardingToClient,
@@ -1304,87 +1325,85 @@ const EditEmployeePage = () => {
 
   const { hasAnyDocTypeSelected, hasValidDocument } = useMemo(() => {
     const docs = formData?.documents ?? [];
-  
+
     return {
       hasAnyDocTypeSelected: docs.some(d => !!d.docType),
-  
+
       hasValidDocument: docs.some(d =>
         // Existing document (already saved)
         d.documentId ||
-  
+
         // New complete document
         (d.docType && d.file instanceof File)
       ),
     };
   }, [formData?.documents]);
-  
+
   const canAddDocument =
     !hasAnyDocTypeSelected || hasValidDocument;
-  
 
-    const isFormValid = () => {
-      if (!formData) return false;
-    
-      if (!formData.firstName?.trim()) return false;
-      if (!formData.lastName?.trim()) return false;
-      if (!formData.personalEmail?.trim()) return false;
-      if (!formData.companyEmail?.trim()) return false;
-      if (!formData.contactNumber?.trim()) return false;
-      if (!formData.dateOfBirth) return false;
-      if (!formData.nationality?.trim()) return false;
-      if (!formData.gender) return false;
-    
-      if (!formData.clientSelection) return false;
 
-      const isRealClient =
+  const isFormValid = () => {
+    if (!formData) return false;
+
+    if (!formData.firstName?.trim()) return false;
+    if (!formData.lastName?.trim()) return false;
+    if (!formData.personalEmail?.trim()) return false;
+    if (!formData.companyEmail?.trim()) return false;
+    if (!formData.contactNumber?.trim()) return false;
+    if (!formData.dateOfBirth) return false;
+    if (!formData.nationality?.trim()) return false;
+    if (!formData.gender) return false;
+
+    if (!formData.clientSelection) return false;
+
+    const isRealClient =
       formData.clientSelection?.startsWith("CLIENT:");
-    
-    
-      if (isRealClient && !formData.clientId) return false;
-    
-      if (!formData.employeeEmploymentDetailsDTO?.department) return false;
-      if (!formData.designation) return false;
-      if (!formData.dateOfJoining) return false;
-      if (!formData.employmentType) return false;
-    
-      if (!formData.employeeSalaryDTO?.payType) return false;
-      if (
-        formData.employeeSalaryDTO?.ctc == null ||
-        Number(formData.employeeSalaryDTO.ctc) <= 0
-      )
-        return false;
-      
-    
-      if (isRealClient) {
-        if (!formData.dateOfOnboardingToClient) return false;
-        if (!formData.rateCard || formData.rateCard <= 0) return false;
-        if (formData.rateCard > 0 && !formData.rateCardType) return false;
-      }
-    
-      // ❗ BLOCK if personal and company email same
-if (
-  formData.personalEmail?.trim().toLowerCase() ===
-  formData.companyEmail?.trim().toLowerCase()
-) {
-  return false;
-}
 
-      return true; // 🔥 no errors check
-    };
-    
-    
 
+    if (isRealClient && !formData.clientId) return false;
+
+    if (!formData.employeeEmploymentDetailsDTO?.department) return false;
+    if (
+      formData.designationId === null &&
+      !formData.customDesignation?.trim()
+    ) {
+      return false;
+    } if (!formData.dateOfJoining) return false;
+    if (!formData.employmentType) return false;
+
+    if (!formData.employeeSalaryDTO?.payType) return false;
+    if (
+      formData.employeeSalaryDTO?.ctc == null ||
+      Number(formData.employeeSalaryDTO.ctc) <= 0
+    )
+      return false;
+
+
+    if (isRealClient) {
+      if (!formData.dateOfOnboardingToClient) return false;
+      if (!formData.rateCard || formData.rateCard <= 0) return false;
+      if (formData.rateCard > 0 && !formData.rateCardType) return false;
+    }
+
+    // ❗ BLOCK if personal and company email same
+    if (
+      formData.personalEmail?.trim().toLowerCase() ===
+      formData.companyEmail?.trim().toLowerCase()
+    ) {
+      return false;
+    }
+
+    return true; // 🔥 no errors check
+  };
+
+  const isCustomDesignation = formData?.designationId === null;
   // LOADING STATES
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-            <p className="text-lg font-medium text-gray-700">
-              Loading employee data...
-            </p>
-          </div>
+           <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
         </div>
       </ProtectedRoute>
     );
@@ -1400,10 +1419,10 @@ if (
     );
   }
 
-const selectValue =
-  formData.clientSelection?.startsWith("CLIENT:")
-    ? formData.clientSelection.replace("CLIENT:", "")
-    : formData.clientSelection?.replace("STATUS:", "") ?? "";
+  const selectValue =
+    formData.clientSelection?.startsWith("CLIENT:")
+      ? formData.clientSelection.replace("CLIENT:", "")
+      : formData.clientSelection?.replace("STATUS:", "") ?? "";
 
 
   const getError = (key: string) => errors[key] || "";
@@ -1441,7 +1460,7 @@ const selectValue =
                       required
                       onChange={handleValidatedChange}
                       placeholder="Enter first name"
-                      className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "firstName")}
                   </div>
@@ -1457,7 +1476,7 @@ const selectValue =
                       required
                       onChange={handleValidatedChange}
                       placeholder="Enter last name"
-                      className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "lastName")}
                   </div>
@@ -1484,7 +1503,7 @@ const selectValue =
                           employeeData?.employeeId
                         )}
                         placeholder="you@gmail.com"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {fieldError(errors, "personalEmail")}
@@ -1513,7 +1532,7 @@ const selectValue =
                           employeeData?.employeeId
                         )}
                         placeholder="you@company.com"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {fieldError(errors, "companyEmail")}
@@ -1550,7 +1569,7 @@ const selectValue =
                         )}
                         maxLength={10}
                         placeholder="9876543210"
-                        className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {/* Error Message */}
@@ -1570,7 +1589,7 @@ const selectValue =
                       required
                       onChange={handleValidatedChange}
                       max={today}
-                      className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "dateOfBirth")}
                   </div>
@@ -1587,7 +1606,7 @@ const selectValue =
                       required
                       onChange={handleValidatedChange}
                       placeholder="Indian"
-                      className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "nationality")}
                   </div>
@@ -1607,8 +1626,7 @@ const selectValue =
                         setIsDirty(true);
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                        {" "}
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Gender" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1637,7 +1655,7 @@ const selectValue =
                       )}
                       maxLength={10}
                       placeholder="e.g.ABCDE1234F"
-                      className="h-12"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "panNumber")}
                   </div>
@@ -1668,7 +1686,7 @@ const selectValue =
                       inputMode="numeric"
                       maxLength={12}
                       placeholder="e.g.123456789012"
-                      className="h-12"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "aadharNumber")}
                   </div>
@@ -1700,14 +1718,14 @@ const selectValue =
                       onValueChange={(v) => {
                         setFormData((prev) => {
                           if (!prev) return prev;
-                      
+
                           const isRealClient =
                             prev.clientSelection?.startsWith("CLIENT:");
-                      
+
                           const hasActiveClient =
                             isRealClient &&
                             !prev.dateOfOffboardingToClient;
-                      
+
                           if (hasActiveClient) {
                             Swal.fire({
                               icon: "warning",
@@ -1715,21 +1733,21 @@ const selectValue =
                               text: "Please set Date of Offboarding for current client before changing client.",
                               confirmButtonColor: "#4f46e5",
                             });
-                      
+
                             return prev; // ❌ Block change
                           }
-                      
+
                           // ✅ Allow change
                           const nextClient =
                             staticClients.has(v)
                               ? `STATUS:${v}`
                               : `CLIENT:${v}`;
-                      
+
                           return {
                             ...prev,
                             clientId: staticClients.has(v) ? null : v,
                             clientSelection: nextClient,
-                      
+
                             // Reset client dependent fields
                             dateOfOnboardingToClient: "",
                             dateOfOffboardingToClient: "",
@@ -1738,12 +1756,12 @@ const selectValue =
                             rateCard: null,
                           };
                         });
-                      
+
                         setIsDirty(true);
                       }}
-                      
+
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Client" />
                       </SelectTrigger>
 
@@ -1822,7 +1840,7 @@ const selectValue =
                         }
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue
                           placeholder={
                             !formData?.employeeEmploymentDetailsDTO?.department
@@ -1865,7 +1883,7 @@ const selectValue =
                         !formData?.employeeEmploymentDetailsDTO?.department
                       }
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue
                           placeholder={
                             formData?.employeeEmploymentDetailsDTO?.department
@@ -1915,32 +1933,72 @@ const selectValue =
                       Designation <span className="text-red-500">*</span>
                       <TooltipHint hint="Employee's job title. Example: Software Engineer, Senior Developer" />
                     </Label>
+                    {/* DROPDOWN MODE */}
+                    {formData.designationId !== null ? (
+                      <Select
+                        value={formData.designationId || ""}
+                        onValueChange={(value) => {
+                          if (value === "OTHER") {
+                            setFormData(prev =>
+                              prev
+                                ? {
+                                  ...prev,
+                                  designationId: null,
+                                  customDesignation: "",
+                                }
+                                : prev
+                            );
+                            return;
+                          }
 
-                    <Select
-                      required
-                      value={formData?.designation || ""}
-                      onValueChange={(v) => {
-                        setIsDirty(true);
-                        setFormData((prev) =>
-                          prev
-                            ? { ...prev, designation: v as Designation }
-                            : prev
-                        );
-                      }}
-                    >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
-                        <SelectValue placeholder="Select Designation" />
-                      </SelectTrigger>
+                          setFormData(prev =>
+                            prev
+                              ? {
+                                ...prev,
+                                designationId: value,
+                                customDesignation: "",
+                              }
+                              : prev
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="!h-12 text-base w-full">
 
-                      <SelectContent>
-                        {DESIGNATION_OPTIONS.map((d) => (
-                          <SelectItem key={d} value={d}>
-                            {d.replace(/_/g, " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {fieldError(errors, "designation")}
+                          <SelectValue placeholder="Select Designation" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          {designations.map(d => (
+                            <SelectItem key={d.id} value={d.id}>
+                              {d.name}
+                            </SelectItem>
+                          ))}
+
+                          <SelectItem value="OTHER">+ Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      /* CUSTOM INPUT MODE */
+                      <Input
+                        placeholder="Enter custom designation"
+                        value={formData.customDesignation ?? ""}
+                        autoFocus
+                        className="!h-12"
+                        onChange={(e) =>
+                          setFormData(prev =>
+                            prev
+                              ? {
+                                ...prev,
+                                designationId: null,
+                                customDesignation: e.target.value,
+                              }
+                              : prev
+                          )
+                        }
+                      />
+                    )}
+
+                    {fieldError(errors, "designationId")}
                   </div>
 
                   {/* Date of Joining */}
@@ -1955,7 +2013,7 @@ const selectValue =
                       required
                       value={formData.dateOfJoining ?? ""}
                       onChange={handleValidatedChange}
-                      className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "dateOfJoining")}
                   </div>
@@ -1973,7 +2031,7 @@ const selectValue =
                       value={formData.dateOfOnboardingToClient ?? ""}
                       onChange={handleValidatedChange}
                       required={!!(formData.clientSelection && !isStatusClient)} // disabled={isStatusClient}
-                      className="h-12 text-base w-full"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "dateOfOnboardingToClient")}
                   </div>
@@ -1989,7 +2047,7 @@ const selectValue =
                       name="dateOfOffboardingToClient"
                       value={formData.dateOfOffboardingToClient ?? ""}
                       onChange={handleValidatedChange}
-                      className="h-12 text-base w-full"
+                      className="!h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
                     {fieldError(errors, "dateOfOffboardingToClient")}
@@ -2005,7 +2063,7 @@ const selectValue =
                       name="clientBillingStartDate"
                       value={formData.clientBillingStartDate ?? ""}
                       onChange={handleValidatedChange}
-                      className="h-12 text-base w-full"
+                      className="!h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
                     {fieldError(errors, "clientBillingStartDate")}
@@ -2021,7 +2079,7 @@ const selectValue =
                       name="clientBillingStopDate"
                       value={formData.clientBillingStopDate ?? ""}
                       onChange={handleValidatedChange}
-                      className="h-12 text-base w-full"
+                      className="!h-12 text-base w-full"
                     //  max={maxJoiningDateStr}
                     />
                     {fieldError(errors, "clientBillingStopDate")}
@@ -2046,7 +2104,7 @@ const selectValue =
                         );
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Type" />
                       </SelectTrigger>
 
@@ -2063,65 +2121,64 @@ const selectValue =
                   </div>
 
                   {/* Rate Card */}
-                  {/* Rate Card + Rate Type – span 2 columns on large screens */}
-<div className="space-y-2 xl:col-span-2">
-  <Label className="text-sm font-semibold text-gray-700">
-    Rate Card
-    {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
-    <TooltipHint hint="Hourly / daily / weekly / monthly billing rate for client projects" />
-  </Label>
+                  <div className="space-y-2 xl:col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Rate Card
+                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
+                      <TooltipHint hint="Hourly / daily / weekly / monthly billing rate for client projects" />
+                    </Label>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    {/* Rate value */}
-    <div className="space-y-1">
-      <Input
-        type="number"
-        min="0"
-        step="0.01"
-        name="rateCard"
-        required={!!(formData.clientSelection && !isStatusClient)}
-        value={formData.rateCard ?? ''}
-        onChange={handleValidatedChange}
-        placeholder="45.00"
-        className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-      />
-      {fieldError(errors, "rateCard")}
-    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                      {/* Rate value */}
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          name="rateCard"
+                          required={!!(formData.clientSelection && !isStatusClient)}
+                          value={formData.rateCard ?? ''}
+                          onChange={handleValidatedChange}
+                          placeholder="45.00"
+                          className="!h-12 text-base w-full"
+                        />
+                        {fieldError(errors, "rateCard")}
+                      </div>
 
-    {/* Rate Type Dropdown */}
-    <div className="space-y-1">
-      <Select
-        value={formData.rateCardType || ""}
-        onValueChange={(value) => {
-          setFormData(prev => ({
-            ...prev!,
-            rateCardType: value as RateCardType || null,
-          }));
-          setIsDirty(true);
-        }}
-        disabled={!formData.rateCard || formData.rateCard <= 0}
-      >
-        <SelectTrigger className="h-12">
-          <SelectValue placeholder="Select Rate Type" />
-        </SelectTrigger>
-        <SelectContent>
-          {RATE_CARD_TYPE_OPTIONS.map(type => (
-            <SelectItem key={type} value={type}>
-              {type}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+                      {/* Rate Type Dropdown */}
+                      <div className="space-y-1">
+                        <Select
+                          value={formData.rateCardType || ""}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({
+                              ...prev!,
+                              rateCardType: value as RateCardType || null,
+                            }));
+                            setIsDirty(true);
+                          }}
+                          disabled={!formData.rateCard || formData.rateCard <= 0}
+                        >
+                          <SelectTrigger className="!h-12 w-full">
+                            <SelectValue placeholder="Select Rate Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RATE_CARD_TYPE_OPTIONS.map(type => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-      {/* Conditional error message */}
-      {formData.rateCard && formData.rateCard > 0 && !formData.rateCardType && (
-        <p className="text-xs text-red-600 mt-1">
-          Please select rate type when rate card amount is provided
-        </p>
-      )}
-    </div>
-  </div>
-</div>
+                        {/* Conditional error message */}
+                        {formData.rateCard && formData.rateCard > 0 && !formData.rateCardType && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Please select rate type when rate card amount is provided
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   {/* CTC - Mandatory */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -2129,7 +2186,7 @@ const selectValue =
                       <TooltipHint hint="Cost to Company - Annual gross salary in rupees (before deductions)." />
                     </Label>
                     <Input
-                      className="h-12 text-base w-full"
+                      className="!h-12 text-base w-full"
                       type="number"
                       placeholder="e.g. 1200000"
                       name="employeeSalaryDTO.ctc"
@@ -2172,7 +2229,7 @@ const selectValue =
                         );
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Pay Type" />
                       </SelectTrigger>
 
@@ -2197,7 +2254,8 @@ const selectValue =
                       type="number"
                       name="employeeSalaryDTO.standardHours"
                       value={formData.employeeSalaryDTO?.standardHours ?? ""}
-                      onChange={handleValidatedChange} // ← changed                      className="h-12 text-base w-full"
+                      onChange={handleValidatedChange} // ← changed                      
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "employeeSalaryDTO.standardHours")}
                   </div>
@@ -2221,7 +2279,7 @@ const selectValue =
                         } as any);
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Pay Class" />
                       </SelectTrigger>
                       <SelectContent>
@@ -2256,7 +2314,7 @@ const selectValue =
                         } as any);
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Working Model" />
                       </SelectTrigger>
 
@@ -2296,7 +2354,7 @@ const selectValue =
                         } as any);
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Shift" />
                       </SelectTrigger>
 
@@ -2324,7 +2382,7 @@ const selectValue =
                           ?.dateOfConfirmation || ""
                       }
                       onChange={handleChange}
-                      className="h-12 text-base w-full"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(
                       errors,
@@ -2354,7 +2412,7 @@ const selectValue =
                         } as any);
                       }}
                     >
-                      <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Notice Period" />
                       </SelectTrigger>
 
@@ -2414,7 +2472,7 @@ const selectValue =
                             } as any);
                           }}
                         >
-                          <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                          <SelectTrigger className="!h-12 text-base w-full">
                             <SelectValue placeholder="Select Duration" />
                           </SelectTrigger>
 
@@ -2453,7 +2511,7 @@ const selectValue =
                             } as any);
                           }}
                         >
-                          <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                          <SelectTrigger className="!h-12 text-base w-full">
                             <SelectValue placeholder="Select Notice Period" />
                           </SelectTrigger>
 
@@ -2513,7 +2571,7 @@ const selectValue =
                           } as any);
                         }}
                       >
-                        <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                        <SelectTrigger className="!h-12 text-base w-full">
                           <SelectValue placeholder="Select Duration" />
                         </SelectTrigger>
 
@@ -2548,7 +2606,7 @@ const selectValue =
                             <Input
                               placeholder="Type (e.g., HRA)"
                               value={a.allowanceType ?? ""}
-                              className="h-12 text-base"
+                              className="!h-12 text-base w-full"
                               onChange={(e) => {
                                 const val = e.target.value;
 
@@ -2619,7 +2677,7 @@ const selectValue =
                             type="number"
                             placeholder="Amount"
                             value={a.amount ?? ""}
-                            className="h-12 text-base"
+                            className="!h-12 text-base w-full"
                             onChange={(e) => {
                               const updated = [
                                 ...(formData.employeeSalaryDTO?.allowances ||
@@ -2735,7 +2793,7 @@ const selectValue =
                             <Input
                               placeholder="Type (e.g., PF)"
                               value={d.deductionType ?? ""}
-                              className="h-12 text-base"
+                              className="!h-12 text-base w-full"
                               onChange={(e) => {
                                 const val = e.target.value;
 
@@ -2803,7 +2861,7 @@ const selectValue =
                             type="number"
                             placeholder="Amount"
                             value={d.amount ?? ""}
-                            className="h-12 text-base"
+                            className="!h-12 text-base w-full"
                             onChange={(e) => {
                               const updated = [
                                 ...(formData.employeeSalaryDTO?.deductions ||
@@ -2912,7 +2970,8 @@ const selectValue =
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
                   {/* Account Number – Optional */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -2938,7 +2997,7 @@ const selectValue =
                       inputMode="numeric"
                       maxLength={18}
                       placeholder="123456789012"
-                      className="h-12"
+                      className="!h-12 text-base w-full"
                     />
 
                     {fieldError(errors, "accountNumber")}
@@ -2955,7 +3014,7 @@ const selectValue =
                       value={formData.accountHolderName || ""}
                       onChange={handleValidatedChange}
                       placeholder="e.g. As per bank passbook / statement"
-                      className="h-12"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "accountHolderName")}
                   </div>
@@ -2976,7 +3035,7 @@ const selectValue =
                       onBlur={() => handleIfscLookup(localIfsc)}
                       placeholder="e.g. HDFC0000123"
                       maxLength={11}
-                      className="h-12 pr-10 uppercase tracking-wider"
+                      className="!h-12 text-base w-full"
                     />
                     {isLookingUp && (
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-blue-500" />
@@ -2995,7 +3054,7 @@ const selectValue =
                       value={formData.bankName || ""}
                       onChange={handleValidatedChange}
                       placeholder="Auto-filled from IFSC"
-                      className="h-12 bg-gray-50 cursor-not-allowed"
+                      className="!h-12 bg-gray-50 cursor-not-allowed"
                     />
                   </div>
 
@@ -3010,7 +3069,7 @@ const selectValue =
                       value={formData.branchName || ""}
                       onChange={handleValidatedChange}
                       placeholder="e.g. Mumbai Main Branch"
-                      className="h-12"
+                      className="!h-12 bg-gray-50 cursor-not-allowed"
                     />
                     {fieldError(errors, "branchName")}
                   </div>
@@ -3053,7 +3112,7 @@ const selectValue =
                               );
                             }}
                           >
-                            <SelectTrigger className="w-full min-w-[200px] !h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500">
+                            <SelectTrigger className="!h-12 text-base w-full">
                               <SelectValue placeholder="Select Type" />
                             </SelectTrigger>
 
@@ -3199,7 +3258,7 @@ const selectValue =
                               });
                             }}
                             placeholder="Enter Type"
-                            className="h-12 text-base"
+                            className="!h-12 text-base w-full"
                           />
                           {fieldError(
                             errors,
@@ -3224,7 +3283,7 @@ const selectValue =
                             }
                             placeholder="Enter Serial Number"
                             maxLength={30}
-                            className="h-12 text-base"
+                            className="!h-12 text-base w-full"
                             onBlur={(e) => {
                               const val = e.target.value.trim();
                               if (val.length >= 3) {
@@ -3261,7 +3320,7 @@ const selectValue =
                               )
                             }
                             max={today}
-                            className="h-12 text-base"
+                            className="!h-12 text-base w-full"
                           />
                         </div>
                       </div>
@@ -3319,7 +3378,7 @@ const selectValue =
                       value={formData.skillsAndCertification ?? ""}
                       onChange={handleChange}
                       placeholder="e.g., React, Node.js, AWS Certified"
-                      className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-sm text-base focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
                   </div>
 
@@ -3337,7 +3396,7 @@ const selectValue =
                       }
                       placeholder="e.g., Cleared, Pending"
                       onChange={handleValidatedChange}
-                      className="w-full h-12 px-4 py-3 border rounded-xl"
+                      className="w-full h-12 px-4 py-3 border rounded-sm"
                     />
                     {fieldError(
                       errors,
@@ -3359,7 +3418,7 @@ const selectValue =
                       }
                       onChange={handleChange}
                       placeholder="Any additional notes..."
-                      className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="w-full min-h-32 px-4 py-3 border border-gray-300 rounded-sm text-base focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
                   </div>
                 </div>
@@ -3396,7 +3455,7 @@ const selectValue =
                         employeeData?.employeeInsuranceDetailsDTO?.insuranceId
                       )}
                       placeholder="e.g., POL123456"
-                      className="h-12 text-base"
+                      className="!h-12 text-base w-full"
                     />
 
                     {fieldError(
@@ -3418,7 +3477,7 @@ const selectValue =
                       }
                       onChange={handleValidatedChange}
                       placeholder="e.g., Star Health"
-                      className="h-12 text-base"
+                      className="!h-12 text-base w-full"
                     />
 
                     {fieldError(
@@ -3442,7 +3501,7 @@ const selectValue =
                       }
                       max={today}
                       onChange={handleChange}
-                      className="h-12 text-base border-gray-300 focus:ring-amber-500"
+                      className="!h-12 text-base w-full"
                     />
                   </div>
 
@@ -3459,7 +3518,7 @@ const selectValue =
                         formData.employeeInsuranceDetailsDTO?.coverageEnd || ""
                       }
                       onChange={handleChange}
-                      className="h-12 text-base border-gray-300 focus:ring-amber-500"
+                      className="!h-12 text-base w-full"
                     />
                   </div>
 
@@ -3476,6 +3535,8 @@ const selectValue =
                       }
                       onChange={handleValidatedChange}
                       placeholder="e.g., Priya Sharma"
+                      className="!h-12 text-base w-full"
+
                     />
 
                     {fieldError(
@@ -3498,6 +3559,8 @@ const selectValue =
                       }
                       onChange={handleValidatedChange}
                       placeholder="e.g., Spouse"
+                      className="!h-12 text-base w-full"
+
                     />
 
                     {fieldError(
@@ -3515,6 +3578,7 @@ const selectValue =
                     <div className="relative">
                       <Input
                         name="employeeInsuranceDetailsDTO.nomineeContact"
+                        className="!h-12 text-base w-full"
                         value={
                           formData.employeeInsuranceDetailsDTO
                             ?.nomineeContact || ""
@@ -3603,7 +3667,7 @@ const selectValue =
                           employeeData?.employeeStatutoryDetailsDTO?.statutoryId
                         )}
                         placeholder="e.g., A1234567"
-                        className="h-12 text-base"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {fieldError(
@@ -3642,7 +3706,7 @@ const selectValue =
                           employeeData?.employeeStatutoryDetailsDTO?.statutoryId
                         )}
                         placeholder="e.g., 123456789012"
-                        className="h-12 text-base"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {fieldError(
@@ -3665,7 +3729,7 @@ const selectValue =
                       }
                       onChange={handleChange}
                       placeholder="e.g., Old Regime / New Regime"
-                      className="h-12 text-base border border-gray-300 rounded-xl focus:ring-indigo-500"
+                      className="!h-12 text-base w-full"
                     />
                     {fieldError(
                       errors,
@@ -3702,7 +3766,7 @@ const selectValue =
                           employeeData?.employeeStatutoryDetailsDTO?.statutoryId
                         )}
                         placeholder="e.g., 1234567890"
-                        className="h-12 text-base"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {fieldError(
@@ -3739,7 +3803,7 @@ const selectValue =
                           employeeData?.employeeStatutoryDetailsDTO?.statutoryId
                         )}
                         placeholder="e.g., 123456789"
-                        className="h-12 text-base"
+                        className="!h-12 text-base w-full"
                       />
                     </div>
                     {fieldError(
@@ -3763,8 +3827,8 @@ const selectValue =
                 type="submit"
                 disabled={isSubmitting || !isFormValid()}
                 className={`min-w-[180px] transition-all ${isFormValid() && !isSubmitting
-                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
-                    : "bg-gray-400 cursor-not-allowed"
+                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
+                  : "bg-gray-400 cursor-not-allowed"
                   } text-white`}
               >
                 {isSubmitting ? (
