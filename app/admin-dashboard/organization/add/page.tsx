@@ -350,23 +350,23 @@ export default function AddOrganizationPage() {
       if (formData.digitalSignature)
         form.append("digitalSignature", formData.digitalSignature);
       // Attendance Policy
-if (formData.attendancePolicy?.absentMaxMinutes != null) {
-  form.append(
-    "attendancePolicy.absentMaxMinutes",
-    String(
-      Math.round(formData.attendancePolicy.absentMaxMinutes * 60)
-    )
-  );
-}
+      if (formData.attendancePolicy?.absentMaxMinutes != null) {
+        form.append(
+          "attendancePolicy.absentMaxMinutes",
+          String(
+            Math.round(formData.attendancePolicy.absentMaxMinutes * 60)
+          )
+        );
+      }
 
-if (formData.attendancePolicy?.fullDayMinMinutes != null) {
-  form.append(
-    "attendancePolicy.fullDayMinMinutes",
-    String(
-      Math.round(formData.attendancePolicy.fullDayMinMinutes * 60)
-    )
-  );
-}
+      if (formData.attendancePolicy?.fullDayMinMinutes != null) {
+        form.append(
+          "attendancePolicy.fullDayMinMinutes",
+          String(
+            Math.round(formData.attendancePolicy.fullDayMinMinutes * 60)
+          )
+        );
+      }
 
 
       formData.addresses.forEach((addr, i) => {
@@ -1185,7 +1185,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                             )
                           }
                           placeholder="e.g. 221B, Flat 4A"
-                          className="h-12 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                          className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.houseNo`)}
                       </div>
@@ -1206,7 +1206,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                             )
                           }
                           placeholder="e.g. Baker Street"
-                          className="h-12"
+                          className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.streetName`)}
                       </div>
@@ -1223,7 +1223,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                             handleAddressChange(index, "city", e.target.value)
                           }
                           placeholder="e.g. Mumbai"
-                          className="h-12"
+                          className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.city`)}
                       </div>
@@ -1240,7 +1240,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                             handleAddressChange(index, "state", e.target.value)
                           }
                           placeholder="e.g. Maharashtra"
-                          className="h-12"
+                          className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.state`)}
                       </div>
@@ -1262,7 +1262,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                           }}
                           placeholder="400001"
                           maxLength={6}
-                          className="h-12 font-mono"
+                          className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.pincode`)}
                       </div>
@@ -1283,7 +1283,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                             )
                           }
                           placeholder="India"
-                          className="h-12"
+                          className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.country`)}
                       </div>
@@ -1304,7 +1304,7 @@ if (formData.attendancePolicy?.fullDayMinMinutes != null) {
                             )
                           }
                         >
-                          <SelectTrigger className="w-full min-w-[200px] !h-12">
+                          <SelectTrigger className="!h-12 text-base w-full">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>

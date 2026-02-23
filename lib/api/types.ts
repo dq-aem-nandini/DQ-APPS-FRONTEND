@@ -645,7 +645,10 @@ export interface PayrollDTO {
   createdAt: string; // date-time
   updatedAt: string; // date-time
 }
-
+export interface DesignationResponseDTO {
+  id: string;
+  name: string;
+}
 export interface EmployeeModel {
   firstName: string;
   lastName: string;
@@ -665,7 +668,9 @@ export interface EmployeeModel {
   clientId: string | null;
   clientSelection: string;
   reportingManagerId: string | null; // UUID
-  designation: Designation | null;
+  designationId:string | null;
+  customDesignation: string | null; // For free-text designation when "Other" is selected
+  designationName: string; 
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
   dateOfOnboardingToClient: string;
@@ -823,7 +828,6 @@ export interface EmployeeDTO {
   emergencyContactNumber: string;
   remarks: string;
   skillsAndCertification: string;
-  designation: Designation;
   dateOfJoining: string;
   dateOfOnboardingToClient: string;
   dateOfOffboardingToClient: string;
@@ -847,6 +851,8 @@ export interface EmployeeDTO {
   clientStatus: string;
   reportingManagerId: string; // uuid
   reportingManagerName: string;
+  designationId:string | null;
+  designationName: string;
   documents: EmployeeDocumentDTO[];
   addresses: AddressModel[];
   employeeSalaryDTO?: EmployeeSalaryDTO;

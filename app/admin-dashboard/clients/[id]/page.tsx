@@ -384,7 +384,7 @@ useEffect(() => {
 
                                 </td>
                                 <td className="p-3 hidden md:table-cell">
-                                  <span className="text-sm text-gray-700">{emp.designation || '—'}</span>
+                                  <span className="text-sm text-gray-700">{emp.designationName || '—'}</span>
                                 </td>
                                 <td className="p-3">
                                   <span className="text-sm text-gray-700 truncate max-w-xs">{emp.companyEmail}</span>

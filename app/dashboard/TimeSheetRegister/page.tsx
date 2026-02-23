@@ -187,7 +187,7 @@ function getBackendError(error: any): string {
         setEmployeeDetails({
           clientName: employee.clientName,
           reportingManagerName: employee.reportingManagerName,
-          designation: employee.designation,
+          designation: employee.designationName,
         });
       } catch (err) {
         pushMessage('error', 'Could not load joining date');
@@ -892,7 +892,7 @@ useEffect(() => {
               <div className="space-y-2">
                 <div className="flex items-center"><span className="font-medium text-gray-600">Client:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.clientName || '—'}</span></div>
                 <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Manager:</span><span className="font-semibold text-gray-800 ml-3">{employeeDetails.reportingManagerName || '—'}</span></div>
-                <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Role:</span><span className="font-semibold text-gray-800 ml-3">
+                <div className="flex items-center border-t border-blue-100 pt-2"><span className="font-medium text-gray-600">Designation:</span><span className="font-semibold text-gray-800 ml-3">
                   {employeeDetails.designation ? employeeDetails.designation.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : '—'}
                 </span></div>
               </div>

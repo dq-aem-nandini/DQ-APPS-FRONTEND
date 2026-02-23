@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminService } from '@/lib/api/adminService';
-import { EmployeeDTO, DESIGNATION_OPTIONS } from '@/lib/api/types';
+import { EmployeeDTO} from '@/lib/api/types';
 
 
 const ManagerEmployeesPage: React.FC = () => {
@@ -13,7 +13,14 @@ const ManagerEmployeesPage: React.FC = () => {
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-
+  const designationOptions = React.useMemo(() => {
+    const unique = new Set(
+      employees
+        .map(emp => emp.designationName)
+        .filter(Boolean)
+    );
+    return Array.from(unique);
+  }, [employees]);
   // Check authentication and fetch employees
   useEffect(() => {
     const fetchData = async () => {
@@ -42,7 +49,7 @@ const ManagerEmployeesPage: React.FC = () => {
   // Filter employees by designation and search term
   const filteredEmployees = employees.filter(
     (employee: EmployeeDTO) =>
-      (selectedDesignation === 'All' || employee.designation === selectedDesignation) &&
+      (selectedDesignation === 'All' || employee.designationName === selectedDesignation) &&
       (`${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -79,7 +86,7 @@ const ManagerEmployeesPage: React.FC = () => {
               className="block w-48 rounded-lg border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition-all duration-200 p-2 text-center"
             >
               <option value="All">All</option>
-              {DESIGNATION_OPTIONS.map((designation) => (
+              {designationOptions.map((designation) => (
                 <option key={designation} value={designation}>
                   {formatType(designation)}
                 </option>
@@ -122,43 +129,43 @@ const ManagerEmployeesPage: React.FC = () => {
             {error.status && ` (Error code: ${error.status})`}
           </p>
           <button
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              const managerId = localStorage.getItem('userId') || 'manager-id-placeholder';
-              adminService.getAllManagerEmployees()
-                .then((employeeResponse) => {
-                  if (employeeResponse.flag && employeeResponse.response) {
-                    const filteredEmployees = employeeResponse.response.filter(
-                      (employee: EmployeeDTO) =>
-                        (employee.reportingManagerId === managerId || managerId === 'manager-id-placeholder') &&
-                        DESIGNATION_OPTIONS.includes(employee.designation)
-                    );
-                    setEmployees(filteredEmployees);
-                  }
-                  setError(null);
-                  setLoading(false);
-                })
-                .catch((err: unknown) => {
-                  let errorMessage = 'Failed to fetch data';
-                  let errorStatus: number | undefined;
-                  if (err instanceof Error) {
-                    try {
-                      const parsedError = JSON.parse(err.message);
-                      errorMessage = parsedError.message;
-                      errorStatus = parsedError.status;
-                    } catch {
-                      errorMessage = err.message;
-                    }
-                  }
-                  setError({ message: errorMessage, status: errorStatus });
-                  setLoading(false);
-                });
-            }}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg text-white bg-blue-500 hover:bg-blue-600 transition duration-300"
-          >
-            Retry
-          </button>
+  onClick={async () => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      const employeeResponse = await adminService.getAllManagerEmployees();
+
+      if (employeeResponse.flag && employeeResponse.response) {
+        // ✅ Just set employees directly
+        setEmployees(employeeResponse.response);
+      } else {
+        throw new Error(employeeResponse.message);
+      }
+
+    } catch (err: unknown) {
+      let errorMessage = "Failed to fetch data";
+      let errorStatus: number | undefined;
+
+      if (err instanceof Error) {
+        try {
+          const parsedError = JSON.parse(err.message);
+          errorMessage = parsedError.message;
+          errorStatus = parsedError.status;
+        } catch {
+          errorMessage = err.message;
+        }
+      }
+
+      setError({ message: errorMessage, status: errorStatus });
+    } finally {
+      setLoading(false);
+    }
+  }}
+  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg text-white bg-blue-500 hover:bg-blue-600 transition duration-300"
+>
+  Retry
+</button>
         </div>
       )}
 
@@ -195,7 +202,7 @@ const ManagerEmployeesPage: React.FC = () => {
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
-                      {formatType(employee.designation)}
+                      {formatType(employee.designationName || "N/A")}
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">

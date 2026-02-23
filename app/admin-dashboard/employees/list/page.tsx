@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { adminService } from "@/lib/api/adminService";
-import { EmployeeDTO } from "@/lib/api/types";
+import { DesignationResponseDTO, EmployeeDTO } from "@/lib/api/types";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
@@ -22,8 +22,8 @@ const EmployeeList = () => {
     key: keyof EmployeeDTO;
     direction: "asc" | "desc";
   } | null>(null);
-  const [filterDesignation, setFilterDesignation] = useState("");
-  const [designations, setDesignations] = useState<string[]>([]);
+  const [filterDesignation, setFilterDesignation] = useState<string>("");
+  const [designations, setDesignations] = useState<DesignationResponseDTO[]>([]);  
   const { state } = useAuth();
   const router = useRouter();
 
@@ -31,19 +31,10 @@ const EmployeeList = () => {
     try {
       const response = await adminService.getAllEmployees();
       if (response.flag && Array.isArray(response.response)) {
-        // Filter to show only ACTIVE employees
         const activeEmployees = response.response.filter(
           (emp: EmployeeDTO) => emp.status === "ACTIVE"
         );
         setEmployees(activeEmployees);
-
-        // Extract unique designations
-        const uniqueDesignations = [
-          ...new Set(
-            activeEmployees.map((emp: EmployeeDTO) => emp.designation)
-          ),
-        ].sort();
-        setDesignations(uniqueDesignations);
       } else {
         throw new Error(response.message || "Failed to fetch employees");
       }
@@ -59,8 +50,28 @@ const EmployeeList = () => {
   };
 
   useEffect(() => {
-    fetchEmployees();
+    const loadData = async () => {
+      await Promise.all([
+        fetchEmployees(),
+        fetchDesignations(),
+      ]);
+    };
+  
+    loadData();
   }, []);
+
+  const fetchDesignations = async () => {
+    try {
+      const data = await adminService.getAllDesignations();
+      setDesignations(data);
+    } catch (error: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.message || "Failed to fetch designations",
+      });
+    }
+  };
 
   useEffect(() => {
     let filtered = employees;
@@ -78,9 +89,22 @@ const EmployeeList = () => {
 
     // Designation filter
     if (filterDesignation) {
-      filtered = filtered.filter(
-        (emp) => emp.designation === filterDesignation
-      );
+      filtered = filtered.filter((emp) => {
+        // Dropdown case
+        if (emp.designationId) {
+          return emp.designationId === filterDesignation;
+        }
+    
+        // Manual case → match by name
+        const selectedDesignation = designations.find(
+          (d) => d.id === filterDesignation
+        );
+    
+        return (
+          !emp.designationId &&
+          emp.designationName === selectedDesignation?.name
+        );
+      });
     }
 
     // Sorting
@@ -366,10 +390,10 @@ const EmployeeList = () => {
               >
                 <option value="">All Designations</option>
                 {designations.map((des) => (
-                  <option key={des} value={des}>
-                    {des}
-                  </option>
-                ))}
+  <option key={des.id} value={des.id}>
+    {des.name}
+  </option>
+))}
               </select>
             </div>
           </div>
@@ -404,9 +428,9 @@ const EmployeeList = () => {
                   </th>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort("designation")}
+                    onClick={() => requestSort("designationName")}
                   >
-                    Designation {getSortIcon("designation")}
+                    Designation {getSortIcon("designationName")}
                   </th>
                   <th
                     className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
@@ -441,7 +465,7 @@ const EmployeeList = () => {
                       {getFieldValue(employee.clientName)}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 line-clamp-1">
-                      {getFieldValue(employee.designation)}
+                      {getFieldValue(employee.designationName)}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
                       <span

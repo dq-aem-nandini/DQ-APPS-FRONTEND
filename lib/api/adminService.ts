@@ -17,7 +17,8 @@ import {
   AdminDTO,
   AdminUpdatePayload,
   ClientEmployeeHistoryDTO,
-  EmployeeClientHistoryDTO
+  EmployeeClientHistoryDTO,
+  DesignationResponseDTO
 } from './types';
 import { AxiosResponse } from 'axios';
 function getBackendError(error: any): string {
@@ -227,17 +228,26 @@ class AdminService {
   }
 
   // ✅ Get employees by designation
-  async getEmployeesByDesignation(designation: Designation): Promise<EmployeeDTO[]> {
-    try {
-      const response: AxiosResponse<WebResponseDTOListEmployeeDTO> = await api.get(`/employee/designation/${designation}`);
-      if (response.data.flag && Array.isArray(response.data.response)) {
-        return response.data.response;
-      }
-      throw new Error(response.data.message || 'Failed to get employees by designation');
-    } catch (error: any) {
-      throw new Error(getBackendError(error));
+async getEmployeesByDesignation(
+  designationId: string
+): Promise<EmployeeDTO[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListEmployeeDTO> =
+      await api.get(
+        `/employee/designation/${designationId}`
+      );
+
+    if (response.data.flag && Array.isArray(response.data.response)) {
+      return response.data.response;
     }
+
+    throw new Error(
+      response.data.message || "Failed to get employees by designation"
+    );
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
   }
+}
 
   // ✅ Unassign employee from client
   async unassignEmployeeFromClient(empId: string): Promise<WebResponseDTOString> {
@@ -534,6 +544,17 @@ async getEmployeeClientHistory(
       await api.get("/employee/client/get/history", {
         params: { employeeId, page, size }
       });
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+// ✅ Get all designations
+async getAllDesignations(): Promise<DesignationResponseDTO[]> {
+  try {
+    const response: AxiosResponse<DesignationResponseDTO[]> =
+      await api.get("/designations/getAll");
 
     return response.data;
   } catch (error: any) {
