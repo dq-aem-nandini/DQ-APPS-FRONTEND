@@ -6,6 +6,8 @@ import {
   WebResponseDTOInvoiceDTO,
   WebResponseDTOListClientInvoiceSummaryDTO,
   WebResponseDTOListInvoiceDTO,
+  EligibleEmployeeDTO,
+  WebResponseDTO
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
 
@@ -18,12 +20,15 @@ class InvoiceService {
     clientId: string,
     invoiceDate: string,
     month: number,
-    year: number
+    year: number,
+    employeeIds: string[]
   ): Promise<InvoiceDTO> {
     try {
       const response: AxiosResponse<WebResponseDTOInvoiceDTO> = await api.post(
         '/invoice/generateInvoice',
-        null,
+        {
+          employeeIds,
+        },
         {
           params: { clientId, invoiceDate, month, year },
         }
@@ -293,6 +298,40 @@ class InvoiceService {
     }
     return error?.message || 'Something went wrong';
   }
+
+  /**
+ * Fetch eligible employees for invoice dropdown
+ * Endpoint: GET /web/api/v1/invoice/eligible-employees
+ */
+async getEligibleEmployees(
+  clientId: string,
+  month: number,
+  year: number
+): Promise<EligibleEmployeeDTO[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<EligibleEmployeeDTO[]>> =
+      await api.get('/invoice/eligible-employees', {
+        params: {
+          clientId,
+          month,
+          year,
+        },
+      });
+
+    console.log('Full eligible employees API response:', response.data);
+
+    if (response.data?.flag && response.data.response) {
+      return response.data.response;
+    }
+
+    throw new Error(
+      response.data?.message || 'Invalid response: No employee data returned'
+    );
+  } catch (error: unknown) {
+    console.error('Error fetching eligible employees:', error);
+    throw error;
+  }
+}
 }
 
 export const invoiceService = new InvoiceService();

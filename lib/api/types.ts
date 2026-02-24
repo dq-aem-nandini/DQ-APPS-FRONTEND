@@ -1783,3 +1783,13 @@ export const RATE_CARD_TYPE_OPTIONS = [
 ] as const;
 
 export type RateCardType = typeof RATE_CARD_TYPE_OPTIONS[number];
+
+export interface EligibleEmployeeDTO {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  designationName: string;
+  clientName: string;
+  createdFromExcel: boolean;
+  updatedThroughForm: boolean;
+}
