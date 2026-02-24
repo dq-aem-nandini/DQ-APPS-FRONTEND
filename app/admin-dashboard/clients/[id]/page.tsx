@@ -49,10 +49,15 @@ const ViewClientPage = () => {
   const [year, setYear] = useState('');
   const [generating, setGenerating] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState('');
+  const [eligibleEmployees, setEligibleEmployees] = useState<any[]>([]);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-
+  const allSelected =
+  eligibleEmployees.length > 0 &&
+  selectedEmployees.length === eligibleEmployees.length;
   // Auto-hide toast
   useEffect(() => {
     if (toast) {
@@ -105,6 +110,32 @@ useEffect(() => {
   fetchData();
 }, [id, withLoading]);
 
+useEffect(() => {
+  const fetchEligibleEmployees = async () => {
+    if (!month || !year || !id) return;
+
+    try {
+      setLoadingEmployees(true);
+      const res = await invoiceService.getEligibleEmployees(
+        id as string,
+        parseInt(month),
+        parseInt(year)
+      );
+
+      setEligibleEmployees(res);
+      setSelectedEmployees([]); // reset selection
+    } catch (err) {
+      console.error('Failed to fetch eligible employees');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  if (showGenerateModal) {
+    fetchEligibleEmployees();
+  }
+}, [month, year, id, showGenerateModal]);
+
 
   // ────────────────────── GENERATE INVOICE ──────────────────────
   const handleGenerateInvoice = async () => {
@@ -115,7 +146,7 @@ useEffect(() => {
 
     setGenerating(true);
     try {
-      const invoice: InvoiceDTO = await invoiceService.generateInvoice(id as string, invoiceDate, parseInt(month), parseInt(year));
+      const invoice: InvoiceDTO = await invoiceService.generateInvoice(id as string, invoiceDate, parseInt(month), parseInt(year), selectedEmployees);
 
       setToast({
         type: 'success',
@@ -507,12 +538,82 @@ useEffect(() => {
                   />
                 </div>
 
+                {/* Eligible Employees */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Employees
+                  </label>
+
+                  <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto p-2">
+                    {loadingEmployees ? (
+                      <div className="flex justify-center py-3">
+                        <Spinner size="sm" />
+                      </div>
+                    ) : eligibleEmployees.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-2">
+                        No eligible employees found
+                      </p>
+                    ) : (
+                      <>
+                      {/* Select All */}
+                      <label className="flex items-center gap-2 p-2 border-b mb-2 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              // Select all employee IDs
+                              setSelectedEmployees(
+                                eligibleEmployees.map((emp) => emp.employeeId)
+                              );
+                            } else {
+                              // Clear all
+                              setSelectedEmployees([]);
+                            }
+                          }}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-800">
+                          Select All
+                        </span>
+                      </label>
+                    
+                      {/* Individual Employees */}
+                      {eligibleEmployees.map((emp) => (
+                        <label
+                          key={emp.employeeId}
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            value={emp.employeeId}
+                            checked={selectedEmployees.includes(emp.employeeId)}
+                            onChange={(e) => {
+                              setSelectedEmployees((prev) => {
+                                if (e.target.checked) {
+                                  return [...prev, emp.employeeId];
+                                } else {
+                                  return prev.filter((id) => id !== emp.employeeId);
+                                }
+                              });
+                            }}
+                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {emp.firstName} {emp.lastName} – {emp.designationName}
+                          </span>
+                        </label>
+                      ))}
+                    </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleGenerateInvoice}
-                  disabled={generating || !month || !year}
+                  disabled={generating || !month || !year|| selectedEmployees.length === 0}
                   className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 px-4 rounded-lg font-medium hover:from-green-700 hover:to-emerald-700 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {generating ? (
@@ -539,7 +640,7 @@ useEffect(() => {
         )}
       </div>
     </ProtectedRoute>
-  );
+  );  
 };
 
 const InfoItem = ({ icon: Icon, label, value }: { icon?: any; label: string; value: string }) => (
