@@ -20,7 +20,6 @@ import {
   Domain,
   CurrencyCode,
   OrganizationRequestDTO,
-  OrganizationResponseDTO,
   AddressModel,
   AddressType,
   IndustryType,
@@ -54,7 +53,7 @@ export default function EditOrganizationPage() {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [logoPreview, setLogoPreview] = useState("");
   const [signaturePreview, setSignaturePreview] = useState("");
-
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState<OrganizationRequestDTO>({
     organizationName: "",
     organizationLegalName: "",
@@ -485,6 +484,69 @@ export default function EditOrganizationPage() {
       Swal.fire("Error", err.message || "Something went wrong", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteOrganization = async () => {
+    if (!id) return;
+
+    const result = await Swal.fire({
+      title: "Delete Organization?",
+      html: `
+        <div style="text-align:left">
+           <p className="text-sm text-red-600 mb-4">
+    Deleting this organization will permanently remove all associated data.
+    This action cannot be undone.
+  </p>
+          <br/>
+          <p>Type <b>${formData.organizationName}</b> to confirm:</p>
+        </div>
+      `,
+      icon: "warning",
+      input: "text",
+      inputPlaceholder: "Enter organization name",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Delete Permanently",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+      preConfirm: (value) => {
+        if (value !== formData.organizationName) {
+          Swal.showValidationMessage(
+            "Organization name does not match. Deletion cancelled."
+          );
+        }
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    setDeleting(true);
+
+    try {
+      const res = await organizationService.delete(id);
+
+      if (res.flag) {
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted Successfully",
+          text: "Organization has been permanently removed.",
+          confirmButtonColor: "#4f46e5",
+        });
+
+        router.push("/admin-dashboard/organization/list");
+      } else {
+        throw new Error(res.message || "Delete failed");
+      }
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Delete Failed",
+        text: err.message || "Something went wrong.",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1359,21 +1421,38 @@ export default function EditOrganizationPage() {
                 ))}
               </div>
 
-              <div className="flex justify-end gap-4 pt-8 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={saving || !hasChanges || !id}
-                  title={!hasChanges ? "No changes made" : ""}
-                >
-                  {saving ? "Saving..." : "Update Organization"}
-                </Button>
+              <div className="flex justify-between items-center pt-8 border-t">
+
+                {/* Left Side → Delete */}
+                <div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDeleteOrganization}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting..." : "Delete Organization"}
+                  </Button>
+                </div>
+
+                {/* Right Side → Cancel + Update */}
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.back()}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    disabled={saving || !hasChanges || !id}
+                    title={!hasChanges ? "No changes made" : ""}
+                  >
+                    {saving ? "Saving..." : "Update Organization"}
+                  </Button>
+                </div>
               </div>
             </form>
           </CardContent>

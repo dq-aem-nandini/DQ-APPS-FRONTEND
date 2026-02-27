@@ -22,6 +22,7 @@ import {
   DollarSign,
   AlertCircle,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -32,7 +33,7 @@ const DashboardContent = () => {
   // const [totalRevenue, setTotalRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
+  const router = useRouter();
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -164,6 +165,9 @@ const DashboardContent = () => {
                 {pendingLeaves.slice(0, 10).map((leave: any) => (
                   <div
                     key={leave.leaveId}
+                    onClick={() =>
+                      router.push(`/admin-dashboard/leaves?open=${leave.leaveId}`)
+                    }
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition"
                   >
                     <div className="flex-1 min-w-0">

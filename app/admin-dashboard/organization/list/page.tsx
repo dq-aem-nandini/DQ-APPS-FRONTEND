@@ -3,19 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
 import {
   Search,
   Plus,
-  Eye,
-  Edit,
-  Trash2,
-  Building2,
-  Mail,
-  Phone,
-  MapPin,
-  Loader2,
   AlertCircle,
+  Pencil,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -38,15 +30,13 @@ export default function OrganizationListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const router = useRouter();
 
   // Fetch organizations
   useEffect(() => {
     const fetchOrgs = async () => {
       try {
         setLoading(true);
-        const data = await organizationService.getAll(); // Returns OrganizationResponseDTO[]
+        const data = await organizationService.getAll();
         setOrganizations(data);
         setFiltered(data);
       } catch (err: any) {
@@ -77,79 +67,7 @@ export default function OrganizationListPage() {
     setFiltered(result);
   }, [searchTerm, organizations]);
 
-  // Delete handler
-  // const handleDelete = async (id: string) => {
-  //   if (!confirm('Are you sure you want to delete this organization permanently?')) return;
 
-  //   setDeletingId(id);
-  //   try {
-  //     const res = await organizationService.delete(id);
-  //     if (res.flag) {
-  //       setOrganizations(prev => prev.filter(o => o.organizationId !== id));
-  //       setFiltered(prev => prev.filter(o => o.organizationId !== id));
-  //     } else {
-  //       alert(res.message || 'Failed to delete');
-  //     }
-  //   } catch (err: any) {
-  //     alert(err.message || 'Delete failed');
-  //   } finally {
-  //     setDeletingId(null);
-  //   }
-  // };
-
-  const handleDelete = async (id: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'This action cannot be undone!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-      reverseButtons: true,
-    });
-
-    if (!result.isConfirmed) return;
-
-    // Show loading
-    Swal.fire({
-      title: 'Deleting...',
-      text: 'Please wait while we delete the organization.',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
-    try {
-      const res = await organizationService.delete(id);
-
-      if (res.flag) {
-        setOrganizations(prev => prev.filter(o => o.organizationId !== id));
-        setFiltered(prev => prev.filter(o => o.organizationId !== id));
-
-        Swal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: 'Organization removed successfully.',
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
-        throw new Error(res.message || 'Delete failed');
-      }
-    } catch (err: any) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Delete Failed',
-        text: err.message || 'Something went wrong. Please try again.',
-      });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   if (loading) {
     return (
@@ -243,9 +161,6 @@ export default function OrganizationListPage() {
                     Location
                   </th>
 
-                  <th className="px-4 py-3  text-center  text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -262,13 +177,25 @@ export default function OrganizationListPage() {
                     return (
                       <tr key={org.organizationId} className="hover:bg-gray-50 transition">
                         {/* Organization Name + Logo */}
-                        <td className="px-4 py-4 whitespace-nowrap text-center ">
-                          <div className="flex items-center justify-center gap-3">
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">
-                                {show(org.organizationName)}
-                              </div>
-                            </div>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center gap-2 justify-center">
+                            <Link
+                              href={`/admin-dashboard/organization/${org.organizationId}/edit`}
+                              className="mr-3 -ml-1 p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+
+                              title="Edit Organization"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                            <Link
+                              href={`/admin-dashboard/organization/${org.organizationId}`}
+                              className="text-sm font-medium text-indigo-600 
+                 hover:underline transition line-clamp-1"
+                              title="View Organization"
+                            >
+                              {show(org.organizationName)}
+                            </Link>
+
                           </div>
                         </td>
 
@@ -292,34 +219,7 @@ export default function OrganizationListPage() {
                             {primaryAddr ? `${show(primaryAddr.city)}, ${show(primaryAddr.state)}` : '—'}
                           </div>
                         </td>
-                        {/* Actions */}
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-center ">
-                          <div className="flex items-center justify-center gap-3">
-                            <Link
-                              href={`/admin-dashboard/organization/${org.organizationId}`}
-                              className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              href={`/admin-dashboard/organization/${org.organizationId}/edit`}
-                              className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              onClick={() => handleDelete(org.organizationId)}
-                              disabled={deletingId === org.organizationId}
-                              className="text-red-600 hover:text-red-900 disabled:opacity-50 text-xs sm:text-sm"
-                            >
-                              {deletingId === org.organizationId ? (
-                                <>Deleting...</>
-                              ) : (
-                                'Delete'
-                              )}
-                            </button>
-                          </div>
-                        </td>
+
                       </tr>
                     );
                   })
@@ -352,27 +252,6 @@ export default function OrganizationListPage() {
                     {primaryAddr && (
                       <div className="flex items-center gap-2"> {primaryAddr.city}, {primaryAddr.state}</div>
                     )}
-                  </div>
-
-                  <div className="flex gap-3 mt-5 pt-4 border-t">
-                    <Link href={`/admin-dashboard/organization/${org.organizationId}`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full">View</Button>
-                    </Link>
-                    <Link
-                      href={`/admin-dashboard/organization/${org.organizationId}/edit`}
-                      className="flex-1"
-                    >
-
-                      <Button size="sm" className="w-full">Edit</Button>
-                    </Link>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(org.organizationId)}
-                      disabled={deletingId === org.organizationId}
-                    >
-                      {deletingId === org.organizationId ? '...' : 'Delete'}
-                    </Button>
                   </div>
                 </div>
               );

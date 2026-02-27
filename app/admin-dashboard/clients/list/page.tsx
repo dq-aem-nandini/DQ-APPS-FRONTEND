@@ -8,7 +8,7 @@ import { ClientDTO } from "@/lib/api/types";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import BackButton from "@/components/ui/BackButton";
-import { Loader2 } from "lucide-react";
+import { Pencil, } from "lucide-react";
 import Spinner from "@/components/ui/Spinner";
 
 const ClientList = () => {
@@ -143,23 +143,20 @@ const ClientList = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="pl-8 sm:pl-20 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">                    
                     Company
                   </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                     Email
                   </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                     Contact
                   </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                     City
                   </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                     Status
-                  </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
                   </th>
                 </tr>
               </thead>
@@ -179,53 +176,43 @@ const ClientList = () => {
 
                     return (
                       <tr key={client.clientId} className="hover:bg-gray-50">
+
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 line-clamp-1">
-                            {client.companyName}
+                          <div className="flex items-center gap-2 ">
+                            <Link
+                              href={`/admin-dashboard/clients/${client.clientId}/edit`}
+                              className="mr-3 -ml-1 p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                              title="Edit Client"
+                            >
+                              <Pencil size={16} strokeWidth={2} />
+                            </Link>
+                            <Link
+                              href={`/admin-dashboard/clients/${client.clientId}`}
+                              className="text-sm font-medium text-indigo-600 hover:underline line-clamp-1"
+                            >
+                              {client.companyName}
+                            </Link>
+
                           </div>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell text-center">
                           {client.email}
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell text-center">
                           {client.contactNumber}
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell text-center">
                           {primaryAddress?.city || "-"}
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell text-center">
                           <span
-                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                              client.status === "ACTIVE"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${client.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
                           >
                             {client.status || "UNKNOWN"}
                           </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-medium space-x-1 sm:space-x-3 flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-0">
-                          <Link
-                            href={`/admin-dashboard/clients/${client.clientId}`}
-                            className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm block sm:inline"
-                          >
-                            View
-                          </Link>
-                          <Link
-                            href={`/admin-dashboard/clients/${client.clientId}/edit`}
-                            className="text-indigo-600 hover:text-indigo-900 text-xs sm:text-sm block sm:inline"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(client.clientId)}
-                            disabled={deletingId === client.clientId}
-                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
-                          >
-                            {deletingId === client.clientId
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
                         </td>
                       </tr>
                     );

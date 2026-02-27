@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
+import { Trash2 } from "lucide-react";
 
 export default function AddClientPage() {
   const router = useRouter();
@@ -39,9 +40,35 @@ export default function AddClientPage() {
     netTerms: null,
     panNumber: "",
     tanNumber: "",
-    addresses: [],
-    clientPocs: [],
-    clientTaxDetails: [],
+    addresses: [
+      {
+        addressId: null,
+        houseNo: "",
+        streetName: "",
+        city: "",
+        state: "",
+        pincode: "",
+        country: "",
+        addressType: undefined,
+      },
+    ],
+    clientPocs: [
+      {
+        pocId: null,
+        name: "",
+        email: "",
+        contactNumber: "",
+        designation: "",
+      },
+    ],
+    clientTaxDetails: [
+      {
+        taxId: null,
+        taxName: "",
+        taxPercentage: 0,
+       
+      },
+    ],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -222,8 +249,8 @@ export default function AddClientPage() {
             taxId: null,
             taxName: "",
             taxPercentage: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            // createdAt: new Date().toISOString(),
+            // updatedAt: new Date().toISOString(),
           },
         ],
       }));
@@ -244,17 +271,17 @@ export default function AddClientPage() {
     e.preventDefault();
     setErrors({});
     setIsSubmitting(true);
-    if (!formData.addresses?.length) {
-      setErrors({ addresses: "At least one address required" });
-      setIsSubmitting(false);
-      return;
-    }
+    // if (!formData.addresses?.length) {
+    //   setErrors({ addresses: "At least one address required" });
+    //   setIsSubmitting(false);
+    //   return;
+    // }
 
-    if (!formData.clientPocs?.length) {
-      setErrors({ clientPocs: "At least one POC required" });
-      setIsSubmitting(false);
-      return;
-    }
+    // if (!formData.clientPocs?.length) {
+    //   setErrors({ clientPocs: "At least one POC required" });
+    //   setIsSubmitting(false);
+    //   return;
+    // }
 
     // ────── REQUIRED FIELDS WITH AUTO-FOCUS & SCROLL ──────
     const requiredFields = [
@@ -316,7 +343,7 @@ export default function AddClientPage() {
         label: "POC Name",
       },
       {
-        value: formData.clientPocs[0]?.email,
+        value: (formData.clientPocs?? [])[0]?.email,
         name: "clientPocs.0.email",
         label: "POC Email",
       },
@@ -456,6 +483,49 @@ export default function AddClientPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const isFormValid = () => {
+    // Basic fields
+    if (
+      !formData.companyName?.trim() ||
+      !formData.contactNumber?.trim() ||
+      !formData.currency
+    ) {
+      return false;
+    }
+  
+    // Must have at least one address
+    if (!formData.addresses || formData.addresses.length === 0) {
+      return false;
+    }
+  
+    // Validate first address (mandatory fields)
+    const address = formData.addresses[0];
+    if (
+      !address.houseNo?.trim() ||
+      !address.streetName?.trim() ||
+      !address.city?.trim() ||
+      !address.state?.trim() ||
+      !address.pincode?.trim() ||
+      !address.country?.trim() ||
+      !address.addressType
+    ) {
+      return false;
+    }
+  
+    // Must have at least one POC
+    if (!formData.clientPocs || formData.clientPocs.length === 0) {
+      return false;
+    }
+  
+    // Validate first POC
+    const poc = formData.clientPocs[0];
+    if (!poc.name?.trim() || !poc.email?.trim()) {
+      return false;
+    }
+  
+    return true;
   };
 
   return (
@@ -707,12 +777,6 @@ export default function AddClientPage() {
                 </button>
               </div>
 
-              {(!formData.addresses || formData.addresses.length === 0) && (
-                <div className="p-6 text-gray-500 text-center border border-dashed rounded">
-                  Click “Add Address” to add address
-                </div>
-              )}
-
               {(formData.addresses || []).map((addr, i) => (
                 <div
                   key={addr.addressId || i}
@@ -911,14 +975,17 @@ export default function AddClientPage() {
                     </div>
                   </div>
 
-                  {formData.addresses!.length > 0 && (
+                  {formData.addresses!.length > 1 && (
+                    <div className="flex justify-end mt-4">
                     <button
                       type="button"
                       onClick={() => removeItem("addresses", i)}
-                      className="mt-2 text-red-600 text-sm hover:underline"
+                      className="text-red-600 hover:text-red-700 transition"
+                      title="Remove Address"
                     >
-                      Remove Address
+                      <Trash2 size={18} />
                     </button>
+                  </div>
                   )}
                 </div>
               ))}
@@ -938,13 +1005,6 @@ export default function AddClientPage() {
                   + Add POC
                 </button>
               </div>
-
-              {/* Show this message ONLY when there are ZERO POCs */}
-              {(!formData.clientPocs || formData.clientPocs.length === 0) && (
-                <div className="p-8 text-center text-gray-500 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                  Click “Add POC” to add point of contact
-                </div>
-              )}
 
               {/* Show POC fields only if at least one exists */}
               {(formData.clientPocs ?? []).length > 0 && (
@@ -1049,14 +1109,17 @@ export default function AddClientPage() {
                       </div>
 
                       {/* Remove Button - Only show if more than 1 POC */}
-                      {(formData.clientPocs ?? []).length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem("clientPocs", i)}
-                          className="text-red-600 hover:underline text-sm font-medium"
-                        >
-                          Remove POC
-                        </button>
+                      {(formData.clientPocs ?? []).length > 1 && (
+                       <div className="flex justify-end mt-4">
+                       <button
+                         type="button"
+                         onClick={() => removeItem("clientPocs", i)}
+                         className="text-red-600 hover:text-red-700 transition"
+                         title="Remove POC"
+                       >
+                         <Trash2 size={18} />
+                       </button>
+                     </div>
                       )}
                     </div>
                   ))}
@@ -1079,16 +1142,9 @@ export default function AddClientPage() {
                 </button>
               </div>
 
-              {(!formData.clientTaxDetails ||
-                formData.clientTaxDetails.length === 0) && (
-                  <div className="p-6 text-gray-500 text-center border border-dashed rounded">
-                    Click “Add Tax” to add tax details
-                  </div>
-                )}
-
               {(formData.clientTaxDetails || []).map((tax, i) => (
                 <div
-                  key={tax.taxId}
+                  key={tax.taxId || `tax-${i}`}
                   className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end"
                 >
                   <div className="flex-1">
@@ -1122,13 +1178,13 @@ export default function AddClientPage() {
                     />
                     {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
                   </div>
-                  {formData.clientTaxDetails!.length > 0 && (
+                  {formData.clientTaxDetails!.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeItem("clientTaxDetails", i)}
                       className="text-red-600 text-sm hover:underline"
                     >
-                      Remove Tax
+                     <Trash2 size={18} />
                     </button>
                   )}
                 </div>
@@ -1145,6 +1201,7 @@ export default function AddClientPage() {
             )} */}
 
             <div className="flex justify-end gap-4">
+
               <button
                 type="button"
                 onClick={() => router.push("/admin-dashboard/clients")}
@@ -1155,8 +1212,8 @@ export default function AddClientPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                disabled={isSubmitting || !isFormValid()}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? "Adding..." : "Add Client"}
               </button>
