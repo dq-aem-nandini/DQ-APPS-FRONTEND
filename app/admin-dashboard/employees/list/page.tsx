@@ -11,19 +11,19 @@ import Swal from "sweetalert2";
 import BackButton from "@/components/ui/BackButton";
 import { employeesDownloadUploadService } from "@/lib/api/employeesDownloadUpload";
 import Spinner from "@/components/ui/Spinner";
+import { Pencil } from "lucide-react";
 
 const EmployeeList = () => {
   const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<EmployeeDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{
     key: keyof EmployeeDTO;
     direction: "asc" | "desc";
   } | null>(null);
   const [filterDesignation, setFilterDesignation] = useState<string>("");
-  const [designations, setDesignations] = useState<DesignationResponseDTO[]>([]);  
+  const [designations, setDesignations] = useState<DesignationResponseDTO[]>([]);
   const { state } = useAuth();
   const router = useRouter();
 
@@ -56,7 +56,7 @@ const EmployeeList = () => {
         fetchDesignations(),
       ]);
     };
-  
+
     loadData();
   }, []);
 
@@ -94,12 +94,12 @@ const EmployeeList = () => {
         if (emp.designationId) {
           return emp.designationId === filterDesignation;
         }
-    
+
         // Manual case → match by name
         const selectedDesignation = designations.find(
           (d) => d.id === filterDesignation
         );
-    
+
         return (
           !emp.designationId &&
           emp.designationName === selectedDesignation?.name
@@ -130,45 +130,6 @@ const EmployeeList = () => {
 
     setFilteredEmployees(filtered);
   }, [employees, searchTerm, filterDesignation, sortConfig]);
-
-  const handleDelete = async (empId: string) => {
-    const result = await Swal.fire({
-      icon: "warning",
-      title: "Are you sure?",
-      text: "This will set the employee status to inactive.",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
-    });
-
-    if (!result.isConfirmed) return;
-
-    setDeletingId(empId);
-    try {
-      const response = await adminService.deleteEmployeeById(empId);
-      if (response.flag) {
-        await Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: "Employee deleted successfully!",
-          confirmButtonColor: "#3085d6",
-        });
-        // Filter out the deleted employee from local state
-        setEmployees(employees.filter((emp) => emp.employeeId !== empId));
-      } else {
-        throw new Error(response.message || "Failed to delete employee");
-      }
-    } catch (err: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.message || "Failed to delete employee",
-      });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   const getFieldValue = (value: string | undefined) => value || "N/A";
 
@@ -251,16 +212,16 @@ const EmployeeList = () => {
       // Build error list HTML (safe + readable)
       const errorListHtml = Array.isArray(result.errors)
         ? result.errors
-            .map(
-              (err: any) => `
+          .map(
+            (err: any) => `
                 <div class="border-b py-1">
                   <b>Row ${err.rowNumber}</b> 
                   <span style="color:#6b7280">(${err.column})</span><br/>
                   <span style="color:#dc2626">${err.message}</span>
                 </div>
               `
-            )
-            .join("")
+          )
+          .join("")
         : "<div>No detailed error information available.</div>";
 
       // ⚠️ Partial / Failed upload with scrollable errors
@@ -390,10 +351,10 @@ const EmployeeList = () => {
               >
                 <option value="">All Designations</option>
                 {designations.map((des) => (
-  <option key={des.id} value={des.id}>
-    {des.name}
-  </option>
-))}
+                  <option key={des.id} value={des.id}>
+                    {des.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -409,65 +370,80 @@ const EmployeeList = () => {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th
-                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="pl-8 sm:pl-20 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort("firstName")}
                   >
                     Name {getSortIcon("firstName")}
                   </th>
                   <th
-                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
                     onClick={() => requestSort("companyEmail")}
                   >
                     Email {getSortIcon("companyEmail")}
                   </th>
                   <th
-                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden md:table-cell"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden md:table-cell"
                     onClick={() => requestSort("clientName")}
                   >
                     Client {getSortIcon("clientName")}
                   </th>
                   <th
-                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort("designationName")}
                   >
                     Designation {getSortIcon("designationName")}
                   </th>
                   <th
-                    className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
+                    className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell"
                     onClick={() => requestSort("status")}
                   >
                     Status {getSortIcon("status")}
                   </th>
-                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
                   <tr
                     key={employee.employeeId}
-                    className={`transition-colors duration-200 ${
-                      employee.updatedThroughForm === true
+                    className={`transition-colors duration-200 ${employee.updatedThroughForm === true
                         ? "hover:bg-gray-50"
                         : employee.createdFromExcel === true
-                        ? "bg-red-50 border-l-4 hover:bg-red-100"
-                        : "hover:bg-gray-50"
-                    }`}
+                          ? "bg-red-50 border-l-4 hover:bg-red-100"
+                          : "hover:bg-gray-50"
+                      }`}
                   >
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 line-clamp-1">{`${employee.firstName} ${employee.lastName}`}</div>
+                      <div className="flex items-center gap-2">             
+                        <Link
+                          href={`/admin-dashboard/employees/${employee.employeeId}/edit`}
+                          className="mr-3 -ml-1 p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+
+                          title="Edit Employee"
+                        >
+                          <Pencil size={16} strokeWidth={2} />
+                        </Link>              
+                        <Link
+                          href={`/admin-dashboard/employees/${employee.employeeId}`}
+                          className="text-sm font-medium text-indigo-600 
+                 hover:underline transition line-clamp-1"
+                          title="View Employee"
+                        >
+                          {employee.firstName} {employee.lastName}
+                        </Link>
+
+                      </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-center">
                       {getFieldValue(employee.companyEmail)}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell text-center">
                       {getFieldValue(employee.clientName)}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 line-clamp-1">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500 line-clamp-1 text-center">
                       {getFieldValue(employee.designationName)}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell text-center">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
                           employee.status
@@ -476,39 +452,7 @@ const EmployeeList = () => {
                         {employee.status}
                       </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-medium space-x-1 sm:space-x-3 flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-0">
-                      {/* View Button */}
-                      <Link
-                        href={`/admin-dashboard/employees/${employee.employeeId}`}
-                        className="text-indigo-600 hover:text-indigo-900 transition text-xs sm:text-sm block sm:inline"
-                      >
-                        View
-                      </Link>
 
-                      {/* Edit Button */}
-                      <Link
-                        href={`/admin-dashboard/employees/${employee.employeeId}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900 transition text-xs sm:text-sm block sm:inline"
-                      >
-                        Edit
-                      </Link>
-
-                      {/* Delete Button with Spinner */}
-                      <button
-                        onClick={() => handleDelete(employee.employeeId)}
-                        disabled={deletingId === employee.employeeId}
-                        className="relative inline-flex items-center text-red-600 hover:text-red-900 disabled:opacity-50 transition text-xs sm:text-sm"
-                      >
-                        {deletingId === employee.employeeId ? (
-                          <>
-                            <span className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-1 sm:mr-2"></span>
-                            Deleting...
-                          </>
-                        ) : (
-                          "Delete"
-                        )}
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>

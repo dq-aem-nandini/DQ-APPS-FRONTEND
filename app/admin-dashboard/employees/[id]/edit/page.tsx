@@ -64,6 +64,7 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import TooltipHint from "@/components/ui/TooltipHint";
 import { useEmployeeFieldValidation } from "@/hooks/useEmployeeFieldValidation";
+import { isEqual } from "lodash";
 
 interface FileInputProps {
   id: string;
@@ -1295,6 +1296,56 @@ const EditEmployeePage = () => {
     }
   };
 
+  const handleDeleteEmployee = async () => {
+    if (!formData || !params.id) return;
+
+    const fullName = `${formData.firstName?.trim() || ""} ${formData.lastName?.trim() || ""}`.trim();
+
+    const result = await Swal.fire({
+      title: "Delete Employee?",
+      html: `
+        <p>This action cannot be undone.</p>
+        <p class="mt-2 text-sm text-gray-600">
+          Type <strong>${fullName}</strong> to confirm deletion.
+        </p>
+      `,
+      icon: "warning",
+      input: "text",
+      inputPlaceholder: "Enter full name",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Delete Employee",
+      cancelButtonText: "Cancel",
+      preConfirm: (value) => {
+        if (value.trim() !== fullName) {
+          Swal.showValidationMessage("Full name does not match");
+        }
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await adminService.deleteEmployeeById(params.id as string);
+
+        await Swal.fire(
+          "Deleted!",
+          `${fullName} has been deleted successfully.`,
+          "success"
+        );
+
+        router.push("/admin-dashboard/employees/list");
+      } catch (err: any) {
+        await Swal.fire(
+          "Error",
+          err?.response?.data?.message || err?.message || "Failed to delete employee",
+          "error"
+        );
+      }
+    }
+  };
+
+
   const hasValidDocumentChange =
     formData?.documents?.every((doc) => {
       // 🟢 EXISTING DOCUMENT (replace allowed)
@@ -1402,7 +1453,7 @@ const EditEmployeePage = () => {
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
-           <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
         </div>
       </ProtectedRoute>
@@ -3815,32 +3866,44 @@ const EditEmployeePage = () => {
               </CardContent>
             </Card>
             {/* Submit */}
-            <div className="flex justify-end space-x-4 pt-6">
-              <Link
-                href="/admin-dashboard/employees/list"
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-              >
-                Cancel
-              </Link>
-
+            <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+             
               <Button
-                type="submit"
-                disabled={isSubmitting || !isFormValid()}
-                className={`min-w-[180px] transition-all ${isFormValid() && !isSubmitting
-                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
-                  : "bg-gray-400 cursor-not-allowed"
-                  } text-white`}
+                type="button"
+                variant="destructive"
+                onClick={handleDeleteEmployee}
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  'Update Employee'
-                )}
+                Delete Employee
               </Button>
 
+           
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/admin-dashboard/employees/list")}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !isFormValid()}
+                  className={`min-w-[180px] transition-all ${isFormValid() && !isSubmitting
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
+                    : "bg-gray-400 cursor-not-allowed"
+                    } text-white`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Employee'
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
         </div>

@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import Swal from "sweetalert2";
 import isEqual from "lodash/isEqual";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
@@ -149,8 +149,8 @@ export default function EditClientPage() {
           netTerms: dto.netTerms ?? null,
 
           addresses:
-            dto.addresses?.map(
-              (a: any): AddressModel => ({
+            dto.addresses?.length
+              ? dto.addresses.map((a: any): AddressModel => ({
                 addressId: a.addressId || null,
                 houseNo: a.houseNo || "",
                 streetName: a.streetName || "",
@@ -158,30 +158,56 @@ export default function EditClientPage() {
                 state: a.state || "",
                 pincode: a.pincode || "",
                 country: a.country || "",
-                addressType: a.addressType || "",
-              })
-            ) ?? [],
+                addressType:
+                  ADDRESS_TYPE_OPTIONS.includes(a.addressType)
+                    ? a.addressType
+                    : undefined,
+              }))
+              : [
+                {
+                  addressId: null,
+                  houseNo: "",
+                  streetName: "",
+                  city: "",
+                  state: "",
+                  pincode: "",
+                  country: "",
+                  addressType: undefined,
+                },
+              ],
 
-          clientPocs: Array.isArray(dto.pocs)
-            ? dto.pocs.map(
-              (p: any): ClientPocModel => ({
-                pocId: p.pocId || null,
-                name: p.name || "",
-                email: p.email || "",
-                contactNumber: p.contactNumber || "",
-                designation: p.designation || "",
-              })
-            )
-            : [],
+          clientPocs:
+            Array.isArray(dto.pocs) && dto.pocs.length > 0 ? dto.pocs.map((p: any): ClientPocModel => ({
+              pocId: p.pocId || null,
+              name: p.name || "",
+              email: p.email || "",
+              contactNumber: p.contactNumber || "",
+              designation: p.designation || "",
+            }))
+              : [
+                {
+                  pocId: null,
+                  name: "",
+                  email: "",
+                  contactNumber: "",
+                  designation: "",
+                },
+              ],
 
           clientTaxDetails:
-            dto.clientTaxDetails?.map(
-              (t: any): ClientTaxDetail => ({
+            dto.clientTaxDetails?.length
+              ? dto.clientTaxDetails.map((t: any): ClientTaxDetail => ({
                 taxId: t.taxId || null,
                 taxName: t.taxName || "",
                 taxPercentage: t.taxPercentage || 0,
-              })
-            ) ?? [],
+              }))
+              : [
+                {
+                  taxId: null,
+                  taxName: "",
+                  taxPercentage: 0,
+                },
+              ],
         };
         setFormData(loadedData);
         setOriginalData(structuredClone(loadedData));
@@ -240,9 +266,8 @@ export default function EditClientPage() {
     const newErrors: Record<string, string> = {};
 
     (formData.clientPocs ?? []).forEach((poc, i) => {
-      const pocEmail = poc.email.toLowerCase().trim();
-      const pocContact = poc.contactNumber;
-
+      const pocEmail = poc.email?.toLowerCase().trim();
+      const pocContact = poc.contactNumber?.trim();
       if (pocEmail && pocEmail === mainEmail) {
         newErrors[`clientPocs.${i}.email`] = "Same as company email";
         newErrors.email = "Same as POC email";
@@ -426,6 +451,50 @@ export default function EditClientPage() {
     }
   };
 
+  const handleDeleteClient = async () => {
+    const result = await Swal.fire({
+      title: "Delete Client?",
+      html: `
+        <p>This action cannot be undone.</p>
+        <p class="mt-2 text-sm text-gray-600">
+          Type <strong>${formData.companyName}</strong> to confirm deletion.
+        </p>
+      `,
+      icon: "warning",
+      input: "text",
+      inputPlaceholder: "Enter company name",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Delete Client",
+      cancelButtonText: "Cancel",
+      preConfirm: (value) => {
+        if (value !== formData.companyName) {
+          Swal.showValidationMessage("Company name does not match");
+        }
+      },
+    });
+  
+    if (result.isConfirmed) {
+      try {
+        await adminService.deleteClientById(clientId);
+  
+        await Swal.fire(
+          "Deleted!",
+          "Client has been deleted successfully.",
+          "success"
+        );
+  
+        router.push("/admin-dashboard/clients/list");
+      } catch (err: any) {
+        await Swal.fire(
+          "Error",
+          err?.message || "Failed to delete client",
+          "error"
+        );
+      }
+    }
+  };
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
@@ -686,12 +755,6 @@ export default function EditClientPage() {
                 </button>
               </div>
 
-              {(!formData.addresses || formData.addresses.length === 0) && (
-                <div className="p-6 text-gray-500 text-center border border-dashed rounded">
-                  Click “Add Address” to add address
-                </div>
-              )}
-
               {(formData.addresses || []).map((addr, i) => (
                 <div key={i} className="mb-6 p-4 border rounded bg-gray-50">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -866,14 +929,17 @@ export default function EditClientPage() {
                     </div>
                   </div>
 
-                  {(formData.addresses ?? []).length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => removeItem("addresses", i)}
-                      className="mt-2 text-red-600 text-sm hover:underline"
-                    >
-                      Remove Address
-                    </button>
+                  {(formData.addresses ?? []).length > 1 && (
+                     <div className="flex justify-end mt-4">
+                     <button
+                       type="button"
+                       onClick={() => removeItem("addresses", i)}
+                       className="text-red-600 hover:text-red-700 transition"
+                       title="Remove Address"
+                     >
+                       <Trash2 size={18} />
+                     </button>
+                   </div>
                   )}
                 </div>
               ))}
@@ -893,13 +959,6 @@ export default function EditClientPage() {
                   + Add POC
                 </button>
               </div>
-
-              {/* Show message when no POC exists */}
-              {(formData.clientPocs ?? []).length === 0 && (
-                <div className="p-8 text-center text-gray-500 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                  Click “Add POC” to add point of contact
-                </div>
-              )}
 
               {/* Show POCs when at least one exists */}
               {(formData.clientPocs ?? []).length > 0 && (
@@ -1009,13 +1068,16 @@ export default function EditClientPage() {
 
                       {/* Remove Button - Only when more than 1 POC */}
                       {(formData.clientPocs ?? []).length > 1 && (
+                        <div className="flex justify-end mt-4">
                         <button
                           type="button"
                           onClick={() => removeItem("clientPocs", i)}
-                          className="text-red-600 hover:underline text-sm font-medium"
+                          className="text-red-600 hover:text-red-700 transition"
+                          title="Remove POC"
                         >
-                          Remove POC
+                          <Trash2 size={18} />
                         </button>
+                      </div>
                       )}
                     </div>
                   ))}
@@ -1038,12 +1100,6 @@ export default function EditClientPage() {
                 </button>
               </div>
 
-              {(!formData.clientTaxDetails ||
-                formData.clientTaxDetails.length === 0) && (
-                  <div className="p-6 text-gray-500 text-center border border-dashed rounded">
-                    Click “Add Tax” to add tax details
-                  </div>
-                )}
 
               {(formData.clientTaxDetails || []).map((tax, i) => (
                 <div
@@ -1081,13 +1137,13 @@ export default function EditClientPage() {
                     />
                     {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
                   </div>
-                  {(formData.clientTaxDetails ?? []).length > 0 && (
+                  {(formData.clientTaxDetails ?? []).length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeItem("clientTaxDetails", i)}
                       className="text-red-600 text-sm hover:underline"
                     >
-                      Remove Tax
+                     <Trash2 size={18} />
                     </button>
                   )}
                 </div>
@@ -1100,7 +1156,18 @@ export default function EditClientPage() {
               </div>
             )}
 
-            <div className="flex justify-end gap-4">
+<div className="flex justify-between items-center mt-8">
+
+  {/* LEFT → DELETE BUTTON */}
+  <Button
+    type="button"
+    variant="destructive"
+    onClick={handleDeleteClient}
+  >
+    Delete Client
+  </Button>
+    {/* RIGHT → CANCEL + UPDATE */}
+    <div className="flex gap-4">
               <Button
                 type="button"
                 variant="outline"
@@ -1110,11 +1177,11 @@ export default function EditClientPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={!hasChanges}
-                title={!hasChanges ? "No changes made" : ""}
+                disabled={!hasChanges || Object.keys(errors).length > 0} title={!hasChanges ? "No changes made" : ""}
               >
                 Update Client
               </Button>
+              </div>
             </div>
           </form>
         </div>
