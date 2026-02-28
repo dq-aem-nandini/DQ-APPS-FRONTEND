@@ -412,6 +412,9 @@ export interface LeaveCalendarEmployeeDTO {
   employeeName: string;
   leaveType: "FULL_DAY" | "HALF_DAY" | "FIRST_HALF" | "SECOND_HALF";
   status: "APPROVED" | "PENDING" | "REJECTED";
+  clientId: string;
+  clientName: string;
+  reason: string;
 }
 
 export interface LeaveCalendarDTO {
@@ -1673,6 +1676,7 @@ export interface EmployeeMinDTO {
   companyId: string;
   rateCard: number | null;
   dateOfJoining: string;
+  availableLeaves: number;
 }
 export interface ManualInvoiceItemRequestDTO {
   employeeId: string;

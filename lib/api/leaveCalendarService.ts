@@ -28,11 +28,6 @@ export const LeaveCalendarService = {
             params: { month, year , teamView},
           });
     
-        console.log(
-          "🗓️ Leave calendar API response:",
-          response.data.response
-        );
-    
         if (response.data.flag && response.data.response) {
           return response.data.response;
         }
