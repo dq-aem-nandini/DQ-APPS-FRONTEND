@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { adminService } from "@/lib/api/adminService";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import BackButton from "@/components/ui/BackButton";
-import Spinner from "@/components/ui/Spinner";
 import useLoading from "@/hooks/useLoading";
 import Swal from "sweetalert2";
 import TooltipHint from "@/components/ui/TooltipHint";
@@ -18,13 +17,6 @@ import {
   CURRENCY_CODE_OPTIONS,
   CurrencyCode,
 } from "@/lib/api/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
 import { Trash2 } from "lucide-react";
 
@@ -66,7 +58,6 @@ export default function AddClientPage() {
         taxId: null,
         taxName: "",
         taxPercentage: 0,
-       
       },
     ],
   });
@@ -108,32 +99,64 @@ export default function AddClientPage() {
       }));
     }
   };
-  const { handleValidatedChange, handleUniqueBlur, fieldError } =
-    useFormFieldHandlers(
-      handleChange,
-      setErrors,
-      checkUniqueness,
-      () => formData, // or whatever your client form data getter is
-      validateField // ← this makes it use CLIENT rules
-    );
+  const {
+    handleValidatedChange,
+    handleUniqueBlur,
+    handleBlurValidation,
+    fieldError,
+  } = useFormFieldHandlers(
+    handleChange,
+    setErrors,
+    checkUniqueness,
+    () => formData, // or whatever your client form data getter is
+    validateField // ← this makes it use CLIENT rules
+  );
 
-  // ---- State cache for India ----
-  const [indiaStates, setIndiaStates] = useState<string[]>([]);
-  const [statesLoading, setStatesLoading] = useState(false);
-  const isIndia = (country?: string) =>
-    country?.trim().toLowerCase() === "india";
+  const [countries, setCountries] = useState<string[]>([]);
+  const [statesByCountry, setStatesByCountry] = useState<
+    Record<string, string[]>
+  >({});
+  const [statesLoadingMap, setStatesLoadingMap] = useState<
+    Record<number, boolean>
+  >({});
 
-  const fetchIndiaStates = async () => {
-    if (indiaStates.length > 0) return; // ✅ cache hit
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await adminService.getAllCountries();
+        setCountries(response || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
+  const fetchStatesForCountry = async (country: string, index: number) => {
+    if (!country) return;
+
+    const normalized = country.trim().toLowerCase();
+
+    if (statesByCountry[normalized]) return;
 
     try {
-      setStatesLoading(true);
-      const response = await adminService.getStatesByCountry("india");
-      setIndiaStates(response || []);
+      setStatesLoadingMap((prev) => ({ ...prev, [index]: true }));
+
+      const response = await adminService.getStatesByCountryV1(country);
+
+      setStatesByCountry((prev) => ({
+        ...prev,
+        [normalized]: response || [],
+      }));
     } catch (err) {
       console.error("Failed to fetch states", err);
     } finally {
-      setStatesLoading(false);
+      setStatesLoadingMap((prev) => ({ ...prev, [index]: false }));
     }
   };
 
@@ -204,7 +227,6 @@ export default function AddClientPage() {
   useEffect(() => {
     checkDuplicateInForm();
   }, [formData.email, formData.contactNumber, formData.clientPocs]);
-  console.log("VALIDATOR FUNCTION:", validateField);
 
   const addItem = (
     section: "addresses" | "clientPocs" | "clientTaxDetails"
@@ -271,18 +293,6 @@ export default function AddClientPage() {
     e.preventDefault();
     setErrors({});
     setIsSubmitting(true);
-    // if (!formData.addresses?.length) {
-    //   setErrors({ addresses: "At least one address required" });
-    //   setIsSubmitting(false);
-    //   return;
-    // }
-
-    // if (!formData.clientPocs?.length) {
-    //   setErrors({ clientPocs: "At least one POC required" });
-    //   setIsSubmitting(false);
-    //   return;
-    // }
-
     // ────── REQUIRED FIELDS WITH AUTO-FOCUS & SCROLL ──────
     const requiredFields = [
       {
@@ -343,7 +353,7 @@ export default function AddClientPage() {
         label: "POC Name",
       },
       {
-        value: (formData.clientPocs?? [])[0]?.email,
+        value: (formData.clientPocs ?? [])[0]?.email,
         name: "clientPocs.0.email",
         label: "POC Email",
       },
@@ -484,52 +494,8 @@ export default function AddClientPage() {
       setIsSubmitting(false);
     }
   };
-
-  const isFormValid = () => {
-    // Basic fields
-    if (
-      !formData.companyName?.trim() ||
-      !formData.contactNumber?.trim() ||
-      !formData.currency
-    ) {
-      return false;
-    }
-  
-    // Must have at least one address
-    if (!formData.addresses || formData.addresses.length === 0) {
-      return false;
-    }
-  
-    // Validate first address (mandatory fields)
-    const address = formData.addresses[0];
-    if (
-      !address.houseNo?.trim() ||
-      !address.streetName?.trim() ||
-      !address.city?.trim() ||
-      !address.state?.trim() ||
-      !address.pincode?.trim() ||
-      !address.country?.trim() ||
-      !address.addressType
-    ) {
-      return false;
-    }
-  
-    // Must have at least one POC
-    if (!formData.clientPocs || formData.clientPocs.length === 0) {
-      return false;
-    }
-  
-    // Validate first POC
-    const poc = formData.clientPocs[0];
-    if (!poc.name?.trim() || !poc.email?.trim()) {
-      return false;
-    }
-  
-    return true;
-  };
-
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="relative flex items-center justify-center mb-8">
           <div className="absolute left-0">
@@ -541,7 +507,6 @@ export default function AddClientPage() {
         </div>
 
         <div className="max-w-6xl mx-auto">
-
           <form
             onSubmit={handleSubmit}
             className="bg-white rounded-lg shadow p-6 space-y-8"
@@ -563,11 +528,14 @@ export default function AddClientPage() {
                     name="companyName"
                     value={formData.companyName}
                     onChange={handleValidatedChange}
-                    onBlur={handleUniqueBlur(
-                      "COMPANY_NAME",
-                      "company_name",
-                      "companyName"
-                    )}
+                    onBlur={(e) => {
+                      handleBlurValidation("companyName")(e); // 🔥 required check
+                      handleUniqueBlur(
+                        "COMPANY_NAME",
+                        "company_name",
+                        "companyName"
+                      )(e); // 🔥 uniqueness check
+                    }}
                     placeholder="e.g. Digiquads Pvt Ltd"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
@@ -585,11 +553,14 @@ export default function AddClientPage() {
                     value={formData.contactNumber}
                     maxLength={10}
                     onChange={handleValidatedChange}
-                    onBlur={handleUniqueBlur(
-                      "CONTACT_NUMBER",
-                      "contact_number",
-                      "contactNumber"
-                    )}
+                    onBlur={(e) => {
+                      handleBlurValidation("contactNumber")(e);
+                      handleUniqueBlur(
+                        "CONTACT_NUMBER",
+                        "contact_number",
+                        "contactNumber"
+                      )(e);
+                    }}
                     required
                     placeholder="e.g. 9876543210"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
@@ -713,28 +684,25 @@ export default function AddClientPage() {
                     <TooltipHint hint="Primary billing currency for this client" />
                   </label>
 
-                  <Select
-                    required
-                    value={formData.currency}
-                    onValueChange={(value) =>
+                  <select
+                    name="currency"
+                    value={formData.currency || ""}
+                    onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        currency: value as CurrencyCode,
+                        currency: e.target.value as CurrencyCode,
                       }))
                     }
+                    required
+                    className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <SelectTrigger className="!h-11 text-base w-full">
-                      <SelectValue placeholder="Select Currency" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {CURRENCY_CODE_OPTIONS.map((d) => (
-                        <SelectItem key={d} value={d}>
-                          {d}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select Currency</option>
+                    {CURRENCY_CODE_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
 
                   {fieldError(errors, "currency")}
                 </div>
@@ -746,7 +714,9 @@ export default function AddClientPage() {
                     <TooltipHint hint="Number of days after which payment is due. Example: 30, 60, 90" />
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    inputMode="numeric"
                     name="netTerms"
                     value={formData.netTerms || ""}
                     onChange={(e) => {
@@ -783,42 +753,89 @@ export default function AddClientPage() {
                   className="mb-6 p-4 border rounded bg-gray-50"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* House No */}
+                    {/* Country */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        House No <span className="text-red-500">*</span>
-                        <TooltipHint hint="House or building number. Example: 221B" />
+                        Country
+                        <span className="text-red-500">*</span>
+                        <TooltipHint hint="Country name as per official records" />
                       </label>
-                      <input
-                        required
-                        type="text"
-                        name={`addresses.${i}.houseNo`}
-                        value={addr.houseNo || ""}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
-                        placeholder="e.g. 221B"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                      />
-                    </div>
 
-                    {/* Street */}
+                      <select
+                        name={`addresses.${i}.country`}
+                        value={addr.country || ""}
+                        onChange={(e) => {
+                          handleValidatedChange(e, i, "addresses");
+
+                          const selectedCountry = e.target.value;
+
+                          setFormData((prev) => ({
+                            ...prev,
+                            addresses: (prev.addresses ?? []).map((a, idx) =>
+                              idx === i ? { ...a, state: "" } : a
+                            ),
+                          }));
+
+                          fetchStatesForCountry(selectedCountry, i);
+                        }}
+                        onBlur={handleBlurValidation(`addresses.${i}.country`)}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="">Select Country</option>
+                        {countries.map((country) => (
+                          <option key={country} value={country}>
+                            {country}
+                          </option>
+                        ))}
+                      </select>
+                      {fieldError(errors, `addresses.${i}.country`)}
+                    </div>
+                    {/* state */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Street <span className="text-red-500">*</span>
-                        <TooltipHint hint="Street name. Example: Baker Street" />
+                        State <span className="text-red-500">*</span>
+                        <TooltipHint hint="State name as per official records" />
                       </label>
-                      <input
-                        required
-                        type="text"
-                        name={`addresses.${i}.streetName`}
-                        value={addr.streetName || ""}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
-                        placeholder="e.g. Baker Street"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                      />
+                      {statesByCountry[addr.country?.trim().toLowerCase() || ""]
+                        ?.length > 0 ? (
+                        <select
+                          name={`addresses.${i}.state`}
+                          value={addr.state || ""}
+                          onChange={(e) =>
+                            handleValidatedChange(e, i, "addresses")
+                          }
+                          onBlur={handleBlurValidation(`addresses.${i}.state`)}
+                          required
+                          disabled={statesLoadingMap[i]}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">Select State</option>
+                          {statesByCountry[
+                            addr.country?.trim().toLowerCase() || ""
+                          ]?.map((state) => (
+                            <option key={state} value={state}>
+                              {state}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          name={`addresses.${i}.state`}
+                          value={addr.state || ""}
+                          onChange={(e) =>
+                            handleValidatedChange(e, i, "addresses")
+                          }
+                          onBlur={handleBlurValidation(`addresses.${i}.state`)}
+                          required
+                          disabled={!addr.country}
+                          placeholder="Enter state"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      )}
+
+                      {fieldError(errors, `addresses.${i}.state`)}
                     </div>
 
                     {/* City */}
@@ -835,13 +852,56 @@ export default function AddClientPage() {
                         onChange={(e) =>
                           handleValidatedChange(e, i, "addresses")
                         }
+                        onBlur={handleBlurValidation(`addresses.${i}.city`)}
                         required
                         placeholder="e.g. Mumbai"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       />
                       {fieldError(errors, `addresses.${i}.city`)}
                     </div>
+                    {/* House No */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        House No <span className="text-red-500">*</span>
+                        <TooltipHint hint="House or building number. Example: 221B" />
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        name={`addresses.${i}.houseNo`}
+                        value={addr.houseNo || ""}
+                        onChange={(e) =>
+                          handleValidatedChange(e, i, "addresses")
+                        }
+                        onBlur={handleBlurValidation(`addresses.${i}.houseNo`)}
+                        placeholder="e.g. 221B"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                      />
+                      {fieldError(errors, `addresses.${i}.houseNo`)}
+                    </div>
 
+                    {/* Street */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Street <span className="text-red-500">*</span>
+                        <TooltipHint hint="Street name. Example: Baker Street" />
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        name={`addresses.${i}.streetName`}
+                        value={addr.streetName || ""}
+                        onChange={(e) =>
+                          handleValidatedChange(e, i, "addresses")
+                        }
+                        onBlur={handleBlurValidation(
+                          `addresses.${i}.streetName`
+                        )}
+                        placeholder="e.g. Baker Street"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                      />
+                      {fieldError(errors, `addresses.${i}.streetName`)}
+                    </div>
                     {/* Pincode */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -853,103 +913,15 @@ export default function AddClientPage() {
                         type="text"
                         name={`addresses.${i}.pincode`}
                         value={addr.pincode || ""}
-                        maxLength={6}
                         onChange={(e) =>
                           handleValidatedChange(e, i, "addresses")
                         }
+                        onBlur={handleBlurValidation(`addresses.${i}.pincode`)}
                         required
                         placeholder="e.g. 400001"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       />
                       {fieldError(errors, `addresses.${i}.pincode`)}
-                    </div>
-
-                    {/* Country */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Country
-                        <span className="text-red-500">*</span>
-                        <TooltipHint hint="Country name as per official records" />
-                      </label>
-                      <input
-                        type="text"
-                        name={`addresses.${i}.country`}
-                        value={addr.country || ""}
-                        onChange={(e) => {
-                          handleValidatedChange(e, i, "addresses");
-
-                          if (isIndia(e.target.value)) {
-                            fetchIndiaStates();
-                          } else {
-                            setFormData((prev) => ({
-                              ...prev,
-                              addresses: (prev.addresses ?? []).map((a, idx) =>
-                                idx === i ? { ...a, state: "" } : a
-                              ),
-                            }));
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const error = validateField(
-                            `addresses.${i}.country`,
-                            e.target.value,
-                            formData
-                          );
-
-                          setErrors((prev) => {
-                            const next = { ...prev };
-                            if (error) next[`addresses.${i}.country`] = error;
-                            else delete next[`addresses.${i}.country`];
-                            return next;
-                          });
-                        }}
-                        required
-                        placeholder="e.g. India"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-
-                      {fieldError(errors, `addresses.${i}.country`)}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        State <span className="text-red-500">*</span>
-                        <TooltipHint hint="State name as per official records" />
-                      </label>
-
-                      {isIndia(addr.country) ? (
-                        <select
-                          name={`addresses.${i}.state`}
-                          value={addr.state || ""}
-                          onChange={(e) =>
-                            handleValidatedChange(e, i, "addresses")
-                          }
-                          required
-                          disabled={statesLoading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        >
-                          <option value="">Select State</option>
-                          {indiaStates.map((state) => (
-                            <option key={state} value={state}>
-                              {state}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          name={`addresses.${i}.state`}
-                          value={addr.state || ""}
-                          onChange={(e) =>
-                            handleValidatedChange(e, i, "addresses")
-                          }
-                          required
-                          placeholder="Enter state"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        />
-                      )}
-
-                      {fieldError(errors, `addresses.${i}.state`)}
                     </div>
 
                     {/* Address Type */}
@@ -962,6 +934,9 @@ export default function AddClientPage() {
                         name={`addresses.${i}.addressType`}
                         value={addr.addressType || ""}
                         onChange={(e) => handleChange(e, i, "addresses")}
+                        onBlur={handleBlurValidation(
+                          `addresses.${i}.addressType`
+                        )}
                         required
                         className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                       >
@@ -977,15 +952,15 @@ export default function AddClientPage() {
 
                   {formData.addresses!.length > 1 && (
                     <div className="flex justify-end mt-4">
-                    <button
-                      type="button"
-                      onClick={() => removeItem("addresses", i)}
-                      className="text-red-600 hover:text-red-700 transition"
-                      title="Remove Address"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem("addresses", i)}
+                        className="text-red-600 hover:text-red-700 transition"
+                        title="Remove Address"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -1028,6 +1003,9 @@ export default function AddClientPage() {
                             onChange={(e) =>
                               handleValidatedChange(e, i, "clientPocs")
                             }
+                            onBlur={handleBlurValidation(
+                              `clientPocs.${i}.name`
+                            )}
                             required
                             placeholder="e.g. Anita Sharma"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
@@ -1050,11 +1028,14 @@ export default function AddClientPage() {
                             onChange={(e) =>
                               handleValidatedChange(e, i, "clientPocs")
                             }
-                            onBlur={handleUniqueBlur(
-                              "EMAIL",
-                              "email",
-                              `clientPocs.${i}.email`
-                            )}
+                            onBlur={(e) => {
+                              handleBlurValidation(`clientPocs.${i}.email`)(e);
+                              handleUniqueBlur(
+                                "EMAIL",
+                                "email",
+                                `clientPocs.${i}.email`
+                              )(e);
+                            }}
                             placeholder="e.g. anita@company.com"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                           />
@@ -1110,16 +1091,16 @@ export default function AddClientPage() {
 
                       {/* Remove Button - Only show if more than 1 POC */}
                       {(formData.clientPocs ?? []).length > 1 && (
-                       <div className="flex justify-end mt-4">
-                       <button
-                         type="button"
-                         onClick={() => removeItem("clientPocs", i)}
-                         className="text-red-600 hover:text-red-700 transition"
-                         title="Remove POC"
-                       >
-                         <Trash2 size={18} />
-                       </button>
-                     </div>
+                        <div className="flex justify-end mt-4">
+                          <button
+                            type="button"
+                            onClick={() => removeItem("clientPocs", i)}
+                            className="text-red-600 hover:text-red-700 transition"
+                            title="Remove POC"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1168,12 +1149,12 @@ export default function AddClientPage() {
                       <TooltipHint hint="Tax percentage rate. Example: 18 for 18%" />
                     </label>
                     <input
-                      type="number"
                       name={`clientTaxDetails.${i}.taxPercentage`}
                       value={tax.taxPercentage || ""}
                       onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                     {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
@@ -1184,24 +1165,13 @@ export default function AddClientPage() {
                       onClick={() => removeItem("clientTaxDetails", i)}
                       className="text-red-600 text-sm hover:underline"
                     >
-                     <Trash2 size={18} />
+                      <Trash2 size={18} />
                     </button>
                   )}
                 </div>
               ))}
             </div>
-            {/* 
-            {error && (
-              <div className="text-red-600 bg-red-50 p-3 rounded">{error}</div>
-            )}
-            {success && (
-              <div className="text-green-600 bg-green-50 p-3 rounded">
-                {success}
-              </div>
-            )} */}
-
             <div className="flex justify-end gap-4">
-
               <button
                 type="button"
                 onClick={() => router.push("/admin-dashboard/clients")}
@@ -1212,7 +1182,7 @@ export default function AddClientPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting || !isFormValid()}
+                disabled={isSubmitting}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? "Adding..." : "Add Client"}

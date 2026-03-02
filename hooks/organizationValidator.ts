@@ -1,4 +1,27 @@
 // hooks/organizationValidator.ts
+const requiredFields = [
+  "organizationName",
+  "organizationLegalName",
+  "registrationNumber",
+  "gstNumber",
+  "panNumber",
+  "cinNumber",
+  "email",
+  "contactNumber",
+  "domain",
+  "industryType",
+  "establishedDate",
+  "currencyCode",
+  "accountNumber",
+  "accountHolderName",
+  "ifscCode",
+  "prefix",
+  "sequenceNumber",
+  "companyType",
+  "autoClockOutTime",
+  "bankName",
+  "branchName",
+];
 
 export const patterns = {
   nameWithSymbols: /^[A-Za-z\s&.,()-]+$/,
@@ -44,8 +67,10 @@ export function createOrganizationValidator() {
   ): string {
     const val = String(value ?? "").trim();
 
-    // Skip empty (required handled elsewhere)
-    if (!val) return "";
+   // ✅ Required validation
+if (requiredFields.includes(name) && !val) {
+  return "This field is required";
+}
 
     /* ───── Names ───── */
     if (

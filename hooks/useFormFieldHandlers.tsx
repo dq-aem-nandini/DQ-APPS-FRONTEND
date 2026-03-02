@@ -92,6 +92,31 @@ export function useFormFieldHandlers<TForm>(
     });
   };
 
+  const handleBlurValidation =
+  (
+    name: string,
+    index?: number,
+    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+  ) =>
+  (
+    e: React.FocusEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const formattedValue = formatValue(name, e.target.value);
+
+    const currentForm = getFormData() ?? {};
+
+    const error = validateField(name, formattedValue, currentForm);
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (error) next[name] = error;
+      else delete next[name];
+      return next;
+    });
+  };
+
   const handleUniqueBlur =
     (
       field: UniqueField,
@@ -124,6 +149,7 @@ export function useFormFieldHandlers<TForm>(
   return {
     handleValidatedChange,
     handleUniqueBlur,
+    handleBlurValidation,
     fieldError,
   };
 }

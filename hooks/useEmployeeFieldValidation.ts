@@ -4,7 +4,6 @@ export function useEmployeeFieldValidation() {
   const validateField = (name: string, value: any, formData?: any): string => {
     if (!name) return "";
 
-    const val = String(value ?? "").trim();
 
     const requiredFields = [
       "firstName",
@@ -12,12 +11,13 @@ export function useEmployeeFieldValidation() {
       "personalEmail",
       "companyEmail",
       "contactNumber",
-      "designation",
       "dateOfBirth",
-      "dateOfJoining",
       "gender",
       "nationality",
+      "clientSelection",
       "employeeEmploymentDetailsDTO.department",
+      "dateOfJoining",
+      "employmentType",
       "employeeSalaryDTO.payType",
       "employeeSalaryDTO.ctc",
     ];
@@ -32,8 +32,14 @@ export function useEmployeeFieldValidation() {
       "nomineeRelation",
       "taxRegime",
     ];
-    if (requiredFields.includes(name) && !val) return common.requiredError;
+    const val = String(value ?? "").trim();
 
+    // if (requiredFields.includes(name) && !val) return common.requiredError;
+    if (requiredFields.includes(name)) {
+      if (!val || val === "null" || val === "undefined") {
+        return common.requiredError;
+      }
+    }
     // ================= NAME =================
     if (["firstName", "lastName", "accountHolderName"].includes(name)) {
       if (val && !common.nameRegex.test(val)) return common.onlyLettersSpaces;
@@ -71,7 +77,7 @@ export function useEmployeeFieldValidation() {
     // ================= MAX 30 CHAR FIELDS =================
     if (val.length > 30) {
       const max30Match = max30Fields.some((field) => name.includes(field)
-    );
+      );
 
       if (max30Match) {
         return common.max30Chars;
@@ -114,6 +120,42 @@ export function useEmployeeFieldValidation() {
       if (!/^\d+$/.test(val)) return "Only digits allowed.";
       if (val.length < 9) return "At least 9 digits.";
       if (val.length > 12) return "Max 12 digits.";
+    }
+
+    // Conditional required - Date Of Onboarding To Client
+    if (
+      name === "dateOfOnboardingToClient" &&
+      formData?.clientSelection &&
+      !formData.clientSelection.startsWith("STATUS:")
+    ) {
+      if (!val) return common.requiredError;
+    }
+    // Conditional required - rate card
+   // Conditional required - rate card
+if (
+  name === "rateCard" &&
+  formData?.clientSelection &&
+  !formData.clientSelection.startsWith("STATUS:")
+) {
+  if (!val) return common.requiredError;
+
+  if (isNaN(Number(val)) || Number(val) <= 0) {
+    return "Rate Card must be greater than 0";
+  }
+}
+
+    // Designation required
+    if (name === "designationId") {
+      if (!formData?.designationId && !formData?.customDesignation) {
+        return "Designation is required";
+      }
+    }
+
+    // CTC validation
+    if (name === "employeeSalaryDTO.ctc") {
+      if (isNaN(Number(val)) || Number(val) <= 0) {
+        return "CTC must be greater than 0";
+      }
     }
 
     // ================= ESI =================

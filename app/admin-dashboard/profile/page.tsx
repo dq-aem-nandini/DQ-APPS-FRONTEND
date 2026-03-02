@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import {
-  User, Mail, Calendar, Edit3, Save, X, CheckCircle, AlertCircle, KeyRound,
+  User, Mail, Calendar, Edit3, KeyRound,
   Loader2
 } from 'lucide-react';
 import { adminService } from '@/lib/api/adminService';
-import { UniqueField, validationService } from '@/lib/api/validationService';
 import Swal from 'sweetalert2';
 import { useFormFieldHandlers } from '@/hooks/useFormFieldHandlers';
 import { useUniquenessCheck } from '@/hooks/useUniqueCheck';
@@ -33,41 +32,41 @@ export default function AdminProfilePage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Reuse shared form hooks
-const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
+  const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
 
-const { 
-  handleValidatedChange, 
-  handleUniqueBlur, 
-  fieldError 
-} = useFormFieldHandlers(
-  (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  },
-  setErrors,
-  checkUniqueness,
-  () => formData,
-  // Admin-specific validation rules
-  (name: string, value: string) => {
-    let error = '';
+  const {
+    handleValidatedChange,
+    handleUniqueBlur,
+    fieldError
+  } = useFormFieldHandlers(
+    (e) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({ ...prev, [name]: value }));
+    },
+    setErrors,
+    checkUniqueness,
+    () => formData,
+    // Admin-specific validation rules
+    (name: string, value: string) => {
+      let error = '';
 
-    if (name === "email") {
-      if (!value.trim()) error = "Email is required";
-      else if (!/^[a-zA-Z0-9._%+-]+@digiquadsolutions\.com$/.test(value)) {
-        error = "Email must end with @digiquadsolutions.com";
+      if (name === "email") {
+        if (!value.trim()) error = "Email is required";
+        else if (!/^[a-zA-Z0-9._%+-]+@digiquadsolutions\.com$/.test(value)) {
+          error = "Email must end with @digiquadsolutions.com";
+        }
       }
-    }
 
-    if (name === "contactNumber") {
-      if (!value.trim()) error = "Contact number is required";
-      else if (!/^[6-9]\d{9}$/.test(value)) {
-        error = "Invalid 10-digit mobile number (starts with 6-9)";
+      if (name === "contactNumber") {
+        if (!value.trim()) error = "Contact number is required";
+        else if (!/^[6-9]\d{9}$/.test(value)) {
+          error = "Invalid 10-digit mobile number (starts with 6-9)";
+        }
       }
-    }
 
-    return error;
-  }
-);
+      return error;
+    }
+  );
   // ⭐ LOAD ADMIN PROFILE
   const loadAdmin = async () => {
     try {
@@ -182,7 +181,7 @@ const {
     .join('')
     .toUpperCase()
     .slice(0, 2);
- 
+
 
 
 
@@ -277,90 +276,90 @@ const {
 
             {/* FORM */}
             <form id="profileForm" onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-  {/* FULL NAME – simple, no uniqueness */}
-  <div className="space-y-1">
-    <label className="block font-semibold mb-2 text-gray-700">
-      Full Name
-    </label>
-    <input
-      type="text"
-      name="fullName"
-      disabled={!isEditing}
-      value={formData.fullName}
-      onChange={handleValidatedChange}
-      placeholder="Enter full name"
-      className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
-    />
-  </div>
+                {/* FULL NAME – simple, no uniqueness */}
+                <div className="space-y-1">
+                  <label className="block font-semibold mb-2 text-gray-700">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    disabled={!isEditing}
+                    value={formData.fullName}
+                    onChange={handleValidatedChange}
+                    placeholder="Enter full name"
+                    className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
 
-  {/* EMAIL – with real-time validation + uniqueness on blur */}
-  <div className="space-y-1">
-    <label className="block font-semibold mb-2 text-gray-700">
-      Email <span className="text-red-500">*</span>
-    </label>
-    <div className="relative">
-      <input
-        type="email"
-        name="email"
-        disabled={!isEditing}
-        value={formData.email}
-        onChange={handleValidatedChange}
-        onBlur={() => handleUniqueBlur(
-          "EMAIL",             // field type for API
-          "email",             // DB column name
-          "email",             // error key
-          admin?.adminId       // exclude current admin ID
-        )}
-        placeholder="admin@digiquadsolutions.com"
-        className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
-      />
+                {/* EMAIL – with real-time validation + uniqueness on blur */}
+                <div className="space-y-1">
+                  <label className="block font-semibold mb-2 text-gray-700">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      name="email"
+                      disabled={!isEditing}
+                      value={formData.email}
+                      onChange={handleValidatedChange}
+                      onBlur={() => handleUniqueBlur(
+                        "EMAIL",             // field type for API
+                        "email",             // DB column name
+                        "email",             // error key
+                        admin?.adminId       // exclude current admin ID
+                      )}
+                      placeholder="admin@digiquadsolutions.com"
+                      className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
 
-      {checking.has("email") && (
-        <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600" />
-      )}
-    </div>
+                    {checking.has("email") && (
+                      <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600" />
+                    )}
+                  </div>
 
-    {fieldError(errors, "email")}
-  </div>
+                  {fieldError(errors, "email")}
+                </div>
 
-  {/* CONTACT NUMBER – with real-time validation + uniqueness on blur */}
-  <div className="space-y-1">
-    <label className="block font-semibold mb-2 text-gray-700">
-      Contact Number <span className="text-red-500">*</span>
-    </label>
-    <div className="relative">
-      <input
-        type="text"
-        name="contactNumber"
-        disabled={!isEditing}
-        value={formData.contactNumber}
-        onChange={(e) => {
-          if (/^\d*$/.test(e.target.value)) {
-            handleValidatedChange(e);
-          }
-        }}  
-        onBlur={() => handleUniqueBlur(
-          "CONTACT_NUMBER",
-          "contact_number",
-          "contactNumber",
-          admin?.adminId
-        )}
-        maxLength={10}
-        placeholder="9876543210"
-        className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
-      />
+                {/* CONTACT NUMBER – with real-time validation + uniqueness on blur */}
+                <div className="space-y-1">
+                  <label className="block font-semibold mb-2 text-gray-700">
+                    Contact Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="contactNumber"
+                      disabled={!isEditing}
+                      value={formData.contactNumber}
+                      onChange={(e) => {
+                        if (/^\d*$/.test(e.target.value)) {
+                          handleValidatedChange(e);
+                        }
+                      }}
+                      onBlur={() => handleUniqueBlur(
+                        "CONTACT_NUMBER",
+                        "contact_number",
+                        "contactNumber",
+                        admin?.adminId
+                      )}
+                      maxLength={10}
+                      placeholder="9876543210"
+                      className="w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-xl text-sm sm:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
 
-      {checking.has("contactNumber") && (
-        <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600" />
-      )}
-    </div>
+                    {checking.has("contactNumber") && (
+                      <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600" />
+                    )}
+                  </div>
 
-    {fieldError(errors, "contactNumber")}
-  </div>
+                  {fieldError(errors, "contactNumber")}
+                </div>
 
-</div>
+              </div>
             </form>
 
           </div>

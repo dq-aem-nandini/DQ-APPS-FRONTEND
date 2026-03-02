@@ -35,6 +35,7 @@ import {
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
+import { adminService } from "@/lib/api/adminService";
 // Employee should NOT see offer letter or contract
 const EMPLOYEE_ALLOWED_DOCUMENTS = DOCUMENT_TYPE_OPTIONS.filter(
   (doc) => doc !== "OFFER_LETTER" && doc !== "CONTRACT"
@@ -47,10 +48,10 @@ const safe = (val: any) =>
 const formatDate = (date: string) =>
   date
     ? new Date(date).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
     : "—";
 
 // Validate address
@@ -64,32 +65,32 @@ const isValidAddress = (addr: AddressModel): boolean =>
   !!addr.addressType;
 
 // Deduplicate addresses
-const deduplicateAddresses = (addresses: AddressModel[]): AddressModel[] => {
-  const map = new Map<string, AddressModel>();
-  addresses.forEach((addr) => {
-    const key = `${addr.houseNo}-${addr.streetName}-${addr.city}-${addr.state}-${addr.country}-${addr.pincode}-${addr.addressType}`;
-    const withId = { ...addr, addressId: addr.addressId || uuidv4() };
-    if (!map.has(key)) map.set(key, withId);
-  });
-  return Array.from(map.values()).filter(isValidAddress);
-};
+// const deduplicateAddresses = (addresses: AddressModel[]): AddressModel[] => {
+//   const map = new Map<string, AddressModel>();
+//   addresses.forEach((addr) => {
+//     const key = `${addr.houseNo}-${addr.streetName}-${addr.city}-${addr.state}-${addr.country}-${addr.pincode}-${addr.addressType}`;
+//     const withId = { ...addr, addressId: addr.addressId || uuidv4() };
+//     if (!map.has(key)) map.set(key, withId);
+//   });
+//   return Array.from(map.values()).filter(isValidAddress);
+// };
 
 // Simple deep equality check for address objects (only the fields we care about)
-const isAddressEqual = (
-  a: AddressModel | undefined,
-  b: AddressModel | undefined
-): boolean => {
-  if (!a || !b) return false;
-  return (
-    (a.houseNo || "").trim() === (b.houseNo || "").trim() &&
-    (a.streetName || "").trim() === (b.streetName || "").trim() &&
-    (a.city || "").trim() === (b.city || "").trim() &&
-    (a.state || "").trim() === (b.state || "").trim() &&
-    (a.country || "").trim() === (b.country || "").trim() &&
-    (a.pincode || "").trim() === (b.pincode || "").trim() &&
-    (a.addressType || "") === (b.addressType || "")
-  );
-};
+// const isAddressEqual = (
+//   a: AddressModel | undefined,
+//   b: AddressModel | undefined
+// ): boolean => {
+//   if (!a || !b) return false;
+//   return (
+//     (a.houseNo || "").trim() === (b.houseNo || "").trim() &&
+//     (a.streetName || "").trim() === (b.streetName || "").trim() &&
+//     (a.city || "").trim() === (b.city || "").trim() &&
+//     (a.state || "").trim() === (b.state || "").trim() &&
+//     (a.country || "").trim() === (b.country || "").trim() &&
+//     (a.pincode || "").trim() === (b.pincode || "").trim() &&
+//     (a.addressType || "") === (b.addressType || "")
+//   );
+// };
 
 const ProfilePage = () => {
   const {
@@ -104,9 +105,8 @@ const ProfilePage = () => {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [deletingAddresses, setDeletingAddresses] = useState<Set<string>>(
-    new Set()
-  );
+  const [countries, setCountries] = useState<string[]>([]);
+  const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [documents, setDocuments] = useState<FormDocument[]>([]);
@@ -161,6 +161,35 @@ const ProfilePage = () => {
     tempId?: string;
     status?: "unchanged" | "new";
   }
+  useEffect(() => {
+    const loadStatesForExisting = async () => {
+      for (const [index, addr] of addresses.entries()) {
+        if (addr.country) {
+          try {
+            const states =
+              await adminService.getStatesByCountryV1(addr.country);
+
+            setStatesMap((prev) => ({
+              ...prev,
+              [index]: states || [],
+            }));
+          } catch (e) {
+            console.error("Failed to load states", e);
+          }
+        }
+      }
+    };
+
+    if (addresses.length) {
+      loadStatesForExisting();
+    }
+  }, [addresses.length]);
+
+
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
   const fetchProfile = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -173,11 +202,11 @@ const ProfilePage = () => {
         ...res,
         gender: res.gender
           ? res.gender.charAt(0).toUpperCase() +
-            res.gender.slice(1).toLowerCase()
+          res.gender.slice(1).toLowerCase()
           : "",
         maritalStatus: res.maritalStatus
           ? res.maritalStatus.charAt(0).toUpperCase() +
-            res.maritalStatus.slice(1).toLowerCase()
+          res.maritalStatus.slice(1).toLowerCase()
           : "",
         addresses: (res.addresses || []).map((a) => ({
           ...a,
@@ -208,6 +237,7 @@ const ProfilePage = () => {
           status: "unchanged" as const,
         }))
       );
+   
     } catch (err: any) {
       setError(err.message || "Failed to load profile");
     } finally {
@@ -288,11 +318,11 @@ const ProfilePage = () => {
         setFormData((prev) =>
           prev
             ? {
-                ...prev,
-                bankName: data.BANK ?? "",
-                branchName: data.BRANCH ?? "",
-                ifscCode: code,
-              }
+              ...prev,
+              bankName: data.BANK ?? "",
+              branchName: data.BRANCH ?? "",
+              ifscCode: code,
+            }
             : null
         );
 
@@ -339,14 +369,13 @@ const ProfilePage = () => {
     for (const field of requiredFields) {
       if (!formData[field as keyof EmployeeDTO]) {
         setError(
-          `Please fill ${
-            field === "firstName"
-              ? "First Name"
-              : field === "lastName"
+          `Please fill ${field === "firstName"
+            ? "First Name"
+            : field === "lastName"
               ? "Last Name"
               : field === "dateOfBirth"
-              ? "Date of Birth"
-              : field.charAt(0).toUpperCase() +
+                ? "Date of Birth"
+                : field.charAt(0).toUpperCase() +
                 field
                   .slice(1)
                   .replace(/([A-Z])/g, " $1")
@@ -544,7 +573,18 @@ const ProfilePage = () => {
       setUpdating(false);
     }
   };
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await adminService.getAllCountries();
+        setCountries(res || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
 
+    fetchCountries();
+  }, []);
   const handleDeleteAddress = async (address: AddressModel) => {
     const addressId = address.addressId;
 
@@ -1033,8 +1073,10 @@ const ProfilePage = () => {
                       <Input
                         label="Number of Children"
                         name="numberOfChildren"
-                        type="number"
-                        value={formData?.numberOfChildren ?? ""}
+                        type="text"
+                        onWheel={preventWheelChange}
+                        inputMode="numeric"                       
+                          value={formData?.numberOfChildren ?? ""}
                         onChange={handleValidatedChange}
                         min="0"
                       />
@@ -1224,6 +1266,87 @@ const ProfilePage = () => {
                         </button>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4">
+                        {/* country */}
+                        <div>
+                          <Select
+                            label="Country"
+                            value={addr.country || ""}
+                            onChange={async (e) => {
+                              const selectedCountry = e.target.value;
+
+                              updateAddress(i, "country", selectedCountry);
+                              updateAddress(i, "state", ""); // reset state
+
+                              if (selectedCountry) {
+                                const states =
+                                  await adminService.getStatesByCountryV1(selectedCountry);
+
+                                setStatesMap((prev) => ({
+                                  ...prev,
+                                  [i]: states || [],
+                                }));
+                              }
+                            }}
+                            options={countries}
+                          />
+
+                          {errors[`addresses[${i}].country`] && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors[`addresses[${i}].country`]}
+                            </p>
+                          )}
+                        </div>
+                        {/* state */}
+                        <div>
+                          {statesMap[i]?.length ? (
+                            <Select
+                              label="State"
+                              value={addr.state || ""}
+                              onChange={(e) =>
+                                updateAddress(i, "state", e.target.value)
+                              }
+                              options={statesMap[i]}
+                              disabled={!addr.country}
+                            />
+                          ) : (
+                            <Input
+                              label="State"
+                              value={addr.state || ""}
+                              onChange={(e) =>
+                                updateAddress(i, "state", e.target.value)
+                              }
+                              disabled={!addr.country}
+                              placeholder={
+                                addr.country
+                                  ? "Enter state"
+                                  : "Select country first"
+                              }
+                            />
+                          )}
+
+                          {errors[`addresses[${i}].state`] && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors[`addresses[${i}].state`]}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* city */}
+                        <div>
+                          <Input
+                            label="City"
+                            value={addr.city || ""}
+                            onChange={(e) =>
+                              updateAddress(i, "city", e.target.value)
+                            }
+                          />
+                          {errors[`addresses[${i}].city`] && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors[`addresses[${i}].city`]}
+                            </p>
+                          )}
+                        </div>
+                        {/* h.no */}
                         <div>
                           <Input
                             label="House Number"
@@ -1239,6 +1362,7 @@ const ProfilePage = () => {
                             </p>
                           )}
                         </div>
+                        {/* streetname */}
                         <div>
                           <Input
                             label="Street Name"
@@ -1253,48 +1377,8 @@ const ProfilePage = () => {
                             </p>
                           )}
                         </div>
-                        <div>
-                          <Input
-                            label="City"
-                            value={addr.city || ""}
-                            onChange={(e) =>
-                              updateAddress(i, "city", e.target.value)
-                            }
-                          />
-                          {errors[`addresses[${i}].city`] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors[`addresses[${i}].city`]}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Input
-                            label="State"
-                            value={addr.state || ""}
-                            onChange={(e) =>
-                              updateAddress(i, "state", e.target.value)
-                            }
-                          />
-                          {errors[`addresses[${i}].state`] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors[`addresses[${i}].state`]}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Input
-                            label="Country"
-                            value={addr.country || ""}
-                            onChange={(e) =>
-                              updateAddress(i, "country", e.target.value)
-                            }
-                          />
-                          {errors[`addresses[${i}].country`] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors[`addresses[${i}].country`]}
-                            </p>
-                          )}
-                        </div>
+
+                        {/* pincode */}
                         <div>
                           <Input
                             label="PIN Code"
@@ -1513,18 +1597,17 @@ const ProfilePage = () => {
                   <button
                     type="submit"
                     disabled={updating || !hasChanges}
-                    className={`px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl transition flex items-center gap-2 ${
-                      !hasChanges || updating
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:from-blue-700 hover:to-indigo-800 shadow-lg"
-                    }`}
+                    className={`px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl transition flex items-center gap-2 ${!hasChanges || updating
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:from-blue-700 hover:to-indigo-800 shadow-lg"
+                      }`}
                   >
                     <Save className="w-5 h-5" />
                     {updating
                       ? "Submitting..."
                       : hasChanges
-                      ? "Submit Request"
-                      : "No changes to submit"}
+                        ? "Submit Request"
+                        : "No changes to submit"}
                   </button>
                 </div>
               </form>
@@ -1610,7 +1693,7 @@ const ProfilePage = () => {
                   icon={<Phone className="w-6 h-6 text-red-600" />}
                 >
                   {profile.emergencyContactName ||
-                  profile.emergencyContactNumber ? (
+                    profile.emergencyContactNumber ? (
                     <>
                       <ShowIfFilled
                         label="Emergency Contact Name"
@@ -1633,12 +1716,12 @@ const ProfilePage = () => {
                   icon={<DollarSign className="w-6 h-6 text-green-600" />}
                 >
                   {profile.panNumber ||
-                  profile.aadharNumber ||
-                  profile.bankName ||
-                  profile.accountNumber ||
-                  profile.accountHolderName ||
-                  profile.ifscCode ||
-                  profile.branchName ? (
+                    profile.aadharNumber ||
+                    profile.bankName ||
+                    profile.accountNumber ||
+                    profile.accountHolderName ||
+                    profile.ifscCode ||
+                    profile.branchName ? (
                     <>
                       <ShowIfFilled
                         label="PAN Number"
@@ -1741,12 +1824,12 @@ const ProfilePage = () => {
                   icon={<DollarSign className="w-6 h-6 text-green-600" />}
                 >
                   {profile.employeeSalaryDTO &&
-                  (profile.employeeSalaryDTO.ctc ||
-                    profile.employeeSalaryDTO.payType ||
-                    profile.employeeSalaryDTO.standardHours ||
-                    profile.employeeSalaryDTO.payClass ||
-                    !!profile.employeeSalaryDTO.allowances?.length ||
-                    !!profile.employeeSalaryDTO.deductions?.length) ? (
+                    (profile.employeeSalaryDTO.ctc ||
+                      profile.employeeSalaryDTO.payType ||
+                      profile.employeeSalaryDTO.standardHours ||
+                      profile.employeeSalaryDTO.payClass ||
+                      !!profile.employeeSalaryDTO.allowances?.length ||
+                      !!profile.employeeSalaryDTO.deductions?.length) ? (
                     <>
                       <ShowIfFilled
                         label="CTC"
@@ -1807,14 +1890,14 @@ const ProfilePage = () => {
                   icon={<Shield className="w-6 h-6 text-teal-600" />}
                 >
                   {profile.employeeInsuranceDetailsDTO &&
-                  (profile.employeeInsuranceDetailsDTO.policyNumber ||
-                    profile.employeeInsuranceDetailsDTO.providerName ||
-                    profile.employeeInsuranceDetailsDTO.coverageStart ||
-                    profile.employeeInsuranceDetailsDTO.coverageEnd ||
-                    profile.employeeInsuranceDetailsDTO.nomineeName ||
-                    profile.employeeInsuranceDetailsDTO.nomineeRelation ||
-                    profile.employeeInsuranceDetailsDTO.nomineeContact ||
-                    profile.employeeInsuranceDetailsDTO.groupInsurance !==
+                    (profile.employeeInsuranceDetailsDTO.policyNumber ||
+                      profile.employeeInsuranceDetailsDTO.providerName ||
+                      profile.employeeInsuranceDetailsDTO.coverageStart ||
+                      profile.employeeInsuranceDetailsDTO.coverageEnd ||
+                      profile.employeeInsuranceDetailsDTO.nomineeName ||
+                      profile.employeeInsuranceDetailsDTO.nomineeRelation ||
+                      profile.employeeInsuranceDetailsDTO.nomineeContact ||
+                      profile.employeeInsuranceDetailsDTO.groupInsurance !==
                       undefined) ? (
                     <>
                       <ShowIfFilled
@@ -1829,13 +1912,13 @@ const ProfilePage = () => {
                         label="Coverage Period"
                         value={
                           profile.employeeInsuranceDetailsDTO.coverageStart &&
-                          profile.employeeInsuranceDetailsDTO.coverageEnd
+                            profile.employeeInsuranceDetailsDTO.coverageEnd
                             ? `${formatDate(
-                                profile.employeeInsuranceDetailsDTO
-                                  .coverageStart
-                              )} to ${formatDate(
-                                profile.employeeInsuranceDetailsDTO.coverageEnd
-                              )}`
+                              profile.employeeInsuranceDetailsDTO
+                                .coverageStart
+                            )} to ${formatDate(
+                              profile.employeeInsuranceDetailsDTO.coverageEnd
+                            )}`
                             : undefined
                         }
                       />
@@ -1843,7 +1926,7 @@ const ProfilePage = () => {
                         label="Nominee Details"
                         value={
                           profile.employeeInsuranceDetailsDTO.nomineeName &&
-                          profile.employeeInsuranceDetailsDTO.nomineeRelation
+                            profile.employeeInsuranceDetailsDTO.nomineeRelation
                             ? `${profile.employeeInsuranceDetailsDTO.nomineeName} (${profile.employeeInsuranceDetailsDTO.nomineeRelation})`
                             : undefined
                         }
@@ -1858,7 +1941,7 @@ const ProfilePage = () => {
                         label="Group Insurance"
                         value={
                           profile.employeeInsuranceDetailsDTO.groupInsurance !==
-                          undefined
+                            undefined
                             ? profile.employeeInsuranceDetailsDTO.groupInsurance
                               ? "Yes"
                               : "No"
@@ -1878,7 +1961,7 @@ const ProfilePage = () => {
                   icon={<Building className="w-6 h-6 text-orange-600" />}
                 >
                   {profile.employeeEquipmentDTO &&
-                  profile.employeeEquipmentDTO.length > 0 ? (
+                    profile.employeeEquipmentDTO.length > 0 ? (
                     <>
                       {profile.employeeEquipmentDTO.map((eq, i) => (
                         <div
@@ -1903,11 +1986,11 @@ const ProfilePage = () => {
                   icon={<FileText className="w-6 h-6 text-gray-600" />}
                 >
                   {profile.employeeStatutoryDetailsDTO &&
-                  (profile.employeeStatutoryDetailsDTO.passportNumber ||
-                    profile.employeeStatutoryDetailsDTO.taxRegime ||
-                    profile.employeeStatutoryDetailsDTO.pfUanNumber ||
-                    profile.employeeStatutoryDetailsDTO.esiNumber ||
-                    profile.employeeStatutoryDetailsDTO.ssnNumber) ? (
+                    (profile.employeeStatutoryDetailsDTO.passportNumber ||
+                      profile.employeeStatutoryDetailsDTO.taxRegime ||
+                      profile.employeeStatutoryDetailsDTO.pfUanNumber ||
+                      profile.employeeStatutoryDetailsDTO.esiNumber ||
+                      profile.employeeStatutoryDetailsDTO.ssnNumber) ? (
                     <>
                       <ShowIfFilled
                         label="Passport Number"
@@ -1944,17 +2027,17 @@ const ProfilePage = () => {
                   icon={<Briefcase className="w-6 h-6 text-purple-600" />}
                 >
                   {profile.employeeEmploymentDetailsDTO &&
-                  (profile.employeeEmploymentDetailsDTO.department ||
-                    profile.employeeEmploymentDetailsDTO.location ||
-                    profile.employeeEmploymentDetailsDTO.workingModel ||
-                    profile.employeeEmploymentDetailsDTO.shiftTimingLabel ||
-                    profile.employeeEmploymentDetailsDTO
-                      .noticePeriodDurationLabel ||
-                    profile.employeeEmploymentDetailsDTO.bondDurationLabel ||
-                    profile.employeeEmploymentDetailsDTO
-                      .probationDurationLabel ||
-                    profile.employeeEmploymentDetailsDTO
-                      .probationNoticePeriodLabel) ? (
+                    (profile.employeeEmploymentDetailsDTO.department ||
+                      profile.employeeEmploymentDetailsDTO.location ||
+                      profile.employeeEmploymentDetailsDTO.workingModel ||
+                      profile.employeeEmploymentDetailsDTO.shiftTimingLabel ||
+                      profile.employeeEmploymentDetailsDTO
+                        .noticePeriodDurationLabel ||
+                      profile.employeeEmploymentDetailsDTO.bondDurationLabel ||
+                      profile.employeeEmploymentDetailsDTO
+                        .probationDurationLabel ||
+                      profile.employeeEmploymentDetailsDTO
+                        .probationNoticePeriodLabel) ? (
                     <>
                       <ShowIfFilled
                         label="Department"

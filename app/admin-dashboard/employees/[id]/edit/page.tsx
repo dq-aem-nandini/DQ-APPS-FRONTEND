@@ -3,12 +3,12 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { adminService } from "@/lib/api/adminService";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   EmployeeModel,
   ClientDTO,
   Designation,
   DocumentType,
-  EmploymentType,
   EmployeeEquipmentDTO,
   AllowanceDTO,
   DeductionDTO,
@@ -30,11 +30,10 @@ import {
   DOCUMENT_TYPE_OPTIONS,
   RateCardType,
   RATE_CARD_TYPE_OPTIONS,
-  DesignationResponseDTO
+  DesignationResponseDTO,
 } from "@/lib/api/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
-import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -57,6 +56,8 @@ import {
   Shield,
   FileCheck,
   Loader2,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import { employeeService } from "@/lib/api/employeeService";
@@ -64,7 +65,6 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import TooltipHint from "@/components/ui/TooltipHint";
 import { useEmployeeFieldValidation } from "@/hooks/useEmployeeFieldValidation";
-import { isEqual } from "lodash";
 
 interface FileInputProps {
   id: string;
@@ -148,13 +148,18 @@ const EditEmployeePage = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const today = new Date().toISOString().split("T")[0];
+  const [open, setOpen] = useState(false);
   const [departmentEmployees, setDepartmentEmployees] = useState<
     EmployeeDepartmentDTO[]
   >([]);
   const [employeeImageFile, setEmployeeImageFile] = useState<File | undefined>(
     undefined
   );
-  const [designations, setDesignations] = useState<DesignationResponseDTO[]>([]);
+  const [useOnboardingForBillingStart, setUseOnboardingForBillingStart] =
+    useState(false);
+  const [designations, setDesignations] = useState<DesignationResponseDTO[]>(
+    []
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [localIfsc, setLocalIfsc] = useState<string>("");
@@ -163,6 +168,10 @@ const EditEmployeePage = () => {
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
   // ✅ Safe handleChange — ONLY updates state
   const { validateField } = useEmployeeFieldValidation();
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -206,14 +215,18 @@ const EditEmployeePage = () => {
     });
   };
 
-  const { handleValidatedChange, handleUniqueBlur, fieldError } =
-    useFormFieldHandlers(
-      handleChange,
-      setErrors,
-      checkUniqueness,
-      () => formData,
-      validateField // ← this makes it use EMPLOYEE rules
-    );
+  const {
+    handleValidatedChange,
+    handleUniqueBlur,
+    handleBlurValidation,
+    fieldError,
+  } = useFormFieldHandlers(
+    handleChange,
+    setErrors,
+    checkUniqueness,
+    () => formData,
+    validateField // ← this makes it use EMPLOYEE rules
+  );
   const isAnyBankFieldFilled = useMemo(() => {
     if (!formData) return false;
 
@@ -326,7 +339,7 @@ const EditEmployeePage = () => {
 
   useEffect(() => {
     if (!formData?.rateCard || formData.rateCard <= 0) {
-      setFormData(prev => prev ? { ...prev, rateCardType: null } : null);
+      setFormData((prev) => (prev ? { ...prev, rateCardType: null } : null));
     }
   }, [formData?.rateCard]);
 
@@ -371,9 +384,7 @@ const EditEmployeePage = () => {
           designationId: emp.designationId ?? null,
 
           customDesignation:
-            emp.designationId === null
-              ? emp.designationName ?? ""
-              : "",
+            emp.designationId === null ? emp.designationName ?? "" : "",
 
           // Clean top-level rateCard — make it null if 0 or undefined (blank in UI)
           rateCard: emp.rateCard ?? null,
@@ -448,13 +459,13 @@ const EditEmployeePage = () => {
     const c = formData.companyEmail.trim().toLowerCase();
 
     if (p && c && p === c) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         personalEmail: "Personal and company email cannot be the same",
         companyEmail: "Personal and company email cannot be the same",
       }));
     } else {
-      setErrors(prev => {
+      setErrors((prev) => {
         const next = { ...prev };
         delete next.personalEmail;
         delete next.companyEmail;
@@ -462,7 +473,6 @@ const EditEmployeePage = () => {
       });
     }
   }, [formData?.personalEmail, formData?.companyEmail]);
-
 
   useEffect(() => {
     if (formData?.ifscCode) {
@@ -503,7 +513,7 @@ const EditEmployeePage = () => {
 
   const validateClientDates = (data: EmployeeModel) => {
     if (!data.clientSelection) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const next = { ...prev };
         delete next.dateOfOnboardingToClient;
         delete next.dateOfOffboardingToClient;
@@ -513,7 +523,6 @@ const EditEmployeePage = () => {
       });
       return;
     }
-
 
     const newErrors: Record<string, string> = {};
 
@@ -652,7 +661,7 @@ const EditEmployeePage = () => {
     setErrors((prev) => {
       const next = { ...prev };
       delete next["rateCard"]; // clear old error first
-
+      delete next["rateCardType"];
       // Only enforce when real client is selected
       if (formData.clientSelection && !isStatusClient) {
         const rate = formData.rateCard;
@@ -660,11 +669,36 @@ const EditEmployeePage = () => {
         if (rate == null || rate <= 0) {
           next["rateCard"] = "Rate Card is required when a client is selected";
         }
+
       }
 
       return next;
     });
   }, [formData?.rateCard, formData?.clientSelection, isStatusClient]);
+
+  useEffect(() => {
+    if (
+      useOnboardingForBillingStart &&
+      formData?.dateOfOnboardingToClient &&
+      formData.dateOfOnboardingToClient !== formData.clientBillingStartDate
+    ) {
+      setFormData((prev) =>
+        prev
+          ? {
+            ...prev,
+            clientBillingStartDate: prev.dateOfOnboardingToClient,
+          }
+          : prev
+      );
+
+      // Also clear any error
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.clientBillingStartDate;
+        return next;
+      });
+    }
+  }, [useOnboardingForBillingStart, formData?.dateOfOnboardingToClient]);
 
   // DOCUMENTS
   const addDocument = () => {
@@ -1085,14 +1119,21 @@ const EditEmployeePage = () => {
 
     // Rate Type required when rateCard > 0 (for real clients)
     if (formData.clientSelection && !isStatusClient) {
-      if (formData.rateCard && formData.rateCard > 0 && !formData.rateCardType) {
-        setErrors(prev => ({
+      if (
+        formData.rateCard &&
+        formData.rateCard > 0 &&
+        !formData.rateCardType
+      ) {
+        setErrors((prev) => ({
           ...prev,
-          rateCardType: "Rate card type is required when rate card amount is provided"
+          rateCardType:
+            "Rate card type is required when rate card amount is provided",
         }));
 
         setTimeout(() => {
-          const el = document.querySelector('input[name="rateCard"]')?.closest('.space-y-2');
+          const el = document
+            .querySelector('input[name="rateCard"]')
+            ?.closest(".space-y-2");
           if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "center" });
           }
@@ -1160,9 +1201,7 @@ const EditEmployeePage = () => {
         skillsAndCertification: formData.skillsAndCertification,
         designationId: formData.designationId ?? null,
         customDesignation:
-          formData.designationId === null
-            ? formData.customDesignation
-            : null,
+          formData.designationId === null ? formData.customDesignation : null,
         dateOfBirth: formData.dateOfBirth,
         dateOfJoining: formData.dateOfJoining,
         dateOfOnboardingToClient: formData.dateOfOnboardingToClient,
@@ -1299,7 +1338,8 @@ const EditEmployeePage = () => {
   const handleDeleteEmployee = async () => {
     if (!formData || !params.id) return;
 
-    const fullName = `${formData.firstName?.trim() || ""} ${formData.lastName?.trim() || ""}`.trim();
+    const fullName = `${formData.firstName?.trim() || ""} ${formData.lastName?.trim() || ""
+      }`.trim();
 
     const result = await Swal.fire({
       title: "Delete Employee?",
@@ -1338,13 +1378,14 @@ const EditEmployeePage = () => {
       } catch (err: any) {
         await Swal.fire(
           "Error",
-          err?.response?.data?.message || err?.message || "Failed to delete employee",
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete employee",
           "error"
         );
       }
     }
   };
-
 
   const hasValidDocumentChange =
     formData?.documents?.every((doc) => {
@@ -1378,75 +1419,19 @@ const EditEmployeePage = () => {
     const docs = formData?.documents ?? [];
 
     return {
-      hasAnyDocTypeSelected: docs.some(d => !!d.docType),
+      hasAnyDocTypeSelected: docs.some((d) => !!d.docType),
 
-      hasValidDocument: docs.some(d =>
-        // Existing document (already saved)
-        d.documentId ||
-
-        // New complete document
-        (d.docType && d.file instanceof File)
+      hasValidDocument: docs.some(
+        (d) =>
+          // Existing document (already saved)
+          d.documentId ||
+          // New complete document
+          (d.docType && d.file instanceof File)
       ),
     };
   }, [formData?.documents]);
 
-  const canAddDocument =
-    !hasAnyDocTypeSelected || hasValidDocument;
-
-
-  const isFormValid = () => {
-    if (!formData) return false;
-
-    if (!formData.firstName?.trim()) return false;
-    if (!formData.lastName?.trim()) return false;
-    if (!formData.personalEmail?.trim()) return false;
-    if (!formData.companyEmail?.trim()) return false;
-    if (!formData.contactNumber?.trim()) return false;
-    if (!formData.dateOfBirth) return false;
-    if (!formData.nationality?.trim()) return false;
-    if (!formData.gender) return false;
-
-    if (!formData.clientSelection) return false;
-
-    const isRealClient =
-      formData.clientSelection?.startsWith("CLIENT:");
-
-
-    if (isRealClient && !formData.clientId) return false;
-
-    if (!formData.employeeEmploymentDetailsDTO?.department) return false;
-    if (
-      formData.designationId === null &&
-      !formData.customDesignation?.trim()
-    ) {
-      return false;
-    } if (!formData.dateOfJoining) return false;
-    if (!formData.employmentType) return false;
-
-    if (!formData.employeeSalaryDTO?.payType) return false;
-    if (
-      formData.employeeSalaryDTO?.ctc == null ||
-      Number(formData.employeeSalaryDTO.ctc) <= 0
-    )
-      return false;
-
-
-    if (isRealClient) {
-      if (!formData.dateOfOnboardingToClient) return false;
-      if (!formData.rateCard || formData.rateCard <= 0) return false;
-      if (formData.rateCard > 0 && !formData.rateCardType) return false;
-    }
-
-    // ❗ BLOCK if personal and company email same
-    if (
-      formData.personalEmail?.trim().toLowerCase() ===
-      formData.companyEmail?.trim().toLowerCase()
-    ) {
-      return false;
-    }
-
-    return true; // 🔥 no errors check
-  };
+  const canAddDocument = !hasAnyDocTypeSelected || hasValidDocument;
 
   const isCustomDesignation = formData?.designationId === null;
   // LOADING STATES
@@ -1470,11 +1455,9 @@ const EditEmployeePage = () => {
     );
   }
 
-  const selectValue =
-    formData.clientSelection?.startsWith("CLIENT:")
-      ? formData.clientSelection.replace("CLIENT:", "")
-      : formData.clientSelection?.replace("STATUS:", "") ?? "";
-
+  const selectValue = formData.clientSelection?.startsWith("CLIENT:")
+    ? formData.clientSelection.replace("CLIENT:", "")
+    : formData.clientSelection?.replace("STATUS:", "") ?? "";
 
   const getError = (key: string) => errors[key] || "";
   return (
@@ -1510,6 +1493,7 @@ const EditEmployeePage = () => {
                       value={formData.firstName ?? ""}
                       required
                       onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("firstName")}
                       placeholder="Enter first name"
                       className="!h-12 text-base w-full"
                     />
@@ -1526,6 +1510,7 @@ const EditEmployeePage = () => {
                       value={formData.lastName ?? ""}
                       required
                       onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("lastName")}
                       placeholder="Enter last name"
                       className="!h-12 text-base w-full"
                     />
@@ -1547,12 +1532,15 @@ const EditEmployeePage = () => {
                           e.target.value = e.target.value.toLowerCase();
                           handleValidatedChange(e);
                         }}
-                        onBlur={handleUniqueBlur(
-                          "EMAIL",
-                          "personal_email",
-                          "personalEmail",
-                          employeeData?.employeeId
-                        )}
+                        onBlur={(e) => {
+                          handleBlurValidation("personalEmail")(e);
+                          handleUniqueBlur(
+                            "EMAIL",
+                            "personal_email",
+                            "personalEmail",
+                            employeeData?.employeeId
+                          )(e);
+                        }}
                         placeholder="you@gmail.com"
                         className="!h-12 text-base w-full"
                       />
@@ -1576,12 +1564,15 @@ const EditEmployeePage = () => {
                           e.target.value = e.target.value.toLowerCase();
                           handleValidatedChange(e);
                         }}
-                        onBlur={handleUniqueBlur(
-                          "EMAIL",
-                          "company_email",
-                          "companyEmail",
-                          employeeData?.employeeId
-                        )}
+                        onBlur={(e) => {
+                          handleBlurValidation("companyEmail")(e);
+                          handleUniqueBlur(
+                            "EMAIL",
+                            "company_email",
+                            "companyEmail",
+                            employeeData?.employeeId
+                          )(e);
+                        }}
                         placeholder="you@company.com"
                         className="!h-12 text-base w-full"
                       />
@@ -1611,13 +1602,15 @@ const EditEmployeePage = () => {
                           e.target.value = onlyDigits;
                           handleValidatedChange(e);
                         }}
-                        onBlur={handleUniqueBlur(
-                          "CONTACT_NUMBER",
-                          "contact_number",
-                          "contactNumber",
-                          employeeData?.employeeId,
-                          10
-                        )}
+                        onBlur={(e) => {
+                          handleBlurValidation("contactNumber")(e);
+                          handleUniqueBlur(
+                            "CONTACT_NUMBER",
+                            "contact_number",
+                            "contactNumber",
+                            employeeData?.employeeId
+                          )(e);
+                        }}
                         maxLength={10}
                         placeholder="9876543210"
                         className="!h-12 text-base w-full"
@@ -1639,6 +1632,7 @@ const EditEmployeePage = () => {
                       value={formData.dateOfBirth ?? ""}
                       required
                       onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("dateOfBirth")}
                       max={today}
                       className="!h-12 text-base w-full"
                     />
@@ -1656,6 +1650,7 @@ const EditEmployeePage = () => {
                       value={formData.nationality ?? ""}
                       required
                       onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("nationality")}
                       placeholder="Indian"
                       className="!h-12 text-base w-full"
                     />
@@ -1667,25 +1662,22 @@ const EditEmployeePage = () => {
                       Gender <span className="text-red-500">*</span>
                       <TooltipHint hint="Select from dropdown: Male, Female, or Other." />
                     </Label>
-                    <Select
+                    <select
+                      name="gender"
+                      value={formData.gender || ""}
                       required
-                      value={formData?.gender || ""}
-                      onValueChange={(v) => {
-                        setFormData((prev) =>
-                          prev ? { ...prev, gender: v } : prev
-                        );
-                        setIsDirty(true);
-                      }}
+                      onChange={(e) => handleValidatedChange(e)}
+                      onBlur={handleBlurValidation("gender")}
+                      className={`!h-12 w-full px-3 py-2 border rounded-md text-gray-700 focus:outline-none ${errors["gender"]
+                        ? "border-red-500 ring-1 ring-red-500"
+                        : "border-gray-300"
+                        }`}
                     >
-                      <SelectTrigger className="!h-12 text-base w-full">
-                        <SelectValue placeholder="Select Gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MALE">Male</SelectItem>
-                        <SelectItem value="FEMALE">Female</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <option value="">Select Gender</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
                     {fieldError(errors, "gender")}
                   </div>
                   {/* PAN Number – Optional */}
@@ -1774,8 +1766,7 @@ const EditEmployeePage = () => {
                             prev.clientSelection?.startsWith("CLIENT:");
 
                           const hasActiveClient =
-                            isRealClient &&
-                            !prev.dateOfOffboardingToClient;
+                            isRealClient && !prev.dateOfOffboardingToClient;
 
                           if (hasActiveClient) {
                             Swal.fire({
@@ -1789,10 +1780,9 @@ const EditEmployeePage = () => {
                           }
 
                           // ✅ Allow change
-                          const nextClient =
-                            staticClients.has(v)
-                              ? `STATUS:${v}`
-                              : `CLIENT:${v}`;
+                          const nextClient = staticClients.has(v)
+                            ? `STATUS:${v}`
+                            : `CLIENT:${v}`;
 
                           return {
                             ...prev,
@@ -1810,7 +1800,6 @@ const EditEmployeePage = () => {
 
                         setIsDirty(true);
                       }}
-
                     >
                       <SelectTrigger className="!h-12 text-base w-full">
                         <SelectValue placeholder="Select Client" />
@@ -1838,14 +1827,20 @@ const EditEmployeePage = () => {
                       Department<span className="text-red-500">*</span>
                       <TooltipHint hint="Department where employee works (e.g., Development, QA, HR)." />
                     </Label>
-                    <Select
-                      required
+                    <select
+                      name="employeeEmploymentDetailsDTO.department"
                       value={
                         formData?.employeeEmploymentDetailsDTO?.department || ""
                       }
-                      onValueChange={async (v) => {
-                        const department = v as Department;
+                      required
+                      onChange={async (e) => {
+                        const department = e.target.value as Department;
+
                         setIsDirty(true);
+
+                        // manual validation
+                        handleValidatedChange(e);
+
                         setFormData((prev) =>
                           prev
                             ? {
@@ -1859,16 +1854,16 @@ const EditEmployeePage = () => {
                                 }),
                                 department,
                               },
-                              reportingManagerId: "", // temporarily clear
+                              reportingManagerId: "",
                             }
                             : prev
                         );
 
-                        // Fetch fresh list
                         const employees =
                           await employeeService.getEmployeesByDepartment(
                             department
                           );
+
                         setDepartmentEmployees(employees);
 
                         const validManagers = employees.filter((emp) =>
@@ -1877,7 +1872,6 @@ const EditEmployeePage = () => {
                           )
                         );
 
-                        // Auto-select if only one manager
                         if (validManagers.length === 1) {
                           setFormData((prev) =>
                             prev
@@ -1890,26 +1884,19 @@ const EditEmployeePage = () => {
                           );
                         }
                       }}
+                      onBlur={handleBlurValidation(
+                        "employeeEmploymentDetailsDTO.department"
+                      )}
+                      className="!h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                     >
-                      <SelectTrigger className="!h-12 text-base w-full">
-                        <SelectValue
-                          placeholder={
-                            !formData?.employeeEmploymentDetailsDTO?.department
-                              ? "First select Department"
-                              : currentManagerName
-                                ? `${currentManagerName} (Selected)`
-                                : "Select Reporting Manager"
-                          }
-                        />{" "}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPARTMENT_OPTIONS.map((d) => (
-                          <SelectItem key={d} value={d}>
-                            {d}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <option value="">Select Department</option>
+                      {DEPARTMENT_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+
                     {fieldError(
                       errors,
                       "employeeEmploymentDetailsDTO.department"
@@ -1979,77 +1966,142 @@ const EditEmployeePage = () => {
                   </div>
 
                   {/* Designation */}
+                  {/* Designation */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Designation <span className="text-red-500">*</span>
-                      <TooltipHint hint="Employee's job title. Example: Software Engineer, Senior Developer" />
+                      <TooltipHint hint="Type custom designation or select from list" />
                     </Label>
-                    {/* DROPDOWN MODE */}
-                    {formData.designationId !== null ? (
-                      <Select
-                        value={formData.designationId || ""}
-                        onValueChange={(value) => {
-                          if (value === "OTHER") {
-                            setFormData(prev =>
-                              prev
-                                ? {
+
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <div className="relative w-full">
+                          <Input
+                            required
+                            autoComplete="off"
+                            className="!h-12 pr-10 border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition-all"
+                            placeholder="Type or select designation..."
+                            value={
+                              formData?.customDesignation ??
+                              designations.find((d) => d.id === formData?.designationId)?.name ??
+                              ""
+                            }
+                            // Open list only on first focus/click
+                            onFocus={() => {
+                              if (!open) setOpen(true);
+                            }}
+                            onClick={() => {
+                              if (!open) setOpen(true);
+                            }}
+                            onChange={(e) => {
+                              const value = e.target.value;
+
+                              // Update freely — no setOpen(true) here to avoid flicker
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                    ...prev,
+                                    designationId: null,
+                                    customDesignation: value,
+                                  }
+                                  : prev
+                              );
+
+                              // Real-time error
+                              if (value.trim() === "") {
+                                setErrors((prev) => ({
                                   ...prev,
-                                  designationId: null,
-                                  customDesignation: "",
-                                }
-                                : prev
-                            );
-                            return;
-                          }
-
-                          setFormData(prev =>
-                            prev
-                              ? {
-                                ...prev,
-                                designationId: value,
-                                customDesignation: "",
+                                  customDesignation: "Designation is required",
+                                }));
+                              } else {
+                                setErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.customDesignation;
+                                  delete next.designationId;
+                                  return next;
+                                });
                               }
-                              : prev
-                          );
-                        }}
+                            }}
+                            onBlur={() => {
+                              const trimmed = (formData?.customDesignation || "").trim();
+                              if (!trimmed && !formData?.designationId) {
+                                setErrors((prev) => ({
+                                  ...prev,
+                                  customDesignation: "Designation is required",
+                                }));
+                              }
+                            }}
+                          />
+
+                          {/* Down arrow – manual toggle */}
+                          <button
+                            type="button"
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-indigo-600 focus:outline-none"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpen((prev) => !prev);
+                            }}
+                          >
+                            <ChevronDown className="h-5 w-5 transition-transform" />
+                          </button>
+                        </div>
+                      </PopoverTrigger>
+
+                      {/* Dropdown list – exact width as input */}
+                      <PopoverContent
+                        className="w-[--radix-popover-trigger-width] min-w-[--radix-popover-trigger-width] max-w-[--radix-popover-trigger-width] p-1 max-h-64 overflow-y-auto shadow-xl border border-gray-200 rounded-lg"
+                        align="start"
+                        sideOffset={6}
                       >
-                        <SelectTrigger className="!h-12 text-base w-full">
+                        {designations.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 italic">
+                            No designations available
+                          </div>
+                        ) : (
+                          <div className="py-1">
+                            {designations.map((d) => (
+                              <button
+                                key={d.id}
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none flex items-center justify-between"
 
-                          <SelectValue placeholder="Select Designation" />
-                        </SelectTrigger>
+                                onClick={() => {
+                                  setFormData((prev) =>
+                                    prev
+                                      ? {
+                                        ...prev,
+                                        designationId: d.id,
+                                        customDesignation: null,
+                                      }
+                                      : prev
+                                  );
+                                  setOpen(false);
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete next.customDesignation;
+                                    delete next.designationId;
+                                    return next;
+                                  });
+                                }}
+                              >
+                                {d.name.replace(/_/g, " ")}
+                                {formData?.designationId === d.id && (
+                                  <Check className="inline ml-2 h-4 w-4 text-indigo-600" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
 
-                        <SelectContent>
-                          {designations.map(d => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.name}
-                            </SelectItem>
-                          ))}
-
-                          <SelectItem value="OTHER">+ Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      /* CUSTOM INPUT MODE */
-                      <Input
-                        placeholder="Enter custom designation"
-                        value={formData.customDesignation ?? ""}
-                        autoFocus
-                        className="!h-12"
-                        onChange={(e) =>
-                          setFormData(prev =>
-                            prev
-                              ? {
-                                ...prev,
-                                designationId: null,
-                                customDesignation: e.target.value,
-                              }
-                              : prev
-                          )
-                        }
-                      />
+                    {/* Real-time error */}
+                    {errors.customDesignation && (
+                      <p className="text-sm text-red-600 mt-1.5 font-medium">
+                        {errors.customDesignation}
+                      </p>
                     )}
-
-                    {fieldError(errors, "designationId")}
                   </div>
 
                   {/* Date of Joining */}
@@ -2064,6 +2116,7 @@ const EditEmployeePage = () => {
                       required
                       value={formData.dateOfJoining ?? ""}
                       onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("dateOfJoining")}
                       className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "dateOfJoining")}
@@ -2073,7 +2126,9 @@ const EditEmployeePage = () => {
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Date Of Onboarding To Client
-                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
+                      {formData.clientSelection && !isStatusClient && (
+                        <span className="text-red-500">*</span>
+                      )}
                       <TooltipHint hint="Date when the employee started working for the client. Must be after Date of Joining." />
                     </Label>
                     <Input
@@ -2081,34 +2136,83 @@ const EditEmployeePage = () => {
                       name="dateOfOnboardingToClient"
                       value={formData.dateOfOnboardingToClient ?? ""}
                       onChange={handleValidatedChange}
-                      required={!!(formData.clientSelection && !isStatusClient)} // disabled={isStatusClient}
+                      required={!!(formData.clientSelection && !isStatusClient)}
+                      onBlur={handleBlurValidation("dateOfOnboardingToClient")}
                       className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "dateOfOnboardingToClient")}
                   </div>
 
-                  {/* Date of Offboarding To Client*/}
+                  {/* Employment Type */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
-                      Date Of Offboarding To Client
-                      <TooltipHint hint="Last working day with the client. Must be after Date of Joining, onboarding, and billing start. Can be the same as or before Client Billing End Date." />
+                      Employment Type <span className="text-red-500">*</span>
+                      <TooltipHint hint="Full-time, Part-time, Contract, Intern, etc." />
                     </Label>
-                    <Input
-                      type="date"
-                      name="dateOfOffboardingToClient"
-                      value={formData.dateOfOffboardingToClient ?? ""}
-                      onChange={handleValidatedChange}
-                      className="!h-12 text-base w-full"
-                    //  max={maxJoiningDateStr}
-                    />
-                    {fieldError(errors, "dateOfOffboardingToClient")}
+
+                    <select
+                      name="employmentType"
+                      value={formData.employmentType ?? ""}
+                      required
+                      onChange={(e) => {
+                        setIsDirty(true);
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={handleBlurValidation("employmentType")}
+                      className="!h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
+                    >
+                      <option value="">Select Type</option>
+
+                      {EMPLOYMENT_TYPE_OPTIONS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+
+                    {fieldError(errors, "employmentType")}
                   </div>
                   {/* Client Billing Start Date */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Client Billing Start Date
-                      <TooltipHint hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date." />
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Client Billing Start Date
+                        <TooltipHint hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date." />
+                      </Label>
+
+                      <label className="px-2 flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                        <Checkbox
+                          checked={useOnboardingForBillingStart}
+                          onCheckedChange={(checked) => {
+                            const isChecked = !!checked;
+                            setUseOnboardingForBillingStart(isChecked);
+
+                            if (
+                              isChecked &&
+                              formData?.dateOfOnboardingToClient
+                            ) {
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                    ...prev,
+                                    clientBillingStartDate:
+                                      prev.dateOfOnboardingToClient,
+                                  }
+                                  : prev
+                              );
+                              // Clear error if any
+                              setErrors((prev) => {
+                                const n = { ...prev };
+                                delete n.clientBillingStartDate;
+                                return n;
+                              });
+                            }
+                            // Optional: you can choose NOT to clear when unchecking
+                          }}
+                        />
+                        Same as Onboarding Date
+                      </label>
+                    </div>
                     <Input
                       type="date"
                       name="clientBillingStartDate"
@@ -2119,117 +2223,7 @@ const EditEmployeePage = () => {
                     />
                     {fieldError(errors, "clientBillingStartDate")}
                   </div>
-                  {/* client Billing Stop Date */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Client Billing End Date
-                      <TooltipHint hint="Date until which client billing continues for this employee. Must be strictly after Client Billing Start Date. Can be the same as or after Date of Offboarding to Client." />
-                    </Label>
-                    <Input
-                      type="date"
-                      name="clientBillingStopDate"
-                      value={formData.clientBillingStopDate ?? ""}
-                      onChange={handleValidatedChange}
-                      className="!h-12 text-base w-full"
-                    //  max={maxJoiningDateStr}
-                    />
-                    {fieldError(errors, "clientBillingStopDate")}
-                  </div>
 
-                  {/* Employment Type */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Employment Type <span className="text-red-500">*</span>
-                      <TooltipHint hint="Full-time, Part-time, Contract, Intern, etc." />
-                    </Label>
-
-                    <Select
-                      required
-                      value={formData.employmentType ?? ""}
-                      onValueChange={(v) => {
-                        setIsDirty(true);
-                        setFormData((prev) =>
-                          prev
-                            ? { ...prev, employmentType: v as EmploymentType }
-                            : prev
-                        );
-                      }}
-                    >
-                      <SelectTrigger className="!h-12 text-base w-full">
-                        <SelectValue placeholder="Select Type" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {EMPLOYMENT_TYPE_OPTIONS.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {fieldError(errors, "employmentType")}
-                  </div>
-
-                  {/* Rate Card */}
-                  <div className="space-y-2 xl:col-span-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Rate Card
-                      {formData.clientSelection && !isStatusClient && <span className="text-red-500">*</span>}
-                      <TooltipHint hint="Hourly / daily / weekly / monthly billing rate for client projects" />
-                    </Label>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                      {/* Rate value */}
-                      <div className="space-y-1">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          name="rateCard"
-                          required={!!(formData.clientSelection && !isStatusClient)}
-                          value={formData.rateCard ?? ''}
-                          onChange={handleValidatedChange}
-                          placeholder="45.00"
-                          className="!h-12 text-base w-full"
-                        />
-                        {fieldError(errors, "rateCard")}
-                      </div>
-
-                      {/* Rate Type Dropdown */}
-                      <div className="space-y-1">
-                        <Select
-                          value={formData.rateCardType || ""}
-                          onValueChange={(value) => {
-                            setFormData(prev => ({
-                              ...prev!,
-                              rateCardType: value as RateCardType || null,
-                            }));
-                            setIsDirty(true);
-                          }}
-                          disabled={!formData.rateCard || formData.rateCard <= 0}
-                        >
-                          <SelectTrigger className="!h-12 w-full">
-                            <SelectValue placeholder="Select Rate Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {RATE_CARD_TYPE_OPTIONS.map(type => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {/* Conditional error message */}
-                        {formData.rateCard && formData.rateCard > 0 && !formData.rateCardType && (
-                          <p className="text-xs text-red-600 mt-1">
-                            Please select rate type when rate card amount is provided
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                   {/* CTC - Mandatory */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -2238,11 +2232,13 @@ const EditEmployeePage = () => {
                     </Label>
                     <Input
                       className="!h-12 text-base w-full"
-                      type="number"
-                      placeholder="e.g. 1200000"
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric" placeholder="e.g. 1200000"
                       name="employeeSalaryDTO.ctc"
                       value={formData.employeeSalaryDTO?.ctc ?? ""}
                       onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("employeeSalaryDTO.ctc")}
                       required
                     />
                     {fieldError(errors, "employeeSalaryDTO.ctc")}
@@ -2302,10 +2298,11 @@ const EditEmployeePage = () => {
                       <TooltipHint hint="Expected working hours per week. Default is 40." />
                     </Label>
                     <Input
-                      type="number"
-                      name="employeeSalaryDTO.standardHours"
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric" name="employeeSalaryDTO.standardHours"
                       value={formData.employeeSalaryDTO?.standardHours ?? ""}
-                      onChange={handleValidatedChange} // ← changed                      
+                      onChange={handleValidatedChange} // ← changed
                       className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "employeeSalaryDTO.standardHours")}
@@ -2637,6 +2634,130 @@ const EditEmployeePage = () => {
                     </div>
                   )}
                 </div>
+
+                {/* ==================== CLIENT BILLING & RATE DETAILS ==================== */}
+                <div className="lg:col-span-4 mt-10 pt-8 border-t border-gray-200">
+                  <Label className="text-lg font-bold text-gray-800 mb-6 block">
+                    Client Billing & Rate Details
+                    <TooltipHint hint="Offboarding date, billing period and rate information for the client" />
+                  </Label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {/* Date of Offboarding To Client*/}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Date Of Offboarding To Client
+                        <TooltipHint hint="Last working day with the client. Must be after Date of Joining, onboarding, and billing start. Can be the same as or before Client Billing End Date." />
+                      </Label>
+                      <Input
+                        type="date"
+                        name="dateOfOffboardingToClient"
+                        value={formData.dateOfOffboardingToClient ?? ""}
+                        onChange={handleValidatedChange}
+                        className="!h-12 text-base w-full"
+                      //  max={maxJoiningDateStr}
+                      />
+                      {fieldError(errors, "dateOfOffboardingToClient")}
+                    </div>
+
+                    {/* client Billing Stop Date */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Client Billing End Date
+                        <TooltipHint hint="Date until which client billing continues for this employee. Must be strictly after Client Billing Start Date. Can be the same as or after Date of Offboarding to Client." />
+                      </Label>
+                      <Input
+                        type="date"
+                        name="clientBillingStopDate"
+                        value={formData.clientBillingStopDate ?? ""}
+                        onChange={handleValidatedChange}
+                        className="!h-12 text-base w-full"
+                      //  max={maxJoiningDateStr}
+                      />
+                      {fieldError(errors, "clientBillingStopDate")}
+                    </div>
+
+                    {/* Rate Card */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Rate Card
+                        {formData.clientSelection && !isStatusClient && (
+                          <span className="text-red-500">*</span>
+                        )}
+                        <TooltipHint hint="Hourly / daily / weekly / monthly billing rate for client projects" />
+                      </Label>
+                      {/* Rate value */}
+                      <div className="space-y-2">
+                        <Input
+                          type="text"
+                          onWheel={preventWheelChange}
+                          inputMode="numeric"
+                          name="rateCard"
+                          required={
+                            !!(formData.clientSelection && !isStatusClient)
+                          }
+                          value={formData.rateCard ?? ""}
+                          onChange={handleValidatedChange}
+                          onBlur={handleBlurValidation("rateCard")}
+                          placeholder="45.00"
+                          className="!h-12 text-base w-full"
+                        />
+                        {fieldError(errors, "rateCard")}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Rate Type
+                        {formData.clientSelection && !isStatusClient && (
+                          <span className="text-red-500">*</span>
+                        )}
+                        <TooltipHint hint="Unit for the rate card: Hourly, Daily, Weekly, Monthly, etc." />
+                      </Label>
+                      {/* Rate Type Dropdown */}
+                      <div className="space-y-2">
+                        <select
+                          name="rateCardType"
+                          value={formData.rateCardType || ""}
+                          disabled={
+                            !formData.rateCard || formData.rateCard <= 0
+                          }
+                          required={
+                            !!formData.rateCard &&
+                            formData.rateCard > 0 &&
+                            !isStatusClient
+                          }
+                          onChange={(e) => {
+                            setIsDirty(true);
+                            handleValidatedChange(e);
+                          }}
+                          onBlur={handleBlurValidation("rateCardType")}
+                          className="!h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
+                        >
+                          <option value="">Select Rate Type</option>
+
+                          {RATE_CARD_TYPE_OPTIONS.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+
+                        {fieldError(errors, "rateCardType")}
+
+                        {/* Conditional error message */}
+                        {formData.rateCard &&
+                          formData.rateCard > 0 &&
+                          !formData.rateCardType && (
+                            <p className="text-xs text-red-600 mt-1">
+                              Please select rate type when rate card amount is
+                              provided
+                            </p>
+                          )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* ALLOWANCES & DEDUCTIONS – UPDATED UI */}
                 <div className="mt-10 space-y-10">
                   {/* ================= ALLOWANCES ================= */}
@@ -2725,7 +2846,9 @@ const EditEmployeePage = () => {
 
                           {/* Amount */}
                           <Input
-                            type="number"
+                            type="text"
+                            onWheel={preventWheelChange}
+                            inputMode="numeric"
                             placeholder="Amount"
                             value={a.amount ?? ""}
                             className="!h-12 text-base w-full"
@@ -2909,8 +3032,9 @@ const EditEmployeePage = () => {
                           </div>
                           {/* Amount */}
                           <Input
-                            type="number"
-                            placeholder="Amount"
+                            type="text"
+                            onWheel={preventWheelChange}
+                            inputMode="numeric" placeholder="Amount"
                             value={d.amount ?? ""}
                             className="!h-12 text-base w-full"
                             onChange={(e) => {
@@ -3022,7 +3146,6 @@ const EditEmployeePage = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
                   {/* Account Number – Optional */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -3587,7 +3710,6 @@ const EditEmployeePage = () => {
                       onChange={handleValidatedChange}
                       placeholder="e.g., Priya Sharma"
                       className="!h-12 text-base w-full"
-
                     />
 
                     {fieldError(
@@ -3611,7 +3733,6 @@ const EditEmployeePage = () => {
                       onChange={handleValidatedChange}
                       placeholder="e.g., Spouse"
                       className="!h-12 text-base w-full"
-
                     />
 
                     {fieldError(
@@ -3867,7 +3988,6 @@ const EditEmployeePage = () => {
             </Card>
             {/* Submit */}
             <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-             
               <Button
                 type="button"
                 variant="destructive"
@@ -3876,7 +3996,6 @@ const EditEmployeePage = () => {
                 Delete Employee
               </Button>
 
-           
               <div className="flex gap-4">
                 <Button
                   type="button"
@@ -3888,11 +4007,10 @@ const EditEmployeePage = () => {
 
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !isFormValid()}
-                  className={`min-w-[180px] transition-all ${isFormValid() && !isSubmitting
-                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
-                    : "bg-gray-400 cursor-not-allowed"
-                    } text-white`}
+                  disabled={isSubmitting}
+                  className="min-w-[180px] bg-gradient-to-r from-indigo-600 to-purple-600 
+                  hover:from-indigo-700 hover:to-purple-700 
+                  shadow-lg text-white transition-all"
                 >
                   {isSubmitting ? (
                     <>
@@ -3900,7 +4018,7 @@ const EditEmployeePage = () => {
                       Updating...
                     </>
                   ) : (
-                    'Update Employee'
+                    "Update Employee"
                   )}
                 </Button>
               </div>

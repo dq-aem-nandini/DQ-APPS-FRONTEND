@@ -33,6 +33,7 @@ import TooltipHint from "@/components/ui/TooltipHint";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
+import { adminService } from "@/lib/api/adminService";
 
 const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"];
 const TIMEZONES = [
@@ -47,7 +48,8 @@ export default function EditOrganizationPage() {
   const params = useParams<{ id: string }>();
   const id = params.id; // string | undefined
   const router = useRouter();
-
+  const [countries, setCountries] = useState<string[]>([]);
+  const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -126,7 +128,10 @@ export default function EditOrganizationPage() {
       () => formData,
       validateField
     );
-
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
   // Load organization data
   useEffect(() => {
     if (!id) {
@@ -199,6 +204,24 @@ export default function EditOrganizationPage() {
         setOriginalData(loaded);
         setLogoPreview(res.logoUrl ?? "");
         setSignaturePreview(res.digitalSignatureUrl ?? "");
+        // Load states for existing addresses
+        if (loaded.addresses?.length) {
+          for (const [index, addr] of loaded.addresses.entries()) {
+            if (addr.country) {
+              try {
+                const states =
+                  await adminService.getStatesByCountryV1(addr.country);
+
+                setStatesMap((prev) => ({
+                  ...prev,
+                  [index]: states || [],
+                }));
+              } catch (e) {
+                console.error("Failed to load states", e);
+              }
+            }
+          }
+        }
       } catch (err: any) {
         Swal.fire("Error", "Failed to load organization", "error");
       } finally {
@@ -208,6 +231,19 @@ export default function EditOrganizationPage() {
 
     load();
   }, [id]);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await adminService.getAllCountries();
+        setCountries(res || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
+
+    fetchCountries();
+  }, []);
 
   const hasChanges = useMemo(() => {
     if (!originalData) return false;
@@ -974,7 +1010,9 @@ export default function EditOrganizationPage() {
                     Absent Max Hours
                   </Label>
                   <Input
-                    type="number"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    inputMode="numeric"
                     value={formData.attendancePolicy?.absentMaxMinutes ?? ""}
                     onChange={(e) =>
                       setFormData((prev) => ({
@@ -998,7 +1036,9 @@ export default function EditOrganizationPage() {
                     Full Day Min Hours
                   </Label>
                   <Input
-                    type="number"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    inputMode="numeric"
                     value={formData.attendancePolicy?.fullDayMinMinutes ?? ""}
                     onChange={(e) =>
                       setFormData((prev) => ({
@@ -1196,43 +1236,65 @@ export default function EditOrganizationPage() {
                   </p>
                 )}
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-              {/* Prefix */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Prefix <span className="text-red-500">*</span>
-                  <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
-                </Label>
-                <Input
-                  required
-                  name="prefix"
-                  value={formData.prefix ?? ""}
-                  onChange={handleValidatedChange}
-                  className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
-                  placeholder="INV"
-                  maxLength={10}
-                />
-                {fieldError(errors, "prefix")}
+                {/* Prefix */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Prefix <span className="text-red-500">*</span>
+                    <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
+                  </Label>
+                  <Input
+                    required
+                    name="prefix"
+                    value={formData.prefix ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                    placeholder="INV"
+                    maxLength={10}
+                  />
+                  {fieldError(errors, "prefix")}
+                </div>
+
+
+
+                {/* Sequence Number */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Sequence Number <span className="text-red-500">*</span>
+                    <TooltipHint hint="Starting sequence number (e.g., 1001)" />
+                  </Label>
+                  <Input
+                    required
+                    name="sequenceNumber"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    inputMode="numeric"
+                    value={formData.sequenceNumber ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12"
+                    placeholder="1001"
+                  />
+                  {fieldError(errors, "sequenceNumber")}
+                </div>
+                {/* Company Type */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Company Type <span className="text-red-500">*</span>
+                    <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
+                  </Label>
+                  <Input
+                    required
+                    name="companyType"
+                    value={formData.companyType ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="Private Limited"
+                    maxLength={50}
+                  />
+                  {fieldError(errors, "companyType")}
+                </div>
               </div>
-
-              {/* Company Type */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Company Type <span className="text-red-500">*</span>
-                  <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
-                </Label>
-                <Input
-                  required
-                  name="companyType"
-                  value={formData.companyType ?? ""}
-                  onChange={handleValidatedChange}
-                  className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Private Limited"
-                  maxLength={50}
-                />
-                {fieldError(errors, "companyType")}
-              </div>
-
               {/* Addresses */}
               <div className="border-b border-gray-200 pb-6">
                 <div className="flex justify-between items-center mb-4">
@@ -1277,6 +1339,97 @@ export default function EditOrganizationPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* country */}
+                      <div className="space-y-2">
+                        <Label>
+                          Country
+                          <TooltipHint hint="Country for this address." />
+                        </Label>
+                        <select
+                          value={address.country || ""}
+                          onChange={async (e) => {
+                            const selectedCountry = e.target.value;
+
+                            handleAddressChange(idx, "country", selectedCountry);
+
+                            // Reset state
+                            handleAddressChange(idx, "state", "");
+
+                            const states =
+                              await adminService.getStatesByCountryV1(selectedCountry);
+
+                            setStatesMap((prev) => ({
+                              ...prev,
+                              [idx]: states || [],
+                            }));
+                          }}
+                          className="!h-12 text-base w-full px-3 border rounded-md"
+                        >
+                          <option value="">Select Country</option>
+                          {countries.map((country) => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
+                        {fieldError(errors, `addresses.${idx}.country`)}
+                      </div>
+                      {/* state */}
+                      <div className="space-y-2">
+                        <Label>
+                          State
+                          <TooltipHint hint="Name of the state for this address." />
+                        </Label>
+                        {statesMap[idx]?.length ? (
+                          <Select
+                            value={address.state || ""}
+                            onValueChange={(val) =>
+                              handleAddressChange(idx, "state", val)
+                            }
+                          >
+                            <SelectTrigger className="!h-12 text-base w-full">
+                              <SelectValue placeholder="Select State" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statesMap[idx].map((state) => (
+                                <SelectItem key={state} value={state}>
+                                  {state}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            disabled={!address.country}
+                            value={address.state || ""}
+                            onChange={(e) =>
+                              handleAddressChange(idx, "state", e.target.value)
+                            }
+                            placeholder="Enter State"
+                            className="!h-12 text-base w-full"
+                          />
+                        )}
+                        {fieldError(errors, `addresses.${idx}.state`)}
+                      </div>
+                      {/* city */}
+                      <div className="space-y-2">
+                        <Label>
+                          City
+                          <TooltipHint hint="Name of the city for this address." />
+                        </Label>
+                        <Input
+                          value={address.city || ""}
+                          onChange={(e) =>
+                            handleAddressChange(idx, "city", e.target.value)
+                          }
+                          placeholder="e.g. Mumbai"
+                          className="!h-12 text-base w-full"
+
+                        />
+                        {fieldError(errors, `addresses.${idx}.city`)}
+                      </div>
+
+                      {/* H.no */}
                       <div className="space-y-2">
                         <Label>
                           House No.
@@ -1293,7 +1446,7 @@ export default function EditOrganizationPage() {
                         />
                         {fieldError(errors, `addresses.${idx}.houseNo`)}
                       </div>
-
+                      {/* street name */}
                       <div className="space-y-2">
                         <Label>
                           Street Name
@@ -1314,41 +1467,7 @@ export default function EditOrganizationPage() {
                         />
                         {fieldError(errors, `addresses.${idx}.streetName`)}
                       </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          City
-                          <TooltipHint hint="Name of the city for this address." />
-                        </Label>
-                        <Input
-                          value={address.city || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "city", e.target.value)
-                          }
-                          placeholder="e.g. Mumbai"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.city`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          State
-                          <TooltipHint hint="Name of the state for this address." />
-                        </Label>
-                        <Input
-                          value={address.state || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "state", e.target.value)
-                          }
-                          placeholder="e.g. Maharashtra"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.state`)}
-                      </div>
-
+                      {/* pincode */}
                       <div className="space-y-2">
                         <Label>
                           Pincode
@@ -1357,13 +1476,8 @@ export default function EditOrganizationPage() {
                         <Input
                           value={address.pincode || ""}
                           onChange={(e) => {
-                            const digitsOnly = e.target.value.replace(
-                              /\D/g,
-                              ""
-                            );
-                            handleAddressChange(idx, "pincode", digitsOnly);
+                            handleAddressChange(idx, "pincode", e.target.value);
                           }}
-                          maxLength={6}
                           placeholder="e.g. 400001"
                           className="!h-12 text-base w-full"
 
@@ -1371,23 +1485,7 @@ export default function EditOrganizationPage() {
                         {fieldError(errors, `addresses.${idx}.pincode`)}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>
-                          Country
-                          <TooltipHint hint="Country for this address." />
-                        </Label>
-                        <Input
-                          value={address.country || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "country", e.target.value)
-                          }
-                          placeholder="e.g. India"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.country`)}
-                      </div>
-
+                      {/* address type */}
                       <div className="space-y-2">
                         <Label>
                           Address Type

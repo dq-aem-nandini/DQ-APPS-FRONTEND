@@ -55,6 +55,7 @@ export default function EditClientPage() {
   const [loading, setLoading] = useState(true);
   const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const [originalData, setOriginalData] = useState<ClientModel | null>(null);
+  const [countries, setCountries] = useState<string[]>([]);
   const { validateField } = useClientFieldValidation();
   const { checkUniqueness } = useUniquenessCheck(setErrors);
   const handleChange = (
@@ -70,41 +71,6 @@ export default function EditClientPage() {
       parsedValue = value.toUpperCase().trim();
     if (name.includes("pincode") || name.includes("contactNumber"))
       parsedValue = value.replace(/\D/g, "");
-    // 🇮🇳 Country → State logic
-    if (
-      section === "addresses" &&
-      index !== undefined &&
-      name.endsWith(".country")
-    ) {
-      const country = value.trim();
-
-      // Update country immediately
-      setFormData((prev) => ({
-        ...prev,
-        addresses: (prev.addresses || []).map((a, i) =>
-          i === index ? { ...a, country, state: "" } : a
-        ),
-      }));
-
-      // If India → fetch states
-      if (country.toLowerCase() === "india") {
-        adminService.getStatesByCountry("India").then((states) => {
-          setStatesMap((prev) => ({
-            ...prev,
-            [index]: states || [],
-          }));
-        });
-      } else {
-        // Non-India → remove dropdown
-        setStatesMap((prev) => {
-          const copy = { ...prev };
-          delete copy[index];
-          return copy;
-        });
-      }
-
-      return; // ⛔ STOP default handler
-    }
 
     if (section && index !== undefined) {
       setFormData((prev) => ({
@@ -128,6 +94,12 @@ export default function EditClientPage() {
       () => formData, // or whatever your client form data getter is
       validateField // ← this makes it use CLIENT rules
     );
+
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
+
   // Fetch client
   useEffect(() => {
     const fetchClient = async () => {
@@ -148,9 +120,9 @@ export default function EditClientPage() {
           currency: (dto.currency as CurrencyCode) || "",
           netTerms: dto.netTerms ?? null,
 
-          addresses:
-            dto.addresses?.length
-              ? dto.addresses.map((a: any): AddressModel => ({
+          addresses: dto.addresses?.length
+            ? dto.addresses.map(
+              (a: any): AddressModel => ({
                 addressId: a.addressId || null,
                 houseNo: a.houseNo || "",
                 streetName: a.streetName || "",
@@ -158,32 +130,35 @@ export default function EditClientPage() {
                 state: a.state || "",
                 pincode: a.pincode || "",
                 country: a.country || "",
-                addressType:
-                  ADDRESS_TYPE_OPTIONS.includes(a.addressType)
-                    ? a.addressType
-                    : undefined,
-              }))
-              : [
-                {
-                  addressId: null,
-                  houseNo: "",
-                  streetName: "",
-                  city: "",
-                  state: "",
-                  pincode: "",
-                  country: "",
-                  addressType: undefined,
-                },
-              ],
+                addressType: ADDRESS_TYPE_OPTIONS.includes(a.addressType)
+                  ? a.addressType
+                  : undefined,
+              })
+            )
+            : [
+              {
+                addressId: null,
+                houseNo: "",
+                streetName: "",
+                city: "",
+                state: "",
+                pincode: "",
+                country: "",
+                addressType: undefined,
+              },
+            ],
 
           clientPocs:
-            Array.isArray(dto.pocs) && dto.pocs.length > 0 ? dto.pocs.map((p: any): ClientPocModel => ({
-              pocId: p.pocId || null,
-              name: p.name || "",
-              email: p.email || "",
-              contactNumber: p.contactNumber || "",
-              designation: p.designation || "",
-            }))
+            Array.isArray(dto.pocs) && dto.pocs.length > 0
+              ? dto.pocs.map(
+                (p: any): ClientPocModel => ({
+                  pocId: p.pocId || null,
+                  name: p.name || "",
+                  email: p.email || "",
+                  contactNumber: p.contactNumber || "",
+                  designation: p.designation || "",
+                })
+              )
               : [
                 {
                   pocId: null,
@@ -194,38 +169,40 @@ export default function EditClientPage() {
                 },
               ],
 
-          clientTaxDetails:
-            dto.clientTaxDetails?.length
-              ? dto.clientTaxDetails.map((t: any): ClientTaxDetail => ({
+          clientTaxDetails: dto.clientTaxDetails?.length
+            ? dto.clientTaxDetails.map(
+              (t: any): ClientTaxDetail => ({
                 taxId: t.taxId || null,
                 taxName: t.taxName || "",
                 taxPercentage: t.taxPercentage || 0,
-              }))
-              : [
-                {
-                  taxId: null,
-                  taxName: "",
-                  taxPercentage: 0,
-                },
-              ],
+              })
+            )
+            : [
+              {
+                taxId: null,
+                taxName: "",
+                taxPercentage: 0,
+              },
+            ],
         };
         setFormData(loadedData);
         setOriginalData(structuredClone(loadedData));
 
-        if (dto.addresses && dto.addresses.length > 0) {
-          if (dto.addresses?.length) {
-            for (const [index, addr] of dto.addresses.entries()) {
-              if (addr.country?.toLowerCase() === "india") {
-                try {
-                  const states = await adminService.getStatesByCountry("India");
+        // ✅ Load states for ALL countries (not just India)
+        if (loadedData.addresses?.length) {
+          for (const [index, addr] of loadedData.addresses.entries()) {
+            if (addr.country) {
+              try {
+                const states = await adminService.getStatesByCountryV1(
+                  addr.country
+                );
 
-                  setStatesMap((prev) => ({
-                    ...prev,
-                    [index]: states || [],
-                  }));
-                } catch (e) {
-                  console.error("Failed to load states", e);
-                }
+                setStatesMap((prev) => ({
+                  ...prev,
+                  [index]: states || [],
+                }));
+              } catch (e) {
+                console.error("Failed to load states", e);
               }
             }
           }
@@ -379,6 +356,19 @@ export default function EditClientPage() {
     }));
   };
 
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await adminService.getAllCountries();
+        setCountries(response || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -474,17 +464,17 @@ export default function EditClientPage() {
         }
       },
     });
-  
+
     if (result.isConfirmed) {
       try {
         await adminService.deleteClientById(clientId);
-  
+
         await Swal.fire(
           "Deleted!",
           "Client has been deleted successfully.",
           "success"
         );
-  
+
         router.push("/admin-dashboard/clients/list");
       } catch (err: any) {
         await Swal.fire(
@@ -506,7 +496,7 @@ export default function EditClientPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={["ADMIN", "HR", 'HR_MANAGER']}>
+    <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="relative flex items-center justify-center mb-8">
@@ -721,10 +711,12 @@ export default function EditClientPage() {
                     <TooltipHint hint="Number of days after which payment is due. Example: 30, 60, 90" />
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    inputMode="numeric"
                     name="netTerms"
                     value={formData.netTerms !== null ? formData.netTerms : ""}
-                    min={0}
+
                     onChange={(e) => {
                       const val = e.target.value;
                       setFormData((prev) => ({
@@ -758,85 +750,6 @@ export default function EditClientPage() {
               {(formData.addresses || []).map((addr, i) => (
                 <div key={i} className="mb-6 p-4 border rounded bg-gray-50">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* House No */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        House No <span className="text-red-500">*</span>
-                        <TooltipHint hint="House or building number. Example: 221B" />
-                      </label>
-                      <input
-                        required
-                        type="text"
-                        name={`addresses.${i}.houseNo`}
-                        value={addr.houseNo || ""}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
-                        placeholder="e.g. 221B"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Street */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Street <span className="text-red-500">*</span>
-                        <TooltipHint hint="Street name. Example: Baker Street" />
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        name={`addresses.${i}.streetName`}
-                        value={addr.streetName || ""}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
-                        placeholder="e.g. Baker Street"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* City */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        City
-                        <span className="text-red-500">*</span>
-                        <TooltipHint hint="City name as per official records" />
-                      </label>
-                      <input
-                        type="text"
-                        name={`addresses.${i}.city`}
-                        value={addr.city || ""}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
-                        required
-                        className="w-full px-3 py-2 border rounded-md"
-                      />
-                      {fieldError(errors, `addresses.${i}.city`)} {/* ✅ */}
-                    </div>
-                    {/* Pincode */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Pincode
-                        <span className="text-red-500">*</span>
-                        <TooltipHint hint="Pincode as per official records" />
-                      </label>
-                      <input
-                        type="text"
-                        name={`addresses.${i}.pincode`}
-                        value={addr.pincode || ""}
-                        maxLength={6}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
-                        required
-                        placeholder="e.g. 400001"
-                        className="w-full px-3 py-2 border rounded-md"
-                      />
-                      {fieldError(errors, `addresses.${i}.pincode`)} {/* ✅ */}
-                    </div>
-
                     {/* Country */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -844,20 +757,46 @@ export default function EditClientPage() {
                         <span className="text-red-500">*</span>
                         <TooltipHint hint="Country name as per official records" />
                       </label>
-                      <input
-                        type="text"
+                      <select
                         name={`addresses.${i}.country`}
                         value={addr.country || ""}
-                        onChange={(e) =>
-                          handleValidatedChange(e, i, "addresses")
-                        }
+                        onChange={async (e) => {
+                          handleValidatedChange(e, i, "addresses");
+
+                          const selectedCountry = e.target.value;
+
+                          // reset state
+                          setFormData((prev) => ({
+                            ...prev,
+                            addresses: (prev.addresses ?? []).map((a, idx) =>
+                              idx === i ? { ...a, state: "" } : a
+                            ),
+                          }));
+
+                          // fetch states
+                          const states =
+                            await adminService.getStatesByCountryV1(
+                              selectedCountry
+                            );
+
+                          setStatesMap((prev) => ({
+                            ...prev,
+                            [i]: states || [],
+                          }));
+                        }}
                         required
-                        placeholder="e.g. India"
                         className="w-full px-3 py-2 border rounded-md"
-                      />
+                      >
+                        <option value="">Select Country</option>
+                        {countries.map((country) => (
+                          <option key={country} value={country}>
+                            {country}
+                          </option>
+                        ))}
+                      </select>
                       {fieldError(errors, `addresses.${i}.country`)} {/* ✅ */}
                     </div>
-
+                    {/* state */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         State <span className="text-red-500">*</span>
@@ -867,6 +806,7 @@ export default function EditClientPage() {
                         <Select
                           required
                           value={addr.state}
+                          disabled={!addr.country}
                           onValueChange={(val) => {
                             const fakeEvent = {
                               target: {
@@ -905,6 +845,83 @@ export default function EditClientPage() {
                       {fieldError(errors, `addresses.${i}.state`)} {/* ✅ */}
                     </div>
 
+                    {/* City */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                        <span className="text-red-500">*</span>
+                        <TooltipHint hint="City name as per official records" />
+                      </label>
+                      <input
+                        type="text"
+                        name={`addresses.${i}.city`}
+                        value={addr.city || ""}
+                        onChange={(e) =>
+                          handleValidatedChange(e, i, "addresses")
+                        }
+                        required
+                        className="w-full px-3 py-2 border rounded-md"
+                      />
+                      {fieldError(errors, `addresses.${i}.city`)} {/* ✅ */}
+                    </div>
+
+                    {/* House No */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        House No <span className="text-red-500">*</span>
+                        <TooltipHint hint="House or building number. Example: 221B" />
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        name={`addresses.${i}.houseNo`}
+                        value={addr.houseNo || ""}
+                        onChange={(e) =>
+                          handleValidatedChange(e, i, "addresses")
+                        }
+                        placeholder="e.g. 221B"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Street */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Street <span className="text-red-500">*</span>
+                        <TooltipHint hint="Street name. Example: Baker Street" />
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        name={`addresses.${i}.streetName`}
+                        value={addr.streetName || ""}
+                        onChange={(e) =>
+                          handleValidatedChange(e, i, "addresses")
+                        }
+                        placeholder="e.g. Baker Street"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none"
+                      />
+                    </div>
+                    {/* Pincode */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Pincode
+                        <span className="text-red-500">*</span>
+                        <TooltipHint hint="Pincode as per official records" />
+                      </label>
+                      <input
+                        type="text"
+                        name={`addresses.${i}.pincode`}
+                        value={addr.pincode || ""}
+                        onChange={(e) =>
+                          handleValidatedChange(e, i, "addresses")
+                        }
+                        required
+                        placeholder="e.g. 400001"
+                        className="w-full px-3 py-2 border rounded-md"
+                      />
+                      {fieldError(errors, `addresses.${i}.pincode`)} {/* ✅ */}
+                    </div>
                     {/* Address Type */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -930,16 +947,16 @@ export default function EditClientPage() {
                   </div>
 
                   {(formData.addresses ?? []).length > 1 && (
-                     <div className="flex justify-end mt-4">
-                     <button
-                       type="button"
-                       onClick={() => removeItem("addresses", i)}
-                       className="text-red-600 hover:text-red-700 transition"
-                       title="Remove Address"
-                     >
-                       <Trash2 size={18} />
-                     </button>
-                   </div>
+                    <div className="flex justify-end mt-4">
+                      <button
+                        type="button"
+                        onClick={() => removeItem("addresses", i)}
+                        className="text-red-600 hover:text-red-700 transition"
+                        title="Remove Address"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -1069,15 +1086,15 @@ export default function EditClientPage() {
                       {/* Remove Button - Only when more than 1 POC */}
                       {(formData.clientPocs ?? []).length > 1 && (
                         <div className="flex justify-end mt-4">
-                        <button
-                          type="button"
-                          onClick={() => removeItem("clientPocs", i)}
-                          className="text-red-600 hover:text-red-700 transition"
-                          title="Remove POC"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => removeItem("clientPocs", i)}
+                            className="text-red-600 hover:text-red-700 transition"
+                            title="Remove POC"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1099,7 +1116,6 @@ export default function EditClientPage() {
                   + Add Tax
                 </button>
               </div>
-
 
               {(formData.clientTaxDetails || []).map((tax, i) => (
                 <div
@@ -1127,12 +1143,12 @@ export default function EditClientPage() {
                       <TooltipHint hint="Tax percentage rate. Example: 18 for 18%" />
                     </label>
                     <input
-                      type="number"
                       name={`clientTaxDetails.${i}.taxPercentage`}
                       value={tax.taxPercentage || ""}
                       onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                     {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
@@ -1143,7 +1159,7 @@ export default function EditClientPage() {
                       onClick={() => removeItem("clientTaxDetails", i)}
                       className="text-red-600 text-sm hover:underline"
                     >
-                     <Trash2 size={18} />
+                      <Trash2 size={18} />
                     </button>
                   )}
                 </div>
@@ -1156,31 +1172,31 @@ export default function EditClientPage() {
               </div>
             )}
 
-<div className="flex justify-between items-center mt-8">
-
-  {/* LEFT → DELETE BUTTON */}
-  <Button
-    type="button"
-    variant="destructive"
-    onClick={handleDeleteClient}
-  >
-    Delete Client
-  </Button>
-    {/* RIGHT → CANCEL + UPDATE */}
-    <div className="flex gap-4">
+            <div className="flex justify-between items-center mt-8">
+              {/* LEFT → DELETE BUTTON */}
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => router.push("/admin-dashboard/clients/list")}
+                variant="destructive"
+                onClick={handleDeleteClient}
               >
-                Cancel
+                Delete Client
               </Button>
-              <Button
-                type="submit"
-                disabled={!hasChanges || Object.keys(errors).length > 0} title={!hasChanges ? "No changes made" : ""}
-              >
-                Update Client
-              </Button>
+              {/* RIGHT → CANCEL + UPDATE */}
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/admin-dashboard/clients/list")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!hasChanges || Object.keys(errors).length > 0}
+                  title={!hasChanges ? "No changes made" : ""}
+                >
+                  Update Client
+                </Button>
               </div>
             </div>
           </form>

@@ -562,5 +562,42 @@ async getAllDesignations(): Promise<DesignationResponseDTO[]> {
   }
 }
 
+// ✅ Get all countries
+async getAllCountries(): Promise<string[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListString> =
+      await api.get("/locations/countries");
+
+    if (response.data.flag && Array.isArray(response.data.response)) {
+      return response.data.response;
+    }
+
+    throw new Error(
+      response.data.message || "Failed to fetch countries"
+    );
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
+// ✅ Get states by country
+async getStatesByCountryV1(country: string): Promise<string[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListString> =
+      await api.get("/locations/states", {
+        params: { country },
+      });
+
+    if (response.data.flag) {
+      return response.data.response || [];
+    }
+
+    throw new Error(
+      response.data.message || "Failed to fetch states"
+    );
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
 }
 export const adminService = new AdminService();

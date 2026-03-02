@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { employeeService } from "@/lib/api/employeeService";
+import { adminService } from "@/lib/api/adminService";
 
 // Assume AddressType enum: 'PERMANENT' | 'CURRENT' | 'OFFICE' | etc.
 const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"]; // Adjust as per actual enum
@@ -83,10 +84,11 @@ export default function AddOrganizationPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLookingUp, setIsLookingUp] = useState(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [countries, setCountries] = useState<string[]>([]);
+  const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const { loading } = useLoading?.() ?? {
     loading: false,
     withLoading: (fn: any) => fn(),
@@ -97,38 +99,45 @@ export default function AddOrganizationPage() {
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
   const { validateField } = useOrganizationFieldValidation();
 
-  const { handleValidatedChange, handleUniqueBlur, fieldError } =
-    useFormFieldHandlers(
-      // Custom formatting during typing (same as your old logic)
-      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        let formatted = value;
+  const {
+    handleValidatedChange,
+    handleUniqueBlur,
+    handleBlurValidation,
+    fieldError,
+  } = useFormFieldHandlers(
+    // Custom formatting during typing (same as your old logic)
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      let formatted = value;
 
-        if (
-          ["panNumber", "gstNumber", "cinNumber", "ifscCode"].includes(name)
-        ) {
-          formatted = value.toUpperCase();
-        }
-        if (name === "email") {
-          formatted = value.toLowerCase();
-        }
-        if (name === "contactNumber" || name === "accountNumber") {
-          formatted = value.replace(/[^0-9]/g, "");
-        }
-        if (name === "registrationNumber") {
-          formatted = value.replace(/[^A-Za-z0-9-]/g, "").toUpperCase();
-        }
-        if (name === "accountHolderName") {
-          formatted = value.replace(/[^A-Za-z\s.,&()-]/g, "");
-        }
+      if (["panNumber", "gstNumber", "cinNumber", "ifscCode"].includes(name)) {
+        formatted = value.toUpperCase();
+      }
+      if (name === "email") {
+        formatted = value.toLowerCase();
+      }
+      if (name === "contactNumber" || name === "accountNumber") {
+        formatted = value.replace(/[^0-9]/g, "");
+      }
+      if (name === "registrationNumber") {
+        formatted = value.replace(/[^A-Za-z0-9-]/g, "").toUpperCase();
+      }
+      if (name === "accountHolderName") {
+        formatted = value.replace(/[^A-Za-z\s.,&()-]/g, "");
+      }
 
-        setFormData((prev) => ({ ...prev, [name]: formatted }));
-      },
-      setErrors,
-      checkUniqueness,
-      () => formData,
-      validateField
-    );
+      setFormData((prev) => ({ ...prev, [name]: formatted }));
+    },
+    setErrors,
+    checkUniqueness,
+    () => formData,
+    validateField
+  );
+
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
   // Handle file change - just update state, optionally basic check
   const handleFileChange = (
     name: "logo" | "digitalSignature",
@@ -236,154 +245,115 @@ export default function AddOrganizationPage() {
       return newErr;
     });
   };
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await adminService.getAllCountries();
+        setCountries(res || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    fetchCountries();
+  }, []);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const form = e.currentTarget;
 
-    setIsSubmitting(true);
-    setErrors({}); // clear old errors
-
-    // Step 1: Run full client-side validation using your validator
-    const tempErrors: Record<string, string> = {};
-
-    // Main fields (same as your old requiredFields list)
-    const mainFields = [
-      { name: "organizationName", value: formData.organizationName },
-      { name: "organizationLegalName", value: formData.organizationLegalName },
-      { name: "registrationNumber", value: formData.registrationNumber },
-      { name: "gstNumber", value: formData.gstNumber },
-      { name: "panNumber", value: formData.panNumber },
-      { name: "cinNumber", value: formData.cinNumber },
-      { name: "email", value: formData.email },
-      { name: "contactNumber", value: formData.contactNumber },
-      { name: "domain", value: formData.domain },
-      { name: "industryType", value: formData.industryType },
-      { name: "establishedDate", value: formData.establishedDate },
-      { name: "currencyCode", value: formData.currencyCode },
-      { name: "accountNumber", value: formData.accountNumber },
-      { name: "accountHolderName", value: formData.accountHolderName },
-      { name: "ifscCode", value: formData.ifscCode },
-      { name: "prefix", value: formData.prefix },
-      { name: "sequenceNumber", value: formData.sequenceNumber },
-      { name: "companyType", value: formData.companyType },
-    ];
-
-    mainFields.forEach(({ name, value }) => {
-      const error = validateField(name, value, formData);
-      if (error) tempErrors[name] = error;
-    });
-
-    // Optional: Validate first address if at least one exists
-    if (formData.addresses.length > 0) {
-      const addr = formData.addresses[0];
-      const addressFields = [
-        { sub: "city", value: addr.city },
-        { sub: "state", value: addr.state },
-        { sub: "country", value: addr.country },
-        { sub: "pincode", value: addr.pincode },
-      ];
-
-      addressFields.forEach(({ sub, value }) => {
-        const fieldPath = `addresses.0.${sub}`;
-        const error = validateField(fieldPath, value, formData);
-        if (error) tempErrors[fieldPath] = error;
-      });
-    }
-
-    // If there are any client-side errors → show them and stop
-    if (Object.keys(tempErrors).length > 0) {
-      setErrors(tempErrors);
-
-      // Scroll to + focus first error field
-      setTimeout(() => {
-        const firstErrorField = Object.keys(tempErrors)[0];
-        const input = document.querySelector(
-          `[name="${firstErrorField}"]`
-        ) as HTMLInputElement;
-        if (input) {
-          input.scrollIntoView({ behavior: "smooth", block: "center" });
-          input.focus();
-        }
-      }, 100);
-
-      setIsSubmitting(false);
+    // ✅ Let browser show native required popup
+    if (!form.checkValidity()) {
       return;
     }
 
-    // Step 2: All client-side checks passed → proceed to submit
-    try {
-      const form = new FormData();
+    e.preventDefault(); // prevent only after valid
+    setIsSubmitting(true);
+    setErrors({});
 
-      // Append fields (same as your code)
-      form.append("organizationName", formData.organizationName || "");
-      form.append(
+    try {
+      const formDataToSend = new FormData();
+
+      formDataToSend.append(
+        "organizationName",
+        formData.organizationName || ""
+      );
+      formDataToSend.append(
         "organizationLegalName",
         formData.organizationLegalName || ""
       );
-      form.append("registrationNumber", formData.registrationNumber || "");
-      form.append("gstNumber", formData.gstNumber || "");
-      form.append("panNumber", formData.panNumber || "");
-      form.append("cinNumber", formData.cinNumber || "");
-      form.append("website", formData.website || "");
-      form.append("email", formData.email || "");
-      form.append("contactNumber", formData.contactNumber || "");
-      form.append("domain", formData.domain || "");
-      form.append("industryType", formData.industryType || "");
-      form.append("establishedDate", formData.establishedDate || "");
-      form.append("timezone", formData.timezone || "");
-      if (formData.autoClockOutTime) {
-        form.append("autoClockOutTime", `${formData.autoClockOutTime}:00`);
-      } else {
-        form.append("autoClockOutTime", "");
-      }
-      form.append("currencyCode", formData.currencyCode || "");
-      form.append("accountNumber", formData.accountNumber || "");
-      form.append("accountHolderName", formData.accountHolderName || "");
-      form.append("bankName", formData.bankName || "");
-      form.append("ifscCode", formData.ifscCode || "");
-      form.append("branchName", formData.branchName || "");
-      form.append("prefix", formData.prefix || "");
-      form.append("sequenceNumber", String(formData.sequenceNumber ?? ""));
-      form.append("companyType", formData.companyType || "");
+      formDataToSend.append(
+        "registrationNumber",
+        formData.registrationNumber || ""
+      );
+      formDataToSend.append("gstNumber", formData.gstNumber || "");
+      formDataToSend.append("panNumber", formData.panNumber || "");
+      formDataToSend.append("cinNumber", formData.cinNumber || "");
+      formDataToSend.append("website", formData.website || "");
+      formDataToSend.append("email", formData.email || "");
+      formDataToSend.append("contactNumber", formData.contactNumber || "");
+      formDataToSend.append("domain", formData.domain || "");
+      formDataToSend.append("industryType", formData.industryType || "");
+      formDataToSend.append("establishedDate", formData.establishedDate || "");
+      formDataToSend.append("timezone", formData.timezone || "");
+      formDataToSend.append(
+        "autoClockOutTime",
+        formData.autoClockOutTime ? `${formData.autoClockOutTime}:00` : ""
+      );
+      formDataToSend.append("currencyCode", formData.currencyCode || "");
+      formDataToSend.append("accountNumber", formData.accountNumber || "");
+      formDataToSend.append(
+        "accountHolderName",
+        formData.accountHolderName || ""
+      );
+      formDataToSend.append("bankName", formData.bankName || "");
+      formDataToSend.append("ifscCode", formData.ifscCode || "");
+      formDataToSend.append("branchName", formData.branchName || "");
+      formDataToSend.append("prefix", formData.prefix || "");
+      formDataToSend.append(
+        "sequenceNumber",
+        String(formData.sequenceNumber ?? "")
+      );
+      formDataToSend.append("companyType", formData.companyType || "");
 
-      if (formData.logo) form.append("logo", formData.logo);
-      if (formData.digitalSignature)
-        form.append("digitalSignature", formData.digitalSignature);
+      if (formData.logo) {
+        formDataToSend.append("logo", formData.logo);
+      }
+
+      if (formData.digitalSignature) {
+        formDataToSend.append("digitalSignature", formData.digitalSignature);
+      }
+
       // Attendance Policy
       if (formData.attendancePolicy?.absentMaxMinutes != null) {
-        form.append(
+        formDataToSend.append(
           "attendancePolicy.absentMaxMinutes",
-          String(
-            Math.round(formData.attendancePolicy.absentMaxMinutes * 60)
-          )
+          String(Math.round(formData.attendancePolicy.absentMaxMinutes * 60))
         );
       }
 
       if (formData.attendancePolicy?.fullDayMinMinutes != null) {
-        form.append(
+        formDataToSend.append(
           "attendancePolicy.fullDayMinMinutes",
-          String(
-            Math.round(formData.attendancePolicy.fullDayMinMinutes * 60)
-          )
+          String(Math.round(formData.attendancePolicy.fullDayMinMinutes * 60))
         );
       }
 
-
       formData.addresses.forEach((addr, i) => {
-        form.append(`addresses[${i}].houseNo`, addr.houseNo || "");
-        form.append(`addresses[${i}].streetName`, addr.streetName || "");
-        form.append(`addresses[${i}].city`, addr.city || "");
-        form.append(`addresses[${i}].state`, addr.state || "");
-        form.append(`addresses[${i}].country`, addr.country || "");
-        form.append(`addresses[${i}].pincode`, addr.pincode || "");
-        form.append(
+        formDataToSend.append(`addresses[${i}].houseNo`, addr.houseNo || "");
+        formDataToSend.append(
+          `addresses[${i}].streetName`,
+          addr.streetName || ""
+        );
+        formDataToSend.append(`addresses[${i}].city`, addr.city || "");
+        formDataToSend.append(`addresses[${i}].state`, addr.state || "");
+        formDataToSend.append(`addresses[${i}].country`, addr.country || "");
+        formDataToSend.append(`addresses[${i}].pincode`, addr.pincode || "");
+        formDataToSend.append(
           `addresses[${i}].addressType`,
           addr.addressType || "OFFICE"
         );
       });
 
-      // API call
-      const response = await organizationService.add(form);
+      const response = await organizationService.add(formDataToSend);
 
       if (!response.flag) {
         throw response;
@@ -399,12 +369,8 @@ export default function AddOrganizationPage() {
 
       router.push("/admin-dashboard/organization/list");
     } catch (err: any) {
-      console.log("Backend error:", err);
-
       let fieldErrors: Record<string, string> = {};
-      let backendMessage = "Something went wrong";
 
-      // Backend field errors
       if (err?.fieldErrors) {
         fieldErrors = Object.fromEntries(
           Object.entries(err.fieldErrors).map(([field, msg]) => [
@@ -412,41 +378,17 @@ export default function AddOrganizationPage() {
             Array.isArray(msg) ? msg[0] : String(msg),
           ])
         );
-      } else if (err?.errors && typeof err.errors === "object") {
-        fieldErrors = Object.fromEntries(
-          Object.entries(err.errors).map(([field, msg]) => [
-            field,
-            Array.isArray(msg) ? msg[0] : String(msg),
-          ])
-        );
       }
 
-      // Show field errors
       if (Object.keys(fieldErrors).length > 0) {
         setErrors(fieldErrors);
-
-        setTimeout(() => {
-          const firstField = Object.keys(fieldErrors)[0];
-          const input = document.querySelector(
-            `[name="${firstField}"]`
-          ) as HTMLElement;
-          if (input) {
-            input.scrollIntoView({ behavior: "smooth", block: "center" });
-            input.focus();
-          }
-        }, 100);
-
-        setIsSubmitting(false);
         return;
       }
-
-      // Fallback generic error
-      if (err?.message) backendMessage = err.message;
 
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: backendMessage,
+        text: err?.message || "Something went wrong",
         confirmButtonColor: "#ef4444",
       });
     } finally {
@@ -479,6 +421,7 @@ export default function AddOrganizationPage() {
                   name="organizationName"
                   value={formData.organizationName}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("organizationName")}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter organization name"
                   maxLength={100}
@@ -497,6 +440,7 @@ export default function AddOrganizationPage() {
                   name="organizationLegalName"
                   value={formData.organizationLegalName}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("organizationLegalName")}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter legal name"
                   maxLength={100}
@@ -515,13 +459,16 @@ export default function AddOrganizationPage() {
                   name="registrationNumber"
                   value={formData.registrationNumber}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "REGISTRATION_NUMBER",
-                    "registration_number",
-                    "registrationNumber",
-                    null,
-                    3
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("registrationNumber")(e);
+                    handleUniqueBlur(
+                      "REGISTRATION_NUMBER",
+                      "registration_number",
+                      "registrationNumber",
+                      null,
+                      3
+                    )(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                   placeholder="e.g., UDYAM-AB-12-0001234"
                   maxLength={50}
@@ -540,13 +487,16 @@ export default function AddOrganizationPage() {
                   name="gstNumber"
                   value={formData.gstNumber}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "GST",
-                    "gst_number",
-                    "gstNumber",
-                    null,
-                    15
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("gstNumber")(e);
+                    handleUniqueBlur(
+                      "GST",
+                      "gst_number",
+                      "gstNumber",
+                      null,
+                      15
+                    )(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                   placeholder="Enter GST number"
                   maxLength={15}
@@ -565,13 +515,16 @@ export default function AddOrganizationPage() {
                   name="panNumber"
                   value={formData.panNumber}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "PAN_NUMBER",
-                    "pan_number",
-                    "panNumber",
-                    null,
-                    10
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("panNumber")(e);
+                    handleUniqueBlur(
+                      "PAN_NUMBER",
+                      "pan_number",
+                      "panNumber",
+                      null,
+                      10
+                    )(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                   placeholder="Enter PAN number"
                   maxLength={10}
@@ -590,13 +543,16 @@ export default function AddOrganizationPage() {
                   name="cinNumber"
                   value={formData.cinNumber}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "CIN_NUMBER",
-                    "cin_number",
-                    "cinNumber",
-                    null,
-                    21
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("cinNumber")(e);
+                    handleUniqueBlur(
+                      "CIN_NUMBER",
+                      "cin_number",
+                      "cinNumber",
+                      null,
+                      21
+                    )(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
                   placeholder="Enter CIN number"
                   maxLength={21}
@@ -632,7 +588,10 @@ export default function AddOrganizationPage() {
                   type="email"
                   value={formData.email}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur("EMAIL", "email", "email", null)}
+                  onBlur={(e) => {
+                    handleBlurValidation("email")(e);
+                    handleUniqueBlur("EMAIL", "email", "email", null)(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter email"
                 />
@@ -650,13 +609,16 @@ export default function AddOrganizationPage() {
                   name="contactNumber"
                   value={formData.contactNumber}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "CONTACT_NUMBER",
-                    "contact_number",
-                    "contactNumber",
-                    null,
-                    10
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("contactNumber")(e);
+                    handleUniqueBlur(
+                      "CONTACT_NUMBER",
+                      "contact_number",
+                      "contactNumber",
+                      null,
+                      10
+                    )(e);
+                  }}
                   maxLength={10}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter 10-digit mobile"
@@ -670,30 +632,23 @@ export default function AddOrganizationPage() {
                   Domain <span className="text-red-500">*</span>
                   <TooltipHint hint="Primary industry domain of the organization." />
                 </Label>
-                <Select
+                <select
+                  required
                   name="domain"
                   value={formData.domain}
-                  onValueChange={(val) => {
-                    setFormData((prev) => ({ ...prev, domain: val as Domain }));
-                    const error = validateField("domain", val, formData);
-                    setErrors((prev) => {
-                      const next = { ...prev };
-                      error ? (next.domain = error) : delete next.domain;
-                      return next;
-                    });
+                  onChange={(e) => {
+                    handleValidatedChange(e);
                   }}
+                  onBlur={handleBlurValidation("domain")}
+                  className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
-                  <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select Domain" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DOMAIN_OPTIONS.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">Select Domain</option>
+                  {DOMAIN_OPTIONS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
                 {fieldError(errors, "domain")}
               </div>
 
@@ -703,35 +658,22 @@ export default function AddOrganizationPage() {
                   Industry Type <span className="text-red-500">*</span>
                   <TooltipHint hint="Specific industry type within the chosen domain." />
                 </Label>
-                <Select
+                <select
+                  required
                   name="industryType"
                   value={formData.industryType}
-                  onValueChange={(val) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      industryType: val as IndustryType,
-                    }));
-                    const error = validateField("industryType", val, formData);
-                    setErrors((prev) => {
-                      const next = { ...prev };
-                      error
-                        ? (next.industryType = error)
-                        : delete next.industryType;
-                      return next;
-                    });
-                  }}
+                  onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("industryType")}
+                  className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
-                  <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select Industry Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INDUSTRY_TYPE_OPTIONS.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">Select Industry Type</option>
+                  {INDUSTRY_TYPE_OPTIONS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+
                 {fieldError(errors, "industryType")}
               </div>
 
@@ -747,6 +689,7 @@ export default function AddOrganizationPage() {
                   type="date"
                   value={formData.establishedDate}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("establishedDate")}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                 />
                 {fieldError(errors, "establishedDate")}
@@ -790,6 +733,7 @@ export default function AddOrganizationPage() {
                   step="60"
                   value={formData.autoClockOutTime ?? ""}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("autoClockOutTime")}
                   className="h-12"
                 />
 
@@ -802,35 +746,22 @@ export default function AddOrganizationPage() {
                   Currency Code <span className="text-red-500">*</span>
                   <TooltipHint hint="Primary currency for financial transactions (e.g., INR, USD)." />
                 </Label>
-                <Select
+                <select
+                  required
                   name="currencyCode"
                   value={formData.currencyCode}
-                  onValueChange={(val) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      currencyCode: val as CurrencyCode,
-                    }));
-                    const error = validateField("currencyCode", val, formData);
-                    setErrors((prev) => {
-                      const next = { ...prev };
-                      error
-                        ? (next.currencyCode = error)
-                        : delete next.currencyCode;
-                      return next;
-                    });
-                  }}
+                  onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("currencyCode")}
+                  className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
-                  <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select Currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCY_CODE_OPTIONS.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">Select Currency</option>
+                  {CURRENCY_CODE_OPTIONS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+
                 {fieldError(errors, "currencyCode")}
               </div>
 
@@ -841,7 +772,9 @@ export default function AddOrganizationPage() {
                 </Label>
                 <Input
                   required
-                  type="number"
+                  type="text"
+                  onWheel={preventWheelChange}
+                  inputMode="numeric"
                   name="absentMaxMinutes"
                   value={formData.attendancePolicy.absentMaxMinutes ?? ""}
                   onChange={(e) =>
@@ -865,8 +798,9 @@ export default function AddOrganizationPage() {
                 </Label>
                 <Input
                   required
-                  type="number"
-                  name="fullDayMinMinutes"
+                  type="text"
+                  onWheel={preventWheelChange}
+                  inputMode="numeric" name="fullDayMinMinutes"
                   value={formData.attendancePolicy.fullDayMinMinutes ?? ""}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -923,13 +857,16 @@ export default function AddOrganizationPage() {
                   name="accountNumber"
                   value={formData.accountNumber ?? ""}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "ACCOUNT_NUMBER",
-                    "account_number",
-                    "accountNumber",
-                    null,
-                    9
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("accountNumber")(e);
+                    handleUniqueBlur(
+                      "ACCOUNT_NUMBER",
+                      "account_number",
+                      "accountNumber",
+                      null,
+                      9
+                    )(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Enter account number"
                 />
@@ -947,13 +884,16 @@ export default function AddOrganizationPage() {
                   name="accountHolderName"
                   value={formData.accountHolderName ?? ""}
                   onChange={handleValidatedChange}
-                  onBlur={handleUniqueBlur(
-                    "ACCOUNT_HOLDER_NAME",
-                    "account_holder_name",
-                    "accountHolderName",
-                    null,
-                    3
-                  )}
+                  onBlur={(e) => {
+                    handleBlurValidation("accountHolderName")(e);
+                    handleUniqueBlur(
+                      "ACCOUNT_HOLDER_NAME",
+                      "account_holder_name",
+                      "accountHolderName",
+                      null,
+                      3
+                    )(e);
+                  }}
                   className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="ABC Company Private Limited"
                 />
@@ -971,7 +911,10 @@ export default function AddOrganizationPage() {
                     name="ifscCode"
                     value={formData.ifscCode ?? ""}
                     onChange={handleValidatedChange} // ← centralized formatting + validation
-                    onBlur={() => handleIfscLookup(formData.ifscCode ?? "")}
+                    onBlur={(e) => {
+                      handleBlurValidation("ifscCode")(e);
+                      handleIfscLookup(formData.ifscCode ?? "");
+                    }}
                     className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-10 uppercase"
                     placeholder="Enter IFSC (auto-fills bank/branch)"
                     maxLength={11}
@@ -1029,6 +972,7 @@ export default function AddOrganizationPage() {
                   name="prefix"
                   value={formData.prefix ?? ""}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("prefix")}
                   className="h-12"
                   placeholder="INV"
                   maxLength={10}
@@ -1045,9 +989,12 @@ export default function AddOrganizationPage() {
                 <Input
                   required
                   name="sequenceNumber"
-                  type="number"
+                  type="text"
+                  onWheel={preventWheelChange}
+                  inputMode="numeric"
                   value={formData.sequenceNumber ?? ""}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("sequenceNumber")}
                   className="h-12"
                   placeholder="1001"
                 />
@@ -1065,6 +1012,7 @@ export default function AddOrganizationPage() {
                   name="companyType"
                   value={formData.companyType ?? ""}
                   onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("companyType")}
                   className="h-12"
                   placeholder="Private Limited"
                   maxLength={50}
@@ -1169,6 +1117,97 @@ export default function AddOrganizationPage() {
                   {/* Form Fields */}
                   <div className="p-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Country */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">
+                          Country
+                          <TooltipHint hint="Country of the address. Default is India." />
+                        </Label>
+                        <select
+                          value={address.country || ""}
+                          onChange={async (e) => {
+                            const selectedCountry = e.target.value;
+
+                            handleAddressChange(index, "country", selectedCountry);
+
+                            // reset state
+                            handleAddressChange(index, "state", "");
+
+                            // fetch states
+                            const states =
+                              await adminService.getStatesByCountryV1(selectedCountry);
+
+                            setStatesMap((prev) => ({
+                              ...prev,
+                              [index]: states || [],
+                            }));
+                          }}
+                          className="!h-12 text-base w-full px-3 border rounded-md"
+                        >
+                          <option value="">Select Country</option>
+                          {countries.map((country) => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
+                        {fieldError(errors, `addresses.${index}.country`)}
+                      </div>
+
+                      {/* State */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">
+                          State
+                          <TooltipHint hint="State or province of the address." />
+                        </Label>
+                        {statesMap[index]?.length ? (
+                          <Select
+                            value={address.state || ""}
+                            onValueChange={(val) =>
+                              handleAddressChange(index, "state", val)
+                            }
+                          >
+                            <SelectTrigger className="!h-12 text-base w-full">
+                              <SelectValue placeholder="Select State" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statesMap[index].map((state) => (
+                                <SelectItem key={state} value={state}>
+                                  {state}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            value={address.state || ""}
+                            disabled={!address.country}
+                            onChange={(e) =>
+                              handleAddressChange(index, "state", e.target.value)
+                            }
+                            placeholder="Enter State"
+                            className="!h-12 text-base w-full"
+                          />
+                        )}
+                        {fieldError(errors, `addresses.${index}.state`)}
+                      </div>
+                      {/* City */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">
+                          City
+                          <TooltipHint hint="City or town of the address." />
+                        </Label>
+                        <Input
+                          value={address.city || ""}
+                          onChange={(e) =>
+                            handleAddressChange(index, "city", e.target.value)
+                          }
+                          placeholder="e.g. Mumbai"
+                          className="!h-12 text-base w-full"
+                        />
+                        {fieldError(errors, `addresses.${index}.city`)}
+                      </div>
+
                       {/* House No. / Flat */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
@@ -1210,41 +1249,6 @@ export default function AddOrganizationPage() {
                         />
                         {fieldError(errors, `addresses.${index}.streetName`)}
                       </div>
-
-                      {/* City */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">
-                          City
-                          <TooltipHint hint="City or town of the address." />
-                        </Label>
-                        <Input
-                          value={address.city || ""}
-                          onChange={(e) =>
-                            handleAddressChange(index, "city", e.target.value)
-                          }
-                          placeholder="e.g. Mumbai"
-                          className="!h-12 text-base w-full"
-                        />
-                        {fieldError(errors, `addresses.${index}.city`)}
-                      </div>
-
-                      {/* State */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">
-                          State
-                          <TooltipHint hint="State or province of the address." />
-                        </Label>
-                        <Input
-                          value={address.state || ""}
-                          onChange={(e) =>
-                            handleAddressChange(index, "state", e.target.value)
-                          }
-                          placeholder="e.g. Maharashtra"
-                          className="!h-12 text-base w-full"
-                        />
-                        {fieldError(errors, `addresses.${index}.state`)}
-                      </div>
-
                       {/* Pincode */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
@@ -1261,31 +1265,9 @@ export default function AddOrganizationPage() {
                             handleAddressChange(index, "pincode", digitsOnly);
                           }}
                           placeholder="400001"
-                          maxLength={6}
                           className="!h-12 text-base w-full"
                         />
                         {fieldError(errors, `addresses.${index}.pincode`)}
-                      </div>
-
-                      {/* Country */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">
-                          Country
-                          <TooltipHint hint="Country of the address. Default is India." />
-                        </Label>
-                        <Input
-                          value={address.country || ""}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              index,
-                              "country",
-                              e.target.value
-                            )
-                          }
-                          placeholder="India"
-                          className="!h-12 text-base w-full"
-                        />
-                        {fieldError(errors, `addresses.${index}.country`)}
                       </div>
 
                       {/* Address Type */}
