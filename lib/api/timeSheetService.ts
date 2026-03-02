@@ -371,6 +371,7 @@ async createTimesheetsAsSuperHr(
       hoursWorked: Number(ts.hoursWorked),
       taskName: ts.taskName ?? '',
       taskDescription: ts.taskDescription ?? '',
+      flexible: ts.flexible ?? false,
     }));
   
     console.debug('[TimesheetService][SUPER_HR] payload:', payload);
@@ -404,7 +405,7 @@ async updateTimesheetBySuperHR(
     workDate: string;      // yyyy-MM-dd
     hoursWorked: number;
     taskName: string;
-  
+    flexible?: boolean;
   }>
 ): Promise<WebResponseDTO<string>> {
   if (!employeeId) {
@@ -434,6 +435,7 @@ async updateTimesheetBySuperHR(
     workDate: ts.workDate,
     hoursWorked: Number(ts.hoursWorked),
     taskName: ts.taskName,
+    flexible: ts.flexible ?? false,
   }));
 
   console.debug(

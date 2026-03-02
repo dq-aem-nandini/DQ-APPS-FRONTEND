@@ -958,6 +958,7 @@ export interface TimeSheetModel {
   taskDescription: string;
   clientId: string; // uuid
   projectId?: string; // uuid
+  flexible: boolean;
 }
 
 export interface TimeSheet {
@@ -987,6 +988,7 @@ export interface TimeSheetResponseDto {
   status: string;
   createdAt: string; // date-time
   updatedAt: string; // date-time
+  flexible: boolean;
 }
 export interface NotificationDTO {
   id: string; // UUID

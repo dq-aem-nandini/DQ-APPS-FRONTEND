@@ -38,6 +38,7 @@ taskName: string;
 hours: Record<string, number>;
 timesheetIds?: Record<string, string>;
 statuses?: Record<string, 'DRAFTED' | 'PENDING' | 'APPROVED' | 'REJECTED'>;
+flexible?: Record<string, boolean>;
 _dirty?: boolean;
 order?: number;
 }
@@ -105,8 +106,7 @@ function getBackendError(error: any): string {
       WorkRequest | ""
     >("");
 
-
-
+ const [flexibleDays, setFlexibleDays] = useState<Record<string, boolean>>({});
   // const [employees, setEmployees] = useState<{ id: string; name: string; dateOfJoining: string }[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeMinDTO | null>(null);
@@ -456,15 +456,18 @@ function getBackendError(error: any): string {
             hours: {},
             timesheetIds: {},
             statuses: {},
+            flexible: {},
             order: orderCounter++, // ← assign stable order
           });
         }
 
         const row = grouped.get(task)!;
+        const dateKey = item.dateKey;
         row.hours[item.dateKey] = Number(item.workedHours || 0);
         if (item.timesheetId) {
           row.timesheetIds![item.dateKey] = item.timesheetId;
           row.statuses![item.dateKey] = (item.status as any) || 'DRAFT';  
+          row.flexible![dateKey]     = item.flexible ?? false;
         }
       });
 
@@ -486,6 +489,27 @@ function getBackendError(error: any): string {
       finalRows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
       setRows(finalRows);
+      const flexiblePerDay: Record<string, boolean> = {};
+
+      setFlexibleDays(prev => {
+        const next = { ...prev };
+        weekDates.forEach(d => {
+          const key = d.format('YYYY-MM-DD');
+          flexiblePerDay[key] = false; // default
+        });
+        
+        finalRows.forEach(row => {
+          Object.entries(row.flexible || {}).forEach(([dateKey, isFlexible]) => {
+            // If any row has flexible=true for this day → we consider the day flexible
+            // (or use last one, or majority — but simplest: any true wins)
+            if (isFlexible) {
+              flexiblePerDay[dateKey] = true;
+            }
+          });
+        });
+      
+        return flexiblePerDay;
+      });
     } catch (err) {
       pushMessage('error', 'Failed to fetch timesheets');
     } finally {
@@ -807,17 +831,24 @@ useEffect(() => {
   
             // CREATE new entry
             if (!tsId && hrs > 0 && r.taskName?.trim()) {
+              const dateKey = date;
+              const isFlexible = flexibleDays[dateKey] ?? false;
+
               toCreate.push({
                 workDate: date,
                 hoursWorked: hrs,
                 taskName: r.taskName,
                 taskDescription: '',
                 clientId: '',
+                flexible: isFlexible,
               });
             }
   
             // UPDATE existing (including setting to 0)
             if (tsId && (r._dirty || hrs === 0)) {
+              const dateKey = date;
+              const isFlexible = flexibleDays[dateKey] ?? false;
+
               toUpdate[tsId] = {
                 workDate: date,
                 hoursWorked: hrs,
@@ -825,6 +856,7 @@ useEffect(() => {
                 taskDescription: '',
                 clientId: '',
                 timesheetId: tsId,
+                flexible: isFlexible,
               };
             }
           });
@@ -907,6 +939,7 @@ useEffect(() => {
             workDate: date,
             hoursWorked: Number(row.hours[date] || 0),
             taskName: row.taskName,
+            flexible: row.flexible?.[date] ?? false,
           }))
         );
       
@@ -1274,6 +1307,30 @@ useEffect(() => {
                   return (
                     <th key={key} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                       <div className="flex items-center justify-center gap-1">
+                        {/* Checkbox – only SUPER_HR */}
+                          {isSuperHR && (
+                            <label className="flex items-center gap-1.5 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={flexibleDays[key] ?? false}
+                                onChange={(e) => {
+                                  setFlexibleDays(prev => ({
+                                    ...prev,
+                                    [key]: e.target.checked,
+                                  }));
+                                  // Mark all rows as dirty so save is enabled
+                                  setRows(prevRows =>
+                                    prevRows.map(r => ({ ...r, _dirty: true }))
+                                  );
+                                }}
+                                disabled={loading || isDayLocked(key)}
+                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                              />
+                              <span className="text-xs font-medium text-gray-600 group-hover:text-indigo-700">
+                                Flexible
+                              </span>
+                            </label>
+                          )}
                         <span className="font-semibold text-gray-900">
                           {d.format('DD ddd')}
                         </span>
