@@ -26,6 +26,7 @@ import {
   DOMAIN_OPTIONS,
   INDUSTRY_TYPE_OPTIONS,
   CURRENCY_CODE_OPTIONS,
+  COUNTRY_CURRENCY_MAP,
 } from "@/lib/api/types";
 import BackButton from "@/components/ui/BackButton";
 import Swal from "sweetalert2";
@@ -34,7 +35,14 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { adminService } from "@/lib/api/adminService";
-
+const CURRENCY_COUNTRY_MAP: Record<CurrencyCode, string[]> =
+  Object.entries(COUNTRY_CURRENCY_MAP).reduce((acc, [country, currency]) => {
+    if (!acc[currency as CurrencyCode]) {
+      acc[currency as CurrencyCode] = [];
+    }
+    acc[currency as CurrencyCode].push(country);
+    return acc;
+  }, {} as Record<CurrencyCode, string[]>);
 const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"];
 const TIMEZONES = [
   "Asia/Kolkata",
@@ -128,6 +136,35 @@ export default function EditOrganizationPage() {
       () => formData,
       validateField
     );
+
+  useEffect(() => {
+    if (!formData.addresses?.length) return;
+
+    const selectedCountry = formData.addresses[0]?.country;
+    if (!selectedCountry) return;
+
+    const mappedCurrency =
+      COUNTRY_CURRENCY_MAP[selectedCountry];
+
+    if (
+      mappedCurrency &&
+      formData.currencyCode !== mappedCurrency
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        currencyCode: mappedCurrency,
+      }));
+    }
+  }, [formData.addresses]);
+
+  const filteredCountries = useMemo(() => {
+    if (!formData.currencyCode) return countries;
+
+    return (
+      CURRENCY_COUNTRY_MAP[formData.currencyCode] || []
+    );
+  }, [formData.currencyCode, countries]);
+
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -1352,7 +1389,6 @@ export default function EditOrganizationPage() {
 
                             handleAddressChange(idx, "country", selectedCountry);
 
-                            // Reset state
                             handleAddressChange(idx, "state", "");
 
                             const states =
@@ -1366,7 +1402,7 @@ export default function EditOrganizationPage() {
                           className="!h-12 text-base w-full px-3 border rounded-md"
                         >
                           <option value="">Select Country</option>
-                          {countries.map((country) => (
+                          {filteredCountries.map((country) => (
                             <option key={country} value={country}>
                               {country}
                             </option>

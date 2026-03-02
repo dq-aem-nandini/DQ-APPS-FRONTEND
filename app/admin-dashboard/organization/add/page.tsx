@@ -25,6 +25,7 @@ import {
   DOMAIN_OPTIONS,
   CURRENCY_CODE_OPTIONS,
   INDUSTRY_TYPE_OPTIONS,
+  COUNTRY_CURRENCY_MAP,
 } from "@/lib/api/types";
 import useLoading from "@/hooks/useLoading";
 import BackButton from "@/components/ui/BackButton";
@@ -35,7 +36,14 @@ import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { employeeService } from "@/lib/api/employeeService";
 import { adminService } from "@/lib/api/adminService";
-
+const CURRENCY_COUNTRY_MAP: Record<CurrencyCode, string[]> =
+  Object.entries(COUNTRY_CURRENCY_MAP).reduce((acc, [country, currency]) => {
+    if (!acc[currency]) {
+      acc[currency] = [];
+    }
+    acc[currency].push(country);
+    return acc;
+  }, {} as Record<CurrencyCode, string[]>);
 // Assume AddressType enum: 'PERMANENT' | 'CURRENT' | 'OFFICE' | etc.
 const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"]; // Adjust as per actual enum
 
@@ -133,7 +141,27 @@ export default function AddOrganizationPage() {
     () => formData,
     validateField
   );
+  useEffect(() => {
+    const selectedCountry = formData.addresses?.[0]?.country;
 
+    if (!selectedCountry) return;
+
+    const mappedCurrency = COUNTRY_CURRENCY_MAP[selectedCountry];
+
+    if (
+      mappedCurrency &&
+      formData.currencyCode !== mappedCurrency
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        currencyCode: mappedCurrency,
+      }));
+    }
+  }, [formData.addresses]);
+
+  const filteredCountries = formData.currencyCode
+    ? CURRENCY_COUNTRY_MAP[formData.currencyCode] || []
+    : countries;
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -395,6 +423,27 @@ export default function AddOrganizationPage() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!formData.currencyCode) return;
+
+    const selectedCountry = formData.addresses?.[0]?.country;
+
+    if (
+      selectedCountry &&
+      COUNTRY_CURRENCY_MAP[selectedCountry] !== formData.currencyCode
+    ) {
+      // Clear invalid country
+      setFormData((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr, index) =>
+          index === 0
+            ? { ...addr, country: "" }
+            : addr
+        ),
+      }));
+    }
+  }, [formData.currencyCode]);
   return (
     <div className="container mx-auto py-6">
       <div className="relative flex items-center justify-center mb-8">
@@ -1145,7 +1194,7 @@ export default function AddOrganizationPage() {
                           className="!h-12 text-base w-full px-3 border rounded-md"
                         >
                           <option value="">Select Country</option>
-                          {countries.map((country) => (
+                          {filteredCountries.map((country) => (
                             <option key={country} value={country}>
                               {country}
                             </option>

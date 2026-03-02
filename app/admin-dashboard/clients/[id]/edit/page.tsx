@@ -28,6 +28,7 @@ import {
   CurrencyCode,
   CURRENCY_CODE_OPTIONS,
   ADDRESS_TYPE_OPTIONS,
+  COUNTRY_CURRENCY_MAP,
 } from "@/lib/api/types";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
 
@@ -369,6 +370,23 @@ export default function EditClientPage() {
     fetchCountries();
   }, []);
 
+  // 🔥 Auto set currency when first address country changes
+  const primaryCountry = formData.addresses?.[0]?.country;
+
+  useEffect(() => {
+    if (!primaryCountry) return;
+
+    const mappedCurrency = COUNTRY_CURRENCY_MAP[primaryCountry];
+
+    // prevent infinite re-render
+    if (mappedCurrency && mappedCurrency !== formData.currency) {
+      setFormData((prev) => ({
+        ...prev,
+        currency: mappedCurrency,
+      }));
+    }
+  }, [primaryCountry]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -485,6 +503,16 @@ export default function EditClientPage() {
       }
     }
   };
+
+  const filteredCountries = useMemo(() => {
+    if (!formData.currency) return countries;
+
+    return countries.filter(
+      (country) =>
+        COUNTRY_CURRENCY_MAP[country] === formData.currency
+    );
+  }, [countries, formData.currency]);
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={["ADMIN", "HR"]}>
@@ -788,7 +816,7 @@ export default function EditClientPage() {
                         className="w-full px-3 py-2 border rounded-md"
                       >
                         <option value="">Select Country</option>
-                        {countries.map((country) => (
+                        {filteredCountries.map((country) => (
                           <option key={country} value={country}>
                             {country}
                           </option>

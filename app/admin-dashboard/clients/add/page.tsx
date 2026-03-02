@@ -14,6 +14,7 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import {
   ADDRESS_TYPE_OPTIONS,
   ClientModel,
+  COUNTRY_CURRENCY_MAP,
   CURRENCY_CODE_OPTIONS,
   CurrencyCode,
 } from "@/lib/api/types";
@@ -159,6 +160,22 @@ export default function AddClientPage() {
       setStatesLoadingMap((prev) => ({ ...prev, [index]: false }));
     }
   };
+
+  const selectedCountry = formData.addresses?.[0]?.country;
+
+  useEffect(() => {
+    if (!selectedCountry) return;
+
+    const mappedCurrency = COUNTRY_CURRENCY_MAP[selectedCountry];
+
+    // Prevent unnecessary re-render
+    if (mappedCurrency && mappedCurrency !== formData.currency) {
+      setFormData((prev) => ({
+        ...prev,
+        currency: mappedCurrency,
+      }));
+    }
+  }, [selectedCountry]);
 
   // Real-time duplicate detection between main fields and POCs
   const checkDuplicateInForm = () => {
@@ -494,6 +511,14 @@ export default function AddClientPage() {
       setIsSubmitting(false);
     }
   };
+
+  const filteredCountries = formData.currency
+    ? countries.filter(
+      (country) =>
+        COUNTRY_CURRENCY_MAP[country] === formData.currency
+    )
+    : countries;
+
   return (
     <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="min-h-screen bg-gray-50 p-8">
@@ -783,7 +808,7 @@ export default function AddClientPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         <option value="">Select Country</option>
-                        {countries.map((country) => (
+                        {filteredCountries.map((country) => (
                           <option key={country} value={country}>
                             {country}
                           </option>
