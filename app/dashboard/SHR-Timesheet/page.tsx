@@ -1326,9 +1326,9 @@ useEffect(() => {
                                 disabled={loading || isDayLocked(key)}
                                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                               />
-                              <span className="text-xs font-medium text-gray-600 group-hover:text-indigo-700">
+                              {/* <span className="text-xs font-medium text-gray-600 group-hover:text-indigo-700">
                                 Flexible
-                              </span>
+                              </span> */}
                             </label>
                           )}
                         <span className="font-semibold text-gray-900">
@@ -1392,7 +1392,7 @@ useEffect(() => {
                     // const disabled = loading || isHoliday || (isLeave?.duration === 1) || isPreDOJ || isDayLocked(key);
                     const disabled =
                           loading ||
-                          (!isSuperHR && isHoliday) ||   // ✅ key change
+                          (!isSuperHR && isHoliday) ||   
                           (isLeave?.duration === 1) ||
                           isPreDOJ ||
                           isDayLocked(key);
@@ -1411,6 +1411,7 @@ useEffect(() => {
                             max={String(maxHours)}
                             step="0.5"
                             value={row.hours[key] ?? 0}
+                            onWheel={(e) => e.currentTarget.blur()}  // prevents scroll value change
                             disabled={disabled}
                             className={`w-16 px-2 py-2 border rounded text-center text-sm font-medium transition-all
                               ${isPreDOJ ? 'bg-gray-100 text-gray-400' : ''}
