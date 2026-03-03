@@ -320,8 +320,8 @@ const LeaveHistoryPage = () => {
                 <td className="px-4 py-3">{leave.employeeName}</td>
                 <td className="px-4 py-3">{getLabel(leave.leaveCategoryType!, true)}</td>
                 <td className="px-4 py-3">{leave.status}</td>
-                <td>{new Date(leave.fromDate!).toLocaleDateString()}</td>
-                <td className="px-4 py-3">{leave.toDate}</td>
+                <td className="px-4 py-3">{new Date(leave.fromDate!).toLocaleDateString()}</td>
+                <td className="px-4 py-3">{new Date(leave.toDate!).toLocaleDateString()}</td>
                 <td className="px-4 py-3">{leave.leaveDuration} days</td>
                 <td className="px-4 py-3">
                   <button

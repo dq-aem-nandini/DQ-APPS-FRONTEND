@@ -45,7 +45,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [insufficientLeave, setInsufficientLeave] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+   const [calculationFailed, setCalculationFailed] = useState(false);
   /* =========================
      DATE LIMITS
   ========================= */
@@ -153,7 +153,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
     try {
       setCalculating(true);
       setError(null);
-
+      setCalculationFailed(false);
       console.log("Employee ID:", selectedEmployeeId);
 
       const res = await leaveService.calculateWorkingDays(
@@ -171,6 +171,13 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
       }));
       setHasCalculated(true);
     } catch (e: any) {
+      setFormData((prev) => ({
+        ...prev,
+        leaveDuration: 0,
+      }));
+      setHasCalculated(true);
+      setCalculationFailed(true);
+      setInsufficientLeave(false);
       setError(e.message || 'Failed to calculate leave duration');
     } finally {
       setCalculating(false);
@@ -255,6 +262,23 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
     }
   };
 
+   useEffect(() => {
+      if (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error,
+          confirmButtonText: 'OK',
+        });
+    
+        // Optional: Clear error after showing
+        setError(null);
+      }
+    }, [error]);
+  const selectedEmployee = employees.find(
+    emp => emp.employeeId === selectedEmployeeId
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-6">
@@ -298,6 +322,17 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
             ))}
           </select>
         </div>
+
+        {selectedEmployee && (
+          <div className=" border rounded-lg p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Available Paid Leaves</span>
+              <span className="font-bold">
+                {selectedEmployee.availableLeaves ?? 0} Days
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -380,7 +415,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
             {calculating && (
               <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
             )}
-            {!calculating && hasCalculated && formData.leaveDuration === 0 && (
+            {!calculating && hasCalculated && formData.leaveDuration === 0 &&  !calculationFailed && (
               <p className="text-xs text-amber-600 mt-1">Selected dates are weekends/holiday </p>
             )}
           </div>

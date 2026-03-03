@@ -605,6 +605,9 @@ export interface LeaveCalendarEmployeeDTO {
   employeeName: string;
   leaveType: "FULL_DAY" | "HALF_DAY" | "FIRST_HALF" | "SECOND_HALF";
   status: "APPROVED" | "PENDING" | "REJECTED";
+  clientId: string;
+  clientName: string;
+  reason: string;
 }
 
 export interface LeaveCalendarDTO {
@@ -1148,6 +1151,7 @@ export interface TimeSheetModel {
   taskDescription: string;
   clientId: string; // uuid
   projectId?: string; // uuid
+  flexible: boolean;
 }
 
 export interface TimeSheet {
@@ -1177,6 +1181,7 @@ export interface TimeSheetResponseDto {
   status: string;
   createdAt: string; // date-time
   updatedAt: string; // date-time
+  flexible: boolean;
 }
 export interface NotificationDTO {
   id: string; // UUID
@@ -1866,6 +1871,7 @@ export interface EmployeeMinDTO {
   companyId: string;
   rateCard: number | null;
   dateOfJoining: string;
+  availableLeaves: number;
 }
 export interface ManualInvoiceItemRequestDTO {
   employeeId: string;

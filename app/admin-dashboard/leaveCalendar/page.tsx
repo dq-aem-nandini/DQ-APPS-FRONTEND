@@ -43,10 +43,11 @@ export default function LeaveCalendarPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [data, setData] = useState<LeaveCalendarDTO[]>([]);
   const [selectedDay, setSelectedDay] = useState<LeaveCalendarDTO | null>(null);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
   const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [filterType, setFilterType] = useState<'ALL' | 'CLIENT' | 'NON_CLIENT'>('ALL');
   // -------------------------------
   // Fetch all leave calender holidays
   // -------------------------------
@@ -93,11 +94,30 @@ export default function LeaveCalendarPage() {
   // -------------------------------
   // Map data by date
   // -------------------------------
+  const filteredData = useMemo(() => {
+    return data.map(day => {
+      let filteredEmployees = day.employees;
+  
+      if (filterType === 'CLIENT') {
+        filteredEmployees = day.employees.filter(emp => emp.clientId);
+      }
+  
+      if (filterType === 'NON_CLIENT') {
+        filteredEmployees = day.employees.filter(emp => !emp.clientId);
+      }
+  
+      return {
+        ...day,
+        employees: filteredEmployees,
+      };
+    });
+  }, [data, filterType]);
+  
   const leaveMap = useMemo(() => {
     const map: Record<string, LeaveCalendarDTO> = {};
-    data.forEach(d => (map[d.date] = d));
+    filteredData.forEach(d => (map[d.date] = d));
     return map;
-  }, [data]);
+  }, [filteredData]);
 
   const holidayMap = useMemo(() => {
     const map: Record<string, HolidaysDTO> = {};
@@ -126,23 +146,23 @@ export default function LeaveCalendarPage() {
   // -------------------------------
   // Navigation
   // -------------------------------
-  // const prevMonth = () => {
-  //   if (month === 1) {
-  //     setMonth(12);
-  //     setYear(y => y - 1);
-  //   } else {
-  //     setMonth(m => m - 1);
-  //   }
-  // };
+  const prevMonth = () => {
+    if (month === 1) {
+      setMonth(12);
+      setYear(y => y - 1);
+    } else {
+      setMonth(m => m - 1);
+    }
+  };
 
-  // const nextMonth = () => {
-  //   if (month === 12) {
-  //     setMonth(1);
-  //     setYear(y => y + 1);
-  //   } else {
-  //     setMonth(m => m + 1);
-  //   }
-  // };
+  const nextMonth = () => {
+    if (month === 12) {
+      setMonth(1);
+      setYear(y => y + 1);
+    } else {
+      setMonth(m => m + 1);
+    }
+  };
 
   // -------------------------------
   // Export handler
@@ -196,7 +216,7 @@ export default function LeaveCalendarPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* <ChevronLeft className="cursor-pointer" onClick={prevMonth} /> */}
+          <ChevronLeft className="cursor-pointer" onClick={prevMonth} />
 
           <select
             value={month}
@@ -223,7 +243,19 @@ export default function LeaveCalendarPage() {
             })}
           </select>
 
-          {/* <ChevronRight className="cursor-pointer" onClick={nextMonth} /> */}
+          <ChevronRight className="cursor-pointer" onClick={nextMonth} />
+
+          <select
+            value={filterType}
+            onChange={(e) =>
+              setFilterType(e.target.value as 'ALL' | 'CLIENT' | 'NON_CLIENT')
+            }
+            className="border rounded px-3 py-1 text-sm"
+          >
+            <option value="ALL">All Employees</option>
+            <option value="CLIENT">Client Employees</option>
+            <option value="NON_CLIENT">Non-Client Employees</option>
+          </select>
 
           {/* ===== Export ===== */}
           <button
@@ -334,14 +366,92 @@ export default function LeaveCalendarPage() {
 
       {/* ================= Dialog ================= */}
       <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-7xl w-full">
           <DialogHeader>
             <DialogTitle>
               Leaves on {selectedDay?.date}
             </DialogTitle>
           </DialogHeader>
+          <div className="mt-4">
 
-          <div className="space-y-3 mt-4">
+              {/* Header Row */}
+              <div className="grid grid-cols-4 gap-4 font-semibold border-b pb-2 text-sm">
+                <div>Status</div>
+                <div>Name</div>
+                <div>Full Day</div>
+                <div>Reason</div>
+              </div>
+
+              {/* Employee Rows */}
+              <div className="mt-2 space-y-3">
+                {selectedDay?.employees.map((emp, index) => {
+                  const isFullDay = emp.leaveType === 'FULL_DAY';
+                  const isPending = emp.status === 'PENDING';
+                  const isExpanded = expandedIndex === index;
+                  const isLong = emp.reason && emp.reason.length > 40;
+
+                  return (
+                    <div
+                      key={`${emp.employeeId}-${index}`}
+                      className={`
+                        grid grid-cols-4 gap-4 p-3 rounded border
+                        ${isPending ? 'bg-yellow-50' : isFullDay ? 'bg-indigo-50' : 'bg-red-50'}
+                      `}
+                    >
+                      {/* STATUS */}
+                      <div className="text-xs text-gray-600">
+                        ({emp.status})
+                      </div>
+
+                      {/* NAME */}
+                      <div className="font-medium text-gray-800">
+                        {emp.employeeName}
+                      </div>
+
+                      {/* FULL DAY */}
+                      <div
+                        className={`text-sm font-semibold ${
+                          isFullDay ? 'text-indigo-700' : 'text-red-600'
+                        }`}
+                      >
+                        {isFullDay ? 'Full Day' : 'Half Day'}
+                      </div>
+
+                      {/* REASON */}
+                      <div className="text-sm text-gray-700">
+                        {!isExpanded ? (
+                          <>
+                            {isLong
+                              ? `${emp.reason.slice(0, 40)}...`
+                              : emp.reason}
+                            {isLong && (
+                              <button
+                                onClick={() => setExpandedIndex(index)}
+                                className="ml-2 text-indigo-600 text-xs"
+                              >
+                                Show More
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div>{emp.reason}</div>
+                            <button
+                              onClick={() => setExpandedIndex(null)}
+                              className="mt-1 text-indigo-600 text-xs"
+                            >
+                              Show Less
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          {/* <div className="space-y-3 mt-4">
             {selectedDay?.employees.map((emp, index) => {
               const isFullDay = emp.leaveType === 'FULL_DAY';
               const isPending = emp.status === 'PENDING';
@@ -368,10 +478,16 @@ export default function LeaveCalendarPage() {
                   >
                     {isFullDay ? 'Full Day' : 'Half Day'}
                   </span>
+                  <span
+                    className="font-medium text-gray-800 max-w-[180px] truncate"
+                    title={emp.reason}
+                  >
+                    {emp.reason}
+                  </span>
                 </div>
               );
             })}
-          </div>
+          </div> */}
         </DialogContent>
       </Dialog>
     </div>
