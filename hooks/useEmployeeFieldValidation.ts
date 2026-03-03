@@ -131,18 +131,17 @@ export function useEmployeeFieldValidation() {
       if (!val) return common.requiredError;
     }
     // Conditional required - rate card
-   // Conditional required - rate card
-if (
-  name === "rateCard" &&
-  formData?.clientSelection &&
-  !formData.clientSelection.startsWith("STATUS:")
-) {
-  if (!val) return common.requiredError;
+    if (
+      name === "rateCard" &&
+      formData?.clientSelection &&
+      !formData.clientSelection.startsWith("STATUS:")
+    ) {
+      if (!val) return common.requiredError;
 
-  if (isNaN(Number(val)) || Number(val) <= 0) {
-    return "Rate Card must be greater than 0";
-  }
-}
+      if (isNaN(Number(val)) || Number(val) <= 0) {
+        return "Rate Card must be greater than 0";
+      }
+    }
 
     // Designation required
     if (name === "designationId") {

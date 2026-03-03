@@ -820,7 +820,6 @@ export default function AddOrganizationPage() {
                   Absent Max Hours
                 </Label>
                 <Input
-                  required
                   type="text"
                   onWheel={preventWheelChange}
                   inputMode="numeric"
@@ -846,7 +845,6 @@ export default function AddOrganizationPage() {
                   Full Day Min Hours
                 </Label>
                 <Input
-                  required
                   type="text"
                   onWheel={preventWheelChange}
                   inputMode="numeric" name="fullDayMinMinutes"

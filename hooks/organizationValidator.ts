@@ -31,7 +31,7 @@ export const patterns = {
   gst: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]Z[0-9A-Z]$/,
   cin: /^[LPUA][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/,
   website: /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/[\w\-./?%&=]*)?$/i,
-  pincode: /^\d{6}$/,
+  // pincode: /^\d{6}$/,
   accountNumber: /^\d{9,18}$/,
   ifsc: /^[A-Z]{4}0[A-Z0-9]{6}$/,
   aadhar: /^\d{12}$/,
@@ -67,10 +67,10 @@ export function createOrganizationValidator() {
   ): string {
     const val = String(value ?? "").trim();
 
-   // ✅ Required validation
-if (requiredFields.includes(name) && !val) {
-  return "This field is required";
-}
+    // ✅ Required validation
+    if (requiredFields.includes(name) && !val) {
+      return "This field is required";
+    }
 
     /* ───── Names ───── */
     if (
@@ -79,7 +79,7 @@ if (requiredFields.includes(name) && !val) {
         "lastName",
         "organizationName",
         "organizationLegalName",
-        "emergencyContactName", 
+        "emergencyContactName",
         "accountHolderName",
       ].includes(name)
     ) {
@@ -89,8 +89,8 @@ if (requiredFields.includes(name) && !val) {
       if (val.length < 3) return min3Chars;
     }
 
-   
-    
+
+
     /* ───── Email ───── */
     if (
       ["email", "personalEmail"].includes(
@@ -138,9 +138,9 @@ if (requiredFields.includes(name) && !val) {
     }
 
     /* ───── Sequence Number ───── */
-  if (name === "sequenceNumber" && !patterns.onlyPositiveDigits.test(val)) {
-  return "Only positive numbers allowed";
-}
+    if (name === "sequenceNumber" && !patterns.onlyPositiveDigits.test(val)) {
+      return "Only positive numbers allowed";
+    }
 
 
     /* ───── Account Number ───── */
@@ -154,14 +154,23 @@ if (requiredFields.includes(name) && !val) {
     }
 
     /* ───── Pincode ───── */
-    if (name.endsWith("pincode") && !patterns.pincode.test(val)) {
-      return invalidPincode;
+    // if (name.endsWith("pincode") && !patterns.pincode.test(val)) {
+    //   return invalidPincode;
+    // }
+    /* ───── Postal Code (Global Safe Validation) ───── */
+    if (
+      name.toLowerCase().includes("pincode") ||
+      name.toLowerCase().includes("postal")
+    ) {
+      if (val.length < 3 || val.length > 10) {
+        return "Postal/ZIP code must be between 3 and 10 characters";
+      }
     }
 
-  /* ───── Registration Number ───── */
-if (name === "registrationNumber" && !patterns.registrationNumber.test(val)) {
-  return invalidRegistrationNumber;
-}
+    /* ───── Registration Number ───── */
+    if (name === "registrationNumber" && !patterns.registrationNumber.test(val)) {
+      return invalidRegistrationNumber;
+    }
 
 
     return "";

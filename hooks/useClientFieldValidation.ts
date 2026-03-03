@@ -46,10 +46,10 @@ export function useClientFieldValidation() {
       name === "companyEmail" ||
       name.endsWith(".email")
     ) {
-   
+
 
       if (val && !common.emailRegex.test(val)) {
-      
+
         return common.invalidEmail;
       }
 
@@ -116,10 +116,14 @@ export function useClientFieldValidation() {
     }
 
     // ================= PINCODE =================
-    if (name.endsWith(".pincode")) {
-      if (!val) return common.requiredError;
-
-      if (!/^\d{6}$/.test(val)) return common.pincode;
+    /* ───── Postal Code (Global Safe Validation) ───── */
+    if (
+      name.toLowerCase().includes("pincode") ||
+      name.toLowerCase().includes("postal")
+    ) {
+      if (val.length < 3 || val.length > 10) {
+        return "Postal/ZIP code must be between 3 and 10 characters";
+      }
     }
 
     // ================= ACCOUNT =================
