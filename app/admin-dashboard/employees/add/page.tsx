@@ -69,6 +69,13 @@ interface Client {
   id: string;
   name: string;
 }
+const formatDesignation = (value: string) => {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 const AddEmployeePage = () => {
   const [formData, setFormData] = useState<EmployeeModel>({
     firstName: "",
@@ -1655,8 +1662,7 @@ const AddEmployeePage = () => {
                                   });
                                 }}
                               >
-                                {d.name.replace(/_/g, " ")}
-                                {formData.designationId === d.id && (
+                                {formatDesignation(d.name)}                                {formData.designationId === d.id && (
                                   <Check className="inline ml-2 h-4 w-4 text-indigo-600" />
                                 )}
                               </button>

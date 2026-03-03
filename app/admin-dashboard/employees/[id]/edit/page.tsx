@@ -28,10 +28,16 @@ import {
   EmployeeDTO,
   EMPLOYMENT_TYPE_OPTIONS,
   DOCUMENT_TYPE_OPTIONS,
-  RateCardType,
   RATE_CARD_TYPE_OPTIONS,
   DesignationResponseDTO,
 } from "@/lib/api/types";
+const formatDesignation = (value: string) => {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -2085,8 +2091,7 @@ const EditEmployeePage = () => {
                                   });
                                 }}
                               >
-                                {d.name.replace(/_/g, " ")}
-                                {formData?.designationId === d.id && (
+                                {formatDesignation(d.name)}                                {formData?.designationId === d.id && (
                                   <Check className="inline ml-2 h-4 w-4 text-indigo-600" />
                                 )}
                               </button>
