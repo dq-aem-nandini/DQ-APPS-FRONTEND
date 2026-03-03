@@ -70,10 +70,13 @@ async updateEmployeePasswords(
 /**
  * Get all holidays (SIMPLE)
  */
-async getAllHolidays(): Promise<WebResponseDTO<HolidayDTO[]>> {
+async getAllHolidays(year: number): Promise<WebResponseDTO<HolidayDTO[]>> {
   try {
     const response = await api.get(
-      "/simple/holiday/get/all"
+      "/simple/holiday/get/all",
+      {
+        params: { year },
+      }
     );
     return response.data;
   } catch (error: any) {

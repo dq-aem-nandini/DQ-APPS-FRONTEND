@@ -43,7 +43,7 @@ const ApplyLeavePage: React.FC = () => {
 
   const categoryTypes: LeaveCategoryType[] = ['SICK', 'CASUAL', 'PLANNED', 'UNPLANNED'];
   const financialTypes: FinancialType[] = ['PAID', 'UNPAID'];
-
+  const [calculationFailed, setCalculationFailed] = useState(false);
   const today = new Date();
 
   // Get start of current ISO week (Monday)
@@ -149,7 +149,7 @@ const ApplyLeavePage: React.FC = () => {
     try {
       setCalculating(true);
       setError(null);
-
+      setCalculationFailed(false);
       const range = { fromDate: formData.fromDate, toDate: formData.toDate, partialDay: formData.partialDay };
       const response = await leaveService.calculateWorkingDays(
         range,
@@ -176,6 +176,13 @@ const ApplyLeavePage: React.FC = () => {
         }
       }
     } catch (err: any) {
+      setFormData((prev) => ({
+        ...prev,
+        leaveDuration: 0,
+      }));
+      setHasCalculated(true);
+      setCalculationFailed(true);
+      setInsufficientLeave(false);
       setError(err instanceof Error ? err.message : 'Failed to calculate duration. Please check your dates and try again.');
     } finally {
       setCalculating(false);
@@ -299,6 +306,20 @@ const ApplyLeavePage: React.FC = () => {
   };
   useEffect(() => {
   }, [employeeId]);
+  
+  useEffect(() => {
+    if (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error,
+        confirmButtonText: 'OK',
+      });
+  
+      // Optional: Clear error after showing
+      setError(null);
+    }
+  }, [error]);
 
   // Wait for employeeId (UUID) before rendering form
   if (loadingEmployee || !employeeId) {
@@ -406,7 +427,7 @@ const ApplyLeavePage: React.FC = () => {
             {calculating && (
               <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
             )}
-            {!calculating && hasCalculated && formData.leaveDuration === 0 && (
+            {!calculating && hasCalculated && formData.leaveDuration === 0 && !calculationFailed && (
               <p className="text-xs text-amber-600 mt-1">Selected dates are weekends/holiday </p>
             )}
         </div>
@@ -457,7 +478,7 @@ const ApplyLeavePage: React.FC = () => {
         </div>
 
         {/* Error Display */}
-        {error && (
+        {/* {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             <p className="text-sm">{error}</p>
             {insufficientLeave && formData.financialType === 'PAID' && (
@@ -466,7 +487,7 @@ const ApplyLeavePage: React.FC = () => {
               </p>
             )}
           </div>
-        )}
+        )} */}
 
         {/* Submit Button */}
         <button

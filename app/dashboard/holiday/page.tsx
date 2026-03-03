@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { holidayService } from "@/lib/api/holidayService";
 import type { HolidaysDTO, HolidayUpdateRequestDTO } from "@/lib/api/types";
 import { employeeService } from "@/lib/api/employeeService";
-
 import Swal from "sweetalert2";
 export default function EmployeeHolidayDashboard() {
   const [holidays, setHolidays] = useState<HolidaysDTO[]>([]);
@@ -55,14 +54,15 @@ export default function EmployeeHolidayDashboard() {
   const [upcomingPage, setUpcomingPage] = useState(1);
 
   const [clientIdId, setClientId] = useState<string | null>(null);
-
-
+  const [clientStatus, setClientStatus] = useState<string>("");
+  const canEdit = Boolean(clientIdId && clientStatus);
   useEffect(() => {
     const fetchEmployeeId = async () => {
       try {
         setLoading(true);
         const employee = await employeeService.getEmployeeById();
-        setClientId(employee.clientId); // from API response
+        setClientId(employee.clientId);
+        setClientStatus(employee.clientStatus);
         console.log('Fetched Employee ID:', employee.employeeId);
       } catch (error) {
         console.error('Failed to fetch employee ID:', error);
@@ -75,33 +75,13 @@ export default function EmployeeHolidayDashboard() {
     fetchEmployeeId();
   }, []);
 
-  // useEffect(() => {
-  //   const fetchHolidays = async () => {
-  //     try {
-  //       setLoading(true);
-  //       const res = await holidayService.getAllHolidays();
-  //       if (res.flag && Array.isArray(res.response)) {
-  //         setHolidays(
-  //           res.response.sort((a, b) =>
-  //             a.holidayDate.localeCompare(b.holidayDate),
-  //           ),
-  //         );
-  //       }
-  //     } catch (err) {
-  //       console.error("Failed to load holidays");
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   fetchHolidays();
-  // }, []);
 
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
         setLoading(true);
 
-        const year = currentMonth.getFullYear(); // 👈 IMPORTANT
+        const year = currentMonth.getFullYear();
 
         const res = await holidayService.getAllHolidays(year);
 
@@ -171,6 +151,12 @@ export default function EmployeeHolidayDashboard() {
         (h.holidayDate ?? "").includes(searchTerm),
     );
 
+    useEffect(() => {
+      if (!canEdit) {
+        setEditMode(false);
+      }
+    }, [canEdit]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
@@ -189,18 +175,8 @@ export default function EmployeeHolidayDashboard() {
                 <Calendar className="w-5 h-5" />
                 Upcoming Holidays ({allUpcomingHolidays.length})
               </CardTitle>
-              {/* {holidays.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAllHolidays(true)}
-                  className="text-indigo-600 border-indigo-600 hover:bg-indigo-50"
-                >
-                  View All ({holidays.length})
-                </Button>
-              )} */}
               <div className="flex items-center gap-2">
-                {editMode && (
+                {editMode && canEdit && (
                   <Button
                     size="icon"
                     variant="outline"
@@ -212,7 +188,7 @@ export default function EmployeeHolidayDashboard() {
                   </Button>
                 )}
 
-                <Button
+                {canEdit && (<Button
                   size="icon"
                   variant="outline"
                   onClick={() => setEditMode((prev) => !prev)}
@@ -225,8 +201,10 @@ export default function EmployeeHolidayDashboard() {
                     <Edit2 className="w-4 h-4" />
                   )}
                 </Button>
+                )} 
+              </div>
 
-                {holidays.length > 0 && (
+              {holidays.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -236,7 +214,6 @@ export default function EmployeeHolidayDashboard() {
                     View All ({holidays.length})
                   </Button>
                 )}
-              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-3">
@@ -293,19 +270,7 @@ export default function EmployeeHolidayDashboard() {
                       </div>
 
                       {/* Delete icon (edit mode only) */}
-                      {editMode && (
-                        // <button
-                        //   onClick={() =>
-                        //     setDeletedHolidayIds(prev =>
-                        //       prev.includes(holiday.holidayId!)
-                        //         ? prev
-                        //         : [...prev, holiday.holidayId!]
-                        //     )
-                        //   }
-                        //   className="text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition"
-                        // >
-                        //   <X className="w-4 h-4" />
-                        // </button>
+                      {editMode && canEdit && (
                         <button
                           onClick={() => {
                             // Hide from UI
@@ -560,42 +525,6 @@ export default function EmployeeHolidayDashboard() {
                 </Button>
               </div>
             )}
-
-            {/* {hasChanges && (
-              <div className="max-w-5xl mx-auto mt-4 flex justify-end">
-                <Button
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                  onClick={async () => {
-                    if (!clientIdId) return;
-
-                    const payload: HolidayUpdateRequestDTO[] = [
-                      ...addedHolidays.map(h => ({
-                        holidayDate: h.holidayDate,
-                        holidayName: h.holidayName,
-                        updateType: "ADD_HOLIDAY" as const,
-                        clientID: clientIdId,
-                      })),
-                      ...removedHolidays.map(h => ({
-                        holidayDate: h.holidayDate,
-                        holidayName: h.holidayName,
-                        updateType: "REMOVE_HOLIDAY" as const,
-                        clientID: clientIdId,
-                      })),
-                    ];
-
-                    await holidayService.submitHolidayUpdateRequest(payload);
-
-                    // Reset state after submit
-                    setAddedHolidays([]);
-                    setRemovedHolidays([]);
-                    setDeletedHolidayIds([]);
-                    setEditMode(false);
-                  }}
-                >
-                  Submit Changes
-                </Button>
-              </div>
-            )} */}
           </Card>
         )}
 
@@ -823,15 +752,6 @@ export default function EmployeeHolidayDashboard() {
               className="w-full"
               onClick={() => {
                 if (!newHoliday.holidayName || !newHoliday.holidayDate) return;
-
-                // UI update
-                // setHolidays((prev) => [
-                //   ...prev,
-                //   {
-                //     holidayName: newHoliday.holidayName,
-                //     holidayDate: newHoliday.holidayDate,
-                //   },
-                // ]);
 
                 // Track ADD request
                 setAddedHolidays((prev) => [...prev, newHoliday]);
