@@ -68,7 +68,7 @@ function getBackendError(error: any): string {
   const [holidayMap, setHolidayMap] = useState<Record<string, HolidaysDTO>>({});
   const [leaveMap, setLeaveMap] = useState<Record<string, { leaveCategory: string; duration: number }>>({});
   const [loading, setLoading] = useState(false);
-
+  const [flexibleDays, setFlexibleDays] = useState<Record<string, boolean>>({});
   const [messages, setMessages] = useState<{ id: string; type: 'success' | 'error' | 'info'; text: string }[]>([]);
   const pushMessage = (type: 'success' | 'error' | 'info', text: string) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -645,17 +645,24 @@ useEffect(() => {
   
             // CREATE new entry
             if (!tsId && hrs > 0 && r.taskName?.trim()) {
+              const dateKey = date;
+              const isFlexible = flexibleDays[dateKey] ?? false;
+
               toCreate.push({
                 workDate: date,
                 hoursWorked: hrs,
                 taskName: r.taskName,
                 taskDescription: '',
                 clientId: '',
+                flexible: isFlexible,
               });
             }
   
             // UPDATE existing (including setting to 0)
             if (tsId && (r._dirty || hrs === 0)) {
+              const dateKey = date;
+              const isFlexible = flexibleDays[dateKey] ?? false;
+
               toUpdate[tsId] = {
                 workDate: date,
                 hoursWorked: hrs,
@@ -663,6 +670,7 @@ useEffect(() => {
                 taskDescription: '',
                 clientId: '',
                 timesheetId: tsId,
+                flexible: isFlexible,
               };
             }
           });
