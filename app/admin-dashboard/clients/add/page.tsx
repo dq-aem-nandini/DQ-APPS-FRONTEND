@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { adminService } from "@/lib/api/adminService";
+import { organizationService } from '@/lib/api/organizationService';
 import ProtectedRoute from "@/components/ProtectedRoute";
 import BackButton from "@/components/ui/BackButton";
 import useLoading from "@/hooks/useLoading";
@@ -17,6 +18,7 @@ import {
   COUNTRY_CURRENCY_MAP,
   CURRENCY_CODE_OPTIONS,
   CurrencyCode,
+  OrganizationResponseDTO,
 } from "@/lib/api/types";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
 import { Trash2 } from "lucide-react";
@@ -24,6 +26,10 @@ import { Trash2 } from "lucide-react";
 export default function AddClientPage() {
   const router = useRouter();
   const { loading, withLoading } = useLoading();
+  const [organizations, setOrganizations] = useState<OrganizationResponseDTO[]>([]);
+    const [filtered, setFiltered] = useState<OrganizationResponseDTO[]>([]);
+    const [rendering, setLoading] = useState(true);
+    const [error, setError] = useState('');
   const [formData, setFormData] = useState<ClientModel>({
     companyName: "",
     contactNumber: "",
@@ -134,6 +140,110 @@ export default function AddClientPage() {
     fetchCountries();
   }, []);
 
+   // Fetch organizations
+   const [orgState, setOrgState] = useState<string>("");
+
+    useEffect(() => {
+      const fetchOrgs = async () => {
+        try {
+          setLoading(true);
+          const data = await organizationService.getAll();
+
+          setOrganizations(data);
+          setFiltered(data);
+
+          // ✅ Extract organization state from addresses[0]
+          const firstOrg = data?.[0];
+          const stateFromOrg =
+            firstOrg?.addresses?.[0]?.state?.trim() || "";
+
+          setOrgState(stateFromOrg);
+        } catch (err: any) {
+          setError(err.message || "Failed to load organizations");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchOrgs();
+    }, []);
+
+    
+
+const clientCountry = formData.addresses?.[0]?.country?.trim();
+const clientState = formData.addresses?.[0]?.state?.trim();
+
+const isOutsideIndia =
+  clientCountry && clientCountry.toLowerCase() !== "india";
+
+const isSameState =
+  clientCountry?.toLowerCase() === "india" &&
+  clientState &&
+  orgState &&
+  clientState.toLowerCase() === orgState.toLowerCase();
+
+const isDifferentState =
+  clientCountry?.toLowerCase() === "india" &&
+  clientState &&
+  orgState &&
+  clientState.toLowerCase() !== orgState.toLowerCase();
+
+
+  useEffect(() => {
+    // If currency not selected → clear tax
+    if (!formData.currency) {
+      setFormData(prev => ({
+        ...prev,
+        clientTaxDetails: []
+      }));
+      return;
+    }
+  
+    // USD → Outside India → No tax
+    if (formData.currency === "USD") {
+      setFormData(prev => ({
+        ...prev,
+        clientTaxDetails: []
+      }));
+      return;
+    }
+  
+    // If INR but country/state missing → wait
+    if (!clientCountry || !clientState || !orgState) return;
+  
+    // INR + India only allowed
+    if (clientCountry.toLowerCase() !== "india") {
+      setFormData(prev => ({
+        ...prev,
+        clientTaxDetails: []
+      }));
+      return;
+    }
+  
+    // Same State → CGST + SGST
+    if (clientState.toLowerCase() === orgState.toLowerCase()) {
+      setFormData(prev => ({
+        ...prev,
+        clientTaxDetails: [
+          { taxId: null, taxName: "CGST", taxPercentage: 0 },
+          { taxId: null, taxName: "SGST", taxPercentage: 0 },
+        ],
+      }));
+      return;
+    }
+  
+    // Different State → IGST
+    setFormData(prev => ({
+      ...prev,
+      clientTaxDetails: [
+        { taxId: null, taxName: "IGST", taxPercentage: 0 },
+      ],
+    }));
+  }, [formData.currency, clientCountry, clientState, orgState]);
+
+
+
+
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -164,18 +274,18 @@ export default function AddClientPage() {
   const selectedCountry = formData.addresses?.[0]?.country;
 
   useEffect(() => {
-    if (!selectedCountry) return;
-
-    const mappedCurrency = COUNTRY_CURRENCY_MAP[selectedCountry];
-
-    // Prevent unnecessary re-render
-    if (mappedCurrency && mappedCurrency !== formData.currency) {
-      setFormData((prev) => ({
-        ...prev,
-        currency: mappedCurrency,
-      }));
-    }
-  }, [selectedCountry]);
+    if (!formData.currency) return;
+  
+    setFormData((prev) => ({
+      ...prev,
+      addresses: (prev.addresses ?? []).map((addr) => ({
+        ...addr,
+        country: "",
+        state: "",
+      })),
+      clientTaxDetails: [],
+    }));
+  }, [formData.currency]);
 
   // Real-time duplicate detection between main fields and POCs
   const checkDuplicateInForm = () => {
@@ -513,11 +623,10 @@ export default function AddClientPage() {
   };
 
   const filteredCountries = formData.currency
-    ? countries.filter(
-      (country) =>
-        COUNTRY_CURRENCY_MAP[country] === formData.currency
-    )
-    : countries;
+  ? formData.currency === "INR"
+    ? countries.filter((country) => country === "India")
+    : countries.filter((country) => country !== "India")
+  : countries;
 
   return (
     <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
@@ -1134,18 +1243,19 @@ export default function AddClientPage() {
             </div>
 
             {/* ==================== TAX DETAILS ==================== */}
+            {formData.currency === "INR" && clientCountry === "India" && (
             <div className="pb-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Tax Details
                 </h3>
-                <button
+                {/* <button
                   type="button"
                   onClick={() => addItem("clientTaxDetails")}
                   className="text-indigo-600 text-sm hover:underline"
                 >
                   + Add Tax
-                </button>
+                </button> */}
               </div>
 
               {(formData.clientTaxDetails || []).map((tax, i) => (
@@ -1184,7 +1294,7 @@ export default function AddClientPage() {
                     />
                     {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
                   </div>
-                  {formData.clientTaxDetails!.length > 1 && (
+                  {/* {formData.clientTaxDetails!.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeItem("clientTaxDetails", i)}
@@ -1192,10 +1302,11 @@ export default function AddClientPage() {
                     >
                       <Trash2 size={18} />
                     </button>
-                  )}
+                  )} */}
                 </div>
               ))}
             </div>
+            )}
             <div className="flex justify-end gap-4">
               <button
                 type="button"

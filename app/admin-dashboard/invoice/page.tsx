@@ -755,7 +755,7 @@ export default function InvoicesPage() {
               </Table>
             </div>
           )}
-        </CardContent>
+        </CardContent> 
       </Card>
     </div>
   );
