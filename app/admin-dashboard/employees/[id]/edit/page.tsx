@@ -1468,8 +1468,8 @@ const EditEmployeePage = () => {
   const getError = (key: string) => errors[key] || "";
   return (
     <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-6 md:px-10 py-8">
+        <div className="max-w-[1700px] mx-auto w-full px-5">
           <div className="mb-10 flex items-center justify-between">
             <BackButton to="/admin-dashboard/employees/list" />
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -1477,7 +1477,7 @@ const EditEmployeePage = () => {
             </h1>
             <div className="w-20" />
           </div>
-          <form onSubmit={handleSubmit} className="space-y-8 max-w-6xl mx-auto">
+          <form onSubmit={handleSubmit} className="space-y-8 w-full">
             {/* ==================== PERSONAL DETAILS ==================== */}
             <Card className="shadow-xl border-0">
               <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-2xl pb-6">
@@ -1972,7 +1972,6 @@ const EditEmployeePage = () => {
                   </div>
 
                   {/* Designation */}
-                  {/* Designation */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Designation <span className="text-red-500">*</span>
@@ -1987,12 +1986,12 @@ const EditEmployeePage = () => {
                             autoComplete="off"
                             className="!h-12 pr-10 border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition-all"
                             placeholder="Type or select designation..."
+                            // Explicitly compute displayed value
                             value={
-                              formData?.customDesignation ??
-                              designations.find((d) => d.id === formData?.designationId)?.name ??
-                              ""
+                              formData?.designationId
+                                ? designations.find((d) => d.id === formData.designationId)?.name || ""
+                                : formData?.customDesignation || ""
                             }
-                            // Open list only on first focus/click
                             onFocus={() => {
                               if (!open) setOpen(true);
                             }}
@@ -2001,25 +2000,17 @@ const EditEmployeePage = () => {
                             }}
                             onChange={(e) => {
                               const value = e.target.value;
-
-                              // Update freely — no setOpen(true) here to avoid flicker
                               setFormData((prev) =>
                                 prev
                                   ? {
                                     ...prev,
-                                    designationId: null,
-                                    customDesignation: value,
+                                    designationId: null,           // clear selected ID
+                                    customDesignation: value,      // set custom
                                   }
                                   : prev
                               );
-
-                              // Real-time error
-                              if (value.trim() === "") {
-                                setErrors((prev) => ({
-                                  ...prev,
-                                  customDesignation: "Designation is required",
-                                }));
-                              } else {
+                              // Clear error if user starts typing
+                              if (value.trim() !== "") {
                                 setErrors((prev) => {
                                   const next = { ...prev };
                                   delete next.customDesignation;
@@ -2038,7 +2029,6 @@ const EditEmployeePage = () => {
                               }
                             }}
                           />
-
                           {/* Down arrow – manual toggle */}
                           <button
                             type="button"
@@ -2054,7 +2044,7 @@ const EditEmployeePage = () => {
                         </div>
                       </PopoverTrigger>
 
-                      {/* Dropdown list – exact width as input */}
+                      {/* Dropdown list */}
                       <PopoverContent
                         className="w-[--radix-popover-trigger-width] min-w-[--radix-popover-trigger-width] max-w-[--radix-popover-trigger-width] p-1 max-h-64 overflow-y-auto shadow-xl border border-gray-200 rounded-lg"
                         align="start"
@@ -2071,18 +2061,18 @@ const EditEmployeePage = () => {
                                 key={d.id}
                                 type="button"
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none flex items-center justify-between"
-
                                 onClick={() => {
                                   setFormData((prev) =>
                                     prev
                                       ? {
                                         ...prev,
-                                        designationId: d.id,
-                                        customDesignation: null,
+                                        designationId: d.id,           // set selected ID
+                                        customDesignation: null,       // clear custom
                                       }
                                       : prev
                                   );
                                   setOpen(false);
+                                  // Clear any designation errors
                                   setErrors((prev) => {
                                     const next = { ...prev };
                                     delete next.customDesignation;
@@ -2091,7 +2081,8 @@ const EditEmployeePage = () => {
                                   });
                                 }}
                               >
-                                {formatDesignation(d.name)}                                {formData?.designationId === d.id && (
+                                {formatDesignation(d.name)}
+                                {formData?.designationId === d.id && (
                                   <Check className="inline ml-2 h-4 w-4 text-indigo-600" />
                                 )}
                               </button>
@@ -2101,10 +2092,10 @@ const EditEmployeePage = () => {
                       </PopoverContent>
                     </Popover>
 
-                    {/* Real-time error */}
-                    {errors.customDesignation && (
+                    {/* Show error below input */}
+                    {(errors.customDesignation || errors.designationId) && (
                       <p className="text-sm text-red-600 mt-1.5 font-medium">
-                        {errors.customDesignation}
+                        {errors.customDesignation || errors.designationId}
                       </p>
                     )}
                   </div>
@@ -2180,7 +2171,7 @@ const EditEmployeePage = () => {
                   {/* Client Billing Start Date */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold text-gray-700">
+                      <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
                         Client Billing Start Date
                         <TooltipHint hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date." />
                       </Label>
@@ -2212,10 +2203,20 @@ const EditEmployeePage = () => {
                                 return n;
                               });
                             }
-                            // Optional: you can choose NOT to clear when unchecking
+                            else {
+                              // UNCHECKED → clear billing start date
+                              setFormData((prev) =>
+                                prev
+                                  ? {
+                                    ...prev,
+                                    clientBillingStartDate: "",
+                                  }
+                                  : prev
+                              );
+                            }
                           }}
                         />
-                        Same as Onboarding Date
+                        Use onboarding
                       </label>
                     </div>
                     <Input
@@ -3784,21 +3785,18 @@ const EditEmployeePage = () => {
                   <div className="flex items-center gap-3 h-12 sm:col-span-2 lg:col-span-3 xl:col-span-4 mt-4">
                     <Checkbox
                       id="groupInsurance"
-                      // checked={formData.employeeInsuranceDetailsDTO?.groupInsurance || false}
-                      checked={
-                        formData.employeeInsuranceDetailsDTO?.groupInsurance ===
-                          null
-                          ? undefined
-                          : formData.employeeInsuranceDetailsDTO?.groupInsurance
-                      }
-                      onCheckedChange={(v) =>
+                      checked={formData?.employeeInsuranceDetailsDTO?.groupInsurance ?? false}
+                      onCheckedChange={(checked) => {
+                        const isChecked = checked === true;
+
                         handleChange({
                           target: {
                             name: "employeeInsuranceDetailsDTO.groupInsurance",
-                            checked: v,
+                            type: "checkbox",
+                            checked: isChecked,
                           },
-                        } as any)
-                      }
+                        } as any);
+                      }}
                     />
                     <Label
                       htmlFor="groupInsurance"

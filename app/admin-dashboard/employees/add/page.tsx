@@ -64,7 +64,11 @@ import TooltipHint from "@/components/ui/TooltipHint";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { useEmployeeFieldValidation } from "@/hooks/useEmployeeFieldValidation";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 interface Client {
   id: string;
   name: string;
@@ -73,7 +77,7 @@ const formatDesignation = (value: string) => {
   return value
     .toLowerCase()
     .split("_")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 };
 const AddEmployeePage = () => {
@@ -178,7 +182,7 @@ const AddEmployeePage = () => {
   const [documentFilesList, setDocumentFilesList] = useState<(File | null)[]>(
     []
   );
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [useOnboardingForBillingStart, setUseOnboardingForBillingStart] =
     useState(false);
@@ -1088,8 +1092,8 @@ const AddEmployeePage = () => {
     formData.designationId === null && formData.customDesignation !== null;
   return (
     <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 md:p-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-6 md:px-10 py-8">
+        <div className="max-w-[1700px] mx-auto w-full">
           <div className="mb-10 flex items-center justify-between">
             <BackButton to="/admin-dashboard/employees/list" />
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -1097,7 +1101,7 @@ const AddEmployeePage = () => {
             </h1>
             <div className="w-20" />
           </div>
-          <form onSubmit={handleSubmit} className="space-y-8 max-w-6xl mx-auto">
+          <form onSubmit={handleSubmit} className="space-y-8 w-full">
             {/* PERSONAL DETAILS */}
             <Card className="shadow-xl border-0">
               <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-2xl pb-6">
@@ -1556,7 +1560,6 @@ const AddEmployeePage = () => {
                     <Label className="text-sm font-semibold text-gray-700">
                       Designation <span className="text-red-500">*</span>
                       <TooltipHint hint="Employee's job title. Example: Software Engineer, Senior Developer" />
-
                     </Label>
 
                     <Popover open={open} onOpenChange={setOpen}>
@@ -1569,7 +1572,9 @@ const AddEmployeePage = () => {
                             placeholder="Type designation..."
                             value={
                               formData.customDesignation ??
-                              designations.find((d) => d.id === formData.designationId)?.name ??
+                              designations.find(
+                                (d) => d.id === formData.designationId
+                              )?.name ??
                               ""
                             }
                             // Open list only on first focus / click
@@ -1606,7 +1611,9 @@ const AddEmployeePage = () => {
                               }
                             }}
                             onBlur={() => {
-                              const trimmed = (formData.customDesignation || "").trim();
+                              const trimmed = (
+                                formData.customDesignation || ""
+                              ).trim();
                               if (!trimmed && !formData.designationId) {
                                 setErrors((prev) => ({
                                   ...prev,
@@ -1662,7 +1669,8 @@ const AddEmployeePage = () => {
                                   });
                                 }}
                               >
-                                {formatDesignation(d.name)}                                {formData.designationId === d.id && (
+                                {formatDesignation(d.name)}{" "}
+                                {formData.designationId === d.id && (
                                   <Check className="inline ml-2 h-4 w-4 text-indigo-600" />
                                 )}
                               </button>
@@ -1747,12 +1755,12 @@ const AddEmployeePage = () => {
                   {/* Client Billing Start Date */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold text-gray-700">
+
+                      <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
                         Client Billing Start Date
-                        {/* <span className="text-red-500">*</span> */}
-                        <TooltipHint hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding. Must be strictly before Client Billing End Date and before offboarding date." />
+                        <TooltipHint hint="Date from which client billing begins. Must be after Date of Joining and on or after Date of Onboarding." />
                       </Label>
-                      {/* ✅ NEW CHECKBOX */}
+
                       <label className="px-2 flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                         <Checkbox
                           checked={useOnboardingForBillingStart}
@@ -1760,17 +1768,12 @@ const AddEmployeePage = () => {
                             const isChecked = !!checked;
                             setUseOnboardingForBillingStart(isChecked);
 
-                            if (isChecked) {
-                              // ✅ CHECKED → Copy Onboarding Date
-                              if (formData.dateOfOnboardingToClient) {
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  clientBillingStartDate:
-                                    prev.dateOfOnboardingToClient,
-                                }));
-                              }
+                            if (isChecked && formData.dateOfOnboardingToClient) {
+                              setFormData((prev) => ({
+                                ...prev,
+                                clientBillingStartDate: prev.dateOfOnboardingToClient,
+                              }));
                             } else {
-                              // ✅ UNCHECKED → CLEAR the date
                               setFormData((prev) => ({
                                 ...prev,
                                 clientBillingStartDate: "",
@@ -1778,17 +1781,21 @@ const AddEmployeePage = () => {
                             }
                           }}
                         />
-                        Same as Onboarding Date
+                        Use onboarding
                       </label>
+
                     </div>
+
                     <Input
                       type="date"
                       name="clientBillingStartDate"
                       value={formData.clientBillingStartDate ?? ""}
                       onChange={handleValidatedChange}
+                      disabled={useOnboardingForBillingStart}
                       max={maxJoiningDateStr}
                       className="!h-12 text-base w-full"
                     />
+
                     {fieldError(errors, "clientBillingStartDate")}
                   </div>
 
@@ -2293,26 +2300,22 @@ const AddEmployeePage = () => {
                         <select
                           name="rateCardType"
                           value={formData.rateCardType || ""}
-                          disabled={
-                            !formData.rateCard || formData.rateCard <= 0
-                          }
-                          required={
-                            !!formData.rateCard &&
-                            formData.rateCard > 0 &&
-                            !isStatusClient
-                          }
-                          onChange={(e) => handleValidatedChange(e)}
+                          disabled={!formData.rateCard || formData.rateCard <= 0}
+                          required={!!(formData.rateCard && formData.rateCard > 0)}
+                          onChange={handleValidatedChange}
                           onBlur={handleBlurValidation("rateCardType")}
                           className="!h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                         >
-                          <option value="">Select Rate Type</option>
-
+                          <option value="" disabled>
+                            Select Rate Type
+                          </option>
                           {RATE_CARD_TYPE_OPTIONS.map((type) => (
                             <option key={type} value={type}>
                               {type}
                             </option>
                           ))}
                         </select>
+
                         {fieldError(errors, "rateCardType")}
 
                         {formData.rateCard &&

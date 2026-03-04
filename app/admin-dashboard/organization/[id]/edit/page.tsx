@@ -1347,238 +1347,254 @@ export default function EditOrganizationPage() {
                 </div>
               </div>
               {/* Addresses */}
-              <div className="border-b border-gray-200 pb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+              <div className="border-t border-gray-200 pt-10 pb-6">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <MapPin className="h-7 w-7 text-indigo-600" />
                     Addresses
                   </h3>
+
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
+                    size="lg"
                     onClick={addAddress}
+                    className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-medium shadow-sm"
+
                   >
-                    <Plus className="h-4 w-4 mr-1" /> Add Address
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add Address
                   </Button>
                 </div>
 
                 {formData.addresses.map((address, idx) => (
-                  <div key={idx} className="mb-6 p-4 border rounded bg-gray-50">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium">Address {idx + 1}</h4>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAddress(idx)}
-                        disabled={formData.addresses.length <= 1}   // ← disable when last one
-                        className={formData.addresses.length <= 1 ? "opacity-40 cursor-not-allowed" : ""}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {/* country */}
-                      <div className="space-y-2">
-                        <Label>
-                          Country<span className="text-red-500">*</span>
-                          <TooltipHint hint="Country for this address." />
-                        </Label>
-                        <select
-                          required
-                          value={address.country || ""}
-                          onChange={async (e) => {
-                            const selectedCountry = e.target.value;
-
-                            handleAddressChange(idx, "country", selectedCountry);
-
-                            handleAddressChange(idx, "state", "");
-
-                            const states =
-                              await adminService.getStatesByCountryV1(selectedCountry);
-
-                            setStatesMap((prev) => ({
-                              ...prev,
-                              [idx]: states || [],
-                            }));
-                          }}
-
-                          className="!h-12 text-base w-full px-3 border rounded-md"
+                  <div key={idx} className="mb-8 bg-white rounded-2xl border border-gray-200 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 border-b border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xl font-semibold text-gray-800 flex items-center gap-3">
+                          Address {idx + 1}
+                          {address.addressType && (
+                            <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 shadow-sm">
+                              {address.addressType}
+                            </span>
+                          )}
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAddress(idx)}
+                          disabled={formData.addresses.length <= 1}   // ← disable when last one
+                          className={formData.addresses.length <= 1 ? "opacity-40 cursor-not-allowed" : ""}
                         >
-                          <option value="">Select Country</option>
-                          {filteredCountries.map((country) => (
-                            <option key={country} value={country}>
-                              {country}
-                            </option>
-                          ))}
-                        </select>
-                        {fieldError(errors, `addresses.${idx}.country`)}
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      {/* state */}
-                      <div className="space-y-2">
-                        <Label>
-                          State<span className="text-red-500">*</span>
-                          <TooltipHint hint="Name of the state for this address." />
-                        </Label>
-                        {statesMap[idx]?.length ? (
+                    </div>
+                    <div className="p-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* country */}
+                        <div className="space-y-2">
+                          <Label>
+                            Country<span className="text-red-500">*</span>
+                            <TooltipHint hint="Country for this address." />
+                          </Label>
                           <select
-                            name={`addresses.${idx}.state`}           // optional: helps with native form
-                            value={address.state || ""}
-                            onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
+                            required
+                            value={address.country || ""}
+                            onChange={async (e) => {
+                              const selectedCountry = e.target.value;
+
+                              handleAddressChange(idx, "country", selectedCountry);
+
+                              handleAddressChange(idx, "state", "");
+
+                              const states =
+                                await adminService.getStatesByCountryV1(selectedCountry);
+
+                              setStatesMap((prev) => ({
+                                ...prev,
+                                [idx]: states || [],
+                              }));
+                            }}
+
+                            className="!h-12 text-base w-full px-3 border rounded-md"
+                          >
+                            <option value="">Select Country</option>
+                            {filteredCountries.map((country) => (
+                              <option key={country} value={country}>
+                                {country}
+                              </option>
+                            ))}
+                          </select>
+                          {fieldError(errors, `addresses.${idx}.country`)}
+                        </div>
+                        {/* state */}
+                        <div className="space-y-2">
+                          <Label>
+                            State<span className="text-red-500">*</span>
+                            <TooltipHint hint="Name of the state for this address." />
+                          </Label>
+                          {statesMap[idx]?.length ? (
+                            <select
+                              name={`addresses.${idx}.state`}           // optional: helps with native form
+                              value={address.state || ""}
+                              onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
+                              onBlur={() => {
+                                // Optional: trigger validation on blur (if you have validator for state)
+                                const err = validateField(`addresses.${idx}.state`, address.state, formData);
+                                setErrors((prev) => {
+                                  const next = { ...prev };
+                                  if (err) next[`addresses.${idx}.state`] = err;
+                                  else delete next[`addresses.${idx}.state`];
+                                  return next;
+                                });
+                              }}
+                              required
+
+                              className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="" >
+                                Select State
+                              </option>
+                              {statesMap[idx].map((state) => (
+                                <option key={state} value={state}>
+                                  {state}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Input
+                              required
+                              disabled={!address.country}
+                              value={address.state || ""}
+                              onChange={(e) =>
+                                handleAddressChange(idx, "state", e.target.value)
+                              }
+                              placeholder="Enter State"
+                              className="!h-12 text-base w-full"
+                            />
+                          )}
+                          {fieldError(errors, `addresses.${idx}.state`)}
+                        </div>
+                        {/* city */}
+                        <div className="space-y-2">
+                          <Label>
+                            City<span className="text-red-500">*</span>
+                            <TooltipHint hint="Name of the city for this address." />
+                          </Label>
+                          <Input
+                            required
+                            name={`addresses.${idx}.city`}
+                            value={address.city || ""}
+                            onChange={(e) =>
+                              handleAddressChange(idx, "city", e.target.value)
+                            }
+                            placeholder="e.g. Mumbai"
+                            className="!h-12 text-base w-full"
+
+                          />
+                          {fieldError(errors, `addresses.${idx}.city`)}
+                        </div>
+
+                        {/* H.no */}
+                        <div className="space-y-2">
+                          <Label>
+                            House No.<span className="text-red-500">*</span>
+                            <TooltipHint hint="House or building number for this address." />
+                          </Label>
+                          <Input
+                            required
+                            value={address.houseNo || ""}
+                            onChange={(e) =>
+                              handleAddressChange(idx, "houseNo", e.target.value)
+                            }
+                            placeholder="e.g. 221B"
+                            className="!h-12 text-base w-full"
+
+                          />
+                          {fieldError(errors, `addresses.${idx}.houseNo`)}
+                        </div>
+                        {/* street name */}
+                        <div className="space-y-2">
+                          <Label>
+                            Street Name<span className="text-red-500">*</span>
+                            <TooltipHint hint="Name of the street for this address." />
+                          </Label>
+                          <Input
+                            required
+                            value={address.streetName || ""}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                idx,
+                                "streetName",
+                                e.target.value
+                              )
+                            }
+                            className="!h-12 text-base w-full"
+
+                            placeholder="e.g. Baker Street"
+                          />
+                          {fieldError(errors, `addresses.${idx}.streetName`)}
+                        </div>
+                        {/* pincode */}
+                        <div className="space-y-2">
+                          <Label>
+                            Pincode<span className="text-red-500">*</span>
+                            <TooltipHint hint="6-digit postal code for this address." />
+                          </Label>
+                          <Input
+                            required
+                            value={address.pincode || ""}
+                            onChange={(e) => {
+                              handleAddressChange(idx, "pincode", e.target.value);
+                            }}
+                            placeholder="e.g. 400001"
+                            className="!h-12 text-base w-full"
+
+                          />
+                          {fieldError(errors, `addresses.${idx}.pincode`)}
+                        </div>
+
+                        {/* address type */}
+                        <div className="space-y-2">
+                          <Label>
+                            Address Type<span className="text-red-500">*</span>
+                            <TooltipHint hint="Type of address (e.g., Registered, Office)." />
+                          </Label>
+                          <select
+                            name={`addresses.${idx}.addressType`}
+                            value={address.addressType || ""}
+                            onChange={(e) => handleAddressChange(idx, "addressType", e.target.value as AddressType)}
                             onBlur={() => {
-                              // Optional: trigger validation on blur (if you have validator for state)
-                              const err = validateField(`addresses.${idx}.state`, address.state, formData);
+                              // Optional: run validation on blur
+                              const err = validateField(
+                                `addresses.${idx}.addressType`,
+                                address.addressType,
+                                formData
+                              );
                               setErrors((prev) => {
                                 const next = { ...prev };
-                                if (err) next[`addresses.${idx}.state`] = err;
-                                else delete next[`addresses.${idx}.state`];
+                                if (err) next[`addresses.${idx}.addressType`] = err;
+                                else delete next[`addresses.${idx}.addressType`];
                                 return next;
                               });
                             }}
                             required
-
                             className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                           >
                             <option value="" >
-                              Select State
+                              Select type
                             </option>
-                            {statesMap[idx].map((state) => (
-                              <option key={state} value={state}>
-                                {state}
+                            {ADDRESS_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
                               </option>
                             ))}
                           </select>
-                        ) : (
-                          <Input
-                            required
-                            disabled={!address.country}
-                            value={address.state || ""}
-                            onChange={(e) =>
-                              handleAddressChange(idx, "state", e.target.value)
-                            }
-                            placeholder="Enter State"
-                            className="!h-12 text-base w-full"
-                          />
-                        )}
-                        {fieldError(errors, `addresses.${idx}.state`)}
-                      </div>
-                      {/* city */}
-                      <div className="space-y-2">
-                        <Label>
-                          City<span className="text-red-500">*</span>
-                          <TooltipHint hint="Name of the city for this address." />
-                        </Label>
-                        <Input
-                          required
-                          name={`addresses.${idx}.city`}
-                          value={address.city || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "city", e.target.value)
-                          }
-                          placeholder="e.g. Mumbai"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.city`)}
-                      </div>
-
-                      {/* H.no */}
-                      <div className="space-y-2">
-                        <Label>
-                          House No.<span className="text-red-500">*</span>
-                          <TooltipHint hint="House or building number for this address." />
-                        </Label>
-                        <Input
-                          required
-                          value={address.houseNo || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "houseNo", e.target.value)
-                          }
-                          placeholder="e.g. 221B"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.houseNo`)}
-                      </div>
-                      {/* street name */}
-                      <div className="space-y-2">
-                        <Label>
-                          Street Name<span className="text-red-500">*</span>
-                          <TooltipHint hint="Name of the street for this address." />
-                        </Label>
-                        <Input
-                          required
-                          value={address.streetName || ""}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              idx,
-                              "streetName",
-                              e.target.value
-                            )
-                          }
-                          className="!h-12 text-base w-full"
-
-                          placeholder="e.g. Baker Street"
-                        />
-                        {fieldError(errors, `addresses.${idx}.streetName`)}
-                      </div>
-                      {/* pincode */}
-                      <div className="space-y-2">
-                        <Label>
-                          Pincode<span className="text-red-500">*</span>
-                          <TooltipHint hint="6-digit postal code for this address." />
-                        </Label>
-                        <Input
-                          required
-                          value={address.pincode || ""}
-                          onChange={(e) => {
-                            handleAddressChange(idx, "pincode", e.target.value);
-                          }}
-                          placeholder="e.g. 400001"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.pincode`)}
-                      </div>
-
-                      {/* address type */}
-                      <div className="space-y-2">
-                        <Label>
-                          Address Type<span className="text-red-500">*</span>
-                          <TooltipHint hint="Type of address (e.g., Registered, Office)." />
-                        </Label>
-                        <select
-                          name={`addresses.${idx}.addressType`}
-                          value={address.addressType || ""}
-                          onChange={(e) => handleAddressChange(idx, "addressType", e.target.value as AddressType)}
-                          onBlur={() => {
-                            // Optional: run validation on blur
-                            const err = validateField(
-                              `addresses.${idx}.addressType`,
-                              address.addressType,
-                              formData
-                            );
-                            setErrors((prev) => {
-                              const next = { ...prev };
-                              if (err) next[`addresses.${idx}.addressType`] = err;
-                              else delete next[`addresses.${idx}.addressType`];
-                              return next;
-                            });
-                          }}
-                          required
-                          className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
-                        >
-                          <option value="" >
-                            Select type
-                          </option>
-                          {ADDRESS_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                        {fieldError(errors, `addresses.${idx}.addressType`)}
+                          {fieldError(errors, `addresses.${idx}.addressType`)}
+                        </div>
                       </div>
                     </div>
                   </div>
