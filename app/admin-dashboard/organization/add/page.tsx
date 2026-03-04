@@ -26,6 +26,7 @@ import {
   CURRENCY_CODE_OPTIONS,
   INDUSTRY_TYPE_OPTIONS,
   COUNTRY_CURRENCY_MAP,
+  ADDRESS_TYPE_OPTIONS,
 } from "@/lib/api/types";
 import useLoading from "@/hooks/useLoading";
 import BackButton from "@/components/ui/BackButton";
@@ -81,7 +82,18 @@ export default function AddOrganizationPage() {
     ifscCode: "",
     branchName: "",
     digitalSignature: null,
-    addresses: [], // Initially empty
+    addresses: [
+      {
+        addressId: null,
+        houseNo: "",
+        streetName: "",
+        city: "",
+        state: "",
+        pincode: "",
+        country: "",
+        addressType: undefined,
+      },
+    ],
     prefix: "",
     sequenceNumber: undefined,
     companyType: "",
@@ -95,8 +107,7 @@ export default function AddOrganizationPage() {
   const [success, setSuccess] = useState("");
   const [isLookingUp, setIsLookingUp] = useState(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const [countries, setCountries] = useState<string[]>([]);
-  const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
+
   const { loading } = useLoading?.() ?? {
     loading: false,
     withLoading: (fn: any) => fn(),
@@ -134,34 +145,118 @@ export default function AddOrganizationPage() {
         formatted = value.replace(/[^A-Za-z\s.,&()-]/g, "");
       }
 
-      setFormData((prev) => ({ ...prev, [name]: formatted }));
+      setFormData((prev) => {
+        if (name.includes(".")) {
+          const [parent, child] = name.split(".");
+
+          return {
+            ...prev,
+            [parent]: {
+              ...(prev[parent as keyof OrganizationRequestDTO] as any),
+              [child]: formatted,
+            },
+          };
+        }
+
+        return { ...prev, [name]: formatted };
+      });
     },
     setErrors,
     checkUniqueness,
     () => formData,
     validateField
   );
+
+  const [countries, setCountries] = useState<string[]>([]);
+  const [statesByCountry, setStatesByCountry] = useState<
+    Record<string, string[]>
+  >({});
+  const [statesLoadingMap, setStatesLoadingMap] = useState<
+    Record<number, boolean>
+  >({});
+
   useEffect(() => {
-    const selectedCountry = formData.addresses?.[0]?.country;
+    const fetchCountries = async () => {
+      try {
+        const response = await adminService.getAllCountries();
+        setCountries(response || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
 
-    if (!selectedCountry) return;
+    fetchCountries();
+  }, []);
+  const fetchStatesForCountry = async (country: string, index: number) => {
+    if (!country) return;
 
-    const mappedCurrency = COUNTRY_CURRENCY_MAP[selectedCountry];
+    const normalized = country.trim().toLowerCase();
 
-    if (
-      mappedCurrency &&
-      formData.currencyCode !== mappedCurrency
-    ) {
-      setFormData((prev) => ({
+    if (statesByCountry[normalized]) return;
+
+    try {
+      setStatesLoadingMap((prev) => ({ ...prev, [index]: true }));
+
+      const response = await adminService.getStatesByCountryV1(country);
+
+      setStatesByCountry((prev) => ({
         ...prev,
-        currencyCode: mappedCurrency,
+        [normalized]: response || [],
+      }));
+    } catch (err) {
+      console.error("Failed to fetch states", err);
+    } finally {
+      setStatesLoadingMap((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
+  useEffect(() => {
+    const country = formData.addresses[0]?.country?.trim();
+    console.log("Country changed to:", country);
+
+    if (!country) return;
+
+    const expectedCurrency = COUNTRY_CURRENCY_MAP[country];
+    console.log("Mapped currency:", expectedCurrency);
+
+    if (expectedCurrency && formData.currencyCode !== expectedCurrency) {
+      console.log(`Auto-select currency → ${expectedCurrency} because country = ${country}`);
+
+      setFormData(prev => ({
+        ...prev,
+        currencyCode: expectedCurrency
       }));
     }
-  }, [formData.addresses]);
+  }, [formData.addresses[0]?.country]);
+
+
+  useEffect(() => {
+    if (!formData.currencyCode) return;
+
+    const country = formData.addresses[0]?.country?.trim();
+    if (!country) return;
+
+    const allowed = CURRENCY_COUNTRY_MAP[formData.currencyCode] || [];
+    console.log(`Clearing invalid country ${country} for currency ${formData.currencyCode}`);
+
+    const isValid = allowed.some(
+      c => c.trim().toLowerCase() === country.toLowerCase()
+    );
+
+    if (!isValid) {
+      setFormData(prev => ({
+        ...prev,
+        addresses: prev.addresses.map((a, i) =>
+          i === 0 ? { ...a, country: "" } : a
+        )
+      }));
+    }
+  }, [formData.currencyCode]);
+
 
   const filteredCountries = formData.currencyCode
-    ? CURRENCY_COUNTRY_MAP[formData.currencyCode] || []
-    : countries;
+    ? CURRENCY_COUNTRY_MAP[formData.currencyCode] ?? countries
+    : countries || [];
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -222,20 +317,6 @@ export default function AddOrganizationPage() {
       setIsLookingUp(false);
     }
   };
-  // Address field change (only update state while typing)
-  const handleAddressChange = (
-    index: number,
-    field: keyof AddressModel,
-    value: string
-  ) => {
-    const newAddresses = [...formData.addresses];
-    newAddresses[index] = { ...newAddresses[index], [field]: value };
-
-    setFormData((prev) => ({
-      ...prev,
-      addresses: newAddresses,
-    }));
-  };
 
   // Add/Remove address
   const addAddress = () => {
@@ -273,18 +354,7 @@ export default function AddOrganizationPage() {
       return newErr;
     });
   };
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const res = await adminService.getAllCountries();
-        setCountries(res || []);
-      } catch (err) {
-        console.error("Failed to fetch countries", err);
-      }
-    };
 
-    fetchCountries();
-  }, []);
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     const form = e.currentTarget;
 
@@ -423,27 +493,17 @@ export default function AddOrganizationPage() {
       setIsSubmitting(false);
     }
   };
-
   useEffect(() => {
-    if (!formData.currencyCode) return;
+    console.log(
+      "[DEBUG] Current first country in formData:",
+      formData.addresses[0]?.country
+    );
+    console.log(
+      "[DEBUG] Current currency:",
+      formData.currencyCode
+    );
+  }, [formData.addresses, formData.currencyCode]);
 
-    const selectedCountry = formData.addresses?.[0]?.country;
-
-    if (
-      selectedCountry &&
-      COUNTRY_CURRENCY_MAP[selectedCountry] !== formData.currencyCode
-    ) {
-      // Clear invalid country
-      setFormData((prev) => ({
-        ...prev,
-        addresses: prev.addresses.map((addr, index) =>
-          index === 0
-            ? { ...addr, country: "" }
-            : addr
-        ),
-      }));
-    }
-  }, [formData.currencyCode]);
   return (
     <div className="container mx-auto py-6">
       <div className="relative flex items-center justify-center mb-8">
@@ -749,24 +809,19 @@ export default function AddOrganizationPage() {
                 <Label className="text-sm font-semibold text-gray-700">
                   Timezone
                 </Label>
-                <Select
+                <select
                   name="timezone"
-                  value={formData.timezone}
-                  onValueChange={(val) =>
-                    setFormData((prev) => ({ ...prev, timezone: val }))
-                  }
+                  value={formData.timezone || ""}
+                  onChange={handleValidatedChange}
+                  className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                 >
-                  <SelectTrigger className="w-full min-w-[200px] !h-12">
-                    <SelectValue placeholder="Select TimeZone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONES.map((tz) => (
-                      <SelectItem key={tz} value={tz}>
-                        {tz}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">Select Timezone</option>
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Auto Clock-Out Time */}
@@ -817,50 +872,45 @@ export default function AddOrganizationPage() {
               {/* Absent Max Minutes */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
-                  Absent Max Hours
+                  Absent Max Hours<span className="text-red-500">*</span>
+                  <TooltipHint hint="Maximum hours of absence allowed before marking as absent. Enter in hours (e.g., 0.5 for 30 minutes)." />
                 </Label>
                 <Input
+                  required
                   type="text"
                   onWheel={preventWheelChange}
                   inputMode="numeric"
-                  name="absentMaxMinutes"
+                  name="attendancePolicy.absentMaxMinutes"
                   value={formData.attendancePolicy.absentMaxMinutes ?? ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      attendancePolicy: {
-                        ...prev.attendancePolicy,
-                        absentMaxMinutes: Number(e.target.value),
-                      },
-                    }))
-                  }
+                  onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("attendancePolicy.absentMaxMinutes")}
                   className="h-12"
                   placeholder="e.g. 30"
                 />
+                {fieldError(errors, "attendancePolicy.absentMaxMinutes")}
+
               </div>
 
               {/* Full Day Minimum Minutes */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">
-                  Full Day Min Hours
+                  Full Day Min Hours<span className="text-red-500">*</span>
+                  <TooltipHint hint="Minimum hours required to be considered a full day. Enter in hours (e.g., 8 for 8 hours)." />
                 </Label>
                 <Input
+                  required
                   type="text"
                   onWheel={preventWheelChange}
-                  inputMode="numeric" name="fullDayMinMinutes"
+                  inputMode="numeric"
+                  name="attendancePolicy.fullDayMinMinutes"
                   value={formData.attendancePolicy.fullDayMinMinutes ?? ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      attendancePolicy: {
-                        ...prev.attendancePolicy,
-                        fullDayMinMinutes: Number(e.target.value),
-                      },
-                    }))
-                  }
+                  onChange={handleValidatedChange}
+                  onBlur={handleBlurValidation("attendancePolicy.fullDayMinMinutes")}
                   className="h-12"
                   placeholder="e.g. 480"
                 />
+                {fieldError(errors, "attendancePolicy.fullDayMinMinutes")}
+
               </div>
             </div>
 
@@ -1119,17 +1169,6 @@ export default function AddOrganizationPage() {
                   Add Address
                 </Button>
               </div>
-              {formData.addresses.length === 0 && (
-                <div className="text-center py-20 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
-                  <MapPin className="h-16 w-16 text-indigo-300 mx-auto mb-4" />
-                  <p className="text-xl font-medium text-gray-700">
-                    No addresses added yet
-                  </p>
-                  <p className="text-sm text-gray-500 mt-3">
-                    Click the button above to add a registered or office address
-                  </p>
-                </div>
-              )}
 
               {/* Dynamic Address Forms — Appear only when added */}
               {formData.addresses.map((address, index) => (
@@ -1154,7 +1193,9 @@ export default function AddOrganizationPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => removeAddress(index)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                        // className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                        disabled={formData.addresses.length <= 1}   // ← disable when last one
+                        className={formData.addresses.length <= 1 ? "opacity-40 cursor-not-allowed" : ""}
                       >
                         <Trash2 className="h-5 w-5" />
                       </Button>
@@ -1167,29 +1208,30 @@ export default function AddOrganizationPage() {
                       {/* Country */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
-                          Country
+                          Country<span className="text-red-500">*</span>
                           <TooltipHint hint="Country of the address. Default is India." />
                         </Label>
                         <select
+                          name={`addresses.${index}.country`}
                           value={address.country || ""}
-                          onChange={async (e) => {
-                            const selectedCountry = e.target.value;
+                          onChange={(e) => {
+                            const value = e.target.value.trim();
+                            console.log("→ Selected country raw:", value);
 
-                            handleAddressChange(index, "country", selectedCountry);
-
-                            // reset state
-                            handleAddressChange(index, "state", "");
-
-                            // fetch states
-                            const states =
-                              await adminService.getStatesByCountryV1(selectedCountry);
-
-                            setStatesMap((prev) => ({
+                            setFormData(prev => ({
                               ...prev,
-                              [index]: states || [],
+                              addresses: prev.addresses.map((addr, idx) =>
+                                idx === index
+                                  ? { ...addr, country: value, state: "" }
+                                  : addr
+                              )
                             }));
+
+                            fetchStatesForCountry(value, index);
                           }}
-                          className="!h-12 text-base w-full px-3 border rounded-md"
+                          onBlur={handleBlurValidation(`addresses.${index}.country`)}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         >
                           <option value="">Select Country</option>
                           {filteredCountries.map((country) => (
@@ -1198,42 +1240,75 @@ export default function AddOrganizationPage() {
                             </option>
                           ))}
                         </select>
+                        {/* <select
+
+                          required
+                          value={address.country ?? ""}   // use ?? instead of ||
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            console.log("→ Selected country raw:", val);
+                            handleAddressChange(index, "country", val);
+                            // reset state & fetch
+                            handleAddressChange(index, "state", "");
+                            // fetch states async — no need to await here for UI
+                            adminService.getStatesByCountryV1(val).then((states) => {
+                              setStatesMap((prev) => ({ ...prev, [index]: states || [] }));
+                            });
+                          }}
+                          className="!h-12 text-base w-full px-3 border rounded-md"
+                        >
+                          <option value="" disabled>Select Country *</option>
+                          {filteredCountries.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select> */}
+
                         {fieldError(errors, `addresses.${index}.country`)}
                       </div>
 
                       {/* State */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
-                          State
+                          State<span className="text-red-500">*</span>
                           <TooltipHint hint="State or province of the address." />
                         </Label>
-                        {statesMap[index]?.length ? (
-                          <Select
+                        {statesByCountry[address.country?.trim().toLowerCase() || ""]
+                          ?.length > 0 ? (
+                          <select
+                            name={`addresses.${index}.state`}
                             value={address.state || ""}
-                            onValueChange={(val) =>
-                              handleAddressChange(index, "state", val)
-                            }
-                          >
-                            <SelectTrigger className="!h-12 text-base w-full">
-                              <SelectValue placeholder="Select State" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {statesMap[index].map((state) => (
-                                <SelectItem key={state} value={state}>
-                                  {state}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={address.state || ""}
-                            disabled={!address.country}
                             onChange={(e) =>
-                              handleAddressChange(index, "state", e.target.value)
+                              handleValidatedChange(e, index, "addresses")
                             }
-                            placeholder="Enter State"
-                            className="!h-12 text-base w-full"
+                            onBlur={handleBlurValidation(`addresses.${index}.state`)}
+                            required
+                            disabled={statesLoadingMap[index]}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          >
+                            <option value="">Select State</option>
+                            {statesByCountry[
+                              address.country?.trim().toLowerCase() || ""
+                            ]?.map((state) => (
+                              <option key={state} value={state}>
+                                {state}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            name={`addresses.${index}.state`}
+                            value={address.state || ""}
+                            onChange={(e) =>
+                              handleValidatedChange(e, index, "addresses")
+                            }
+                            onBlur={handleBlurValidation(`addresses.${index}.state`)}
+                            required
+                            disabled={!address.country}
+                            placeholder="Enter state"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                           />
                         )}
                         {fieldError(errors, `addresses.${index}.state`)}
@@ -1241,14 +1316,16 @@ export default function AddOrganizationPage() {
                       {/* City */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
-                          City
+                          City<span className="text-red-500">*</span>
                           <TooltipHint hint="City or town of the address." />
                         </Label>
                         <Input
+                          required
                           value={address.city || ""}
                           onChange={(e) =>
-                            handleAddressChange(index, "city", e.target.value)
+                            handleValidatedChange(e, index, "addresses")
                           }
+                          onBlur={handleBlurValidation(`addresses.${index}.city`)}
                           placeholder="e.g. Mumbai"
                           className="!h-12 text-base w-full"
                         />
@@ -1258,18 +1335,17 @@ export default function AddOrganizationPage() {
                       {/* House No. / Flat */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
-                          House No. / Flat
+                          House No. / Flat<span className="text-red-500">*</span>
                           <TooltipHint hint="Apartment or house number (e.g., 221B, Flat 4A)." />
                         </Label>
                         <Input
+                          required
+                          rel=""
                           value={address.houseNo || ""}
                           onChange={(e) =>
-                            handleAddressChange(
-                              index,
-                              "houseNo",
-                              e.target.value
-                            )
+                            handleValidatedChange(e, index, "addresses")
                           }
+                          onBlur={handleBlurValidation(`addresses.${index}.houseNo`)}
                           placeholder="e.g. 221B, Flat 4A"
                           className="!h-12 text-base w-full"
                         />
@@ -1279,18 +1355,18 @@ export default function AddOrganizationPage() {
                       {/* Street / Locality */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
-                          Street / Locality
+                          Street / Locality<span className="text-red-500">*</span>
                           <TooltipHint hint="Street name or locality (e.g., Baker Street, Andheri West)." />
                         </Label>
                         <Input
+                          required
                           value={address.streetName || ""}
                           onChange={(e) =>
-                            handleAddressChange(
-                              index,
-                              "streetName",
-                              e.target.value
-                            )
+                            handleValidatedChange(e, index, "addresses")
                           }
+                          onBlur={handleBlurValidation(
+                            `addresses.${index}.streetName`
+                          )}
                           placeholder="e.g. Baker Street"
                           className="!h-12 text-base w-full"
                         />
@@ -1303,14 +1379,12 @@ export default function AddOrganizationPage() {
                           <TooltipHint hint="6-digit postal code (e.g., 400001)." />
                         </Label>
                         <Input
+                          required
                           value={address.pincode || ""}
-                          onChange={(e) => {
-                            const digitsOnly = e.target.value.replace(
-                              /\D/g,
-                              ""
-                            );
-                            handleAddressChange(index, "pincode", digitsOnly);
-                          }}
+                          onChange={(e) =>
+                            handleValidatedChange(e, index, "addresses")
+                          }
+                          onBlur={handleBlurValidation(`addresses.${index}.pincode`)}
                           placeholder="400001"
                           className="!h-12 text-base w-full"
                         />
@@ -1320,30 +1394,27 @@ export default function AddOrganizationPage() {
                       {/* Address Type */}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">
-                          Address Type
+                          Address Type<span className="text-red-500">*</span>
                           <TooltipHint hint="Type of address (e.g., Registered, Office)." />
                         </Label>
-                        <Select
+                        <select
+                          name={`addresses.${index}.addressType`}
                           value={address.addressType || ""}
-                          onValueChange={(val) =>
-                            handleAddressChange(
-                              index,
-                              "addressType",
-                              val as AddressType
-                            )
-                          }
+                          onChange={(e) => handleValidatedChange(e, index, "addresses")}
+                          onBlur={handleBlurValidation(
+                            `addresses.${index}.addressType`
+                          )}
+                          required
+                          className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                         >
-                          <SelectTrigger className="!h-12 text-base w-full">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ADDRESS_TYPES.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type.charAt(0) + type.slice(1).toLowerCase()}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <option value="">Select Address Type</option>
+                          {ADDRESS_TYPE_OPTIONS.map((d) => (
+                            <option key={d} value={d}>
+                              {d}
+                            </option>
+                          ))}
+                        </select>
+
                         {fieldError(errors, `addresses.${index}.addressType`)}
                       </div>
                     </div>
