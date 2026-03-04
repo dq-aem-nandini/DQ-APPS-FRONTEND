@@ -28,6 +28,7 @@ import {
   DOCUMENT_TYPE_OPTIONS,
   EMPLOYMENT_TYPE_OPTIONS,
   RATE_CARD_TYPE_OPTIONS,
+  RateCardType,
 } from "@/lib/api/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Swal from "sweetalert2";
@@ -2302,7 +2303,23 @@ const AddEmployeePage = () => {
                           value={formData.rateCardType || ""}
                           disabled={!formData.rateCard || formData.rateCard <= 0}
                           required={!!(formData.rateCard && formData.rateCard > 0)}
-                          onChange={handleValidatedChange}
+                          onChange={(e) => {
+                            const value = e.target.value as RateCardType;
+                          
+                            setFormData((prev) => ({
+                              ...prev,
+                              rateCardType: value,
+                            }));
+                          
+                            const error = validateField("rateCardType", value, formData);
+                          
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              if (error) next.rateCardType = error;
+                              else delete next.rateCardType;
+                              return next;
+                            });
+                          }}
                           onBlur={handleBlurValidation("rateCardType")}
                           className="!h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                         >
