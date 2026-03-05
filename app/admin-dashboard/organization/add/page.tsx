@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -268,9 +268,23 @@ export default function AddOrganizationPage() {
   }, [formData.currencyCode]);
 
 
-  const filteredCountries = formData.currencyCode
-    ? CURRENCY_COUNTRY_MAP[formData.currencyCode] ?? countries
-    : countries || [];
+  const filteredCountries = useMemo(() => {
+    if (!formData.currencyCode) return countries;
+  
+    if (formData.currencyCode === "INR") {
+      return countries.filter(
+        (c) => c.toLowerCase() === "india"
+      );
+    }
+  
+    if (formData.currencyCode === "USD") {
+      return countries.filter(
+        (c) => c.toLowerCase() !== "india"
+      );
+    }
+  
+    return countries;
+  }, [countries, formData.currencyCode]);
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -1250,21 +1264,24 @@ export default function AddOrganizationPage() {
                                 const value = e.target.value.trim();
                                 console.log("→ Selected country:", value);
 
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  addresses: [
-                                    {
-                                      addressId: null,
-                                      houseNo: "",
-                                      streetName: "",
-                                      city: "",
-                                      state: "",
-                                      pincode: "",
-                                      country: value,
-                                      addressType: undefined,
-                                    },
-                                  ],
-                                }));
+                                setFormData((prev) => {
+                                  const updatedAddresses = [...prev.addresses];
+                                
+                                  updatedAddresses[index] = {
+                                    ...updatedAddresses[index],
+                                    houseNo: "",
+                                    streetName: "",
+                                    city: "",
+                                    state: "",
+                                    pincode: "",
+                                    country: value,
+                                  };
+                                
+                                  return {
+                                    ...prev,
+                                    addresses: updatedAddresses,
+                                  };
+                                });
 
                                 if (value) {
                                   fetchStatesForCountry(value, index);
@@ -1297,21 +1314,23 @@ export default function AddOrganizationPage() {
                                 onChange={(e) => {
                                   const value = e.target.value;
 
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    addresses: [
-                                      {
-                                        addressId: null,
-                                        houseNo: "",
-                                        streetName: "",
-                                        city: "",
-                                        state: value,
-                                        pincode: "",
-                                        country: address.country,
-                                        addressType: undefined,
-                                      },
-                                    ],
-                                  }));
+                                  setFormData((prev) => {
+                                    const updatedAddresses = [...prev.addresses];
+                                  
+                                    updatedAddresses[index] = {
+                                      ...updatedAddresses[index],
+                                      houseNo: "",
+                                      streetName: "",
+                                      city: "",
+                                      pincode: "",
+                                      state: value,
+                                    };
+                                  
+                                    return {
+                                      ...prev,
+                                      addresses: updatedAddresses,
+                                    };
+                                  });
                                 }}
                                 onBlur={handleBlurValidation(`addresses.${index}.state`)}
                                 required

@@ -373,6 +373,8 @@ export default function EditClientPage() {
     section: "addresses" | "clientPocs" | "clientTaxDetails"
   ) => {
     if (section === "addresses") {
+      const newIndex = formData.addresses?.length || 0;
+  
       setFormData((prev) => ({
         ...prev,
         addresses: [
@@ -389,6 +391,10 @@ export default function EditClientPage() {
           },
         ],
       }));
+  
+      // 🔥 load states for new address
+      loadStates("India", newIndex);
+  
     } else if (section === "clientPocs") {
       setFormData((prev) => ({
         ...prev,
@@ -831,18 +837,15 @@ export default function EditClientPage() {
                       setFormData((prev) => ({
                         ...prev,
                         currency: value as CurrencyCode,
-                        addresses: [
-                          {
-                            addressId: null,
-                            houseNo: "",
-                            streetName: "",
-                            city: "",
-                            state: "",
-                            pincode: "",
-                            country: "",
-                            addressType: undefined,
-                          },
-                        ],
+                        addresses: (prev.addresses || []).map((addr) => ({
+                          ...addr,
+                          country: "",
+                          state: "",
+                          city: "",
+                          houseNo: "",
+                          streetName: "",
+                          pincode: "",
+                        })),
                         clientTaxDetails: [],
                       }))
                     }
@@ -907,7 +910,7 @@ export default function EditClientPage() {
               </div>
 
               {(formData.addresses || []).map((addr, i) => (
-                <div key={i} className="mb-6 p-4 border rounded bg-gray-50">
+                <div key={addr.addressId ?? `addr-${i}`} className="mb-6 p-4 border rounded bg-gray-50">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Country */}
                     <div>
@@ -921,24 +924,27 @@ export default function EditClientPage() {
                         value={addr.country || ""}
                         onChange={async (e) => {
                           const selectedCountry = e.target.value;
-
-                          setFormData((prev) => ({
-                            ...prev,
-                            addresses: [
-                              {
-                                addressId: prev.addresses?.[i]?.addressId || null,
-                                houseNo: "",
-                                streetName: "",
-                                city: "",
-                                state: "",
-                                pincode: "",
-                                country: selectedCountry,
-                                addressType: undefined,
-                              },
-                            ],
-                            clientTaxDetails: [],
-                          }));
-
+                        
+                          setFormData((prev) => {
+                            const updated = [...(prev.addresses || [])];
+                        
+                            updated[i] = {
+                              ...updated[i],
+                              country: selectedCountry,
+                              state: "",
+                              city: "",
+                              houseNo: "",
+                              streetName: "",
+                              pincode: "",
+                            };
+                        
+                            return {
+                              ...prev,
+                              addresses: updated,
+                              clientTaxDetails: [],
+                            };
+                          });
+                        
                           if (selectedCountry) {
                             await loadStates(selectedCountry, i);
                           }
@@ -967,22 +973,24 @@ export default function EditClientPage() {
                           value={addr.state}
                           disabled={!addr.country}
                           onValueChange={(val) => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              addresses: [
-                                {
-                                  addressId: prev.addresses?.[i]?.addressId || null,
-                                  houseNo: "",
-                                  streetName: "",
-                                  city: "",
-                                  state: val,
-                                  pincode: "",
-                                  country: prev.addresses?.[i]?.country || "",
-                                  addressType: undefined,
-                                },
-                              ],
-                              clientTaxDetails: [],
-                            }));
+                            setFormData((prev) => {
+                              const updated = [...(prev.addresses || [])];
+                          
+                              updated[i] = {
+                                ...updated[i],
+                                state: val,
+                                city: "",
+                                houseNo: "",
+                                streetName: "",
+                                pincode: "",
+                              };
+                          
+                              return {
+                                ...prev,
+                                addresses: updated,
+                                clientTaxDetails: [],
+                              };
+                            });
                           }}
                         >
                           <SelectTrigger className="!h-10 text-base w-full">

@@ -880,7 +880,7 @@ export default function AddClientPage() {
 
               {(formData.addresses || []).map((addr, i) => (
                 <div
-                  key={addr.addressId || i}
+                  key={addr.addressId ?? `addr-${i}`}
                   className="mb-6 p-4 border rounded bg-gray-50"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -898,22 +898,25 @@ export default function AddClientPage() {
                         onChange={(e) => {
                           const selectedCountry = e.target.value;
 
-                          setFormData((prev) => ({
-                            ...prev,
-                            addresses: [
-                              {
-                                addressId: null,
-                                houseNo: "",
-                                streetName: "",
-                                city: "",
-                                state: "",
-                                pincode: "",
-                                country: selectedCountry,
-                                addressType: undefined,
-                              },
-                            ],
-                            clientTaxDetails: [],
-                          }));
+                          setFormData((prev) => {
+                            const updated = [...(prev.addresses || [])];
+
+                            updated[i] = {
+                              ...updated[i],
+                              country: selectedCountry,
+                              state: "",
+                              city: "",
+                              houseNo: "",
+                              streetName: "",
+                              pincode: "",
+                            };
+
+                            return {
+                              ...prev,
+                              addresses: updated,
+                              clientTaxDetails: [],
+                            };
+                          });
 
                           fetchStatesForCountry(selectedCountry, i);
                         }}
@@ -944,22 +947,24 @@ export default function AddClientPage() {
                           onChange={(e) => {
                             const selectedState = e.target.value;
 
-                            setFormData((prev) => ({
-                              ...prev,
-                              addresses: [
-                                {
-                                  addressId: null,
-                                  houseNo: "",
-                                  streetName: "",
-                                  city: "",
-                                  state: selectedState,
-                                  pincode: "",
-                                  country: prev.addresses?.[0]?.country || "",
-                                  addressType: undefined,
-                                },
-                              ],
-                              clientTaxDetails: [],
-                            }));
+                            setFormData((prev) => {
+                              const updated = [...(prev.addresses || [])];
+
+                              updated[i] = {
+                                ...updated[i],
+                                state: selectedState,
+                                city: "",
+                                houseNo: "",
+                                streetName: "",
+                                pincode: "",
+                              };
+
+                              return {
+                                ...prev,
+                                addresses: updated,
+                                clientTaxDetails: [],
+                              };
+                            });
                           }}
                           onBlur={handleBlurValidation(`addresses.${i}.state`)}
                           required
