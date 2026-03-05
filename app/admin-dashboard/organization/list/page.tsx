@@ -19,7 +19,6 @@ import BackButton from '@/components/ui/BackButton';
 
 import { organizationService } from '@/lib/api/organizationService';
 import type { OrganizationResponseDTO } from '@/lib/api/types';
-import Swal from 'sweetalert2';
 
 // Helper: show hyphen for empty values */
 const show = (val: string | null | undefined) => val || '—';
@@ -30,6 +29,7 @@ export default function OrganizationListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter();
   const isAddDisabled = organizations.length >= 1;
   // Fetch organizations
   useEffect(() => {
@@ -114,6 +114,11 @@ export default function OrganizationListPage() {
           <div className="flex flex-col items-end mb-6 gap-2">
             <Button
               disabled={isAddDisabled}
+              onClick={() => {
+                if (organizations.length < 1) {
+                  router.push("/admin-dashboard/organization/add");
+                }
+              }}
               className={
                 isAddDisabled
                   ? "bg-gray-400 cursor-not-allowed"
