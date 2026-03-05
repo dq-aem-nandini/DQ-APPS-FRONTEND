@@ -61,11 +61,9 @@ const invalidIFSC = "Invalid IFSC format (e.g., SBIN0000123)";
 const invalidAadhar = "Invalid Aadhar format (12 digits)";
 const invalidPostal = "Postal/ZIP code must be 3–10 alphanumeric characters, spaces or hyphens";
 const invalidLocation = "Only letters, spaces and common punctuation allowed";
-const maxHours = "Maximum allowed value is 24 hours (1440 minutes).";
-const minHours = "Minimum allowed value is 0 hours.";
+
 const onlyLettersSymbols =
   "Only letters, spaces, and common symbols (& . , - () ) allowed";
-const invalidPincode = "Pincode must be exactly 6 digits";
 const invalidRegistrationNumber =
   "Registration number must be 3–50 characters (letters, numbers, - or / only)";
 

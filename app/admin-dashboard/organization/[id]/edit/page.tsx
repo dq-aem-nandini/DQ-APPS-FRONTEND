@@ -4,13 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
@@ -51,7 +45,16 @@ const TIMEZONES = [
   "Australia/Sydney",
   "Asia/Singapore",
 ];
-
+const createEmptyAddress = (country = "", state = ""): AddressModel => ({
+  addressId: null,
+  houseNo: "",
+  streetName: "",
+  city: "",
+  state,
+  country,
+  pincode: "",
+  addressType: "OFFICE" as AddressType,
+});
 export default function EditOrganizationPage() {
   const params = useParams<{ id: string }>();
   const id = params.id; // string | undefined
@@ -1046,8 +1049,15 @@ export default function EditOrganizationPage() {
                   <select
                     name="currencyCode"
                     value={formData.currencyCode || ""}
-                    onChange={handleValidatedChange}
-                    required
+                    onChange={(e) => {
+                      const value = e.target.value as CurrencyCode;
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        currencyCode: value,
+                        addresses: [createEmptyAddress()], // reset addresses
+                      }));
+                    }} required
                     className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
                     <option value="" >
@@ -1406,16 +1416,17 @@ export default function EditOrganizationPage() {
                             onChange={async (e) => {
                               const selectedCountry = e.target.value;
 
-                              handleAddressChange(idx, "country", selectedCountry);
-
-                              handleAddressChange(idx, "state", "");
+                              setFormData((prev) => ({
+                                ...prev,
+                                addresses: [createEmptyAddress(selectedCountry, "")],
+                              }));
 
                               const states =
                                 await adminService.getStatesByCountryV1(selectedCountry);
 
                               setStatesMap((prev) => ({
                                 ...prev,
-                                [idx]: states || [],
+                                [0]: states || [],
                               }));
                             }}
 
@@ -1440,8 +1451,19 @@ export default function EditOrganizationPage() {
                             <select
                               name={`addresses.${idx}.state`}           // optional: helps with native form
                               value={address.state || ""}
-                              onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
-                              onBlur={() => {
+                              onChange={(e) => {
+                                const selectedState = e.target.value;
+
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  addresses: [
+                                    createEmptyAddress(
+                                      prev.addresses[0]?.country || "",
+                                      selectedState
+                                    ),
+                                  ],
+                                }));
+                              }} onBlur={() => {
                                 // Optional: trigger validation on blur (if you have validator for state)
                                 const err = validateField(`addresses.${idx}.state`, address.state, formData);
                                 setErrors((prev) => {
