@@ -1391,7 +1391,7 @@ export default function AddOrganizationPage() {
                           {/* Pincode */}
                           <div className="space-y-2">
                             <Label className="text-gray-700 font-medium">
-                              Pincode
+                              Pincode <span className="text-red-500">*</span>
                               <TooltipHint hint="6-digit postal code (e.g., 400001)." />
                             </Label>
                             <Input

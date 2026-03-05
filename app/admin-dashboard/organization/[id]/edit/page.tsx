@@ -199,14 +199,14 @@ export default function EditOrganizationPage() {
         currencyCode: mappedCurrency,
       }));
     }
-  }, [formData.addresses]);
+  },  [formData.addresses?.[0]?.country]);
 
   const filteredCountries = useMemo(() => {
     if (!formData.currencyCode) return countries;
-
-    return (
-      CURRENCY_COUNTRY_MAP[formData.currencyCode] || []
-    );
+  
+    const mapped = CURRENCY_COUNTRY_MAP[formData.currencyCode];
+  
+    return mapped && mapped.length ? mapped : countries;
   }, [formData.currencyCode, countries]);
 
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
@@ -1057,6 +1057,7 @@ export default function EditOrganizationPage() {
                         currencyCode: value,
                         addresses: [createEmptyAddress()], // reset addresses
                       }));
+                      setStatesMap({});
                     }} required
                     className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
