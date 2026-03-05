@@ -30,7 +30,7 @@ export default function OrganizationListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-
+  const isAddDisabled = organizations.length >= 1;
   // Fetch organizations
   useEffect(() => {
     const fetchOrgs = async () => {
@@ -111,13 +111,24 @@ export default function OrganizationListPage() {
           </div>
 
           {/* Add Button */}
-          <div className="flex justify-end mb-6">
-            <Link href="/admin-dashboard/organization/add">
-              <Button className="bg-indigo-600 hover:bg-indigo-700">
-                <Plus className="h-5 w-5 mr-2" />
-                Add New Organization
-              </Button>
-            </Link>
+          <div className="flex flex-col items-end mb-6 gap-2">
+            <Button
+              disabled={isAddDisabled}
+              className={
+                isAddDisabled
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-indigo-600 hover:bg-indigo-700"
+              }
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Add New Organization
+            </Button>
+
+            {isAddDisabled && (
+              <p className="text-xs text-red-500">
+                Only one organization is allowed.
+              </p>
+            )}
           </div>
 
           {/* Search Bar */}

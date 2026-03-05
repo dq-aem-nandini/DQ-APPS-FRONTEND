@@ -26,6 +26,7 @@ import {
   DOMAIN_OPTIONS,
   INDUSTRY_TYPE_OPTIONS,
   CURRENCY_CODE_OPTIONS,
+  COUNTRY_CURRENCY_MAP,
 } from "@/lib/api/types";
 import BackButton from "@/components/ui/BackButton";
 import Swal from "sweetalert2";
@@ -33,7 +34,15 @@ import TooltipHint from "@/components/ui/TooltipHint";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
-
+import { adminService } from "@/lib/api/adminService";
+const CURRENCY_COUNTRY_MAP: Record<CurrencyCode, string[]> =
+  Object.entries(COUNTRY_CURRENCY_MAP).reduce((acc, [country, currency]) => {
+    if (!acc[currency as CurrencyCode]) {
+      acc[currency as CurrencyCode] = [];
+    }
+    acc[currency as CurrencyCode].push(country);
+    return acc;
+  }, {} as Record<CurrencyCode, string[]>);
 const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"];
 const TIMEZONES = [
   "Asia/Kolkata",
@@ -47,7 +56,8 @@ export default function EditOrganizationPage() {
   const params = useParams<{ id: string }>();
   const id = params.id; // string | undefined
   const router = useRouter();
-
+  const [countries, setCountries] = useState<string[]>([]);
+  const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -77,8 +87,18 @@ export default function EditOrganizationPage() {
     ifscCode: "",
     branchName: "",
     digitalSignature: null,
-    addresses: [],
-    prefix: "",
+    addresses: [
+      {
+        addressId: null,
+        houseNo: "",
+        streetName: "",
+        city: "",
+        state: "",
+        country: "",
+        pincode: "",
+        addressType: "OFFICE" as AddressType,
+      },
+    ], prefix: "",
     sequenceNumber: undefined,
     companyType: "",
     attendancePolicy: {
@@ -119,7 +139,38 @@ export default function EditOrganizationPage() {
           formatted = value.replace(/[^A-Za-z\s.,&()-]/g, "");
         }
 
-        setFormData((prev) => ({ ...prev, [name]: formatted }));
+        setFormData((prev) => {
+          // ── NEW: Support dotted/nested names ──
+          if (name.includes(".")) {
+            const parts = name.split(".");
+            if (parts.length === 2) {
+              const [parent, child] = parts;
+
+              // Special case for attendancePolicy
+              if (parent === "attendancePolicy") {
+                return {
+                  ...prev,
+                  attendancePolicy: {
+                    ...prev.attendancePolicy,
+                    [child]: formatted === "" ? undefined : Number(formatted),
+                  },
+                };
+              }
+
+              // Generic nested support (if you ever add more)
+              return {
+                ...prev,
+                [parent]: {
+                  ...(prev[parent as keyof typeof prev] as any),
+                  [child]: formatted,
+                },
+              };
+            }
+          }
+
+          // Normal flat fields
+          return { ...prev, [name]: formatted };
+        });
       },
       setErrors,
       checkUniqueness,
@@ -127,6 +178,38 @@ export default function EditOrganizationPage() {
       validateField
     );
 
+  useEffect(() => {
+    if (!formData.addresses?.length) return;
+
+    const selectedCountry = formData.addresses[0]?.country;
+    if (!selectedCountry) return;
+
+    const mappedCurrency =
+      COUNTRY_CURRENCY_MAP[selectedCountry];
+
+    if (
+      mappedCurrency &&
+      formData.currencyCode !== mappedCurrency
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        currencyCode: mappedCurrency,
+      }));
+    }
+  }, [formData.addresses]);
+
+  const filteredCountries = useMemo(() => {
+    if (!formData.currencyCode) return countries;
+
+    return (
+      CURRENCY_COUNTRY_MAP[formData.currencyCode] || []
+    );
+  }, [formData.currencyCode, countries]);
+
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+  };
   // Load organization data
   useEffect(() => {
     if (!id) {
@@ -199,6 +282,24 @@ export default function EditOrganizationPage() {
         setOriginalData(loaded);
         setLogoPreview(res.logoUrl ?? "");
         setSignaturePreview(res.digitalSignatureUrl ?? "");
+        // Load states for existing addresses
+        if (loaded.addresses?.length) {
+          for (const [index, addr] of loaded.addresses.entries()) {
+            if (addr.country) {
+              try {
+                const states =
+                  await adminService.getStatesByCountryV1(addr.country);
+
+                setStatesMap((prev) => ({
+                  ...prev,
+                  [index]: states || [],
+                }));
+              } catch (e) {
+                console.error("Failed to load states", e);
+              }
+            }
+          }
+        }
       } catch (err: any) {
         Swal.fire("Error", "Failed to load organization", "error");
       } finally {
@@ -208,6 +309,19 @@ export default function EditOrganizationPage() {
 
     load();
   }, [id]);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await adminService.getAllCountries();
+        setCountries(res || []);
+      } catch (err) {
+        console.error("Failed to fetch countries", err);
+      }
+    };
+
+    fetchCountries();
+  }, []);
 
   const hasChanges = useMemo(() => {
     if (!originalData) return false;
@@ -311,9 +425,12 @@ export default function EditOrganizationPage() {
   };
 
   const removeAddress = (index: number) => {
+    const updated = [...formData.addresses];
+
+    updated.splice(index, 1);
     setFormData((prev) => ({
       ...prev,
-      addresses: prev.addresses.filter((_, i) => i !== index),
+      addresses: updated,
     }));
 
     setErrors((prev) => {
@@ -341,6 +458,7 @@ export default function EditOrganizationPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     console.log("SUBMIT CLICKED");
     console.log("HAS CHANGES:", hasChanges);
@@ -370,18 +488,42 @@ export default function EditOrganizationPage() {
       "industryType",
       "establishedDate",
       "currencyCode",
+      "autoClockOutTime",
+      "bankName",
+      "branchName",
+      "attendancePolicy.absentMaxMinutes",
+      "attendancePolicy.fullDayMinMinutes",
       "accountNumber",
       "accountHolderName",
       "ifscCode",
       "prefix",
+      "sequenceNumber",
+      "companyType",
+      "timezone",
+      "logo",
+      "digitalSignature",
     ];
-
+    const getValueByPath = (obj: any, path: string) =>
+      path.split(".").reduce((acc, key) => acc?.[key], obj);
     fieldsToValidate.forEach((name) => {
-      const value = (formData as any)[name];
+      const value = getValueByPath(formData, name);
       const error = validateField(name, value, formData);
       if (error) tempErrors[name] = error;
     });
+    fieldsToValidate.forEach((name) => {
+      const value = getValueByPath(formData, name);
 
+      console.log(`[VALIDATE] ${name} → value:`, value, typeof value);
+
+      const error = validateField(name, value, formData);
+
+      console.log(`[VALIDATE] ${name} → error returned:`, error || "(empty string)");
+
+      if (error) {
+        tempErrors[name] = error;
+        console.log(`[ERROR ADDED] ${name} = ${error}`);
+      }
+    });
     // Validate addresses
     formData.addresses.forEach((addr, idx) => {
       ["city", "state", "country", "pincode"].forEach((sub) => {
@@ -436,14 +578,14 @@ export default function EditOrganizationPage() {
       if (formData.attendancePolicy?.absentMaxMinutes != null) {
         fd.append(
           "attendancePolicy.absentMaxMinutes",
-          String(Math.round(formData.attendancePolicy.absentMaxMinutes * 60))
+          String(Math.round(Number(formData.attendancePolicy.absentMaxMinutes) * 60))
         );
       }
 
       if (formData.attendancePolicy?.fullDayMinMinutes != null) {
         fd.append(
           "attendancePolicy.fullDayMinMinutes",
-          String(Math.round(formData.attendancePolicy.fullDayMinMinutes * 60))
+          String(Math.round(Number(formData.attendancePolicy.fullDayMinMinutes) * 60))
         );
       }
       if (formData.logo) fd.append("logo", formData.logo);
@@ -794,33 +936,22 @@ export default function EditOrganizationPage() {
                     Domain <span className="text-red-500">*</span>
                     <TooltipHint hint="Primary industry domain of the organization." />
                   </Label>
-                  <Select
+                  <select
                     name="domain"
-                    value={formData.domain}
-                    onValueChange={(val) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        domain: val as Domain,
-                      }));
-                      const error = validateField("domain", val, formData);
-                      setErrors((prev) => {
-                        const next = { ...prev };
-                        error ? (next.domain = error) : delete next.domain;
-                        return next;
-                      });
-                    }}
+                    value={formData.domain || ""}
+                    onChange={handleValidatedChange}           // ← this is enough — validation runs here
+                    required
+                    className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
-                    <SelectTrigger className="!h-12 text-base w-full">
-                      <SelectValue placeholder="Select Domain" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DOMAIN_OPTIONS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="" >
+                      Select Domain
+                    </option>
+                    {DOMAIN_OPTIONS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
                   {fieldError(errors, "domain")}
                 </div>
 
@@ -830,39 +961,22 @@ export default function EditOrganizationPage() {
                     Industry Type <span className="text-red-500">*</span>
                     <TooltipHint hint="Specific industry type within the chosen domain." />
                   </Label>
-                  <Select
+                  <select
                     name="industryType"
-                    value={formData.industryType}
-                    onValueChange={(val) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        industryType: val as IndustryType,
-                      }));
-                      const error = validateField(
-                        "industryType",
-                        val,
-                        formData
-                      );
-                      setErrors((prev) => {
-                        const next = { ...prev };
-                        error
-                          ? (next.industryType = error)
-                          : delete next.industryType;
-                        return next;
-                      });
-                    }}
+                    value={formData.industryType || ""}
+                    onChange={handleValidatedChange}
+                    required
+                    className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
-                    <SelectTrigger className="!h-12 text-base w-full">
-                      <SelectValue placeholder="Select Industry Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INDUSTRY_TYPE_OPTIONS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="" >
+                      Select Industry Type
+                    </option>
+                    {INDUSTRY_TYPE_OPTIONS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
                   {fieldError(errors, "industryType")}
                 </div>
 
@@ -888,24 +1002,21 @@ export default function EditOrganizationPage() {
                   <Label className="text-sm font-semibold text-gray-700">
                     Timezone
                   </Label>
-                  <Select
+                  <select
                     name="timezone"
-                    value={formData.timezone}
-                    onValueChange={(val) =>
-                      setFormData((prev) => ({ ...prev, timezone: val }))
-                    }
+                    value={formData.timezone || ""}
+                    onChange={handleValidatedChange}
+                    className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
-                    <SelectTrigger className="!h-12 text-base w-full">
-                      <SelectValue placeholder="Select TimeZone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIMEZONES.map((tz) => (
-                        <SelectItem key={tz} value={tz}>
-                          {tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="" >
+                      Select Timezone
+                    </option>
+                    {TIMEZONES.map((tz) => (
+                      <option key={tz} value={tz}>
+                        {tz}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 {/* Auto Clock Out Time */}
                 <div className="space-y-2">
@@ -932,89 +1043,69 @@ export default function EditOrganizationPage() {
                     Currency Code <span className="text-red-500">*</span>
                     <TooltipHint hint="Primary currency used by the organization for financial transactions." />
                   </Label>
-                  <Select
+                  <select
                     name="currencyCode"
-                    value={formData.currencyCode}
-                    onValueChange={(val) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        currencyCode: val as CurrencyCode,
-                      }));
-                      const error = validateField(
-                        "currencyCode",
-                        val,
-                        formData
-                      );
-                      setErrors((prev) => {
-                        const next = { ...prev };
-                        error
-                          ? (next.currencyCode = error)
-                          : delete next.currencyCode;
-                        return next;
-                      });
-                    }}
+                    value={formData.currencyCode || ""}
+                    onChange={handleValidatedChange}
+                    required
+                    className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
-                    <SelectTrigger className="!h-12 text-base w-full">
-                      <SelectValue placeholder="Select Currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_CODE_OPTIONS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="" >
+                      Select Currency
+                    </option>
+                    {CURRENCY_CODE_OPTIONS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
                   {fieldError(errors, "currencyCode")}
                 </div>
 
                 {/* Absent Max Hours */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    Absent Max Hours
+                    Absent Max Hours <span className="text-red-500">*</span>
+                    <TooltipHint hint="Maximum hours of absence allowed before marking as absent. Enter in hours (e.g., 4 for 4 hours). Automatically converted to minutes for backend." />
                   </Label>
+
                   <Input
-                    type="number"
+                    name="attendancePolicy.absentMaxMinutes"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    placeholder="e.g.,4 for 4 hours"
+                    inputMode="numeric"
+                    required
                     value={formData.attendancePolicy?.absentMaxMinutes ?? ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        attendancePolicy: {
-                          ...prev.attendancePolicy,
-                          absentMaxMinutes:
-                            e.target.value === ""
-                              ? undefined
-                              : Number(e.target.value),
-                        },
-                      }))
-                    }
+                    onChange={handleValidatedChange}
                     className="h-12"
                   />
+
+                  {fieldError(errors, "attendancePolicy.absentMaxMinutes")}
                 </div>
 
                 {/* Full Day Min Hours */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">
-                    Full Day Min Hours
+                    Full Day Min Hours <span className="text-red-500">*</span>
+                    <TooltipHint hint="Minimum hours required to be considered a full day. Enter in hours (e.g., 8 for 8 hours). Automatically converted to minutes for backend." />
                   </Label>
+
                   <Input
-                    type="number"
+                    name="attendancePolicy.fullDayMinMinutes"
+                    type="text"
+                    required
+                    onWheel={preventWheelChange}
+                    placeholder="e.g.,8 for 8 hours"
+                    inputMode="numeric"
                     value={formData.attendancePolicy?.fullDayMinMinutes ?? ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        attendancePolicy: {
-                          ...prev.attendancePolicy,
-                          fullDayMinMinutes:
-                            e.target.value === ""
-                              ? undefined
-                              : Number(e.target.value),
-                        },
-                      }))
-                    }
+                    onChange={handleValidatedChange}
                     className="h-12"
                   />
+
+                  {fieldError(errors, "attendancePolicy.fullDayMinMinutes")}
                 </div>
+
               </div>
 
               {/* Logo */}
@@ -1196,225 +1287,314 @@ export default function EditOrganizationPage() {
                   </p>
                 )}
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-              {/* Prefix */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Prefix <span className="text-red-500">*</span>
-                  <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
-                </Label>
-                <Input
-                  required
-                  name="prefix"
-                  value={formData.prefix ?? ""}
-                  onChange={handleValidatedChange}
-                  className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
-                  placeholder="INV"
-                  maxLength={10}
-                />
-                {fieldError(errors, "prefix")}
+                {/* Prefix */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Prefix <span className="text-red-500">*</span>
+                    <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
+                  </Label>
+                  <Input
+                    required
+                    name="prefix"
+                    value={formData.prefix ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                    placeholder="INV"
+                    maxLength={10}
+                  />
+                  {fieldError(errors, "prefix")}
+                </div>
+
+
+
+                {/* Sequence Number */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Sequence Number <span className="text-red-500">*</span>
+                    <TooltipHint hint="Starting sequence number (e.g., 1001)" />
+                  </Label>
+                  <Input
+                    required
+                    name="sequenceNumber"
+                    type="text"
+                    onWheel={preventWheelChange}
+                    inputMode="numeric"
+                    value={formData.sequenceNumber ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12"
+                    placeholder="1001"
+                  />
+                  {fieldError(errors, "sequenceNumber")}
+                </div>
+                {/* Company Type */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Company Type <span className="text-red-500">*</span>
+                    <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
+                  </Label>
+                  <Input
+                    required
+                    name="companyType"
+                    value={formData.companyType ?? ""}
+                    onChange={handleValidatedChange}
+                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="Private Limited"
+                    maxLength={50}
+                  />
+                  {fieldError(errors, "companyType")}
+                </div>
               </div>
-
-              {/* Company Type */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Company Type <span className="text-red-500">*</span>
-                  <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
-                </Label>
-                <Input
-                  required
-                  name="companyType"
-                  value={formData.companyType ?? ""}
-                  onChange={handleValidatedChange}
-                  className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Private Limited"
-                  maxLength={50}
-                />
-                {fieldError(errors, "companyType")}
-              </div>
-
               {/* Addresses */}
-              <div className="border-b border-gray-200 pb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+              <div className="border-t border-gray-200 pt-10 pb-6">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <MapPin className="h-7 w-7 text-indigo-600" />
                     Addresses
                   </h3>
+
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
+                    size="lg"
                     onClick={addAddress}
+                    className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-medium shadow-sm"
+
                   >
-                    <Plus className="h-4 w-4 mr-1" /> Add Address
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add Address
                   </Button>
                 </div>
 
-                {formData.addresses.length === 0 && (
-                  <div className="text-center py-20 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
-                    <MapPin className="h-16 w-16 text-indigo-300 mx-auto mb-4" />
-                    <p className="text-xl font-medium text-gray-700">
-                      No addresses added yet
-                    </p>
-                    <p className="text-sm text-gray-500 mt-3">
-                      Click the button above to add a registered or office
-                      address
-                    </p>
-                  </div>
-                )}
-
                 {formData.addresses.map((address, idx) => (
-                  <div key={idx} className="mb-6 p-4 border rounded bg-gray-50">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium">Address {idx + 1}</h4>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAddress(idx)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>
-                          House No.
-                          <TooltipHint hint="House or building number for this address." />
-                        </Label>
-                        <Input
-                          value={address.houseNo || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "houseNo", e.target.value)
-                          }
-                          placeholder="e.g. 221B"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.houseNo`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          Street Name
-                          <TooltipHint hint="Name of the street for this address." />
-                        </Label>
-                        <Input
-                          value={address.streetName || ""}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              idx,
-                              "streetName",
-                              e.target.value
-                            )
-                          }
-                          className="!h-12 text-base w-full"
-
-                          placeholder="e.g. Baker Street"
-                        />
-                        {fieldError(errors, `addresses.${idx}.streetName`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          City
-                          <TooltipHint hint="Name of the city for this address." />
-                        </Label>
-                        <Input
-                          value={address.city || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "city", e.target.value)
-                          }
-                          placeholder="e.g. Mumbai"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.city`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          State
-                          <TooltipHint hint="Name of the state for this address." />
-                        </Label>
-                        <Input
-                          value={address.state || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "state", e.target.value)
-                          }
-                          placeholder="e.g. Maharashtra"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.state`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          Pincode
-                          <TooltipHint hint="6-digit postal code for this address." />
-                        </Label>
-                        <Input
-                          value={address.pincode || ""}
-                          onChange={(e) => {
-                            const digitsOnly = e.target.value.replace(
-                              /\D/g,
-                              ""
-                            );
-                            handleAddressChange(idx, "pincode", digitsOnly);
-                          }}
-                          maxLength={6}
-                          placeholder="e.g. 400001"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.pincode`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          Country
-                          <TooltipHint hint="Country for this address." />
-                        </Label>
-                        <Input
-                          value={address.country || ""}
-                          onChange={(e) =>
-                            handleAddressChange(idx, "country", e.target.value)
-                          }
-                          placeholder="e.g. India"
-                          className="!h-12 text-base w-full"
-
-                        />
-                        {fieldError(errors, `addresses.${idx}.country`)}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          Address Type
-                          <TooltipHint hint="Type of address (e.g., Registered, Office)." />
-                        </Label>
-                        <Select
-                          value={address.addressType || ""}
-                          onValueChange={(val) =>
-                            handleAddressChange(
-                              idx,
-                              "addressType",
-                              val as AddressType
-                            )
-                          }
+                  <div key={idx} className="mb-8 bg-white rounded-2xl border border-gray-200 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 border-b border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xl font-semibold text-gray-800 flex items-center gap-3">
+                          Address {idx + 1}
+                          {address.addressType && (
+                            <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 shadow-sm">
+                              {address.addressType}
+                            </span>
+                          )}
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAddress(idx)}
+                          disabled={formData.addresses.length <= 1}   // ← disable when last one
+                          className={formData.addresses.length <= 1 ? "opacity-40 cursor-not-allowed" : ""}
                         >
-                          <SelectTrigger className="!h-12 text-base w-full">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ADDRESS_TYPES.map((t) => (
-                              <SelectItem key={t} value={t}>
-                                {t}
-                              </SelectItem>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* country */}
+                        <div className="space-y-2">
+                          <Label>
+                            Country<span className="text-red-500">*</span>
+                            <TooltipHint hint="Country for this address." />
+                          </Label>
+                          <select
+                            required
+                            value={address.country || ""}
+                            onChange={async (e) => {
+                              const selectedCountry = e.target.value;
+
+                              handleAddressChange(idx, "country", selectedCountry);
+
+                              handleAddressChange(idx, "state", "");
+
+                              const states =
+                                await adminService.getStatesByCountryV1(selectedCountry);
+
+                              setStatesMap((prev) => ({
+                                ...prev,
+                                [idx]: states || [],
+                              }));
+                            }}
+
+                            className="!h-12 text-base w-full px-3 border rounded-md"
+                          >
+                            <option value="">Select Country</option>
+                            {filteredCountries.map((country) => (
+                              <option key={country} value={country}>
+                                {country}
+                              </option>
                             ))}
-                          </SelectContent>
-                        </Select>
-                        {fieldError(errors, `addresses.${idx}.addressType`)}
+                          </select>
+                          {fieldError(errors, `addresses.${idx}.country`)}
+                        </div>
+                        {/* state */}
+                        <div className="space-y-2">
+                          <Label>
+                            State<span className="text-red-500">*</span>
+                            <TooltipHint hint="Name of the state for this address." />
+                          </Label>
+                          {statesMap[idx]?.length ? (
+                            <select
+                              name={`addresses.${idx}.state`}           // optional: helps with native form
+                              value={address.state || ""}
+                              onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
+                              onBlur={() => {
+                                // Optional: trigger validation on blur (if you have validator for state)
+                                const err = validateField(`addresses.${idx}.state`, address.state, formData);
+                                setErrors((prev) => {
+                                  const next = { ...prev };
+                                  if (err) next[`addresses.${idx}.state`] = err;
+                                  else delete next[`addresses.${idx}.state`];
+                                  return next;
+                                });
+                              }}
+                              required
+
+                              className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="" >
+                                Select State
+                              </option>
+                              {statesMap[idx].map((state) => (
+                                <option key={state} value={state}>
+                                  {state}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Input
+                              required
+                              disabled={!address.country}
+                              value={address.state || ""}
+                              onChange={(e) =>
+                                handleAddressChange(idx, "state", e.target.value)
+                              }
+                              placeholder="Enter State"
+                              className="!h-12 text-base w-full"
+                            />
+                          )}
+                          {fieldError(errors, `addresses.${idx}.state`)}
+                        </div>
+                        {/* city */}
+                        <div className="space-y-2">
+                          <Label>
+                            City<span className="text-red-500">*</span>
+                            <TooltipHint hint="Name of the city for this address." />
+                          </Label>
+                          <Input
+                            required
+                            name={`addresses.${idx}.city`}
+                            value={address.city || ""}
+                            onChange={(e) =>
+                              handleAddressChange(idx, "city", e.target.value)
+                            }
+                            placeholder="e.g. Mumbai"
+                            className="!h-12 text-base w-full"
+
+                          />
+                          {fieldError(errors, `addresses.${idx}.city`)}
+                        </div>
+
+                        {/* H.no */}
+                        <div className="space-y-2">
+                          <Label>
+                            House No.<span className="text-red-500">*</span>
+                            <TooltipHint hint="House or building number for this address." />
+                          </Label>
+                          <Input
+                            required
+                            value={address.houseNo || ""}
+                            onChange={(e) =>
+                              handleAddressChange(idx, "houseNo", e.target.value)
+                            }
+                            placeholder="e.g. 221B"
+                            className="!h-12 text-base w-full"
+
+                          />
+                          {fieldError(errors, `addresses.${idx}.houseNo`)}
+                        </div>
+                        {/* street name */}
+                        <div className="space-y-2">
+                          <Label>
+                            Street Name<span className="text-red-500">*</span>
+                            <TooltipHint hint="Name of the street for this address." />
+                          </Label>
+                          <Input
+                            required
+                            value={address.streetName || ""}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                idx,
+                                "streetName",
+                                e.target.value
+                              )
+                            }
+                            className="!h-12 text-base w-full"
+
+                            placeholder="e.g. Baker Street"
+                          />
+                          {fieldError(errors, `addresses.${idx}.streetName`)}
+                        </div>
+                        {/* pincode */}
+                        <div className="space-y-2">
+                          <Label>
+                            Pincode<span className="text-red-500">*</span>
+                            <TooltipHint hint="6-digit postal code for this address." />
+                          </Label>
+                          <Input
+                            required
+                            value={address.pincode || ""}
+                            onChange={(e) => {
+                              handleAddressChange(idx, "pincode", e.target.value);
+                            }}
+                            placeholder="e.g. 400001"
+                            className="!h-12 text-base w-full"
+
+                          />
+                          {fieldError(errors, `addresses.${idx}.pincode`)}
+                        </div>
+
+                        {/* address type */}
+                        <div className="space-y-2">
+                          <Label>
+                            Address Type<span className="text-red-500">*</span>
+                            <TooltipHint hint="Type of address (e.g., Registered, Office)." />
+                          </Label>
+                          <select
+                            name={`addresses.${idx}.addressType`}
+                            value={address.addressType || ""}
+                            onChange={(e) => handleAddressChange(idx, "addressType", e.target.value as AddressType)}
+                            onBlur={() => {
+                              // Optional: run validation on blur
+                              const err = validateField(
+                                `addresses.${idx}.addressType`,
+                                address.addressType,
+                                formData
+                              );
+                              setErrors((prev) => {
+                                const next = { ...prev };
+                                if (err) next[`addresses.${idx}.addressType`] = err;
+                                else delete next[`addresses.${idx}.addressType`];
+                                return next;
+                              });
+                            }}
+                            required
+                            className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
+                          >
+                            <option value="" >
+                              Select type
+                            </option>
+                            {ADDRESS_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                          {fieldError(errors, `addresses.${idx}.addressType`)}
+                        </div>
                       </div>
                     </div>
                   </div>

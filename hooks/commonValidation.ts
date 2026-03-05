@@ -36,5 +36,5 @@ export const invalidPFUAN =
   "PF UAN must be exactly 12 digits.";
 export const invalidPassport =
   "Passport must start with a capital letter followed by 7-8 digits";
-export const pincode=
-"Pincode must be 6-digits";
+// export const pincode=
+// "Pincode must be 6-digits";

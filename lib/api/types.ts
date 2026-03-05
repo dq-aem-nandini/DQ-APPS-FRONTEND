@@ -181,15 +181,14 @@ export type Domain = (typeof DOMAIN_OPTIONS)[number];
 export const CURRENCY_CODE_OPTIONS = [
   "INR",
   "USD",
-  "EUR",
-  "GBP",
-  "AUD",
-  "CAD",
-  "SGD",
-  "JPY",
 ] as const;
 
-export type CurrencyCode = (typeof CURRENCY_CODE_OPTIONS)[number];
+export type CurrencyCode = typeof CURRENCY_CODE_OPTIONS[number];
+
+export const COUNTRY_CURRENCY_MAP: Record<string, CurrencyCode> = {
+  India: "INR",
+};
+
 export const DEPARTMENT_OPTIONS = [
   "HR",
   "IT",
