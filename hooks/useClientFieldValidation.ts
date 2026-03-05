@@ -117,14 +117,62 @@ export function useClientFieldValidation() {
 
     // ================= PINCODE =================
     /* ───── Postal Code (Global Safe Validation) ───── */
-    if (
-      name.toLowerCase().includes("pincode") ||
-      name.toLowerCase().includes("postal")
-    ) {
-      if (val.length < 3 || val.length > 10) {
-        return "Postal/ZIP code must be between 3 and 10 characters";
+    // if (
+    //   name.toLowerCase().includes("pincode") ||
+    //   name.toLowerCase().includes("postal")
+    // ) {
+    //   if (val.length < 3 || val.length > 10) {
+    //     return "Postal/ZIP code must be between 3 and 10 characters";
+    //   }
+    // }
+
+      // ───── Postal / ZIP / Pincode ─────
+      if (name.endsWith(".pincode") || name.toLowerCase().includes("postal") || name.toLowerCase().includes("zip")) {
+        const trimmed = val.trim();
+  
+        if (trimmed === "") {
+          return ""; // requiredFields already handles empty
+        }
+  
+        // Extract country if possible (for addresses.0.pincode → addresses.0.country)
+        let country = "";
+        const parts = name.split(".");
+        if (parts.length >= 3 && parts[0] === "addresses") {
+          const idx = Number(parts[1]);
+          country = (formData?.addresses?.[idx]?.country || "").trim();
+        }
+  
+        // Country-aware validation (expand as needed)
+        const countryPatterns: Record<string, { regex: RegExp; msg: string }> = {
+          "India": {
+            regex: /^[1-9]\d{5}$/,
+            msg: "Indian PIN code must be exactly 6 digits (e.g. 500081)",
+          },
+          "United States": {
+            regex: /^\d{5}(?:[- ]?\d{4})?$/,
+            msg: "US ZIP: 5 digits or ZIP+4 (e.g. 90210 or 90210-1234)",
+          },
+          "Canada": {
+            regex: /^[A-Z]\d[A-Z] ?\d[A-Z]\d$/i,
+            msg: "Canadian format: A1A 1A1 (e.g. M5V 2T6)",
+          },
+          // Add 4–6 more frequent countries if needed
+        };
+  
+        if (country && countryPatterns[country]) {
+          if (!countryPatterns[country].regex.test(trimmed)) {
+            return countryPatterns[country].msg;
+          }
+        } else {
+          // Global fallback - improved version
+          if (trimmed.length < 3 || trimmed.length > 12) {   // raised max to 12
+            return "Postal/ZIP/Pin code should be 3–12 characters";
+          }
+          if (!/^[A-Za-z0-9\s-]{3,12}$/.test(trimmed)) {
+            return common.invalidPostal; // reuse your message
+          }
+        }
       }
-    }
 
     // ================= ACCOUNT =================
     if (name === "accountNumber" && val && !common.accountNumberRegex.test(val))

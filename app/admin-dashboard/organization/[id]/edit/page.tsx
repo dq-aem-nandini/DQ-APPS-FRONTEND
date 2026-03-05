@@ -4,13 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
@@ -35,14 +29,6 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
 import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { adminService } from "@/lib/api/adminService";
-const CURRENCY_COUNTRY_MAP: Record<CurrencyCode, string[]> =
-  Object.entries(COUNTRY_CURRENCY_MAP).reduce((acc, [country, currency]) => {
-    if (!acc[currency as CurrencyCode]) {
-      acc[currency as CurrencyCode] = [];
-    }
-    acc[currency as CurrencyCode].push(country);
-    return acc;
-  }, {} as Record<CurrencyCode, string[]>);
 const ADDRESS_TYPES: AddressType[] = ["PERMANENT", "CURRENT", "OFFICE"];
 const TIMEZONES = [
   "Asia/Kolkata",
@@ -51,7 +37,6 @@ const TIMEZONES = [
   "Australia/Sydney",
   "Asia/Singapore",
 ];
-
 export default function EditOrganizationPage() {
   const params = useParams<{ id: string }>();
   const id = params.id; // string | undefined
@@ -178,33 +163,23 @@ export default function EditOrganizationPage() {
       validateField
     );
 
-  useEffect(() => {
-    if (!formData.addresses?.length) return;
-
-    const selectedCountry = formData.addresses[0]?.country;
-    if (!selectedCountry) return;
-
-    const mappedCurrency =
-      COUNTRY_CURRENCY_MAP[selectedCountry];
-
-    if (
-      mappedCurrency &&
-      formData.currencyCode !== mappedCurrency
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        currencyCode: mappedCurrency,
-      }));
-    }
-  }, [formData.addresses]);
-
   const filteredCountries = useMemo(() => {
     if (!formData.currencyCode) return countries;
-
-    return (
-      CURRENCY_COUNTRY_MAP[formData.currencyCode] || []
-    );
-  }, [formData.currencyCode, countries]);
+  
+    if (formData.currencyCode === "INR") {
+      return countries.filter(
+        (c) => c.toLowerCase() === "india"
+      );
+    }
+  
+    if (formData.currencyCode === "USD") {
+      return countries.filter(
+        (c) => c.toLowerCase() !== "india"
+      );
+    }
+  
+    return countries;
+  }, [countries, formData.currencyCode]);
 
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
@@ -1046,7 +1021,25 @@ export default function EditOrganizationPage() {
                   <select
                     name="currencyCode"
                     value={formData.currencyCode || ""}
-                    onChange={handleValidatedChange}
+                    onChange={(e) => {
+                      const value = e.target.value as CurrencyCode;
+                  
+                      setFormData((prev) => ({
+                        ...prev,
+                        currencyCode: value,
+                        addresses: prev.addresses.map((addr) => ({
+                          ...addr,
+                          houseNo: "",
+                          streetName: "",
+                          city: "",
+                          state: "",
+                          pincode: "",
+                          country: "",
+                        })),
+                      }));
+                  
+                      setStatesMap({});
+                    }}
                     required
                     className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
                   >
@@ -1405,18 +1398,34 @@ export default function EditOrganizationPage() {
                             value={address.country || ""}
                             onChange={async (e) => {
                               const selectedCountry = e.target.value;
-
-                              handleAddressChange(idx, "country", selectedCountry);
-
-                              handleAddressChange(idx, "state", "");
-
-                              const states =
-                                await adminService.getStatesByCountryV1(selectedCountry);
-
-                              setStatesMap((prev) => ({
-                                ...prev,
-                                [idx]: states || [],
-                              }));
+                            
+                              setFormData((prev) => {
+                                const updatedAddresses = [...prev.addresses];
+                            
+                                updatedAddresses[idx] = {
+                                  ...updatedAddresses[idx],
+                                  country: selectedCountry,
+                                  state: "",
+                                  city: "",
+                                  houseNo: "",
+                                  streetName: "",
+                                  pincode: "",
+                                };
+                            
+                                return {
+                                  ...prev,
+                                  addresses: updatedAddresses,
+                                };
+                              });
+                            
+                              if (selectedCountry) {
+                                const states = await adminService.getStatesByCountryV1(selectedCountry);
+                            
+                                setStatesMap((prev) => ({
+                                  ...prev,
+                                  [idx]: states || [],
+                                }));
+                              }
                             }}
 
                             className="!h-12 text-base w-full px-3 border rounded-md"
@@ -1440,7 +1449,27 @@ export default function EditOrganizationPage() {
                             <select
                               name={`addresses.${idx}.state`}           // optional: helps with native form
                               value={address.state || ""}
-                              onChange={(e) => handleAddressChange(idx, "state", e.target.value)}
+                              onChange={(e) => {
+                                const selectedState = e.target.value;
+                              
+                                setFormData((prev) => {
+                                  const updatedAddresses = [...prev.addresses];
+                              
+                                  updatedAddresses[idx] = {
+                                    ...updatedAddresses[idx],
+                                    state: selectedState,
+                                    city: "",
+                                    houseNo: "",
+                                    streetName: "",
+                                    pincode: "",
+                                  };
+                              
+                                  return {
+                                    ...prev,
+                                    addresses: updatedAddresses,
+                                  };
+                                });
+                              }}
                               onBlur={() => {
                                 // Optional: trigger validation on blur (if you have validator for state)
                                 const err = validateField(`addresses.${idx}.state`, address.state, formData);

@@ -1,5 +1,4 @@
 // validation/commonValidation.ts
-
 export const phoneRegex = /^[6-9]\d{9}$/;
 export const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const nameRegex = /^[A-Za-z ]+$/;
@@ -36,5 +35,7 @@ export const invalidPFUAN =
   "PF UAN must be exactly 12 digits.";
 export const invalidPassport =
   "Passport must start with a capital letter followed by 7-8 digits";
-// export const pincode=
-// "Pincode must be 6-digits";
+export const invalidPostal = 
+  "Postal/ZIP code must be 3–10 alphanumeric characters, spaces or hyphens";
+
+

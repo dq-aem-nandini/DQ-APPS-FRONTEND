@@ -15,7 +15,6 @@ import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import {
   ADDRESS_TYPE_OPTIONS,
   ClientModel,
-  COUNTRY_CURRENCY_MAP,
   CURRENCY_CODE_OPTIONS,
   CurrencyCode,
   OrganizationResponseDTO,
@@ -27,9 +26,9 @@ export default function AddClientPage() {
   const router = useRouter();
   const { loading, withLoading } = useLoading();
   const [organizations, setOrganizations] = useState<OrganizationResponseDTO[]>([]);
-    const [filtered, setFiltered] = useState<OrganizationResponseDTO[]>([]);
-    const [rendering, setLoading] = useState(true);
-    const [error, setError] = useState('');
+  const [filtered, setFiltered] = useState<OrganizationResponseDTO[]>([]);
+  const [rendering, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<ClientModel>({
     companyName: "",
     contactNumber: "",
@@ -140,53 +139,53 @@ export default function AddClientPage() {
     fetchCountries();
   }, []);
 
-   // Fetch organizations
-   const [orgState, setOrgState] = useState<string>("");
+  // Fetch organizations
+  const [orgState, setOrgState] = useState<string>("");
 
-    useEffect(() => {
-      const fetchOrgs = async () => {
-        try {
-          setLoading(true);
-          const data = await organizationService.getAll();
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        setLoading(true);
+        const data = await organizationService.getAll();
 
-          setOrganizations(data);
-          setFiltered(data);
+        setOrganizations(data);
+        setFiltered(data);
 
-          // ✅ Extract organization state from addresses[0]
-          const firstOrg = data?.[0];
-          const stateFromOrg =
-            firstOrg?.addresses?.[0]?.state?.trim() || "";
+        // ✅ Extract organization state from addresses[0]
+        const firstOrg = data?.[0];
+        const stateFromOrg =
+          firstOrg?.addresses?.[0]?.state?.trim() || "";
 
-          setOrgState(stateFromOrg);
-        } catch (err: any) {
-          setError(err.message || "Failed to load organizations");
-        } finally {
-          setLoading(false);
-        }
-      };
+        setOrgState(stateFromOrg);
+      } catch (err: any) {
+        setError(err.message || "Failed to load organizations");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchOrgs();
-    }, []);
+    fetchOrgs();
+  }, []);
 
-    
 
-const clientCountry = formData.addresses?.[0]?.country?.trim();
-const clientState = formData.addresses?.[0]?.state?.trim();
 
-const isOutsideIndia =
-  clientCountry && clientCountry.toLowerCase() !== "india";
+  const clientCountry = formData.addresses?.[0]?.country?.trim();
+  const clientState = formData.addresses?.[0]?.state?.trim();
 
-const isSameState =
-  clientCountry?.toLowerCase() === "india" &&
-  clientState &&
-  orgState &&
-  clientState.toLowerCase() === orgState.toLowerCase();
+  const isOutsideIndia =
+    clientCountry && clientCountry.toLowerCase() !== "india";
 
-const isDifferentState =
-  clientCountry?.toLowerCase() === "india" &&
-  clientState &&
-  orgState &&
-  clientState.toLowerCase() !== orgState.toLowerCase();
+  const isSameState =
+    clientCountry?.toLowerCase() === "india" &&
+    clientState &&
+    orgState &&
+    clientState.toLowerCase() === orgState.toLowerCase();
+
+  const isDifferentState =
+    clientCountry?.toLowerCase() === "india" &&
+    clientState &&
+    orgState &&
+    clientState.toLowerCase() !== orgState.toLowerCase();
 
 
   useEffect(() => {
@@ -198,7 +197,7 @@ const isDifferentState =
       }));
       return;
     }
-  
+
     // USD → Outside India → No tax
     if (formData.currency === "USD") {
       setFormData(prev => ({
@@ -207,10 +206,10 @@ const isDifferentState =
       }));
       return;
     }
-  
+
     // If INR but country/state missing → wait
     if (!clientCountry || !clientState || !orgState) return;
-  
+
     // INR + India only allowed
     if (clientCountry.toLowerCase() !== "india") {
       setFormData(prev => ({
@@ -219,7 +218,7 @@ const isDifferentState =
       }));
       return;
     }
-  
+
     // Same State → CGST + SGST
     if (clientState.toLowerCase() === orgState.toLowerCase()) {
       setFormData(prev => ({
@@ -231,7 +230,7 @@ const isDifferentState =
       }));
       return;
     }
-  
+
     // Different State → IGST
     setFormData(prev => ({
       ...prev,
@@ -272,20 +271,6 @@ const isDifferentState =
   };
 
   const selectedCountry = formData.addresses?.[0]?.country;
-
-  useEffect(() => {
-    if (!formData.currency) return;
-  
-    setFormData((prev) => ({
-      ...prev,
-      addresses: (prev.addresses ?? []).map((addr) => ({
-        ...addr,
-        country: "",
-        state: "",
-      })),
-      clientTaxDetails: [],
-    }));
-  }, [formData.currency]);
 
   // Real-time duplicate detection between main fields and POCs
   const checkDuplicateInForm = () => {
@@ -398,8 +383,7 @@ const isDifferentState =
             taxId: null,
             taxName: "",
             taxPercentage: 0,
-            // createdAt: new Date().toISOString(),
-            // updatedAt: new Date().toISOString(),
+
           },
         ],
       }));
@@ -623,10 +607,10 @@ const isDifferentState =
   };
 
   const filteredCountries = formData.currency
-  ? formData.currency === "INR"
-    ? countries.filter((country) => country === "India")
-    : countries.filter((country) => country !== "India")
-  : countries;
+    ? formData.currency === "INR"
+      ? countries.filter((country) => country === "India")
+      : countries.filter((country) => country !== "India")
+    : countries;
 
   return (
     <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
@@ -825,6 +809,19 @@ const isDifferentState =
                       setFormData((prev) => ({
                         ...prev,
                         currency: e.target.value as CurrencyCode,
+                        addresses: [
+                          {
+                            addressId: null,
+                            houseNo: "",
+                            streetName: "",
+                            city: "",
+                            state: "",
+                            pincode: "",
+                            country: "",
+                            addressType: undefined,
+                          },
+                        ],
+                        clientTaxDetails: [],
                       }))
                     }
                     required
@@ -883,7 +880,7 @@ const isDifferentState =
 
               {(formData.addresses || []).map((addr, i) => (
                 <div
-                  key={addr.addressId || i}
+                  key={addr.addressId ?? `addr-${i}`}
                   className="mb-6 p-4 border rounded bg-gray-50"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -899,16 +896,27 @@ const isDifferentState =
                         name={`addresses.${i}.country`}
                         value={addr.country || ""}
                         onChange={(e) => {
-                          handleValidatedChange(e, i, "addresses");
-
                           const selectedCountry = e.target.value;
 
-                          setFormData((prev) => ({
-                            ...prev,
-                            addresses: (prev.addresses ?? []).map((a, idx) =>
-                              idx === i ? { ...a, state: "" } : a
-                            ),
-                          }));
+                          setFormData((prev) => {
+                            const updated = [...(prev.addresses || [])];
+
+                            updated[i] = {
+                              ...updated[i],
+                              country: selectedCountry,
+                              state: "",
+                              city: "",
+                              houseNo: "",
+                              streetName: "",
+                              pincode: "",
+                            };
+
+                            return {
+                              ...prev,
+                              addresses: updated,
+                              clientTaxDetails: [],
+                            };
+                          });
 
                           fetchStatesForCountry(selectedCountry, i);
                         }}
@@ -936,9 +944,28 @@ const isDifferentState =
                         <select
                           name={`addresses.${i}.state`}
                           value={addr.state || ""}
-                          onChange={(e) =>
-                            handleValidatedChange(e, i, "addresses")
-                          }
+                          onChange={(e) => {
+                            const selectedState = e.target.value;
+
+                            setFormData((prev) => {
+                              const updated = [...(prev.addresses || [])];
+
+                              updated[i] = {
+                                ...updated[i],
+                                state: selectedState,
+                                city: "",
+                                houseNo: "",
+                                streetName: "",
+                                pincode: "",
+                              };
+
+                              return {
+                                ...prev,
+                                addresses: updated,
+                                clientTaxDetails: [],
+                              };
+                            });
+                          }}
                           onBlur={handleBlurValidation(`addresses.${i}.state`)}
                           required
                           disabled={statesLoadingMap[i]}
@@ -1244,57 +1271,57 @@ const isDifferentState =
 
             {/* ==================== TAX DETAILS ==================== */}
             {formData.currency === "INR" && clientCountry === "India" && (
-            <div className="pb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Tax Details
-                </h3>
-                {/* <button
+              <div className="pb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Tax Details
+                  </h3>
+                  {/* <button
                   type="button"
                   onClick={() => addItem("clientTaxDetails")}
                   className="text-indigo-600 text-sm hover:underline"
                 >
                   + Add Tax
                 </button> */}
-              </div>
+                </div>
 
-              {(formData.clientTaxDetails || []).map((tax, i) => (
-                <div
-                  key={tax.taxId || `tax-${i}`}
-                  className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end"
-                >
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tax Name
-                      <TooltipHint hint="Name of the tax. Example: GST, VAT, Service Tax" />
-                    </label>
-                    <input
-                      type="text"
-                      name={`clientTaxDetails.${i}.taxName`}
-                      value={tax.taxName || ""}
-                      onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                      placeholder="e.g., GST"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                    {fieldError(errors, `clientTaxDetails.${i}.taxName`)}
-                  </div>
-                  <div className="w-32">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      %
-                      <TooltipHint hint="Tax percentage rate. Example: 18 for 18%" />
-                    </label>
-                    <input
-                      name={`clientTaxDetails.${i}.taxPercentage`}
-                      value={tax.taxPercentage || ""}
-                      onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                      type="text"
-                      onWheel={preventWheelChange}
-                      inputMode="numeric"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                    {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
-                  </div>
-                  {/* {formData.clientTaxDetails!.length > 1 && (
+                {(formData.clientTaxDetails || []).map((tax, i) => (
+                  <div
+                    key={tax.taxId || `tax-${i}`}
+                    className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end"
+                  >
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tax Name
+                        <TooltipHint hint="Name of the tax. Example: GST, VAT, Service Tax" />
+                      </label>
+                      <input
+                        type="text"
+                        name={`clientTaxDetails.${i}.taxName`}
+                        value={tax.taxName || ""}
+                        onChange={(e) => handleChange(e, i, "clientTaxDetails")}
+                        placeholder="e.g., GST"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                      {fieldError(errors, `clientTaxDetails.${i}.taxName`)}
+                    </div>
+                    <div className="w-32">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        %
+                        <TooltipHint hint="Tax percentage rate. Example: 18 for 18%" />
+                      </label>
+                      <input
+                        name={`clientTaxDetails.${i}.taxPercentage`}
+                        value={tax.taxPercentage || ""}
+                        onChange={(e) => handleChange(e, i, "clientTaxDetails")}
+                        type="text"
+                        onWheel={preventWheelChange}
+                        inputMode="numeric"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                      {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
+                    </div>
+                    {/* {formData.clientTaxDetails!.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeItem("clientTaxDetails", i)}
@@ -1303,9 +1330,9 @@ const isDifferentState =
                       <Trash2 size={18} />
                     </button>
                   )} */}
-                </div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
             )}
             <div className="flex justify-end gap-4">
               <button

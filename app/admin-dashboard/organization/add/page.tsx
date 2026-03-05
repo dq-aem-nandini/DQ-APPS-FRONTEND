@@ -1,16 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Upload, Plus, Trash2, MapPin } from "lucide-react";
@@ -274,9 +268,23 @@ export default function AddOrganizationPage() {
   }, [formData.currencyCode]);
 
 
-  const filteredCountries = formData.currencyCode
-    ? CURRENCY_COUNTRY_MAP[formData.currencyCode] ?? countries
-    : countries || [];
+  const filteredCountries = useMemo(() => {
+    if (!formData.currencyCode) return countries;
+  
+    if (formData.currencyCode === "INR") {
+      return countries.filter(
+        (c) => c.toLowerCase() === "india"
+      );
+    }
+  
+    if (formData.currencyCode === "USD") {
+      return countries.filter(
+        (c) => c.toLowerCase() !== "india"
+      );
+    }
+  
+    return countries;
+  }, [countries, formData.currencyCode]);
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -525,15 +533,7 @@ export default function AddOrganizationPage() {
   }, [formData.addresses, formData.currencyCode]);
 
   return (
-    // <div className="container mx-auto py-6">
-    //   <div className="relative flex items-center justify-center mb-8">
-    //     <div className="absolute left-0">
-    //       <BackButton to="/admin-dashboard/organization/list" />
-    //     </div>
-    //     <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-    //       Add Organization
-    //     </h1>
-    //   </div>
+
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
@@ -883,7 +883,24 @@ export default function AddOrganizationPage() {
                     required
                     name="currencyCode"
                     value={formData.currencyCode}
-                    onChange={handleValidatedChange}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        currencyCode: e.target.value as CurrencyCode,
+                        addresses: [
+                          {
+                            addressId: null,
+                            houseNo: "",
+                            streetName: "",
+                            city: "",
+                            state: "",
+                            pincode: "",
+                            country: "",
+                            addressType: undefined,
+                          },
+                        ],
+                      }))
+                    }
                     onBlur={handleBlurValidation("currencyCode")}
                     className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
@@ -1247,14 +1264,24 @@ export default function AddOrganizationPage() {
                                 const value = e.target.value.trim();
                                 console.log("→ Selected country:", value);
 
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  addresses: prev.addresses.map((addr, idx) =>
-                                    idx === index
-                                      ? { ...addr, country: value, state: "" } // reset state
-                                      : addr
-                                  ),
-                                }));
+                                setFormData((prev) => {
+                                  const updatedAddresses = [...prev.addresses];
+                                
+                                  updatedAddresses[index] = {
+                                    ...updatedAddresses[index],
+                                    houseNo: "",
+                                    streetName: "",
+                                    city: "",
+                                    state: "",
+                                    pincode: "",
+                                    country: value,
+                                  };
+                                
+                                  return {
+                                    ...prev,
+                                    addresses: updatedAddresses,
+                                  };
+                                });
 
                                 if (value) {
                                   fetchStatesForCountry(value, index);
@@ -1284,7 +1311,27 @@ export default function AddOrganizationPage() {
                               <select
                                 name={`addresses.${index}.state`}
                                 value={address.state || ""}   // ← controlled
-                                onChange={(e) => handleAddressChange(index, "state", e.target.value)}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+
+                                  setFormData((prev) => {
+                                    const updatedAddresses = [...prev.addresses];
+                                  
+                                    updatedAddresses[index] = {
+                                      ...updatedAddresses[index],
+                                      houseNo: "",
+                                      streetName: "",
+                                      city: "",
+                                      pincode: "",
+                                      state: value,
+                                    };
+                                  
+                                    return {
+                                      ...prev,
+                                      addresses: updatedAddresses,
+                                    };
+                                  });
+                                }}
                                 onBlur={handleBlurValidation(`addresses.${index}.state`)}
                                 required
                                 disabled={statesLoadingMap[index]}
@@ -1363,7 +1410,7 @@ export default function AddOrganizationPage() {
                           {/* Pincode */}
                           <div className="space-y-2">
                             <Label className="text-gray-700 font-medium">
-                              Pincode
+                              Pincode <span className="text-red-500">*</span>
                               <TooltipHint hint="6-digit postal code (e.g., 400001)." />
                             </Label>
                             <Input
