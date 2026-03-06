@@ -12,7 +12,7 @@ import {
   PlusIcon,
   CogIcon,
 } from '@heroicons/react/24/outline';
-import { Building2, Clock, FileTextIcon, Landmark, LogOut, TimerIcon, User } from 'lucide-react';
+import { Building2, Clock, FileTextIcon, Landmark, LogOut, TimerIcon, User, WorkflowIcon } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminSidebar() {
@@ -39,6 +39,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard/invoice', label: 'Invoices', icon: <FileTextIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/manualInvoice', label: 'Manual Invoice', icon: <CogIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/timesheet', label: 'Timesheets', icon: <ClockIcon className="h-5 w-5" /> },
+        {href: '/admin-dashboard/workPolicy', label: 'Work Policy', icon: <WorkflowIcon className="h-5 w-5" /> },
       ],
     },
     {

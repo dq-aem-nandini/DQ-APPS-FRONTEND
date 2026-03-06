@@ -124,6 +124,12 @@ export const EMPLOYMENT_TYPE_OPTIONS = [
 ] as const;
 
 export type EmploymentType = (typeof EMPLOYMENT_TYPE_OPTIONS)[number];
+export const WORKING_PATTERN_OPTIONS = [
+  "MON_FRI",
+  "MON_SAT",
+] as const;
+
+export type WorkingPattern = typeof WORKING_PATTERN_OPTIONS[number];
 export const ATTENDANCE_STATUS_OPTIONS = [
   "PRESENT",
   "ABSENT",
@@ -268,7 +274,36 @@ export const INVOICE_STATUS_OPTIONS = [
 
 export type InvoiceStatus = (typeof INVOICE_STATUS_OPTIONS)[number];
 
+// Request DTO
+export interface WorkingPolicyRequestDTO {
+  employmentType: EmploymentType;
+  workingPattern: WorkingPattern;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
 
+
+// Response DTO (List API)
+export interface WorkingPolicyResponseDTO {
+  id: string;
+  employmentType: EmploymentType;
+  workingPattern: WorkingPattern;
+  effectiveFrom: string;
+  effectiveTo: string  | null;
+  active: boolean;
+}
+
+
+// Create / Update Response
+export interface EmploymentWorkingPolicy {
+  id: string;
+  employmentType: EmploymentType;
+  workingPattern: WorkingPattern;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface EmployeeDepartmentDTO {
   employeeId: string;
   fullName: string;
