@@ -748,7 +748,8 @@ export interface ClientModel {
   tanNumber?: string;
   addresses?: AddressModel[];
   clientPocs?: ClientPocModel[];
-  clientTaxDetails: ClientTaxDetail[]; // Array of tax detail objects
+  clientTaxDetails: ClientTaxDetail[]; 
+  branchEntityIds: string[];
 }
 export interface ClientTaxDetail {
   taxId: string | null; // UUID
@@ -917,6 +918,7 @@ export interface ClientDTO {
   tanNumber: string;
   status: string;
   netTerms: number | null;
+  branchEntityIds: string[];
   clientTaxDetails: ClientTaxDetail[];
   createdAt: string; // ISO Date-Time string
   updatedAt: string; // ISO Date-Time string
@@ -1718,17 +1720,16 @@ export interface ManualInvoiceItemRequestDTO {
   employeeId: string;
   hoursWorked: number; // decimal allowed
   ratePerHour: number; // decimal allowed
+  courierAmount: number; // decimal allowed
   description?: string;
 }
 export interface ManualInvoiceRequestDTO {
   clientId: string;
   year: number;
   month: number;
-
   invoiceNumber: string;
   invoiceDate?: string; // yyyy-MM-dd
   dueDate?: string; // yyyy-MM-dd
-
   items: ManualInvoiceItemRequestDTO[];
 }
 

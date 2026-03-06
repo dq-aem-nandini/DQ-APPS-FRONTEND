@@ -353,12 +353,9 @@ async getEmployeesByDesignation(
     if (!clientId) {
       throw new Error("Client ID is required");
     }
-    console.log("🔍 [getEmployeesByClientId] Fetching employees for client:", clientId);
     try {
       const response: AxiosResponse<WebResponseDTOListEmployeeDTO> =
         await api.get(`/admin/emp/all/${clientId}`);
-
-      console.log("✅ [getEmployeesByClientId] Response:", response.data);
 
       return response.data;
 
