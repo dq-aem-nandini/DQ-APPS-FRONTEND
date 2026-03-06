@@ -23,6 +23,9 @@ const requiredFields = [
   "autoClockOutTime",
   "bankName",
   "branchName",
+  "cgst",
+  "igst",
+  "sgst",
 
 ];
 
@@ -61,6 +64,9 @@ const invalidIFSC = "Invalid IFSC format (e.g., SBIN0000123)";
 const invalidAadhar = "Invalid Aadhar format (12 digits)";
 const invalidPostal = "Postal/ZIP code must be 3–10 alphanumeric characters, spaces or hyphens";
 const invalidLocation = "Only letters, spaces and common punctuation allowed";
+const cgstInvalid = "CGST must be a number between 0 and 100";
+const igstInvalid = "IGST must be a number between 0 and 100";
+const sgstInvalid = "SGST must be a number between 0 and 100";
 
 const onlyLettersSymbols =
   "Only letters, spaces, and common symbols (& . , - () ) allowed";
@@ -114,35 +120,35 @@ export function createOrganizationValidator() {
       name === "attendancePolicy.fullDayMinMinutes"
     ) {
       const strVal = value == null ? "" : String(value).trim();
-    
+
       // Required already handled above, but double-check for safety
       if (strVal === "") {
         return "This field is required";
       }
-    
+
       const num = Number(strVal);
-    
+
       if (isNaN(num) || !isFinite(num)) {
         return "Please enter a valid number";
       }
-    
+
       if (num < 0) {
         return "Value cannot be negative";
       }
-    
+
       if (num > 24) {
         return "Maximum allowed value is 24 hours";
       }
-    
+
       // Optional: minimum sensible value
       if (name === "attendancePolicy.fullDayMinMinutes" && num < 1) {
         return "Full day should be at least 1 hour";
       }
-    
+
       if (name === "attendancePolicy.absentMaxMinutes" && num < 0.5) {
         return "Grace period should be at least 0.5 hours";
       }
-    
+
       return ""; // valid
     }
     /* ───── Names ───── */
@@ -162,7 +168,26 @@ export function createOrganizationValidator() {
       if (val.length < 3) return min3Chars;
     }
 
+    if (cgstInvalid && name === "cgst") {
+      const num = Number(val);
+      if (isNaN(num) || num < 0 || num > 100) {
+        return cgstInvalid;
+      }
+    }
 
+    if (igstInvalid && name === "igst") {
+      const num = Number(val);
+      if (isNaN(num) || num < 0 || num > 100) {
+        return igstInvalid;
+      }
+    }
+
+    if (sgstInvalid && name === "sgst") {
+      const num = Number(val);
+      if (isNaN(num) || num < 0 || num > 100) {
+        return sgstInvalid;
+      }
+    }
 
     /* ───── Email ───── */
     if (

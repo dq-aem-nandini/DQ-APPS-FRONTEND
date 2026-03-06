@@ -748,15 +748,9 @@ export interface ClientModel {
   tanNumber?: string;
   addresses?: AddressModel[];
   clientPocs?: ClientPocModel[];
-  clientTaxDetails: ClientTaxDetail[]; // Array of tax detail objects
+
 }
-export interface ClientTaxDetail {
-  taxId: string | null; // UUID
-  taxName: string;
-  taxPercentage: number;
-  // createdAt: string;     // ISO Date-Time format
-  // updatedAt: string;     // ISO Date-Time format
-}
+
 export interface ClientPocModel {
   pocId: string | null; // uuid
   name: string;
@@ -917,7 +911,6 @@ export interface ClientDTO {
   tanNumber: string;
   status: string;
   netTerms: number | null;
-  clientTaxDetails: ClientTaxDetail[];
   createdAt: string; // ISO Date-Time string
   updatedAt: string; // ISO Date-Time string
   addresses: AddressModel[];
@@ -1223,6 +1216,9 @@ export interface OrganizationRequestDTO {
   addresses: AddressModel[];
 
   prefix?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   sequenceNumber?: number;
   companyType?: string;
   attendancePolicy: AttendancePolicyDTO;
@@ -1255,6 +1251,9 @@ export interface OrganizationResponseDTO {
   digitalSignatureUrl: string;
   addresses: AddressModel[];
   prefix?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   sequenceNumber?: number;
   companyType?: string;
   attendancePolicyDto: AttendancePolicyResponseDTO; 

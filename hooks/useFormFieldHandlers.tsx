@@ -4,7 +4,7 @@ export function useFormFieldHandlers<TForm>(
   handleChange: (
     e: any,
     index?: number,
-    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+    section?: "addresses" | "clientPocs"
   ) => void,
   setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>,
   checkUniqueness: (
@@ -44,7 +44,7 @@ export function useFormFieldHandlers<TForm>(
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
     index?: number,
-    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+    section?: "addresses" | "clientPocs"
   ) => {
     const { name } = e.target;
 
@@ -96,7 +96,7 @@ export function useFormFieldHandlers<TForm>(
   (
     name: string,
     index?: number,
-    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+    section?: "addresses" | "clientPocs" 
   ) =>
   (
     e: React.FocusEvent<

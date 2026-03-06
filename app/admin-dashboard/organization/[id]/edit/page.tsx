@@ -83,7 +83,11 @@ export default function EditOrganizationPage() {
         pincode: "",
         addressType: "OFFICE" as AddressType,
       },
-    ], prefix: "",
+    ],
+    prefix: "",
+    cgst: undefined,
+    sgst: undefined,
+    igst: undefined,
     sequenceNumber: undefined,
     companyType: "",
     attendancePolicy: {
@@ -165,19 +169,19 @@ export default function EditOrganizationPage() {
 
   const filteredCountries = useMemo(() => {
     if (!formData.currencyCode) return countries;
-  
+
     if (formData.currencyCode === "INR") {
       return countries.filter(
         (c) => c.toLowerCase() === "india"
       );
     }
-  
+
     if (formData.currencyCode === "USD") {
       return countries.filter(
         (c) => c.toLowerCase() !== "india"
       );
     }
-  
+
     return countries;
   }, [countries, formData.currencyCode]);
 
@@ -234,6 +238,9 @@ export default function EditOrganizationPage() {
               addressType: a.addressType ?? ("" as AddressType),
             })) ?? [],
           prefix: res.prefix ?? "",
+          cgst: res.cgst ?? undefined,
+          sgst: res.sgst ?? undefined,
+          igst: res.igst ?? undefined,
           sequenceNumber: res.sequenceNumber ?? undefined,
           companyType: res.companyType ?? "",
           attendancePolicy: res.attendancePolicyDto
@@ -472,6 +479,9 @@ export default function EditOrganizationPage() {
       "accountHolderName",
       "ifscCode",
       "prefix",
+      "cgst",
+      "sgst",
+      "igst",
       "sequenceNumber",
       "companyType",
       "timezone",
@@ -548,6 +558,9 @@ export default function EditOrganizationPage() {
       fd.append("ifscCode", formData.ifscCode || "");
       fd.append("branchName", formData.branchName || "");
       fd.append("prefix", formData.prefix || "");
+      fd.append("cgst", String(formData.cgst ?? ""));
+      fd.append("sgst", String(formData.sgst ?? ""));
+      fd.append("igst", String(formData.igst ?? ""));
       fd.append("sequenceNumber", String(formData.sequenceNumber ?? ""));
       fd.append("companyType", formData.companyType || "");
       if (formData.attendancePolicy?.absentMaxMinutes != null) {
@@ -1023,7 +1036,7 @@ export default function EditOrganizationPage() {
                     value={formData.currencyCode || ""}
                     onChange={(e) => {
                       const value = e.target.value as CurrencyCode;
-                  
+
                       setFormData((prev) => ({
                         ...prev,
                         currencyCode: value,
@@ -1037,7 +1050,7 @@ export default function EditOrganizationPage() {
                           country: "",
                         })),
                       }));
-                  
+
                       setStatesMap({});
                     }}
                     required
@@ -1339,6 +1352,76 @@ export default function EditOrganizationPage() {
                   {fieldError(errors, "companyType")}
                 </div>
               </div>
+              {/* Tax Details */}
+              <div className="border-t border-gray-200 pt-10 pb-6">
+
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  Tax Configuration
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                  {/* CGST */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      CGST (%) <span className="text-red-500">*</span>
+                    </Label>
+
+                    <Input
+                      required
+                      name="cgst"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.cgst ?? ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. 9"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "cgst")}
+                  </div>
+
+                  {/* SGST */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      SGST (%) <span className="text-red-500">*</span>
+                    </Label>
+
+                    <Input
+                      required
+                      name="sgst"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.sgst ?? ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. 9"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "sgst")}
+                  </div>
+
+                  {/* IGST */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      IGST (%) <span className="text-red-500">*</span>
+                    </Label>
+
+                    <Input
+                      required
+                      name="igst"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.igst ?? ""}
+                      onChange={handleValidatedChange}
+                      placeholder="e.g. 18"
+                      className="h-12"
+                    />
+
+                    {fieldError(errors, "igst")}
+                  </div>
+
+                </div>
+              </div>
               {/* Addresses */}
               <div className="border-t border-gray-200 pt-10 pb-6">
                 <div className="flex justify-between items-center mb-8">
@@ -1398,10 +1481,10 @@ export default function EditOrganizationPage() {
                             value={address.country || ""}
                             onChange={async (e) => {
                               const selectedCountry = e.target.value;
-                            
+
                               setFormData((prev) => {
                                 const updatedAddresses = [...prev.addresses];
-                            
+
                                 updatedAddresses[idx] = {
                                   ...updatedAddresses[idx],
                                   country: selectedCountry,
@@ -1411,16 +1494,16 @@ export default function EditOrganizationPage() {
                                   streetName: "",
                                   pincode: "",
                                 };
-                            
+
                                 return {
                                   ...prev,
                                   addresses: updatedAddresses,
                                 };
                               });
-                            
+
                               if (selectedCountry) {
                                 const states = await adminService.getStatesByCountryV1(selectedCountry);
-                            
+
                                 setStatesMap((prev) => ({
                                   ...prev,
                                   [idx]: states || [],
@@ -1451,10 +1534,10 @@ export default function EditOrganizationPage() {
                               value={address.state || ""}
                               onChange={(e) => {
                                 const selectedState = e.target.value;
-                              
+
                                 setFormData((prev) => {
                                   const updatedAddresses = [...prev.addresses];
-                              
+
                                   updatedAddresses[idx] = {
                                     ...updatedAddresses[idx],
                                     state: selectedState,
@@ -1463,7 +1546,7 @@ export default function EditOrganizationPage() {
                                     streetName: "",
                                     pincode: "",
                                   };
-                              
+
                                   return {
                                     ...prev,
                                     addresses: updatedAddresses,
