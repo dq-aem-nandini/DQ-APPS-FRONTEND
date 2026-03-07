@@ -180,9 +180,9 @@ export default function ViewOrganizationPage() {
                         <Calendar className="w-5 h-5 text-gray-400" />
                         {org.establishedDate
                           ? format(
-                              new Date(org.establishedDate),
-                              "dd MMMM yyyy"
-                            )
+                            new Date(org.establishedDate),
+                            "dd MMMM yyyy"
+                          )
                           : "—"}
                       </p>
                     </div>
@@ -262,7 +262,39 @@ export default function ViewOrganizationPage() {
                   </div>
                 </div>
               </Card>
+  {/* Attendance Policy */}
+  <Card className="border-0 shadow-sm">
+                <div className="p-8">
+                  <h3 className="text-xl font-bold mb-6 text-gray-800">
+                    Attendance Policy
+                  </h3>
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">
+                        Absent Max Hours
+                      </p>
+                      <p className="text-lg font-semibold flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-gray-400" />
+                        {org.attendancePolicyDto?.absentMaxMinutes != null
+                          ? org.attendancePolicyDto.absentMaxMinutes / 60
+                          : "—"}
+                      </p>
+                    </div>
 
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">
+                        Full Day Min Hours
+                      </p>
+                      <p className="text-lg font-semibold flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-gray-400" />
+                        {org.attendancePolicyDto?.fullDayMinMinutes != null
+                          ? org.attendancePolicyDto.fullDayMinMinutes / 60
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
               {/* Digital Signature */}
               <Card className="border-0 shadow-sm">
                 <div className="p-4">
@@ -288,6 +320,7 @@ export default function ViewOrganizationPage() {
                   )}
                 </div>
               </Card>
+
             </div>
 
             {/* Right */}
@@ -330,7 +363,6 @@ export default function ViewOrganizationPage() {
                         </p>
                       </div>
                     )}
-
                     {/* Company Type */}
                     {org.companyType && (
                       <div>
@@ -342,43 +374,32 @@ export default function ViewOrganizationPage() {
                         </p>
                       </div>
                     )}
-                  </div>
-                </div>
-              </Card>
-              {/* Attendance Policy */}
-              <Card className="border-0 shadow-sm">
-                <div className="p-8">
-                  <h3 className="text-xl font-bold mb-6 text-gray-800">
-                    Attendance Policy
-                  </h3>
-
-                  <div className="grid sm:grid-cols-2 gap-8">
+                    {/* CGST */}
                     <div>
-                      <p className="text-gray-500 text-xs mb-1">
-                        Absent Max Hours
+                      <p className="text-gray-500 text-xs mb-2">CGST (%)</p>
+                      <p className="font-mono text-xl font-bold">
+                        {org.cgst ?? "—"}
                       </p>
-                      <p className="text-lg font-semibold flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-gray-400" />
-                        {org.attendancePolicyDto?.absentMaxMinutes != null
-                          ? org.attendancePolicyDto.absentMaxMinutes / 60
-                          : "—"}
+                    </div>
+                    {/* SGST */}
+                    <div>
+                      <p className="text-gray-500 text-xs mb-2">SGST (%)</p>
+                      <p className="font-mono text-xl font-bold">
+                        {org.sgst ?? "—"}
+                      </p>
+                    </div>
+                    {/* IGST */}
+                    <div>
+                      <p className="text-gray-500 text-xs mb-2">IGST (%)</p>
+                      <p className="font-mono text-xl font-bold">
+                        {org.igst ?? "—"}
                       </p>
                     </div>
 
-                    <div>
-                      <p className="text-gray-500 text-xs mb-1">
-                        Full Day Min Hours
-                      </p>
-                      <p className="text-lg font-semibold flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-gray-400" />
-                        {org.attendancePolicyDto?.fullDayMinMinutes != null
-                          ? org.attendancePolicyDto.fullDayMinMinutes / 60
-                          : "—"}
-                      </p>
-                    </div>
                   </div>
                 </div>
               </Card>
+            
 
               {/* Bank */}
               <Card className="border-0 shadow-sm">
@@ -434,11 +455,10 @@ export default function ViewOrganizationPage() {
                       {org.addresses.map((a, i) => (
                         <div
                           key={a.addressId || i}
-                          className={`p-6 rounded-2xl border-l-8 ${
-                            i === 0
-                              ? "border-indigo-600 bg-indigo-50"
-                              : "border-gray-300 bg-white"
-                          }`}
+                          className={`p-6 rounded-2xl border-l-8 ${i === 0
+                            ? "border-indigo-600 bg-indigo-50"
+                            : "border-gray-300 bg-white"
+                            }`}
                         >
                           <p className="font-bold text-base mb-3">
                             {a.addressType} Address{" "}
