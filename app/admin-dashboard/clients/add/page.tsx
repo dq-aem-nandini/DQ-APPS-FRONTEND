@@ -14,6 +14,7 @@ import { useFormFieldHandlers } from "@/hooks/useFormFieldHandlers";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import {
   ADDRESS_TYPE_OPTIONS,
+  ClientDTO,
   ClientModel,
   CURRENCY_CODE_OPTIONS,
   CurrencyCode,
@@ -25,6 +26,10 @@ import { Trash2 } from "lucide-react";
 export default function AddClientPage() {
   const router = useRouter();
   const { loading, withLoading } = useLoading();
+  const [organizations, setOrganizations] = useState<OrganizationResponseDTO[]>([]);
+  const [filtered, setFiltered] = useState<OrganizationResponseDTO[]>([]);
+  // const [rendering, setLoading] = useState(true);
+  // const [error, setError] = useState('');
   const [formData, setFormData] = useState<ClientModel>({
     companyName: "",
     contactNumber: "",
@@ -55,6 +60,7 @@ export default function AddClientPage() {
         designation: "",
       },
     ],
+    branchEntityIds: []
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,6 +158,29 @@ export default function AddClientPage() {
       setStatesLoadingMap((prev) => ({ ...prev, [index]: false }));
     }
   };
+  const [clients, setClients] = useState<ClientDTO[]>([]);
+  const [error, setError] = useState("");
+  const [loadings, setLoading] = useState(true);
+
+   // Fetch clients
+    useEffect(() => {
+      const fetchClients = async () => {
+        try {
+          const data = await adminService.getAllClients();
+          const clientList: ClientDTO[] = data.response || [];
+          setClients(clientList);
+        } catch (err: any) {
+          setError(err.message || "Failed to fetch clients");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchClients();
+    }, []);
+
+    
+  const selectedCountry = formData.addresses?.[0]?.country;
+
   // Real-time duplicate detection between main fields and POCs
   const checkDuplicateInForm = () => {
     const mainEmail = formData.email?.toLowerCase().trim();
@@ -385,6 +414,8 @@ export default function AddClientPage() {
             contactNumber: p.contactNumber || "",
             designation: p.designation?.trim() || "",
           })),
+
+          branchEntityIds: formData.branchEntityIds,
         };
 
         await adminService.addClient(payload);
@@ -718,6 +749,44 @@ export default function AddClientPage() {
                 {fieldError(errors, "netTerms")}
               </div>
             </div>
+
+              {/* ==================== CLIENT BRANCH NAME ==================== */}
+              <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Client Branch Name
+              </h3>
+
+              <div className="border rounded-md p-4 max-h-60 overflow-y-auto bg-gray-50">
+                {clients.length === 0 && (
+                  <div className="text-gray-500 text-sm">No clients available</div>
+                )}
+
+                {clients.map((client) => (
+                  <label
+                    key={client.clientId}
+                    className="flex items-center gap-2 py-1 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      value={client.clientId}
+                      checked={formData.branchEntityIds.includes(client.clientId)}
+                      onChange={(e) => {
+                        const { checked, value } = e.target;
+
+                        setFormData((prev) => ({
+                          ...prev,
+                          branchEntityIds: checked
+                            ? [...prev.branchEntityIds, value]
+                            : prev.branchEntityIds.filter((id) => id !== value),
+                        }));
+                      }}
+                    />
+                    <span>{client.companyName}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* ==================== ADDRESSES ==================== */}
             <div className="border-b border-gray-200 pb-6">
               <div className="flex justify-between items-center mb-4">

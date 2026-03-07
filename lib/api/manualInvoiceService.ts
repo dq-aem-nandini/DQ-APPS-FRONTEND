@@ -34,27 +34,49 @@ export const manualInvoiceService = {
       },
 
    // Get employees by client ID (minimal data)
-async getEmployeesByClientId(
-  clientId: string
-): Promise<WebResponseDTO<ClientEmployeeMinResponseDTO>> {
-  try {
-    const response: AxiosResponse<WebResponseDTO<ClientEmployeeMinResponseDTO>> =
-      await api.get(`/admin/emp/all/min/${clientId}`);
-
-    return response.data;
-  } catch (error: any) {
-    throw new Error(getBackendError(error));
-  }
-},
-
+      async getEmployeesByClientId(
+        clientId: string,
+        isForCourierInvoice?: boolean,
+        month?: number,
+        year?: number
+      ): Promise<WebResponseDTO<ClientEmployeeMinResponseDTO>> {
+        try {
+          const params: any = {};
+          if (isForCourierInvoice !== undefined) {
+            params.isForCourierInvoice = isForCourierInvoice;
+          }
+          if (month !== undefined) {
+            params.month = month;
+          }
+          if (year !== undefined) {
+            params.year = year;
+          }
+          const response: AxiosResponse<
+            WebResponseDTO<ClientEmployeeMinResponseDTO>
+          > = await api.get(`/admin/emp/all/min/${clientId}`, {
+            params,
+          });
+      
+          return response.data;
+        } catch (error: any) {
+          throw new Error(getBackendError(error));
+        }
+      },
 
       // Generate manual invoice
       async generateManualInvoice(
-        payload: ManualInvoiceRequestDTO
+        payload: ManualInvoiceRequestDTO,
+        isForCourierInvoice: boolean
       ): Promise<WebResponseDTO<any>> {
         try {
           const response: AxiosResponse<WebResponseDTO<any>> =
-            await api.post("/invoice/generate/manual", payload);
+            await api.post("/invoice/generate/manual", payload,
+              {
+                params: {
+                  isForCourierInvoice,
+                },
+              }
+            );
       
           return response.data;
         } catch (error: any) {

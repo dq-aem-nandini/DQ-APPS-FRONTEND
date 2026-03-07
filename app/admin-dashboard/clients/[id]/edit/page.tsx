@@ -27,6 +27,8 @@ import {
   CurrencyCode,
   CURRENCY_CODE_OPTIONS,
   ADDRESS_TYPE_OPTIONS,
+  COUNTRY_CURRENCY_MAP,
+  ClientDTO,
 } from "@/lib/api/types";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
 import { organizationService } from "@/lib/api/organizationService";
@@ -48,6 +50,7 @@ export default function EditClientPage() {
     netTerms: null,
     addresses: [],
     clientPocs: [],
+    branchEntityIds: []
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -129,6 +132,7 @@ export default function EditClientPage() {
           tanNumber: dto.tanNumber || "",
           currency: (dto.currency as CurrencyCode) || "",
           netTerms: dto.netTerms ?? null,
+          branchEntityIds: dto.branchEntities? dto.branchEntities.map(([id]) => id): [],
 
           addresses: dto.addresses?.length
             ? dto.addresses.map(
@@ -213,6 +217,26 @@ export default function EditClientPage() {
       return next;
     });
   };
+
+
+  const [clients, setClients] = useState<ClientDTO[]>([]);
+  const [error, setError] = useState("");
+  // const [loadings, setLoading] = useState(true);
+   // Fetch clients
+    useEffect(() => {
+      const fetchClients = async () => {
+        try {
+          const data = await adminService.getAllClients();
+          const clientList: ClientDTO[] = data.response || [];
+          setClients(clientList);
+        } catch (err: any) {
+          setError(err.message || "Failed to fetch clients");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchClients();
+    }, []);
 
   // ──────────────────────────────────────────────────────────────
   //           Add this new memoized value
@@ -375,6 +399,7 @@ export default function EditClientPage() {
         tanNumber: formData.tanNumber?.toUpperCase().trim() || "",
         currency: formData.currency,
         netTerms: formData.netTerms,
+        branchEntityIds: formData.branchEntityIds,
         addresses: (formData.addresses ?? []).map((a) => ({
           addressId:
             a.addressId && a.addressId.length > 10 ? a.addressId : null,
@@ -766,6 +791,47 @@ export default function EditClientPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                   {fieldError(errors, "netTerms")}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ==================== CLIENT BRANCH NAME ==================== */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Branch Name</CardTitle>
+              </CardHeader>
+
+              <CardContent>
+                <div className="max-h-60 overflow-y-auto border rounded-md p-4 bg-gray-50">
+                  {clients
+                    .filter((c) => c.clientId !== clientId) // prevent self selection
+                    .map((client) => (
+                      <label
+                        key={client.clientId}
+                        className="flex items-center gap-3 py-2 cursor-pointer hover:bg-gray-100 px-2 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          value={client.clientId}
+                          checked={formData.branchEntityIds.includes(client.clientId)}
+                          onChange={(e) => {
+                            const { checked, value } = e.target;
+
+                            setFormData((prev) => ({
+                              ...prev,
+                              branchEntityIds: checked
+                                ? [...prev.branchEntityIds, value]
+                                : prev.branchEntityIds.filter((id) => id !== value),
+                            }));
+                          }}
+                          className="h-4 w-4"
+                        />
+
+                        <span className="text-sm font-medium">
+                          {client.companyName}
+                        </span>
+                      </label>
+                    ))}
                 </div>
               </CardContent>
             </Card>

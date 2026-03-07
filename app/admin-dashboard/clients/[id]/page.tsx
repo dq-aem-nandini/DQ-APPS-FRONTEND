@@ -378,6 +378,32 @@ useEffect(() => {
                         </div>
                       </div>
                     )}
+                  
+                  {/* Client Branches */}
+                  {Array.isArray(client.branchEntities) && client.branchEntities.length > 0 && (
+                    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-indigo-600" />
+                        Client Branches
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {client.branchEntities.map((branch: any[], index: number) => (
+                          <div
+                            key={branch[0] || index}
+                            className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100"
+                          >
+                            <InfoItem
+                              icon={Building2}
+                              label="Branch Name"
+                              value={branch[1]}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Client Employees */}
                   {employees.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">

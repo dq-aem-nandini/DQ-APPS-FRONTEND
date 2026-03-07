@@ -748,7 +748,7 @@ export interface ClientModel {
   tanNumber?: string;
   addresses?: AddressModel[];
   clientPocs?: ClientPocModel[];
-
+  branchEntityIds: string[];
 }
 
 export interface ClientPocModel {
@@ -911,6 +911,7 @@ export interface ClientDTO {
   tanNumber: string;
   status: string;
   netTerms: number | null;
+  branchEntities: [string, string][]; // Array of [entityId, entityName]
   createdAt: string; // ISO Date-Time string
   updatedAt: string; // ISO Date-Time string
   addresses: AddressModel[];
@@ -1555,10 +1556,12 @@ export interface WebResponseDTOObject {
   totalRecords: number;
   otherInfo?: any;
 }
+
+export type InvoiceCreationType = "AUTOMATED" | "MANUAL" | "COURIER";
 // Invoice Types
 export interface InvoiceDTO {
-  latest: any;
-  canceled: any;
+  latest: boolean;
+  canceled: boolean;
   invoiceId: string; // UUID
   clientId: string;
   clientName: string;
@@ -1572,6 +1575,7 @@ export interface InvoiceDTO {
   dueDate: string; // ISO Date (YYYY-MM-DD)
   fromDate: string; // ISO Date (YYYY-MM-DD)
   toDate: string; // ISO Date (YYYY-MM-DD)
+  creationType: InvoiceCreationType;
   locked: boolean;
 
 }
@@ -1717,17 +1721,16 @@ export interface ManualInvoiceItemRequestDTO {
   employeeId: string;
   hoursWorked: number; // decimal allowed
   ratePerHour: number; // decimal allowed
+  courierAmount: number; // decimal allowed
   description?: string;
 }
 export interface ManualInvoiceRequestDTO {
   clientId: string;
   year: number;
   month: number;
-
   invoiceNumber: string;
   invoiceDate?: string; // yyyy-MM-dd
   dueDate?: string; // yyyy-MM-dd
-
   items: ManualInvoiceItemRequestDTO[];
 }
 
