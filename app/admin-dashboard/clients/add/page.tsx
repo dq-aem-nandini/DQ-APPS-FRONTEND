@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { adminService } from "@/lib/api/adminService";
-import { organizationService } from '@/lib/api/organizationService';
+import { organizationService } from "@/lib/api/organizationService";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import BackButton from "@/components/ui/BackButton";
 import useLoading from "@/hooks/useLoading";
@@ -25,10 +25,6 @@ import { Trash2 } from "lucide-react";
 export default function AddClientPage() {
   const router = useRouter();
   const { loading, withLoading } = useLoading();
-  const [organizations, setOrganizations] = useState<OrganizationResponseDTO[]>([]);
-  const [filtered, setFiltered] = useState<OrganizationResponseDTO[]>([]);
-  const [rendering, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [formData, setFormData] = useState<ClientModel>({
     companyName: "",
     contactNumber: "",
@@ -59,13 +55,6 @@ export default function AddClientPage() {
         designation: "",
       },
     ],
-    clientTaxDetails: [
-      {
-        taxId: null,
-        taxName: "",
-        taxPercentage: 0,
-      },
-    ],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,19 +65,16 @@ export default function AddClientPage() {
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >,
     index?: number,
-    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+    section?: "addresses" | "clientPocs"
   ) => {
     const { name, value } = e.target;
 
     let parsedValue: string | number = value;
 
-    if (name.includes("taxPercentage")) {
-      parsedValue = parseFloat(value) || 0;
-    } else if (name === "netTerms") {
+    if (name === "netTerms") {
       parsedValue = value ? parseInt(value) : "";
     }
 
-    // Update form data
     if (section && index !== undefined) {
       setFormData((prev) => ({
         ...prev,
@@ -105,6 +91,7 @@ export default function AddClientPage() {
       }));
     }
   };
+
   const {
     handleValidatedChange,
     handleUniqueBlur,
@@ -139,110 +126,6 @@ export default function AddClientPage() {
     fetchCountries();
   }, []);
 
-  // Fetch organizations
-  const [orgState, setOrgState] = useState<string>("");
-
-  useEffect(() => {
-    const fetchOrgs = async () => {
-      try {
-        setLoading(true);
-        const data = await organizationService.getAll();
-
-        setOrganizations(data);
-        setFiltered(data);
-
-        // ✅ Extract organization state from addresses[0]
-        const firstOrg = data?.[0];
-        const stateFromOrg =
-          firstOrg?.addresses?.[0]?.state?.trim() || "";
-
-        setOrgState(stateFromOrg);
-      } catch (err: any) {
-        setError(err.message || "Failed to load organizations");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrgs();
-  }, []);
-
-
-
-  const clientCountry = formData.addresses?.[0]?.country?.trim();
-  const clientState = formData.addresses?.[0]?.state?.trim();
-
-  const isOutsideIndia =
-    clientCountry && clientCountry.toLowerCase() !== "india";
-
-  const isSameState =
-    clientCountry?.toLowerCase() === "india" &&
-    clientState &&
-    orgState &&
-    clientState.toLowerCase() === orgState.toLowerCase();
-
-  const isDifferentState =
-    clientCountry?.toLowerCase() === "india" &&
-    clientState &&
-    orgState &&
-    clientState.toLowerCase() !== orgState.toLowerCase();
-
-
-  useEffect(() => {
-    // If currency not selected → clear tax
-    if (!formData.currency) {
-      setFormData(prev => ({
-        ...prev,
-        clientTaxDetails: []
-      }));
-      return;
-    }
-
-    // USD → Outside India → No tax
-    if (formData.currency === "USD") {
-      setFormData(prev => ({
-        ...prev,
-        clientTaxDetails: []
-      }));
-      return;
-    }
-
-    // If INR but country/state missing → wait
-    if (!clientCountry || !clientState || !orgState) return;
-
-    // INR + India only allowed
-    if (clientCountry.toLowerCase() !== "india") {
-      setFormData(prev => ({
-        ...prev,
-        clientTaxDetails: []
-      }));
-      return;
-    }
-
-    // Same State → CGST + SGST
-    if (clientState.toLowerCase() === orgState.toLowerCase()) {
-      setFormData(prev => ({
-        ...prev,
-        clientTaxDetails: [
-          { taxId: null, taxName: "CGST", taxPercentage: 0 },
-          { taxId: null, taxName: "SGST", taxPercentage: 0 },
-        ],
-      }));
-      return;
-    }
-
-    // Different State → IGST
-    setFormData(prev => ({
-      ...prev,
-      clientTaxDetails: [
-        { taxId: null, taxName: "IGST", taxPercentage: 0 },
-      ],
-    }));
-  }, [formData.currency, clientCountry, clientState, orgState]);
-
-
-
-
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     e.currentTarget.blur();
@@ -269,9 +152,6 @@ export default function AddClientPage() {
       setStatesLoadingMap((prev) => ({ ...prev, [index]: false }));
     }
   };
-
-  const selectedCountry = formData.addresses?.[0]?.country;
-
   // Real-time duplicate detection between main fields and POCs
   const checkDuplicateInForm = () => {
     const mainEmail = formData.email?.toLowerCase().trim();
@@ -340,9 +220,7 @@ export default function AddClientPage() {
     checkDuplicateInForm();
   }, [formData.email, formData.contactNumber, formData.clientPocs]);
 
-  const addItem = (
-    section: "addresses" | "clientPocs" | "clientTaxDetails"
-  ) => {
+  const addItem = (section: "addresses" | "clientPocs") => {
     if (section === "addresses") {
       setFormData((prev) => ({
         ...prev,
@@ -374,26 +252,10 @@ export default function AddClientPage() {
           },
         ],
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        clientTaxDetails: [
-          ...prev.clientTaxDetails,
-          {
-            taxId: null,
-            taxName: "",
-            taxPercentage: 0,
-
-          },
-        ],
-      }));
     }
   };
 
-  const removeItem = (
-    section: "addresses" | "clientPocs" | "clientTaxDetails",
-    index: number
-  ) => {
+  const removeItem = (section: "addresses" | "clientPocs", index: number) => {
     setFormData((prev) => ({
       ...prev,
       [section]: (prev[section] ?? []).filter((_, i) => i !== index),
@@ -523,12 +385,6 @@ export default function AddClientPage() {
             contactNumber: p.contactNumber || "",
             designation: p.designation?.trim() || "",
           })),
-
-          clientTaxDetails: (formData.clientTaxDetails ?? []).map((t) => ({
-            taxId: null,
-            taxName: t.taxName?.trim() || "",
-            taxPercentage: t.taxPercentage ?? 0,
-          })),
         };
 
         await adminService.addClient(payload);
@@ -652,7 +508,7 @@ export default function AddClientPage() {
                         "COMPANY_NAME",
                         "company_name",
                         "companyName"
-                      )(e); // 🔥 uniqueness check
+                      )(e); 
                     }}
                     placeholder="e.g. Digiquads Pvt Ltd"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
@@ -821,7 +677,6 @@ export default function AddClientPage() {
                             addressType: undefined,
                           },
                         ],
-                        clientTaxDetails: [],
                       }))
                     }
                     required
@@ -914,7 +769,6 @@ export default function AddClientPage() {
                             return {
                               ...prev,
                               addresses: updated,
-                              clientTaxDetails: [],
                             };
                           });
 
@@ -962,7 +816,6 @@ export default function AddClientPage() {
                               return {
                                 ...prev,
                                 addresses: updated,
-                                clientTaxDetails: [],
                               };
                             });
                           }}
@@ -1268,72 +1121,6 @@ export default function AddClientPage() {
                 </div>
               )}
             </div>
-
-            {/* ==================== TAX DETAILS ==================== */}
-            {formData.currency === "INR" && clientCountry === "India" && (
-              <div className="pb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Tax Details
-                  </h3>
-                  {/* <button
-                  type="button"
-                  onClick={() => addItem("clientTaxDetails")}
-                  className="text-indigo-600 text-sm hover:underline"
-                >
-                  + Add Tax
-                </button> */}
-                </div>
-
-                {(formData.clientTaxDetails || []).map((tax, i) => (
-                  <div
-                    key={tax.taxId || `tax-${i}`}
-                    className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end"
-                  >
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tax Name
-                        <TooltipHint hint="Name of the tax. Example: GST, VAT, Service Tax" />
-                      </label>
-                      <input
-                        type="text"
-                        name={`clientTaxDetails.${i}.taxName`}
-                        value={tax.taxName || ""}
-                        onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                        placeholder="e.g., GST"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                      {fieldError(errors, `clientTaxDetails.${i}.taxName`)}
-                    </div>
-                    <div className="w-32">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        %
-                        <TooltipHint hint="Tax percentage rate. Example: 18 for 18%" />
-                      </label>
-                      <input
-                        name={`clientTaxDetails.${i}.taxPercentage`}
-                        value={tax.taxPercentage || ""}
-                        onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                        type="text"
-                        onWheel={preventWheelChange}
-                        inputMode="numeric"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                      {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
-                    </div>
-                    {/* {formData.clientTaxDetails!.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeItem("clientTaxDetails", i)}
-                      className="text-red-600 text-sm hover:underline"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )} */}
-                  </div>
-                ))}
-              </div>
-            )}
             <div className="flex justify-end gap-4">
               <button
                 type="button"

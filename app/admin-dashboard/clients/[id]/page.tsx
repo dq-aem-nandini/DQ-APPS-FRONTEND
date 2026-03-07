@@ -437,45 +437,6 @@ useEffect(() => {
                     </div>
                   )}
                 </div>
-
-                {/* Right Column */}
-                <div className="space-y-6">
-                  {/* Tax Details */}
-                  {client.clientTaxDetails && client.clientTaxDetails.length > 0 && (
-                    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
-                        <DollarSign className="w-5 h-5 text-indigo-600" />
-                        Tax Details
-                      </h3>
-                      <div className="space-y-3">
-                        {client.clientTaxDetails.map((tax) => (
-                          <div key={tax.taxId} className="flex justify-between items-center p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200">
-                            <span className="font-medium text-gray-800">{tax.taxName}</span>
-                            <span className="text-lg font-bold text-amber-700">{tax.taxPercentage}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
-                    <div className="space-y-3">
-                      <button
-                        onClick={() => router.push(`/admin-dashboard/clients/${id}/edit`)}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center gap-2"
-                      >
-                        Edit Client
-                      </button>
-                      <button
-                        onClick={() => router.push('/admin-dashboard/clients/list')}
-                        className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 transition"
-                      >
-                        Back to List
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </>
           )}
