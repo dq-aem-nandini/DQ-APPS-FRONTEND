@@ -911,7 +911,7 @@ export interface ClientDTO {
   tanNumber: string;
   status: string;
   netTerms: number | null;
-  branchEntityIds: string[];
+  branchEntities: [string, string][]; // Array of [entityId, entityName]
   createdAt: string; // ISO Date-Time string
   updatedAt: string; // ISO Date-Time string
   addresses: AddressModel[];

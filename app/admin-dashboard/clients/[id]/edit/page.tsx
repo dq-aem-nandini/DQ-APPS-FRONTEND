@@ -132,7 +132,7 @@ export default function EditClientPage() {
           tanNumber: dto.tanNumber || "",
           currency: (dto.currency as CurrencyCode) || "",
           netTerms: dto.netTerms ?? null,
-          branchEntityIds: dto.branchEntityIds || [],
+          branchEntityIds: dto.branchEntities? dto.branchEntities.map(([id]) => id): [],
 
           addresses: dto.addresses?.length
             ? dto.addresses.map(
