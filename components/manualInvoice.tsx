@@ -114,6 +114,16 @@ const [dueDate, setDueDate] = useState<string>(() => {
 
 
  // Reset everything when tab changes
+
+ const resetForm = () => {
+  setClientId("");
+  setEmployees([]);
+  setItems({});
+  setSelectedEmployees(new Set());
+  setCurrency(null);
+  setApiError(null);
+};
+
   useEffect(() => {
     setClientId("");
     setDueDate(today);
@@ -256,13 +266,15 @@ const [dueDate, setDueDate] = useState<string>(() => {
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden">
- 
         {/* Heading */}
        {/* Tabs */}
-        <div className="px-8 pt-6 border-b border-slate-100">
+        {/* <div className="px-8 pt-6 border-b border-slate-100">
           <div className="flex gap-6">
             <button
-              onClick={() => setActiveTab("manual")}
+              onClick={() =>{
+                  resetForm();
+                   setActiveTab("manual");
+                }}
               className={`pb-3 text-sm font-medium border-b-2 transition-all
                 ${
                   activeTab === "manual"
@@ -274,7 +286,10 @@ const [dueDate, setDueDate] = useState<string>(() => {
             </button>
 
             <button
-              onClick={() => setActiveTab("courier")}
+              onClick={() => {
+                resetForm();
+                setActiveTab("courier");
+              }}
               className={`pb-3 text-sm font-medium border-b-2 transition-all
                 ${
                   activeTab === "courier"
@@ -285,7 +300,41 @@ const [dueDate, setDueDate] = useState<string>(() => {
               Courier Invoice Generation
             </button>
           </div>
-        </div>
+        </div> */}
+
+<div className="px-8 pt-6">
+  <div className="inline-flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+    
+    <button
+      onClick={() => {
+        resetForm();
+        setActiveTab("manual");
+      }}
+      className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
+        activeTab === "manual"
+          ? "bg-blue-600 text-white shadow-sm"
+          : "text-gray-600 hover:bg-gray-100"
+      }`}
+    >
+      Generate Manual Invoice
+    </button>
+
+    <button
+      onClick={() => {
+        resetForm();
+        setActiveTab("courier");
+      }}
+      className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
+        activeTab === "courier"
+          ? "bg-blue-600 text-white shadow-sm"
+          : "text-gray-600 hover:bg-gray-100"
+      }`}
+    >
+      Courier Invoice Generation
+    </button>
+
+  </div>
+</div>
 
   
         {activeTab === "manual" && (

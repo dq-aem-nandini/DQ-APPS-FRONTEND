@@ -748,16 +748,9 @@ export interface ClientModel {
   tanNumber?: string;
   addresses?: AddressModel[];
   clientPocs?: ClientPocModel[];
-  clientTaxDetails: ClientTaxDetail[]; 
   branchEntityIds: string[];
 }
-export interface ClientTaxDetail {
-  taxId: string | null; // UUID
-  taxName: string;
-  taxPercentage: number;
-  // createdAt: string;     // ISO Date-Time format
-  // updatedAt: string;     // ISO Date-Time format
-}
+
 export interface ClientPocModel {
   pocId: string | null; // uuid
   name: string;
@@ -918,8 +911,7 @@ export interface ClientDTO {
   tanNumber: string;
   status: string;
   netTerms: number | null;
-  branchEntityIds: string[];
-  clientTaxDetails: ClientTaxDetail[];
+  branchEntities: [string, string][]; // Array of [entityId, entityName]
   createdAt: string; // ISO Date-Time string
   updatedAt: string; // ISO Date-Time string
   addresses: AddressModel[];
@@ -1225,6 +1217,9 @@ export interface OrganizationRequestDTO {
   addresses: AddressModel[];
 
   prefix?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   sequenceNumber?: number;
   companyType?: string;
   attendancePolicy: AttendancePolicyDTO;
@@ -1257,6 +1252,9 @@ export interface OrganizationResponseDTO {
   digitalSignatureUrl: string;
   addresses: AddressModel[];
   prefix?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   sequenceNumber?: number;
   companyType?: string;
   attendancePolicyDto: AttendancePolicyResponseDTO; 
@@ -1558,10 +1556,12 @@ export interface WebResponseDTOObject {
   totalRecords: number;
   otherInfo?: any;
 }
+
+export type InvoiceCreationType = "AUTOMATED" | "MANUAL" | "COURIER";
 // Invoice Types
 export interface InvoiceDTO {
-  latest: any;
-  canceled: any;
+  latest: boolean;
+  canceled: boolean;
   invoiceId: string; // UUID
   clientId: string;
   clientName: string;
@@ -1575,6 +1575,7 @@ export interface InvoiceDTO {
   dueDate: string; // ISO Date (YYYY-MM-DD)
   fromDate: string; // ISO Date (YYYY-MM-DD)
   toDate: string; // ISO Date (YYYY-MM-DD)
+  creationType: InvoiceCreationType;
   locked: boolean;
 
 }

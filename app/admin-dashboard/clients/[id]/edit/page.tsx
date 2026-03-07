@@ -24,7 +24,6 @@ import {
   ClientModel,
   AddressModel,
   ClientPocModel,
-  ClientTaxDetail,
   CurrencyCode,
   CURRENCY_CODE_OPTIONS,
   ADDRESS_TYPE_OPTIONS,
@@ -51,7 +50,6 @@ export default function EditClientPage() {
     netTerms: null,
     addresses: [],
     clientPocs: [],
-    clientTaxDetails: [],
     branchEntityIds: []
   });
 
@@ -65,7 +63,7 @@ export default function EditClientPage() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
     index?: number,
-    section?: "addresses" | "clientPocs" | "clientTaxDetails"
+    section?: "addresses" | "clientPocs"
   ) => {
     const { name, value } = e.target;
     let parsedValue: any = value;
@@ -104,9 +102,6 @@ export default function EditClientPage() {
     e.currentTarget.blur();
   };
 
-
-  const [orgState, setOrgState] = useState<string>("");
-
   const loadStates = async (country: string, index: number) => {
     try {
       const states = await adminService.getStatesByCountryV1(country);
@@ -118,70 +113,6 @@ export default function EditClientPage() {
       console.error("Failed to load states", e);
     }
   };
-
-  useEffect(() => {
-    const fetchOrg = async () => {
-      try {
-        const data = await organizationService.getAll(); // or your org API
-        const state = data?.[0]?.addresses?.[0]?.state?.trim() || "";
-        setOrgState(state);
-      } catch (e) {
-        console.error("Failed to load org state", e);
-      }
-    };
-
-    fetchOrg();
-  }, []);
-
-  const clientCountry = formData.addresses?.[0]?.country?.trim();
-  const clientState = formData.addresses?.[0]?.state?.trim();
-
-  const shouldShowTaxSection =
-    formData.currency === "INR" &&
-    clientCountry?.toLowerCase() === "india" &&
-    !!clientState &&
-    !!orgState;
-
-  const isSameState =
-    clientState?.toLowerCase() === orgState?.toLowerCase();
-
-  const expectedTaxNames = isSameState
-    ? ["CGST", "SGST"]
-    : ["IGST"];
-
-  useEffect(() => {
-    if (!shouldShowTaxSection) {
-      setFormData(prev => ({
-        ...prev,
-        clientTaxDetails: [],
-      }));
-      return;
-    }
-
-    setFormData(prev => {
-      const existing = prev.clientTaxDetails || [];
-
-      // Keep only valid ones
-      const filtered = existing.filter(t =>
-        expectedTaxNames.includes(t.taxName)
-      );
-
-      // Add missing required taxes
-      const missing = expectedTaxNames
-        .filter(name => !filtered.some(t => t.taxName === name))
-        .map(name => ({
-          taxId: null,
-          taxName: name,
-          taxPercentage: 0,
-        }));
-
-      return {
-        ...prev,
-        clientTaxDetails: [...filtered, ...missing],
-      };
-    });
-  }, [shouldShowTaxSection, isSameState]);
-
   // Fetch client
   useEffect(() => {
     const fetchClient = async () => {
@@ -201,7 +132,7 @@ export default function EditClientPage() {
           tanNumber: dto.tanNumber || "",
           currency: (dto.currency as CurrencyCode) || "",
           netTerms: dto.netTerms ?? null,
-          branchEntityIds: dto.branchEntityIds || [],
+          branchEntityIds: dto.branchEntities? dto.branchEntities.map(([id]) => id): [],
 
           addresses: dto.addresses?.length
             ? dto.addresses.map(
@@ -251,22 +182,6 @@ export default function EditClientPage() {
                   designation: "",
                 },
               ],
-
-          clientTaxDetails: dto.clientTaxDetails?.length
-            ? dto.clientTaxDetails.map(
-              (t: any): ClientTaxDetail => ({
-                taxId: t.taxId || null,
-                taxName: t.taxName || "",
-                taxPercentage: t.taxPercentage || 0,
-              })
-            )
-            : [
-              {
-                taxId: null,
-                taxName: "",
-                taxPercentage: 0,
-              },
-            ],
         };
         setFormData(loadedData);
         setOriginalData(structuredClone(loadedData));
@@ -394,11 +309,11 @@ export default function EditClientPage() {
   }, [formData.email, formData.contactNumber, formData.clientPocs]);
 
   const addItem = (
-    section: "addresses" | "clientPocs" | "clientTaxDetails"
+    section: "addresses" | "clientPocs"
   ) => {
     if (section === "addresses") {
       const newIndex = formData.addresses?.length || 0;
-  
+
       setFormData((prev) => ({
         ...prev,
         addresses: [
@@ -415,10 +330,10 @@ export default function EditClientPage() {
           },
         ],
       }));
-  
+
       // 🔥 load states for new address
       loadStates("India", newIndex);
-  
+
     } else if (section === "clientPocs") {
       setFormData((prev) => ({
         ...prev,
@@ -433,23 +348,12 @@ export default function EditClientPage() {
           },
         ],
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        clientTaxDetails: [
-          ...prev.clientTaxDetails,
-          {
-            taxId: null,
-            taxName: "",
-            taxPercentage: 0,
-          },
-        ],
-      }));
     }
+
   };
 
   const removeItem = (
-    section: "addresses" | "clientPocs" | "clientTaxDetails",
+    section: "addresses" | "clientPocs",
     index: number
   ) => {
     setFormData((prev) => ({
@@ -481,25 +385,6 @@ export default function EditClientPage() {
         "info"
       );
       return;
-    }
-
-    if (shouldShowTaxSection) {
-      const invalidTax = formData.clientTaxDetails.some(
-        (t) =>
-          !t.taxName ||
-          t.taxPercentage === null ||
-          t.taxPercentage === undefined ||
-          Number(t.taxPercentage) <= 0
-      );
-
-      if (invalidTax) {
-        await Swal.fire(
-          "Tax Required",
-          "Please enter valid tax percentage for all tax fields.",
-          "warning"
-        );
-        return;
-      }
     }
 
     setErrors({});
@@ -534,14 +419,6 @@ export default function EditClientPage() {
           contactNumber: p.contactNumber || "",
           designation: p.designation?.trim() || "",
         })),
-
-        clientTaxDetails: formData.clientTaxDetails
-          .filter((t) => t.taxName?.trim())
-          .map((t) => ({
-            taxId: t.taxId && t.taxId.length > 10 ? t.taxId : null,
-            taxName: t.taxName!.trim(),
-            taxPercentage: Number(t.taxPercentage) || 0,
-          })),
       };
 
       await adminService.updateClient(clientId, payload);
@@ -870,8 +747,7 @@ export default function EditClientPage() {
                           houseNo: "",
                           streetName: "",
                           pincode: "",
-                        })),
-                        clientTaxDetails: [],
+                        })),             
                       }))
                     }
                   >
@@ -990,10 +866,10 @@ export default function EditClientPage() {
                         value={addr.country || ""}
                         onChange={async (e) => {
                           const selectedCountry = e.target.value;
-                        
+
                           setFormData((prev) => {
                             const updated = [...(prev.addresses || [])];
-                        
+
                             updated[i] = {
                               ...updated[i],
                               country: selectedCountry,
@@ -1003,14 +879,13 @@ export default function EditClientPage() {
                               streetName: "",
                               pincode: "",
                             };
-                        
+
                             return {
                               ...prev,
                               addresses: updated,
-                              clientTaxDetails: [],
                             };
                           });
-                        
+
                           if (selectedCountry) {
                             await loadStates(selectedCountry, i);
                           }
@@ -1041,7 +916,7 @@ export default function EditClientPage() {
                           onValueChange={(val) => {
                             setFormData((prev) => {
                               const updated = [...(prev.addresses || [])];
-                          
+
                               updated[i] = {
                                 ...updated[i],
                                 state: val,
@@ -1050,11 +925,10 @@ export default function EditClientPage() {
                                 streetName: "",
                                 pincode: "",
                               };
-                          
+
                               return {
                                 ...prev,
                                 addresses: updated,
-                                clientTaxDetails: [],
                               };
                             });
                           }}
@@ -1342,88 +1216,6 @@ export default function EditClientPage() {
                 </div>
               )}
             </div>
-
-            {/* ==================== TAX DETAILS ==================== */}
-            {shouldShowTaxSection && (
-              <div className="pb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Tax Details
-                  </h3>
-                  {/* <button
-                  type="button"
-                  onClick={() => addItem("clientTaxDetails")}
-                  className="text-indigo-600 text-sm hover:underline"
-                >
-                  + Add Tax
-                </button> */}
-                </div>
-
-                {(formData.clientTaxDetails || []).map((tax, i) => (
-                  <div
-                    key={i}
-                    className="mb-4 p-4 border rounded bg-gray-50 flex gap-4 items-end"
-                  >
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tax Name
-                        <TooltipHint hint="Name of the tax. Example: GST, VAT, Service Tax" />
-                      </label>
-                      {/* <input
-                      type="text"
-                      name={`clientTaxDetails.${i}.taxName`}
-                      value={tax.taxName || ""}
-                      onChange={(e) => handleChange(e, i, "clientTaxDetails")}
-                      placeholder="e.g., GST"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    /> */}
-                      <input
-                        type="text"
-                        name={`clientTaxDetails.${i}.taxName`}
-                        value={tax.taxName || ""}
-                        readOnly
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
-                      />
-                      {fieldError(errors, `clientTaxDetails.${i}.taxName`)}
-                    </div>
-                    <div className="w-32">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        % <span className="text-red-500">*</span>
-                        <TooltipHint hint="Tax percentage rate. Example: 18 for 18%" />
-                      </label>
-                      <input
-                        name={`clientTaxDetails.${i}.taxPercentage`}
-                        value={tax.taxPercentage ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-
-                          if (!/^\d*\.?\d*$/.test(val)) return; // allow only numbers
-
-                          handleChange(e, i, "clientTaxDetails");
-                        }}
-                        type="text"
-                        onWheel={preventWheelChange}
-                        inputMode="numeric"
-                        required={shouldShowTaxSection}
-                        min={0}
-                        placeholder="Enter %"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                      {fieldError(errors, `clientTaxDetails.${i}.taxPercentage`)}
-                    </div>
-                    {/* {(formData.clientTaxDetails ?? []).length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeItem("clientTaxDetails", i)}
-                      className="text-red-600 text-sm hover:underline"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )} */}
-                  </div>
-                ))}
-              </div>
-            )}
 
             {errors.root && (
               <div className="bg-red-50 text-red-700 p-4 rounded-lg">

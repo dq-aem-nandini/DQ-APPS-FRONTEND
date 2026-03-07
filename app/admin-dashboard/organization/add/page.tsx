@@ -89,12 +89,16 @@ export default function AddOrganizationPage() {
       },
     ],
     prefix: "",
+    cgst: undefined,
+    sgst: undefined,
+    igst: undefined,
     sequenceNumber: undefined,
     companyType: "",
     attendancePolicy: {
       absentMaxMinutes: undefined,
       fullDayMinMinutes: undefined,
     },
+
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -270,19 +274,19 @@ export default function AddOrganizationPage() {
 
   const filteredCountries = useMemo(() => {
     if (!formData.currencyCode) return countries;
-  
+
     if (formData.currencyCode === "INR") {
       return countries.filter(
         (c) => c.toLowerCase() === "india"
       );
     }
-  
+
     if (formData.currencyCode === "USD") {
       return countries.filter(
         (c) => c.toLowerCase() !== "india"
       );
     }
-  
+
     return countries;
   }, [countries, formData.currencyCode]);
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
@@ -439,7 +443,9 @@ export default function AddOrganizationPage() {
         String(formData.sequenceNumber ?? "")
       );
       formDataToSend.append("companyType", formData.companyType || "");
-
+      formDataToSend.append("cgst", String(formData.cgst ?? ""));
+      formDataToSend.append("sgst", String(formData.sgst ?? ""));
+      formDataToSend.append("igst", String(formData.igst ?? ""));
       if (formData.logo) {
         formDataToSend.append("logo", formData.logo);
       }
@@ -1195,6 +1201,78 @@ export default function AddOrganizationPage() {
                   </p>
                 )}
               </div>
+              {/* ==================== TAX DETAILS ==================== */}
+              <div className="border-t border-gray-200 pt-10 pb-6">
+
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  Tax Configuration
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                  {/* CGST */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      CGST (%) <span className="text-red-500">*</span>
+                      <TooltipHint hint="Central GST rate applicable to the organization. Enter as percentage (e.g., 9 for 9%)." />
+                    </Label>
+                    <Input
+                      required
+                      type="text"
+                      inputMode="decimal"
+                      name="cgst"
+                      value={formData.cgst ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("cgst")}
+                      className="h-12"
+                      placeholder="e.g. 9"
+                    />
+                    {fieldError(errors, "cgst")}
+                  </div>
+
+                  {/* SGST */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      SGST (%) <span className="text-red-500">*</span>
+                      <TooltipHint hint="State GST rate applicable to the organization. Enter as percentage (e.g., 9 for 9%)." />
+                    </Label>
+                    <Input
+                      required
+                      type="text"
+                      inputMode="decimal"
+                      name="sgst"
+                      value={formData.sgst ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("sgst")}
+                      className="h-12"
+                      placeholder="e.g. 9"
+                    />
+                    {fieldError(errors, "sgst")}
+                  </div>
+
+                  {/* IGST */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      IGST (%) <span className="text-red-500">*</span>
+                      <TooltipHint hint="Integrated GST rate applicable to the organization. Enter as percentage (e.g., 18 for 18%)." />
+                    </Label>
+                    <Input
+                      required
+                      type="text"
+                      inputMode="decimal"
+                      name="igst"
+                      value={formData.igst ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("igst")}
+                      className="h-12"
+                      placeholder="e.g. 18"
+                    />
+                    {fieldError(errors, "igst")}
+                  </div>
+
+                </div>
+
+              </div>
 
               {/* ==================== ADDRESSES (OPTIONAL) ==================== */}
               <div className="border-t border-gray-200 pt-10 pb-6">
@@ -1266,7 +1344,7 @@ export default function AddOrganizationPage() {
 
                                 setFormData((prev) => {
                                   const updatedAddresses = [...prev.addresses];
-                                
+
                                   updatedAddresses[index] = {
                                     ...updatedAddresses[index],
                                     houseNo: "",
@@ -1276,7 +1354,7 @@ export default function AddOrganizationPage() {
                                     pincode: "",
                                     country: value,
                                   };
-                                
+
                                   return {
                                     ...prev,
                                     addresses: updatedAddresses,
@@ -1316,7 +1394,7 @@ export default function AddOrganizationPage() {
 
                                   setFormData((prev) => {
                                     const updatedAddresses = [...prev.addresses];
-                                  
+
                                     updatedAddresses[index] = {
                                       ...updatedAddresses[index],
                                       houseNo: "",
@@ -1325,7 +1403,7 @@ export default function AddOrganizationPage() {
                                       pincode: "",
                                       state: value,
                                     };
-                                  
+
                                     return {
                                       ...prev,
                                       addresses: updatedAddresses,
