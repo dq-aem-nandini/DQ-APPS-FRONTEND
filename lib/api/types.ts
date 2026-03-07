@@ -1558,10 +1558,12 @@ export interface WebResponseDTOObject {
   totalRecords: number;
   otherInfo?: any;
 }
+
+export type InvoiceCreationType = "AUTOMATED" | "MANUAL" | "COURIER";
 // Invoice Types
 export interface InvoiceDTO {
-  latest: any;
-  canceled: any;
+  latest: boolean;
+  canceled: boolean;
   invoiceId: string; // UUID
   clientId: string;
   clientName: string;
@@ -1575,6 +1577,7 @@ export interface InvoiceDTO {
   dueDate: string; // ISO Date (YYYY-MM-DD)
   fromDate: string; // ISO Date (YYYY-MM-DD)
   toDate: string; // ISO Date (YYYY-MM-DD)
+  creationType: InvoiceCreationType;
   locked: boolean;
 
 }

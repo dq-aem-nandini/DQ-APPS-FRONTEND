@@ -208,6 +208,20 @@ export default function InvoicesPage() {
     }
   };
 
+  /* -------------------------- CREATION TYPE COLORS -------------------------- */
+  // const getCreationTypeColor = (type: string) => {
+  //   switch (type) {
+  //     case "AUTOMATED":
+  //       return "bg-green-500";
+  //     case "MANUAL":
+  //       return "bg-blue-500";
+  //     case "COURIER":
+  //       return "bg-purple-500";
+  //     default:
+  //       return "bg-gray-400";
+  //   }
+  // };
+
   /* -------------------------- PDF DOWNLOAD HANDLER -------------------------- */
   const handleDownloadPDF = async (invoiceId: string) => {
     const key = `${invoiceId}-PDF`;
@@ -573,15 +587,18 @@ export default function InvoicesPage() {
                   <TableRow>
                     <TableHead>Invoice</TableHead>
                     <TableHead>Client</TableHead>
+                    <TableHead>Creation Type</TableHead>
                     <TableHead>Generated Date</TableHead>
                     <TableHead>Due</TableHead>
                     <TableHead>From</TableHead>
                     <TableHead>To</TableHead>
                     <TableHead className="text-right">Hours</TableHead>
-                    <TableHead className="text-right">Tax</TableHead>
+                    {/* <TableHead className="text-right">Tax</TableHead> */}
                     <TableHead className="text-right">Subtotal</TableHead>
                     <TableHead className="text-right">Total Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-center">PDF</TableHead>
+                    {/* <TableHead className="text-center">Excel</TableHead> */}
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -596,9 +613,9 @@ export default function InvoicesPage() {
                     const isDownloadingPDF = downloading.has(
                       `${inv.invoiceId}-PDF`
                     );
-                    const isDownloadingExcel = downloading.has(
-                      `${inv.invoiceId}-EXCEL`
-                    );
+                    // const isDownloadingExcel = downloading.has(
+                    //   `${inv.invoiceId}-EXCEL`
+                    // );
 
                     return (
                       <TableRow
@@ -619,6 +636,18 @@ export default function InvoicesPage() {
                         </TableCell>
                         <TableCell>{inv.clientName}</TableCell>
                         <TableCell>
+                      <div className="flex items-center gap-2">
+                        {/* <span
+                          className={`h-2.5 w-2.5 rounded-full ${getCreationTypeColor(
+                            inv.creationType
+                          )}`}
+                        /> */}
+                        <span className="text-sm font-medium">
+                          {inv.creationType}
+                        </span>
+                      </div>
+                    </TableCell>
+                        <TableCell>
                           {format(new Date(inv.invoiceDate), "MMM dd, yyyy")}
                         </TableCell>
                         <TableCell>
@@ -633,9 +662,9 @@ export default function InvoicesPage() {
                         <TableCell className="text-right">
                           {inv.totalHours || 0}h
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        {/* <TableCell className="text-right font-medium">
                           {inv.taxAmount.toFixed(2)}
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell className="text-right font-medium">
                           {inv.subtotal.toFixed(2)}
                         </TableCell>
@@ -647,51 +676,56 @@ export default function InvoicesPage() {
                             {inv.status}
                           </Badge>
                         </TableCell>
+                        {/* PDF Column */}
+                        <TableCell className="text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPDF(inv.invoiceId);
+                            }}
+                            disabled={isDownloadingPDF}
+                            className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
+                              ${
+                                isDownloadingPDF
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "bg-background hover:bg-accent hover:text-accent-foreground"
+                              }`}
+                            title="Download PDF"
+                          >
+                            {isDownloadingPDF ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </button>
+                        </TableCell>
+
+                        {/* Excel Column */}
+                        {/* <TableCell className="text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadExcel(inv.invoiceId);
+                            }}
+                            disabled={isDownloadingExcel}
+                            className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
+                              ${
+                                isDownloadingExcel
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "bg-background hover:bg-accent hover:text-accent-foreground"
+                              }`}
+                            title="Download Excel"
+                          >
+                            {isDownloadingExcel ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </button>
+                        </TableCell> */}
+
                         <TableCell>
                           <div className="flex justify-end space-x-1">
-                            {/* Download */}
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadPDF(inv.invoiceId);
-                              }}
-                              disabled={isDownloadingPDF}
-                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
-                                ${
-                                  isDownloadingPDF
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : "bg-background hover:bg-accent hover:text-accent-foreground"
-                                }`}
-                              title="Download PDF"
-                            >
-                              {isDownloadingPDF ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Download className="h-4 w-4" />
-                              )}
-                            </button>
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadExcel(inv.invoiceId);
-                              }}
-                              disabled={isDownloadingExcel}
-                              className={`inline-flex items-center justify-center rounded-md text-sm font-medium border border-input h-8 w-8 p-0
-                                ${
-                                  isDownloadingExcel
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : "bg-background hover:bg-accent hover:text-accent-foreground"
-                                }`}
-                              title="Download Excel"
-                            >
-                              {isDownloadingExcel ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Download className="h-4 w-4" />
-                              )}
-                            </button>
 
                             {/* Lock / Unlock */}
                             <button
