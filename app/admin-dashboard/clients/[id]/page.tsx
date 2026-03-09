@@ -14,6 +14,7 @@ import {
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Spinner from '@/components/ui/Spinner';
 import useLoading from '@/hooks/useLoading';
+import BackButton from "@/components/ui/BackButton";
 import {
   Building2,
   Mail,
@@ -272,21 +273,33 @@ useEffect(() => {
               {/* Header */}
               <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm sm:shadow-lg p-4 sm:p-6 md:p-6 mb-6 sm:mb-8 border border-gray-100">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+                  {/* Left Section */}
                   <div className="flex items-center gap-3 sm:gap-4 flex-1">
                     <div className="p-2 sm:p-3 bg-indigo-100 rounded-lg sm:rounded-xl flex-shrink-0">
                       <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600" />
                     </div>
+
                     <div className="min-w-0">
-                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 line-clamp-1">{client.companyName}</h1>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 line-clamp-1">
+                        {client.companyName}
+                      </h1>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowGenerateModal(true)}
-                    className="w-full lg:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 px-4 sm:px-5 rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 transition shadow-md text-sm sm:text-base"
-                  >
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
-                    Generate Invoice
-                  </button>
+
+                  {/* Right Actions */}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                    <button
+                      onClick={() => setShowGenerateModal(true)}
+                      className="w-full lg:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 px-4 sm:px-5 rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 transition shadow-md text-sm sm:text-base"
+                    >
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Generate Invoice
+                    </button>
+
+                    <BackButton to="/admin-dashboard/clients/list" />
+                  </div>
+
                 </div>
               </div>
 

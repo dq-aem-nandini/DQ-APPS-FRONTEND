@@ -113,10 +113,20 @@ const ViewHolidaysPage: React.FC = () =>{
 
 
   const allUpcomingHolidays = holidays
-  .filter((h) => h.holidayDate) // only remove invalid dates
-  .sort((a, b) =>
-    new Date(a.holidayDate!).getTime() -
-    new Date(b.holidayDate!).getTime()
+  .filter((h) => {
+    if (!h.holidayDate) return false;
+
+    const holidayDate = new Date(h.holidayDate);
+
+    return (
+      holidayDate.getMonth() === currentMonth.getMonth() &&
+      holidayDate.getFullYear() === currentMonth.getFullYear()
+    );
+  })
+  .sort(
+    (a, b) =>
+      new Date(a.holidayDate!).getTime() -
+      new Date(b.holidayDate!).getTime()
   );
 
 
@@ -174,7 +184,7 @@ const ViewHolidaysPage: React.FC = () =>{
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Upcoming Holidays ({allUpcomingHolidays.length})
+                Upcoming Holidays - {format(currentMonth, "MMMM")} ({allUpcomingHolidays.length})
               </CardTitle>
               
               <div className="flex items-center gap-2">
@@ -230,7 +240,7 @@ const ViewHolidaysPage: React.FC = () =>{
               </div>
             ) : allUpcomingHolidays.length === 0 ? (
               <p className="text-center text-gray-500 py-6">
-                No upcoming holidays
+                No holidays
               </p>
             ) : (
               <div className="space-y-3">

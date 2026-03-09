@@ -86,7 +86,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
 
     async function loadEmployees() {
       try {
-        const res = await manualInvoiceService.getEmployeesByClientId(selectedClientId);
+        const res = await manualInvoiceService.getEmployeesByClientId(selectedClientId, false);
 
         // ✅ response is OBJECT, not ARRAY
         const data: ClientEmployeeMinResponseDTO | undefined = Array.isArray(res.response)

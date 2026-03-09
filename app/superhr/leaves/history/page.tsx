@@ -108,7 +108,7 @@ const LeaveHistoryPage = () => {
 
     async function loadEmployees() {
       try {
-        const res = await manualInvoiceService.getEmployeesByClientId(selectedClientId);
+        const res = await manualInvoiceService.getEmployeesByClientId(selectedClientId, false);
         const data: ClientEmployeeMinResponseDTO | undefined = res.response || undefined;
         setEmployees(data?.employees || []);
       } catch (e: any) {

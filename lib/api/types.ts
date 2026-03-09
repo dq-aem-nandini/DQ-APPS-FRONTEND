@@ -1730,7 +1730,7 @@ export interface ManualInvoiceRequestDTO {
   month: number;
   invoiceNumber: string;
   invoiceDate?: string; // yyyy-MM-dd
-  dueDate?: string; // yyyy-MM-dd
+  // dueDate?: string; // yyyy-MM-dd
   items: ManualInvoiceItemRequestDTO[];
 }
 

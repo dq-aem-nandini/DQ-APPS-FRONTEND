@@ -223,7 +223,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
       month: Number(invoiceMonth),
       invoiceNumber: invoiceNumber.trim(),
       invoiceDate: today,
-      dueDate,
+      // dueDate,
       items: invoiceItems,
     };
  
@@ -267,20 +267,19 @@ const [dueDate, setDueDate] = useState<string>(() => {
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden">
         {/* Heading */}
-       {/* Tabs */}
-        {/* <div className="px-8 pt-6 border-b border-slate-100">
-          <div className="flex gap-6">
+        <div className="px-8 pt-6">
+          <div className="inline-flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+            
             <button
-              onClick={() =>{
-                  resetForm();
-                   setActiveTab("manual");
-                }}
-              className={`pb-3 text-sm font-medium border-b-2 transition-all
-                ${
-                  activeTab === "manual"
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-indigo-600"
-                }`}
+              onClick={() => {
+                resetForm();
+                setActiveTab("manual");
+              }}
+              className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
+                activeTab === "manual"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
             >
               Generate Manual Invoice
             </button>
@@ -290,53 +289,18 @@ const [dueDate, setDueDate] = useState<string>(() => {
                 resetForm();
                 setActiveTab("courier");
               }}
-              className={`pb-3 text-sm font-medium border-b-2 transition-all
-                ${
-                  activeTab === "courier"
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-indigo-600"
-                }`}
+              className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
+                activeTab === "courier"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
             >
-              Courier Invoice Generation
+              Expense Invoice Generation
             </button>
+
           </div>
-        </div> */}
+        </div>
 
-<div className="px-8 pt-6">
-  <div className="inline-flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-    
-    <button
-      onClick={() => {
-        resetForm();
-        setActiveTab("manual");
-      }}
-      className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
-        activeTab === "manual"
-          ? "bg-blue-600 text-white shadow-sm"
-          : "text-gray-600 hover:bg-gray-100"
-      }`}
-    >
-      Generate Manual Invoice
-    </button>
-
-    <button
-      onClick={() => {
-        resetForm();
-        setActiveTab("courier");
-      }}
-      className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
-        activeTab === "courier"
-          ? "bg-blue-600 text-white shadow-sm"
-          : "text-gray-600 hover:bg-gray-100"
-      }`}
-    >
-      Courier Invoice Generation
-    </button>
-
-  </div>
-</div>
-
-  
         {activeTab === "manual" && (
           <>
             <div className="p-6 md:p-9 lg:p-10 space-y-10">
@@ -396,7 +360,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                 {/* Row 2: Invoice Month + Due Date */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Invoice Month <span className="text-teal-600">*</span>
+                    Generated On  <span className="text-teal-600">*</span>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <select
@@ -427,7 +391,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                   </div>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Due Date <span className="text-teal-600">*</span>
                   </label>
@@ -438,7 +402,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                     onChange={(e) => setDueDate(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
                   />
-                </div>
+                </div> */}
 
               </div>
     
@@ -628,7 +592,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
             {/* Row 2: Invoice Month + Due Date */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Invoice Month <span className="text-teal-600">*</span>
+              Generated On  <span className="text-teal-600">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <select
@@ -659,7 +623,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
               </div>
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Due Date <span className="text-teal-600">*</span>
               </label>
@@ -670,7 +634,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
               />
-            </div>
+            </div> */}
 
           </div>
 

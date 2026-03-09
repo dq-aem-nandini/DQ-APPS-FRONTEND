@@ -63,6 +63,35 @@ export const manualInvoiceService = {
         }
       },
 
+      // Get employees by client ID (minimal data)
+      async getEmployeesByNoClientId(
+        isForCourierInvoice?: boolean,
+        month?: number,
+        year?: number
+      ): Promise<WebResponseDTO<ClientEmployeeMinResponseDTO>> {
+        try {
+          const params: any = {};
+          if (isForCourierInvoice !== undefined) {
+            params.isForCourierInvoice = isForCourierInvoice;
+          }
+          if (month !== undefined) {
+            params.month = month;
+          }
+          if (year !== undefined) {
+            params.year = year;
+          }
+          const response: AxiosResponse<
+            WebResponseDTO<ClientEmployeeMinResponseDTO>
+          > = await api.get(`/admin/emp/all/min`, {
+            params,
+          });
+      
+          return response.data;
+        } catch (error: any) {
+          throw new Error(getBackendError(error));
+        }
+      },
+
       // Generate manual invoice
       async generateManualInvoice(
         payload: ManualInvoiceRequestDTO,

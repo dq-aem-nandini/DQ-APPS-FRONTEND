@@ -727,7 +727,7 @@ export default function AddClientPage() {
                 {/* Net Terms */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Net Terms (Days)
+                    Net Terms (Days)<span className="text-red-500">*</span>
                     <TooltipHint hint="Number of days after which payment is due. Example: 30, 60, 90" />
                   </label>
                   <input
@@ -736,6 +736,7 @@ export default function AddClientPage() {
                     inputMode="numeric"
                     name="netTerms"
                     value={formData.netTerms || ""}
+                    required
                     onChange={(e) => {
                       const value = e.target.value;
                       if (/^\d*$/.test(value)) {

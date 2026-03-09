@@ -247,7 +247,7 @@ export default function addHoliday() {
       
         async function loadEmployees() {
           try {
-            const res = await manualInvoiceService.getEmployeesByClientId(clientId);
+            const res = await manualInvoiceService.getEmployeesByClientId(clientId, false);
             const data: ClientEmployeeMinResponseDTO | null = Array.isArray(res.response) ? res.response[0] : res.response ?? null;
             setEmployees(data?.employees ?? []);
           } catch (e: any) {
