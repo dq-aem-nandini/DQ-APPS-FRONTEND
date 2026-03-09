@@ -69,7 +69,7 @@ const ClientEmployeeSelector: React.FC<Props> = ({
     }
 
     manualInvoiceService
-      .getEmployeesByClientId(clientId)
+      .getEmployeesByClientId(clientId, false)
       .then(res => {
         const data: ClientEmployeeMinResponseDTO | null =
           Array.isArray(res.response) ? res.response[0] : res.response ?? null;

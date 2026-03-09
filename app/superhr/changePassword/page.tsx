@@ -93,15 +93,26 @@ const changepasswordpage = () => {
           }, [role]);
         
           useEffect(() => {
-            if (role !== 'SUPER_HR' || !clientId) {
+            if (role !== "SUPER_HR" || !clientId) {
               setEmployees([]);
               return;
             }
           
             async function loadEmployees() {
               try {
-                const res = await manualInvoiceService.getEmployeesByClientId(clientId);
-                const data: ClientEmployeeMinResponseDTO | null = Array.isArray(res.response) ? res.response[0] : res.response ?? null;
+                let res;
+          
+                if (clientId === "NA") {
+                  // NA case
+                  res = await manualInvoiceService.getEmployeesByNoClientId();
+                } else {
+                  // Client case
+                  res = await manualInvoiceService.getEmployeesByClientId(clientId);
+                }
+          
+                const data: ClientEmployeeMinResponseDTO | null =
+                  Array.isArray(res.response) ? res.response[0] : res.response ?? null;
+          
                 setEmployees(data?.employees ?? []);
               } catch (e: any) {
                 Swal.fire({
@@ -114,7 +125,6 @@ const changepasswordpage = () => {
           
             loadEmployees();
           }, [role, clientId]);
-
 
           const handleSubmitChangePassword = async () => {
             if (selectedEmployeeIds.length === 0) {
@@ -179,23 +189,27 @@ const changepasswordpage = () => {
           </label>
 
           <select
-            value={clientId}
-            onChange={(e) => {
-              setClientId(e.target.value);
-              // setSelectedEmployee(null); // reset employee on client change 
-              setSelectedEmployeeIds([]);
-            }}
-            className="w-full border border-slate-200 rounded-lg px-4 py-2.5
-                      focus:border-teal-400 focus:ring-2 focus:ring-teal-100
-                      focus:outline-none transition cursor-pointer"
-          >
-            <option value="">Select client</option>
-            {clients.map((c) => (
-              <option key={c.clientId} value={c.clientId}>
-                {c.companyName}
-              </option>
-            ))}
-          </select>
+              value={clientId}
+              onChange={(e) => {
+                const value = e.target.value;
+                setClientId(value);
+                setSelectedEmployeeIds([]);
+              }}
+              className="w-full border border-slate-200 rounded-lg px-4 py-2.5
+                        focus:border-teal-400 focus:ring-2 focus:ring-teal-100
+                        focus:outline-none transition cursor-pointer"
+            >
+              <option value="">Select client</option>
+
+              {/* NA Option */}
+              <option value="NA">NA</option>
+
+              {clients.map((c) => (
+                <option key={c.clientId} value={c.clientId}>
+                  {c.companyName}
+                </option>
+              ))}
+            </select>
         </div>
         {/* Employee Selection */}
         <div>
