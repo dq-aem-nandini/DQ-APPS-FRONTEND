@@ -29,6 +29,7 @@ export default function AdminSidebar() {
         { href: '/admin-dashboard/organization', label: 'Organization', icon: <Building2 className="h-5 w-5" /> },
         { href: '/admin-dashboard/leaveCalendar', label: 'LeaveCalendar', icon: <CalendarIcon className="h-5 w-5" /> },
         { href: '/admin-dashboard/clientEmployeeHistory', label: 'History', icon: <CalendarIcon className="h-5 w-5" /> },
+        {href:'/admin-dashboard/permissions', label: 'Permissions', icon: <Landmark className="h-5 w-5" />},
       ],
     },
     {

@@ -17,6 +17,7 @@ import {
   WebResponseDTOVoid,
   AddressModel,
   EmployeeDocumentDTO,
+  Role,
 } from "./types";
 import { AxiosResponse, AxiosError } from "axios";
 function getBackendError(error: any): string {
@@ -455,6 +456,60 @@ class EmployeeService {
       throw new Error(getBackendError(error));
     }
   }
+
+  // =====================================================
+// GET PERMISSIONS BY EMPLOYEE
+// =====================================================
+async getPermissionsByEmployee(
+  employeeId: string
+): Promise<WebResponseDTO<string[]>> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<string[]>> =
+      await api.get(`/permissions/employee/${employeeId}`);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
+// =====================================================
+// GET PERMISSIONS BY ROLE
+// =====================================================
+async getPermissionsByRole(
+  roleName: Role
+): Promise<WebResponseDTO<string[]>> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<string[]>> =
+      await api.get(`/permissions/role/${roleName}`);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
+
+// =====================================================
+// UPDATE EMPLOYEE PERMISSIONS
+// =====================================================
+async updateEmployeePermissions(
+  employeeId: string,
+  permissions: string[]
+): Promise<WebResponseDTO<string>> {
+  try {
+    const payload = {
+      employeeId,
+      permissions,
+    };
+
+    const response: AxiosResponse<WebResponseDTO<string>> =
+      await api.post(`/permissions/employee/update`, payload);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
 }
 
 export const employeeService = new EmployeeService();

@@ -1,5 +1,5 @@
 import api from "./axios";
-import type { WebResponseDTO, AttendanceStatusDTO, MonthlyAttendanceResponseDTO } from "@/lib/api/types";
+import type { WebResponseDTO, AttendanceStatusDTO, MonthlyAttendanceResponseDTO, AttendanceRegularization, RegularizationRequestDTO } from "@/lib/api/types";
 
 function getBackendError(error: any): string {
   return (
@@ -70,7 +70,79 @@ async getMonthlyAttendance(
     throw new Error(getBackendError(error));
   }
 }
+/* -------------------------------------------------------------------------- */
+  /*                          REGULARIZATION APIs                               */
+  /* -------------------------------------------------------------------------- */
 
+  /**
+   * Employee Request Regularization
+   * POST /web/api/v1/employee/add/regularization
+   */
+  async addRegularization(
+    data: RegularizationRequestDTO
+  ): Promise<WebResponseDTO<string>> {
+    try {
+      const response = await api.post(
+        "/employee/add/regularization",
+        data
+      );
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
+  /**
+   * Admin - Get Pending Regularizations 
+   */
+  async getPendingRegularizations(): Promise<
+    WebResponseDTO<AttendanceRegularization[]>
+  > {
+    try {
+      const response = await api.get(
+        "/admin/regularization/get/pending"
+      );
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
+  /**
+   * Approve Regularization
+   */
+  async approveRegularization(
+    id: string
+  ): Promise<WebResponseDTO<string>> {
+    try {
+      const response = await api.post(
+        `/regularization/${id}/approve`
+      );
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
+
+  /**
+   * Reject Regularization
+   */
+  async rejectRegularization(
+    id: string
+  ): Promise<WebResponseDTO<string>> {
+    try {
+      const response = await api.post(
+        `/regularization/${id}/reject`
+      );
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getBackendError(error));
+    }
+  }
 
 }
 
