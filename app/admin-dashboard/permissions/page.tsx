@@ -6,7 +6,13 @@ import { LoggedInUser } from "@/lib/api/types";
 import { employeeService } from "@/lib/api/employeeService";
 import { adminService } from "@/lib/api/adminService";
 import Swal from "sweetalert2";
-
+const formatPermission = (permission: string) => {
+  return permission
+    .toLowerCase()
+    .split("_")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 export default function PermissionsPage() {
   const { state } = useAuth();
   const [rolePermissions, setRolePermissions] = useState<string[]>([]);
@@ -63,7 +69,7 @@ export default function PermissionsPage() {
 
   };
 
-  // ===============================
+  // =============================== 
   // TOGGLE PERMISSION
   // ===============================
   const togglePermission = (permission: string) => {
@@ -120,7 +126,7 @@ export default function PermissionsPage() {
               key={perm}
               className="px-3 py-1 bg-gray-200 rounded text-sm"
             >
-              {perm}
+            {formatPermission(perm)}
             </span>
           ))}
         </div>
@@ -158,7 +164,7 @@ export default function PermissionsPage() {
                 checked={employeePermissions.includes(perm)}
                 onChange={() => togglePermission(perm)}
               />
-              {perm}
+             {formatPermission(perm)}
             </label>
           ))}
         </div>
