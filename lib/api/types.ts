@@ -299,7 +299,9 @@ export interface RegularizationRequestDTO {
  */
 export interface AttendanceRegularization {
   id: string;
-  attendanceId: string;
+  // attendanceId: string;
+  employeeName: string;
+  designation:Designation;
   employeeId: string;
   attendanceDate: string;
   correctedIn: string;

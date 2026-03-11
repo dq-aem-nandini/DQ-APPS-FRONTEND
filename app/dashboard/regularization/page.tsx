@@ -178,8 +178,9 @@ export default function RegularizationPage() {
                       scope="col"
                       className="px-4 py-4 text-center text-sm font-semibold text-gray-900 sm:pl-6"
                     >
-                      Employee ID
+                      Employee Name
                     </th>
+                    
                     <th
                       scope="col"
                       className="px-3 py-4 text-center text-sm font-semibold text-gray-900"
@@ -225,7 +226,7 @@ export default function RegularizationPage() {
                       className="hover:bg-indigo-50/40 transition-colors duration-150"
                     >
                       <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                        {req.employeeId}
+                        {req.employeeName} ({req.designation})
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600 text-center">
                         {format(new Date(req.attendanceDate), "dd MMM yyyy")}
