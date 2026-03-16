@@ -89,7 +89,23 @@ export default function AdminPage() {
     extraSalaryAmount: number;
   }[]>([]);
   const [extraDecisions, setExtraDecisions] = useState<Record<string, ExtraDecisionType>>({});
+  const [extraInputs, setExtraInputs] = useState<
+      Record<string, { extraPayDaysCount: number; compOffDaysCount: number }> >({});
   const [extraMonth, setExtraMonth] = useState("");
+
+  const handleExtraInputChange = (
+    employeeId: string,
+    field: "extraPayDaysCount" | "compOffDaysCount",
+    value: number
+  ) => {
+    setExtraInputs((prev) => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        [field]: value,
+      },
+    }));
+  };
 
   const handleDecisionChange = (employeeId: string, value: ExtraDecisionType) => {
     setExtraDecisions((prev) => ({
@@ -238,30 +254,32 @@ export default function AdminPage() {
 
 
       const submitExtraDecision = async (employeeId: string, month: string) => {
-        const decision = extraDecisions[employeeId];
+
+        const inputs = extraInputs[employeeId];
       
-        if (!decision) {
-          Swal.fire("Please select a decision first");
+        if (!inputs) {
+          Swal.fire("Please enter Extra Pay or Comp Off values");
           return;
         }
       
         const payload: ExtraDecisionRequestDTO = {
           employeeId,
           month,
-          decision,
+          extraPayDaysCount: inputs.extraPayDaysCount || 0,
+          compOffDaysCount: inputs.compOffDaysCount || 0,
         };
       
         try {
           await salaryGenerateService.extraDecision(payload);
       
-          Swal.fire({
+          await Swal.fire({
             icon: "success",
             title: "Decision submitted",
             confirmButtonColor: "#4F46E5",
           });
-
-          // refresh table after decision submission
+      
           await fetchExtraWorkEmployees();
+      
         } catch (err) {
           console.error(err);
       
@@ -373,7 +391,7 @@ export default function AdminPage() {
                             </CardTitle>
                           </CardHeader>
 
-                          <CardContent className="space-y-5">
+                          <CardContent className="space-y-6">
 
                             {/* MONTH SELECT (type="month") */}
                             <div className="flex flex-col gap-2">
@@ -443,7 +461,7 @@ export default function AdminPage() {
 
                             {(pendingEmployees.length > 0 ) && (
 
-                            <Tabs defaultValue="pending" className="mt-6">
+                            <Tabs defaultValue="pending" className="mt-6 w-full">
 
                               <TabsList className="grid grid-cols-2 w-full">
                                 <TabsTrigger value="pending">
@@ -459,7 +477,7 @@ export default function AdminPage() {
                               {/* TAB 1 : Pending Validation */}
                               {/* ----------------------------- */}
 
-                              <TabsContent value="pending">
+                              <TabsContent value="pending" className="w-full">
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                                 <h3 className="text-lg font-semibold mb-4">
                                   Salary Generation Pending For These Employees
@@ -529,7 +547,7 @@ export default function AdminPage() {
                               {/* TAB 2 : Extra Work */}
                               {/* ----------------------------- */}
 
-                              <TabsContent value="extra">
+                              <TabsContent value="extra" className="w-full">
 
                                   <h3 className="text-lg font-semibold mb-4">
                                     Extra Work Employees
@@ -553,7 +571,11 @@ export default function AdminPage() {
                                   </th>
 
                                   <th className="px-6 py-3 text-left font-medium text-gray-700">
-                                  Decision
+                                    Extra Pay
+                                  </th>
+
+                                  <th className="px-6 py-3 text-left font-medium text-gray-700">
+                                    Comp Off
                                   </th>
 
                                   <th className="px-6 py-3 text-left font-medium text-gray-700">
@@ -579,27 +601,37 @@ export default function AdminPage() {
 
                                   {/* DECISION DROPDOWN */}
 
-                                  <td className="px-6 py-4 w-52">
+                                  <td className="px-6 py-4">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            className="border rounded p-1 w-20"
+                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount || ""}
+                                            onChange={(e) =>
+                                              handleExtraInputChange(
+                                                emp.employeeId,
+                                                "extraPayDaysCount",
+                                                Number(e.target.value)
+                                              )
+                                            }
+                                          />
+                                        </td>
 
-                                  <Select
-                                  value={extraDecisions[emp.employeeId] || ""}
-                                  onValueChange={(value: ExtraDecisionType) =>
-                                  handleDecisionChange(emp.employeeId, value)
-                                  }
-                                  >
-
-                                  <SelectTrigger>
-                                  <SelectValue placeholder="Select decision" />
-                                  </SelectTrigger>
-
-                                  <SelectContent>
-                                  <SelectItem value="EXTRA_PAY">Extra Pay</SelectItem>
-                                  <SelectItem value="COMP_OFF">Comp Off</SelectItem>
-                                  </SelectContent>
-
-                                  </Select>
-
-                                  </td>
+                                        <td className="px-6 py-4">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            className="border rounded p-1 w-20"
+                                            value={extraInputs[emp.employeeId]?.compOffDaysCount || ""}
+                                            onChange={(e) =>
+                                              handleExtraInputChange(
+                                                emp.employeeId,
+                                                "compOffDaysCount",
+                                                Number(e.target.value)
+                                              )
+                                            }
+                                          />
+                                        </td>
 
                                   {/* SUBMIT BUTTON */}
 
@@ -625,7 +657,7 @@ export default function AdminPage() {
 
                                   </TabsContent>
 
-                            </Tabs>
+                            </Tabs> 
                             )}
 
                             </CardContent>
@@ -983,7 +1015,11 @@ export default function AdminPage() {
                                       </th>
 
                                       <th className="px-6 py-3 text-left font-medium text-gray-700">
-                                        Decision
+                                        Extra Pay
+                                      </th>
+
+                                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                                        Comp Off
                                       </th>
 
                                       <th className="px-6 py-3 text-left font-medium text-gray-700">
@@ -1011,28 +1047,36 @@ export default function AdminPage() {
                                           ₹{emp.extraSalaryAmount.toFixed(2)}
                                         </td>
 
-                                        {/* DECISION */}
-
-                                        <td className="px-6 py-4 w-52">
-
-                                          <Select
-                                            value={extraDecisions[emp.employeeId] || ""}
-                                            onValueChange={(value: ExtraDecisionType) =>
-                                              handleDecisionChange(emp.employeeId, value)
+                                        <td className="px-6 py-4">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            className="border rounded p-1 w-20"
+                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount || ""}
+                                            onChange={(e) =>
+                                              handleExtraInputChange(
+                                                emp.employeeId,
+                                                "extraPayDaysCount",
+                                                Number(e.target.value)
+                                              )
                                             }
-                                          >
+                                          />
+                                        </td>
 
-                                            <SelectTrigger>
-                                              <SelectValue placeholder="Select decision" />
-                                            </SelectTrigger>
-
-                                            <SelectContent>
-                                              <SelectItem value="EXTRA_PAY">Extra Pay</SelectItem>
-                                              <SelectItem value="COMP_OFF">Comp Off</SelectItem>
-                                            </SelectContent>
-
-                                          </Select>
-
+                                        <td className="px-6 py-4">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            className="border rounded p-1 w-20"
+                                            value={extraInputs[emp.employeeId]?.compOffDaysCount || ""}
+                                            onChange={(e) =>
+                                              handleExtraInputChange(
+                                                emp.employeeId,
+                                                "compOffDaysCount",
+                                                Number(e.target.value)
+                                              )
+                                            }
+                                          />
                                         </td>
 
                                         {/* BUTTON */}
