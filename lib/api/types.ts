@@ -1880,3 +1880,16 @@ export interface EligibleEmployeeDTO {
   createdFromExcel: boolean;
   updatedThroughForm: boolean;
 }
+
+/* ───────────────────────────────────────────
+   EXTRA WORK DECISION
+─────────────────────────────────────────── */
+
+export type ExtraDecisionType = "EXTRA_PAY" | "COMP_OFF";
+
+export interface ExtraDecisionRequestDTO {
+  employeeId: string;
+  month: string; // format: "YYYY-MM"
+  extraPayDaysCount: number; 
+  compOffDaysCount : number; 
+}
