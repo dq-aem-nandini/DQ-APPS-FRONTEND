@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { sidebarConfig } from "./sidebar.config";
 
@@ -48,13 +48,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Invoices: <Receipt size={18} />,
   Employees: <Users size={18} />,
   Clients: <Users size={18} />,
+  "Employee Leaves": <FileCheck size={18} />,
+  "Regularization Requests": <ClipboardList size={18} />,
 };
-
-/* =====================
-   TYPE GUARD
-===================== */
-const isSidebarRole = (role: Role): role is SidebarRole =>
-  role === "MANAGER" || role === "FINANCE" || role === "SUPER_HR" || role === "HR_MANAGER";
 
 /* =====================
    SIDEBAR
@@ -62,21 +58,57 @@ const isSidebarRole = (role: Role): role is SidebarRole =>
 export default function Sidebar() {
   const { state } = useAuth();
   const pathname = usePathname();
-  const router = useRouter();
-
+  const renderedLinks = new Set<string>();
   const user = state.user;
   if (!user) return null;
 
   const role = user.role.roleName as Role;
   const permissions: string[] = user.role.permissions ?? [];
   const hasSubordinates = user?.hasSubordinates;
-  const getIcon = (label: string) =>
-    ICON_MAP[label] ?? <Home size={18} />;
+  const getIcon = (label: string) => ICON_MAP[label] ?? <Home size={18} />;
 
+  /* =====================
+      SECTION RENDER HELPER
+   ===================== */
+
+  const renderSection = (title: string, items: SidebarItem[]) => {
+    const filtered = items.filter(hasAccess);
+
+    if (!filtered.length) return null;
+
+    return (
+      <SidebarSection title={title}>
+        {filtered.map((item) => (
+          <SidebarLink
+            key={item.href}
+            href={item.href}
+            active={
+              item.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname.startsWith(item.href)
+            }
+            icon={getIcon(item.label)}
+          >
+            {item.label}
+          </SidebarLink>
+        ))}
+      </SidebarSection>
+    );
+  };
+  const hasAccess = (item: SidebarItem) => {
+    if (renderedLinks.has(item.href)) return false;
+
+    const allowed = !item.permission || permissions.includes(item.permission);
+
+    if (allowed) {
+      renderedLinks.add(item.href);
+    }
+
+    return allowed;
+  };
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col shadow-sm overflow-hidden">
       <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
-
         {/* LOGO */}
         <div className="flex items-center justify-center space-x-4 mb-8">
           <Image
@@ -87,128 +119,45 @@ export default function Sidebar() {
             style={{ width: "auto" }}
             className="rounded-full shadow-sm"
           />
-          <div className="text-2xl font-bold text-indigo-600">
-            DigiQuad
-          </div>
+          <div className="text-2xl font-bold text-indigo-600">DigiQuad</div>
         </div>
         {/* =====================
-          COMMON (EMPLOYEE, MANAGER,HR, FINANCE ONLY)
+          COMMON (EMPLOYEE, MANAGER,HR,HR_MANAGER FINANCE ONLY)
           ===================== */}
-          {role !== "SUPER_HR" && (
-          <SidebarSection title="Main">
-            {sidebarConfig.common.map((item: SidebarItem) => (
-              <SidebarLink
-                key={item.href}
-                href={item.href}
-                // active={pathname.startsWith(item.href)}
-                active={
-                  item.href === "/dashboard"
-                    ? pathname === "/dashboard"
-                    : pathname.startsWith(item.href)
-                }
-                
-                icon={getIcon(item.label)}
-              >
-                {item.label}
-              </SidebarLink>
-            ))}
-          </SidebarSection>
-        )}
 
+        {role !== "SUPER_HR" && renderSection("Main", sidebarConfig.common)}
+
+        {/* employee */}
+
+        {role === "EMPLOYEE" &&
+          renderSection("Employee", sidebarConfig.Employee)}
 
         {/* =====================
             HR ADMIN (NO PERMISSIONS)
         ===================== */}
-        
-        {(role === "HR" || role === "HR_MANAGER") && sidebarConfig.HR_COMMON && (
-          <SidebarSection title="Main">
-            {sidebarConfig.HR_COMMON.map((item: SidebarItem) => (
-              <SidebarLink
-                key={item.href}
-                href={item.href}
-                active={pathname.startsWith(item.href)}
-                icon={getIcon(item.label)}
-              >
-                {item.label}
-              </SidebarLink>
-            ))}
-          </SidebarSection>
-        )}
 
+        {role === "HR" && renderSection("HR", sidebarConfig.HR)}
+        {/* =====================
+                HR_MANAGER
+             ===================== */}
+
+        {role === "HR_MANAGER" &&
+          renderSection("HR Manager", sidebarConfig.HR_MANAGER)}
         {/* =====================
             SUPER_HR COMMON (NO PERMISSIONS)
             👉 ONLY LEAVES
         ===================== */}
-        {role === "SUPER_HR" && (
-          <SidebarSection title="Main">
-            {sidebarConfig.SUPER_HR.map((item: SidebarItem) => (
-              <SidebarLink
-                key={item.href}
-                href={item.href}
-                active={pathname.startsWith(item.href)}
-                icon={getIcon(item.label)}
-              >
-                {item.label}
-              </SidebarLink>
-            ))}
-          </SidebarSection>
-        )}
 
-        {/* =====================
-            ROLE-SPECIFIC (PERMISSION BASED)
-        ===================== */}
-        {/* {isSidebarRole(role) && sidebarConfig[role] && (
-          <SidebarSection title={role.replace("_", " ")}>
-            {sidebarConfig[role]
-              .filter(
-                (item: SidebarItem) =>
-                  !item.permission ||
-                  permissions.includes(item.permission)
-              )
-              .map((item: SidebarItem) => (
-                <SidebarLink
-                  key={item.href}
-                  href={item.href}
-                  active={pathname.startsWith(item.href)}
-                  icon={getIcon(item.label)}
-                >
-                  {item.label}
-                </SidebarLink>
-              ))}
-          </SidebarSection>
-        )} */}
+        {role === "SUPER_HR" && renderSection("Main", sidebarConfig.SUPER_HR)}
 
-        {/* =====================
-          ROLE-SPECIFIC (PERMISSION BASED)
-          ===================== */}
+        {/* MANAGER or HR_MANAGER */}
 
-          {/* MANAGER or HR_MANAGER */}
-          {(role === "MANAGER" ||
-            (role === "HR_MANAGER" && hasSubordinates)) && (
-            <SidebarSection title="Manager">
-              {sidebarConfig.MANAGER
-                .filter(
-                  (item: SidebarItem) =>
-                    !item.permission ||
-                    permissions.includes(item.permission)
-                )
-                .map((item: SidebarItem) => (
-                  <SidebarLink
-                    key={item.href}
-                    href={item.href}
-                    active={pathname.startsWith(item.href)}
-                    icon={getIcon(item.label)}
-                  >
-                    {item.label}
-                  </SidebarLink>
-                ))}
-            </SidebarSection>
-          )}
-
-                </div>
-              </aside>
-            );
-          }
+        {(role === "MANAGER" || (role === "HR_MANAGER" && hasSubordinates)) &&
+          renderSection("Manager", sidebarConfig.MANAGER)}
+      </div>
+    </aside>
+  );
+}
 
 /* =====================
    SUB COMPONENTS

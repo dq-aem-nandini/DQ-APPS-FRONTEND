@@ -13,7 +13,10 @@ export interface SidebarItem {
   href: string;
   permission?: string;
 }
-export type SidebarRole = Extract<Role, "MANAGER" | "FINANCE" | "SUPER_HR">;
+export type SidebarRole = Extract<
+  Role,
+  "MANAGER" | "FINANCE" | "SUPER_HR" | "HR_MANAGER"
+>;
 export const WORKING_MODEL_OPTIONS = [
   "ONSITE",
   "HYBRID",
@@ -134,8 +137,7 @@ export const ATTENDANCE_STATUS_OPTIONS = [
   "PRESENT",
   "ABSENT",
   "HALF_DAY",
-  "ON_LEAVE",
-  "HOLIDAY",
+  "INCOMPLETE",
 ] as const;
 
 export type AttendanceStatus = (typeof ATTENDANCE_STATUS_OPTIONS)[number];
@@ -274,6 +276,49 @@ export const INVOICE_STATUS_OPTIONS = [
 
 export type InvoiceStatus = (typeof INVOICE_STATUS_OPTIONS)[number];
 
+export const REGULARIZATION_STATUS_OPTIONS = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+] as const;
+
+export type RegularizationStatus = (typeof REGULARIZATION_STATUS_OPTIONS)[number];
+
+/**
+ * Request DTO - Employee Regularization Request
+ */
+export interface RegularizationRequestDTO {
+  date: string;
+  correctedIn: string | null;
+  correctedOut: string | null;
+  reason: string;
+}
+
+/**
+ * Regularization Response DTO
+ */
+export interface AttendanceRegularization {
+  id: string;
+  // attendanceId: string;
+  employeeName: string;
+  designation:Designation;
+  employeeId: string;
+  attendanceDate: string;
+  correctedIn: string;
+  correctedOut: string;
+  reason: string;
+  status: RegularizationStatus;
+  createdAt: string;
+}
+
+export type PendingRegularizationResponse =
+  WebResponseDTO<AttendanceRegularization[]>;
+
+
+export interface PermissionRequest {
+  employeeId: string;
+  permissions: string[];
+}
 // Request DTO
 export interface WorkingPolicyRequestDTO {
   employmentType: EmploymentType;
@@ -289,7 +334,7 @@ export interface WorkingPolicyResponseDTO {
   employmentType: EmploymentType;
   workingPattern: WorkingPattern;
   effectiveFrom: string;
-  effectiveTo: string  | null;
+  effectiveTo: string | null;
   active: boolean;
 }
 
@@ -477,17 +522,17 @@ export type AuthState = {
 
 export type AuthAction =
   | {
-      type: "LOGIN_SUCCESS";
-      payload: {
-        user: User;
-        accessToken: string | null;
-        refreshToken: string | null;
-      };
-    }
+    type: "LOGIN_SUCCESS";
+    payload: {
+      user: User;
+      accessToken: string | null;
+      refreshToken: string | null;
+    };
+  }
   | {
-      type: "UPDATE_USER";
-      payload: Partial<LoggedInUser>;
-    }
+    type: "UPDATE_USER";
+    payload: Partial<LoggedInUser>;
+  }
   | { type: "LOGOUT" }
   | { type: "SET_LOADING"; payload: boolean };
 
@@ -705,9 +750,9 @@ export interface EmployeeModel {
   clientId: string | null;
   clientSelection: string;
   reportingManagerId: string | null; // UUID
-  designationId:string | null;
+  designationId: string | null;
   customDesignation: string | null; // For free-text designation when "Other" is selected
-  designationName: string; 
+  designationName: string;
   dateOfBirth: string; // ISO Date (YYYY-MM-DD)
   dateOfJoining: string; // ISO Date (YYYY-MM-DD)
   dateOfOnboardingToClient: string;
@@ -882,7 +927,7 @@ export interface EmployeeDTO {
   clientStatus: string;
   reportingManagerId: string; // uuid
   reportingManagerName: string;
-  designationId:string | null;
+  designationId: string | null;
   designationName: string;
   documents: EmployeeDocumentDTO[];
   addresses: AddressModel[];
@@ -1111,10 +1156,10 @@ export interface WebResponseDTOListHolidaysDTO {
   totalRecords: number;
   otherInfo?: any;
 }
-export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> {}
+export interface WebResponseDTOIfsc extends WebResponseDTO<IfscResponseDTO> { }
 
 export interface WebResponseDTOListBankMaster
-  extends WebResponseDTO<BankMaster[]> {}
+  extends WebResponseDTO<BankMaster[]> { }
 // WebResponse Wrappers
 export interface WebResponseDTOString {
   flag: boolean;
@@ -1203,7 +1248,7 @@ export interface OrganizationRequestDTO {
   establishedDate: string; // yyyy-mm-dd
 
   timezone: string;
-  autoClockOutTime:string;
+  autoClockOutTime: string;
 
   currencyCode: CurrencyCode;
 
@@ -1242,7 +1287,7 @@ export interface OrganizationResponseDTO {
   employeeStrength: number;
   establishedDate: string;
   timezone: string;
-  autoClockOutTime:string;
+  autoClockOutTime: string;
   currencyCode: CurrencyCode;
   accountNumber: string;
   accountHolderName: string;
@@ -1257,7 +1302,7 @@ export interface OrganizationResponseDTO {
   igst?: number;
   sequenceNumber?: number;
   companyType?: string;
-  attendancePolicyDto: AttendancePolicyResponseDTO; 
+  attendancePolicyDto: AttendancePolicyResponseDTO;
   createdAt: string;
   updatedAt: string;
   status: "ACTIVE" | "INACTIVE";
@@ -1525,14 +1570,14 @@ export interface UpdatePasswordRequestDTO {
 export interface PasswordResponseDTO {
   identifier: string;
   status:
-    | "OTP_SENT"
-    | "OTP_VERIFIED"
-    | "OTP_INVALID"
-    | "OTP_EXPIRED"
-    | "PASSWORD_RESET"
-    | "RESET_FAILED"
-    | "USER_NOT_FOUND"
-    | "MAX_ATTEMPTS_EXCEEDED";
+  | "OTP_SENT"
+  | "OTP_VERIFIED"
+  | "OTP_INVALID"
+  | "OTP_EXPIRED"
+  | "PASSWORD_RESET"
+  | "RESET_FAILED"
+  | "USER_NOT_FOUND"
+  | "MAX_ATTEMPTS_EXCEEDED";
   timestamp: string;
   expiry?: string;
   verified: boolean;
@@ -1803,7 +1848,7 @@ export interface AttendanceHistoryDTO {
   date: string;
   firstClockIn?: string | null;
   lastClockOut?: string | null;
-  workHours?: number | null;     
+  workHours?: number | null;
   workMinutes?: number | null;
   status?: AttendanceHistoryStatus;
   logs: AttendanceLogDTO[];
