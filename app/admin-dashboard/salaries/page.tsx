@@ -114,14 +114,17 @@ export default function AdminPage() {
     }));
   };
 
-  const fetchExtraWorkEmployees = async () => {
-    if (!extraMonth) {
+  const fetchExtraWorkEmployees = async (month?: string) => {
+
+    const selectedMonth = month || extraMonth;
+  
+    if (!selectedMonth) {
       Swal.fire("Please select month first");
       return;
     }
   
     try {
-      const res = await salaryGenerateService.getExtraWorkEmployees(extraMonth);
+      const res = await salaryGenerateService.getExtraWorkEmployees(selectedMonth);
   
       setExtraWorkEmployees(res || []);
     } catch (err) {
@@ -278,7 +281,7 @@ export default function AdminPage() {
             confirmButtonColor: "#4F46E5",
           });
       
-          await fetchExtraWorkEmployees();
+          await fetchExtraWorkEmployees(month);
       
         } catch (err) {
           console.error(err);
@@ -289,6 +292,18 @@ export default function AdminPage() {
           });
         }
       };
+
+
+      const isValidRow = (emp: any) => {
+        const extraPay =
+          extraInputs[emp.employeeId]?.extraPayDaysCount ?? 0;
+      
+        const compOff =
+          extraInputs[emp.employeeId]?.compOffDaysCount ?? 0;
+      
+        return extraPay + compOff === emp.extraWorkedDays;
+      };
+
 
   /* ───────────────────────────────────────────
    * RENDER UI
@@ -606,7 +621,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount || ""}
+                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount  ?? 0}
+                                            onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -622,7 +638,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.compOffDaysCount || ""}
+                                            value={extraInputs[emp.employeeId]?.compOffDaysCount  ?? 0}
+                                            onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -638,6 +655,7 @@ export default function AdminPage() {
                                   <td className="px-6 py-4">
 
                                   <Button
+                                  disabled={!isValidRow(emp)}
                                   size="sm"
                                   onClick={() => submitExtraDecision(emp.employeeId, genMonth)}
                                   className="bg-indigo-600 hover:bg-indigo-700"
@@ -982,7 +1000,7 @@ export default function AdminPage() {
                               </div>
 
                               <Button
-                                onClick={fetchExtraWorkEmployees}
+                                onClick={() => fetchExtraWorkEmployees(extraMonth)}
                                 disabled={!extraMonth}
                               >
                                 Fetch Employees
@@ -1052,7 +1070,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount || ""}
+                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount ?? 0}
+                                            onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -1068,7 +1087,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.compOffDaysCount || ""}
+                                            value={extraInputs[emp.employeeId]?.compOffDaysCount ?? 0}
+                                            onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -1084,6 +1104,7 @@ export default function AdminPage() {
                                         <td className="px-6 py-4">
 
                                           <Button
+                                            disabled={!isValidRow(emp)}
                                             size="sm"
                                             onClick={() => submitExtraDecision(emp.employeeId, extraMonth)}
                                             className="bg-indigo-600 hover:bg-indigo-700"
