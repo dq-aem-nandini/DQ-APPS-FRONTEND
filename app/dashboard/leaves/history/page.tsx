@@ -28,7 +28,7 @@ const LeaveHistoryPage = () => {
   const highlightedLeaveId = searchParams.get("requestId");
   const [tempHighlightId, setTempHighlightId] = useState<string | null>(null);
   const pendingPageJumpRef = useRef<string | null>(null);
-
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [leaveHistory, setLeaveHistory] = useState<PageLeaveResponseDTO>({
     totalElements: 0,
     totalPages: 0,
@@ -268,7 +268,33 @@ const LeaveHistoryPage = () => {
       }
     }
   };
-
+  const ReadMore = ({ text, id }: { text: string; id: string }) => {
+    const isExpanded = expandedRows[id];
+  
+    if (!text) return <span>-</span>;
+  
+    return (
+      <div className="text-left">
+        <p className={`${!isExpanded ? "line-clamp-2" : ""}`}>
+          {text}
+        </p>
+  
+        {text.length > 80 && (
+          <button
+            onClick={() =>
+              setExpandedRows((prev) => ({
+                ...prev,
+                [id]: !prev[id],
+              }))
+            }
+            className="text-blue-600 text-sm mt-1 hover:underline"
+          >
+            {isExpanded ? "Show Less" : "Show More"}
+          </button>
+        )}
+      </div>
+    );
+  };
   // Handle pagination changes
   const handlePageChange = (newPage: number) => {
     if (newPage < 0 || newPage >= leaveHistory.totalPages) return;
@@ -494,11 +520,9 @@ const LeaveHistoryPage = () => {
                         : "-"}
                     </td>
                     <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
-                      {leave.context || "-"}
-                    </td>
+                    <ReadMore text={leave.context || "-"} id={`context-${leave.leaveId}`} />                    </td>
                     <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
-                      {leave.approverComment || "-"}
-                    </td>
+                    <ReadMore text={leave.approverComment || "-"} id={`comment-${leave.leaveId}`} />                    </td>
                     <td className="px-4 py-5 text-base text-gray-900 text-center align-middle">
                       {(leave.status === "PENDING" && (
                         <div className="flex gap-2">

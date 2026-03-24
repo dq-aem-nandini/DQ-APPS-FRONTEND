@@ -7,7 +7,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LoggedInUser } from '@/lib/api/types';
 import { Eye, EyeOff } from 'lucide-react';
-import { isPrivateMode } from '@/lib/deviceUtils';
 
 const Login: React.FC = () => {
   const [credentials, setCredentials] = useState({ inputKey: '', password: '' });
@@ -22,21 +21,22 @@ const Login: React.FC = () => {
 
   // Auto-fill username from preferred storage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const privateMode = isPrivateMode();
-      const storage = privateMode ? sessionStorage : localStorage;
-      const savedUsername =
-      localStorage.getItem('rememberedUsername') ??
-      sessionStorage.getItem('rememberedUsername');
-    
-    console.log('🔍 Auto-fill check:', {
-      privateMode,
-      savedUsername,
-    });
-      if (savedUsername) {
-        setCredentials(prev => ({ ...prev, inputKey: savedUsername }));
-        setRememberMe(true); // NEW: Re-check if username exists
-        console.log('✅ Auto-checked Remember Me'); // Debug
+    if (typeof window === 'undefined') return;
+  
+    const remembered = localStorage.getItem('rememberedUsername');
+  
+    if (remembered) {
+      // Came from persistent storage → safe to pre-check
+      setCredentials(prev => ({ ...prev, inputKey: remembered }));
+      setRememberMe(true);
+      console.log('✅ Loaded remembered username from localStorage → box checked');
+    } else {
+      // Only temporary (session) → show username but DO NOT check box
+      const temp = sessionStorage.getItem('rememberedUsername');
+      if (temp) {
+        setCredentials(prev => ({ ...prev, inputKey: temp }));
+        // rememberMe stays false
+        console.log('ℹ️ Showing temp username from sessionStorage → box NOT checked');
       }
     }
   }, []);
@@ -77,27 +77,10 @@ const Login: React.FC = () => {
     }
   }, [state.isAuthenticated, state.user, state.isLoading]);
 
-  // 🔥 SUBMIT LOGIN
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setError('');
-  //   setIsLoading(true);
-  //   console.log('📤 Submit with rememberMe:', rememberMe, 'Username:', credentials.inputKey); // NEW: Confirm flag + input
-  //   try {
-  //     await login(credentials, rememberMe);
-  //   } catch (err: any) {
-  //     console.error('❌ Login error (no save):', err); // NEW: Log failures
-  //     setError(err.message || "Invalid credentials");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     try {
       await login(credentials, rememberMe);
       // Success → redirect handled by useEffect above
@@ -157,10 +140,10 @@ const Login: React.FC = () => {
           </h1>
         </div>
 
-        {/* FORM (unchanged except checkbox props) */}
+        {/* FORM */}
         <form className="space-y-6" onSubmit={handleSubmit}>
 
-          {/* USERNAME (unchanged) */}
+          {/* USERNAME */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Username or Email
@@ -177,7 +160,7 @@ const Login: React.FC = () => {
             />
           </div>
 
-          {/* PASSWORD (unchanged) */}
+          {/* PASSWORD */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
@@ -194,7 +177,7 @@ const Login: React.FC = () => {
                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 px-3"
               />
 
-              {/* Eye Button (unchanged) */}
+              {/* Eye Button */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -207,11 +190,10 @@ const Login: React.FC = () => {
                   <Eye className="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors" />
                 )}
               </button>
-
             </div>
           </div>
 
-          {/* ERROR (unchanged) */}
+          {/* ERROR  */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
               {error}
@@ -233,7 +215,6 @@ const Login: React.FC = () => {
               />
               <span>Remember me</span>
             </label>
-
             <Link
               href="/auth/forgotPassword"
               className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
@@ -242,7 +223,7 @@ const Login: React.FC = () => {
             </Link>
           </div>
 
-          {/* SUBMIT BUTTON (unchanged) */}
+          {/* SUBMIT BUTTON */}
           <button
             type="submit"
             disabled={isLoading}
@@ -267,7 +248,6 @@ const Login: React.FC = () => {
           </span>
           . All rights reserved.
         </p>
-
       </div>
     </div>
   );
