@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { leaveService } from '@/lib/api/leaveService';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { leaveService } from "@/lib/api/leaveService";
 import {
   LeaveResponseDTO,
   PendingLeavesResponseDTO,
@@ -12,17 +12,21 @@ import {
   EmployeeDTO,
   LEAVE_STATUS_OPTIONS,
   LEAVE_CATEGORY_OPTIONS,
-} from '@/lib/api/types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import Swal from 'sweetalert2';
-import { adminService } from '@/lib/api/adminService';
+} from "@/lib/api/types";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Swal from "sweetalert2";
+import { adminService } from "@/lib/api/adminService";
 
 const Leavespage: React.FC = () => {
   const router = useRouter();
-  const { state: { accessToken, user } } = useAuth();
-  const isHRManager = user?.role?.roleName === 'HR_MANAGER';
-  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
-  const [pendingLeaves, setPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
+  const {
+    state: { accessToken, user },
+  } = useAuth();
+  const isHRManager = user?.role?.roleName === "HR_MANAGER";
+  const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
+  const [pendingLeaves, setPendingLeaves] = useState<
+    PendingLeavesResponseDTO[]
+  >([]);
   const [allLeaves, setAllLeaves] = useState<LeaveResponseDTO[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -38,7 +42,7 @@ const Leavespage: React.FC = () => {
   // const [confirmation, setConfirmation] = useState<string | null>(null);
   const [managerEmployees, setManagerEmployees] = useState<EmployeeDTO[]>([]);
   const isAutoNavigatingRef = useRef(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(''); // '' = all
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(""); // '' = all
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
@@ -53,14 +57,13 @@ const Leavespage: React.FC = () => {
   }>({
     page: 0,
     size: 5,
-    sort: 'fromDate,desc',
+    sort: "fromDate,desc",
   });
   useEffect(() => {
     if (!openLeaveId) return;
 
     pendingHighlightLeaveId.current = openLeaveId;
     hasAutoOpenedRef.current = false; // reset auto open
-
   }, [openLeaveId]); // ✅ MUST depend on openLeaveId
 
   useEffect(() => {
@@ -75,7 +78,7 @@ const Leavespage: React.FC = () => {
     if (!targetLeaveId) return;
 
     // 1️⃣ Pending tab → open modal
-    const pending = pendingLeaves.find(l => l.leaveId === targetLeaveId);
+    const pending = pendingLeaves.find((l) => l.leaveId === targetLeaveId);
     if (pending) {
       hasAutoOpenedRef.current = true;
       handleReviewLeave(pending);
@@ -84,13 +87,13 @@ const Leavespage: React.FC = () => {
     }
 
     // 2️⃣ Switch to ALL tab
-    if (activeTab !== 'all') {
-      setActiveTab('all');
+    if (activeTab !== "all") {
+      setActiveTab("all");
       return;
     }
 
     // 3️⃣ Already on correct page → highlight
-    if (allLeaves.some(l => l.leaveId === targetLeaveId)) {
+    if (allLeaves.some((l) => l.leaveId === targetLeaveId)) {
       setTimeout(() => {
         scrollAndHighlight(targetLeaveId);
         pendingHighlightLeaveId.current = null;
@@ -121,7 +124,7 @@ const Leavespage: React.FC = () => {
         if (!res.flag || !res.response?.content) return;
 
         const index = res.response.content.findIndex(
-          l => l.leaveId === targetLeaveId
+          (l) => l.leaveId === targetLeaveId
         );
 
         if (index === -1) return;
@@ -129,43 +132,42 @@ const Leavespage: React.FC = () => {
         const targetPage = Math.floor(index / pagination.size);
 
         if (pagination.page !== targetPage) {
-          isAutoNavigatingRef.current = true;   // 🔒 LOCK
-          setPagination(prev => ({ ...prev, page: targetPage }));
+          isAutoNavigatingRef.current = true; // 🔒 LOCK
+          setPagination((prev) => ({ ...prev, page: targetPage }));
         }
-
       } catch {
         // silent
       }
     })();
-
   }, [
     activeTab,
     pendingLeaves,
     allLeaves,
     filters,
     selectedEmployeeId,
-    pagination.sort
+    pagination.sort,
   ]);
-
 
   const scrollAndHighlight = (leaveId: string) => {
     const row = rowRefs.current[leaveId];
     if (!row) return;
 
-    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    row.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+    row.classList.add("ring-2", "ring-indigo-500", "bg-indigo-50");
 
     setTimeout(() => {
-      row.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+      row.classList.remove("ring-2", "ring-indigo-500", "bg-indigo-50");
       isAutoNavigatingRef.current = false; // ✅ ADD THIS
     }, 4000);
   };
   // Handle authentication redirect
   useEffect(() => {
     if (!user || !accessToken) {
-      console.log('🧩 Redirecting to /auth/login due to missing user or accessToken');
-      router.push('/auth/login');
+      console.log(
+        "🧩 Redirecting to /auth/login due to missing user or accessToken"
+      );
+      router.push("/auth/login");
     }
   }, [user, accessToken, router]);
 
@@ -174,11 +176,16 @@ const Leavespage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      if (!accessToken || !user || (user.role.roleName !== 'MANAGER' && user.role.roleName !== 'HR_MANAGER')) {
-        throw new Error('Unauthorized access. Please log in as a manager.');
+      if (
+        !accessToken ||
+        !user ||
+        (user.role.roleName !== "MANAGER" &&
+          user.role.roleName !== "HR_MANAGER")
+      ) {
+        throw new Error("Unauthorized access. Please log in as a manager.");
       }
       // Fetch manager's employees when switching to 'all' tab (only once)
-      if (activeTab === 'all' && managerEmployees.length === 0) {
+      if (activeTab === "all" && managerEmployees.length === 0) {
         try {
           const empResponse = await adminService.getAllManagerEmployees();
           if (empResponse.flag && empResponse.response) {
@@ -189,14 +196,14 @@ const Leavespage: React.FC = () => {
           // don't fail the whole page — just dropdown stays empty
         }
       }
-      if (activeTab === 'pending') {
+      if (activeTab === "pending") {
         const response = await leaveService.getPendingLeaves(isHRManager);
         // console.log('🧩 Pending leaves fetched:', response);
         setPendingLeaves(response);
         setTotalPages(1); // No pagination for pending leaves
-      } else if (activeTab === 'all') {
+      } else if (activeTab === "all") {
         const response = await leaveService.getLeaveSummary(
-          selectedEmployeeId || undefined,     // pass selected employee or undefined = all
+          selectedEmployeeId || undefined, // pass selected employee or undefined = all
           filters.month,
           filters.leaveCategory,
           filters.status,
@@ -211,9 +218,9 @@ const Leavespage: React.FC = () => {
         // console.log('🧩 All leaves fetched:', response);
         if (!response.flag || !response.response) {
           throw new Error(
-            response.message.includes('assignedManager')
-              ? 'Unable to load leave data. Some employees may not have assigned managers. Please check employee settings or contact support.'
-              : response.message || 'Failed to fetch leave summary'
+            response.message.includes("assignedManager")
+              ? "Unable to load leave data. Some employees may not have assigned managers. Please check employee settings or contact support."
+              : response.message || "Failed to fetch leave summary"
           );
         }
         setAllLeaves(response.response.content);
@@ -221,11 +228,11 @@ const Leavespage: React.FC = () => {
       }
     } catch (err: any) {
       setError(
-        err.message.includes('assignedManager')
-          ? 'Unable to load leave data. Some employees may not have assigned managers. Please check employee settings or contact support.'
-          : err.message || 'Failed to load leave data. Please try again.'
+        err.message.includes("assignedManager")
+          ? "Unable to load leave data. Some employees may not have assigned managers. Please check employee settings or contact support."
+          : err.message || "Failed to load leave data. Please try again."
       );
-      console.error('❌ Error fetching data:', err);
+      console.error("❌ Error fetching data:", err);
       setAllLeaves([]);
       setPendingLeaves([]);
       setTotalPages(1);
@@ -239,7 +246,7 @@ const Leavespage: React.FC = () => {
     accessToken,
     user,
     selectedEmployeeId,
-    managerEmployees.length
+    managerEmployees.length,
   ]);
 
   useEffect(() => {
@@ -249,71 +256,122 @@ const Leavespage: React.FC = () => {
   }, [fetchData, user, accessToken]);
 
   useEffect(() => {
-    console.log('🟢 CURRENT PAGE:', pagination.page);
+    console.log("🟢 CURRENT PAGE:", pagination.page);
   }, [pagination.page]);
 
   // Handle filter changes
-  const handleFilterChange = (key: keyof typeof filters, value: string | boolean | undefined) => {
+  const handleFilterChange = (
+    key: keyof typeof filters,
+    value: string | boolean | undefined
+  ) => {
     setFilters((prev) => ({
       ...prev,
-      [key]: value === '' ? undefined : value,
+      [key]: value === "" ? undefined : value,
     }));
     if (!isAutoNavigatingRef.current) {
-      setPagination(prev => ({ ...prev, page: 0 }));
+      setPagination((prev) => ({ ...prev, page: 0 }));
     }
   };
 
   // Handle sort changes
   const handleSortChange = (newSort: string) => {
-    setPagination(prev => ({
+    setPagination((prev) => ({
       ...prev,
-      sort: newSort.includes(',desc')
-        ? newSort.replace(',desc', ',asc')
-        : newSort.replace(',asc', ',desc'),
+      sort: newSort.includes(",desc")
+        ? newSort.replace(",desc", ",asc")
+        : newSort.replace(",asc", ",desc"),
       page: isAutoNavigatingRef.current ? prev.page : 0,
     }));
   };
 
-
-  const handleReviewLeave = (leave: LeaveResponseDTO | PendingLeavesResponseDTO) => {
+  const handleReviewLeave = (
+    leave: LeaveResponseDTO | PendingLeavesResponseDTO
+  ) => {
     Swal.fire({
-      title: 'Review Leave Request',
+      title: "Review Leave Request",
       html: `
         <div class="text-left text-sm text-gray-600 space-y-3">
-          <p><strong>Employee:</strong> ${leave.employeeName ?? 'Unknown'}</p>
-          <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}</p>
+          <p><strong>Employee:</strong> ${leave.employeeName ?? "Unknown"}</p>
+          <p><strong>Type:</strong> ${leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : "N/A"
+        }</p>
           <p><strong>Duration:</strong> ${leave.leaveDuration ?? 0} days</p>
-          <p><strong>From:</strong> ${leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>To:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>Reason:</strong> ${leave.context ?? 'No reason provided'}</p>
-          <div>
+          <p><strong>From:</strong> ${leave.fromDate
+          ? new Date(leave.fromDate).toLocaleDateString()
+          : "N/A"
+        }</p>
+          <p><strong>To:</strong> ${leave.toDate ? new Date(leave.toDate).toLocaleDateString() : "N/A"
+        }</p>
+<p>
+  <strong>Reason:</strong>
+  <span id="reason-text" style="
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  ">
+    ${leave.context ?? "No reason provided"}
+  </span>
+  ${leave.context && leave.context.length > 100
+          ? `<button id="toggleReason" style="color:#4f46e5; font-size:12px; display:block; margin-top:4px;">
+  Show More
+</button>`
+          : ""
+        }
+</p>          <div>
             <label class="block text-sm font-medium text-gray-700">Comment (optional)</label>
             <textarea id="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" rows="3"></textarea>
           </div>
         </div>
       `,
+      didOpen: () => {
+        const btn = document.getElementById("toggleReason");
+        const text = document.getElementById("reason-text");
+
+        if (btn && text) {
+          let expanded = false;
+
+          btn.addEventListener("click", () => {
+            expanded = !expanded;
+
+            if (expanded) {
+              (text as HTMLElement).style.webkitLineClamp = "unset";
+              btn.textContent = "Show Less";
+            } else {
+              (text as HTMLElement).style.webkitLineClamp = "2";
+              btn.textContent = "Show More";
+            }
+          });
+        }
+      },
       showCancelButton: true,
       showDenyButton: true,
       confirmButtonText: "Approve",
       denyButtonText: "Reject",
       cancelButtonText: "Cancel",
       customClass: {
-        confirmButton: "bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700",
-        denyButton: "bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700",
-        cancelButton: "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
+        confirmButton:
+          "bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700",
+        denyButton:
+          "bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700",
+        cancelButton:
+          "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300",
       },
       preConfirm: () => {
         return {
           action: "APPROVED",
-          reason: (document.getElementById("reason") as HTMLTextAreaElement)?.value || ""
+          reason:
+            (document.getElementById("reason") as HTMLTextAreaElement)?.value ||
+            "",
         };
       },
       preDeny: () => {
         return {
           action: "REJECTED",
-          reason: (document.getElementById("reason") as HTMLTextAreaElement)?.value || ""
+          reason:
+            (document.getElementById("reason") as HTMLTextAreaElement)?.value ||
+            "",
         };
-      }
+      },
     }).then(async (result) => {
       if (!result.value) return;
 
@@ -327,7 +385,7 @@ const Leavespage: React.FC = () => {
         allowEscapeKey: false,
         didOpen: () => {
           Swal.showLoading();
-        }
+        },
       });
 
       try {
@@ -342,39 +400,41 @@ const Leavespage: React.FC = () => {
           icon: "success",
           title: action === "APPROVED" ? "Leave Approved" : "Leave Rejected",
           text: reason ? `Reason: ${reason}` : undefined,
-          confirmButtonColor: "#4f46e5"
+          confirmButtonColor: "#4f46e5",
         });
-
       } catch (err: any) {
-
         // ❌ Error alert
         Swal.fire({
           icon: "error",
           title: "Action Failed",
-          text: err.message || "Unable to update leave status"
+          text: err.message || "Unable to update leave status",
         });
       }
     });
   };
 
-
-
   const updateLeaveStatus = (leaveId: string, status: LeaveStatus) => {
-    if (activeTab === 'pending') {
+    if (activeTab === "pending") {
       setPendingLeaves((prev) =>
-        prev.map((leave) => (leave.leaveId === leaveId ? { ...leave, status } : leave))
+        prev.map((leave) =>
+          leave.leaveId === leaveId ? { ...leave, status } : leave
+        )
       );
-    } else if (activeTab === 'all') {
+    } else if (activeTab === "all") {
       setAllLeaves((prev) =>
-        prev.map((leave) => (leave.leaveId === leaveId ? { ...leave, status } : leave))
+        prev.map((leave) =>
+          leave.leaveId === leaveId ? { ...leave, status } : leave
+        )
       );
     }
   };
 
   // Dynamic label generation for leave types
   const getLabel = (value: string): string => {
-    const words = value.toLowerCase().split('_');
-    return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    const words = value.toLowerCase().split("_");
+    return words
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   if (loading) {
@@ -386,7 +446,14 @@ const Leavespage: React.FC = () => {
           fill="none"
           viewBox="0 0 24 24"
         >
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          ></circle>
           <path
             className="opacity-75"
             fill="currentColor"
@@ -402,7 +469,9 @@ const Leavespage: React.FC = () => {
     return (
       <div className="container mx-auto p-6">
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg">
-          {error.includes('403') ? 'You do not have permission to view this page. Please contact your administrator.' : error}
+          {error.includes("403")
+            ? "You do not have permission to view this page. Please contact your administrator."
+            : error}
         </div>
       </div>
     );
@@ -422,18 +491,24 @@ const Leavespage: React.FC = () => {
       {/* Tabs */}
       <div className="flex space-x-4 border-b border-gray-200 mb-6">
         <button
-          className={`px-4 py-2 font-medium ${activeTab === 'pending' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
+          className={`px-4 py-2 font-medium ${activeTab === "pending"
+            ? "border-b-2 border-indigo-600 text-indigo-600"
+            : "text-gray-600"
+            }`}
           onClick={() => {
-            setActiveTab('pending');
+            setActiveTab("pending");
             // setPagination((prev) => ({ ...prev, page: 0 }));
           }}
         >
           Pending Leaves
         </button>
         <button
-          className={`px-4 py-2 font-medium ${activeTab === 'all' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
+          className={`px-4 py-2 font-medium ${activeTab === "all"
+            ? "border-b-2 border-indigo-600 text-indigo-600"
+            : "text-gray-600"
+            }`}
           onClick={() => {
-            setActiveTab('all');
+            setActiveTab("all");
             // setPagination((prev) => ({ ...prev, page: 0 }));
           }}
         >
@@ -442,15 +517,19 @@ const Leavespage: React.FC = () => {
       </div>
 
       {/* Filters for All Leaves */}
-      {activeTab === 'all' && (
+      {activeTab === "all" && (
         <div className="mb-6 bg-white shadow-md rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Filters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600">Status</label>
+              <label className="block text-sm font-medium text-gray-600">
+                Status
+              </label>
               <select
-                value={filters.status || ''}
-                onChange={(e) => handleFilterChange('status', e.target.value as LeaveStatus)}
+                value={filters.status || ""}
+                onChange={(e) =>
+                  handleFilterChange("status", e.target.value as LeaveStatus)
+                }
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
@@ -463,15 +542,20 @@ const Leavespage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600">Employee</label>
+              <label className="block text-sm font-medium text-gray-600">
+                Employee
+              </label>
               <select
                 value={selectedEmployeeId}
                 onChange={(e) => {
                   const value = e.target.value;
                   setSelectedEmployeeId(value);
-                  setFilters((prev) => ({ ...prev, employeeId: value || undefined }));
+                  setFilters((prev) => ({
+                    ...prev,
+                    employeeId: value || undefined,
+                  }));
                   if (!isAutoNavigatingRef.current) {
-                    setPagination(prev => ({ ...prev, page: 0 }));
+                    setPagination((prev) => ({ ...prev, page: 0 }));
                   }
                 }}
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
@@ -480,40 +564,57 @@ const Leavespage: React.FC = () => {
                 {managerEmployees.map((emp) => (
                   <option key={emp.employeeId} value={emp.employeeId}>
                     {emp.firstName} {emp.lastName}
-                    {emp.companyEmail ? ` (${emp.companyEmail.split('@')[0]})` : ''}
+                    {emp.companyEmail
+                      ? ` (${emp.companyEmail.split("@")[0]})`
+                      : ""}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600">Leave Category</label>
+              <label className="block text-sm font-medium text-gray-600">
+                Leave Category
+              </label>
               <select
-                value={filters.leaveCategory || ''}
-                onChange={(e) => handleFilterChange('leaveCategory', e.target.value as LeaveCategoryType)}
+                value={filters.leaveCategory || ""}
+                onChange={(e) =>
+                  handleFilterChange(
+                    "leaveCategory",
+                    e.target.value as LeaveCategoryType
+                  )
+                }
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
                 {LEAVE_CATEGORY_OPTIONS.map((type) => (
-                  <option key={type} value={type}>{getLabel(type)}</option>
+                  <option key={type} value={type}>
+                    {getLabel(type)}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600">Month</label>
+              <label className="block text-sm font-medium text-gray-600">
+                Month
+              </label>
               <input
                 type="month"
-                value={filters.month || ''}
-                onChange={(e) => handleFilterChange('month', e.target.value)}
+                value={filters.month || ""}
+                onChange={(e) => handleFilterChange("month", e.target.value)}
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               />
             </div>
             <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-600">Future Approved</label>
+              <label className="text-sm font-medium text-gray-600">
+                Future Approved
+              </label>
               <input
                 type="checkbox"
                 checked={filters.futureApproved || false}
-                onChange={(e) => handleFilterChange('futureApproved', e.target.checked)}
+                onChange={(e) =>
+                  handleFilterChange("futureApproved", e.target.checked)
+                }
                 className="mt-1 ml-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
             </div>
@@ -524,9 +625,11 @@ const Leavespage: React.FC = () => {
       {/* Content */}
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
         <h3 className="text-xl font-semibold text-gray-800 mb-4">
-          {activeTab === 'pending' ? 'Pending Leave Requests' : 'All Leave Requests'}
+          {activeTab === "pending"
+            ? "Pending Leave Requests"
+            : "All Leave Requests"}
         </h3>
-        {(activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
+        {(activeTab === "pending" ? pendingLeaves : allLeaves).length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-center">
               <thead className="bg-gray-50">
@@ -535,35 +638,75 @@ const Leavespage: React.FC = () => {
                     Employee
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('leaveCategoryType,desc')} className="flex items-center gap-1">
-                      Category Type {pagination.sort.includes('leaveCategoryType,desc') ? '↓' : pagination.sort.includes('leaveCategoryType,asc') ? '↑' : ''}
+                    <button
+                      onClick={() => handleSortChange("leaveCategoryType,desc")}
+                      className="flex items-center gap-1"
+                    >
+                      Category Type{" "}
+                      {pagination.sort.includes("leaveCategoryType,desc")
+                        ? "↓"
+                        : pagination.sort.includes("leaveCategoryType,asc")
+                          ? "↑"
+                          : ""}
                     </button>
                   </th>
 
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('leaveDuration,desc')} className="flex items-center gap-1">
-                      Duration {pagination.sort.includes('leaveDuration,desc') ? '↓' : pagination.sort.includes('leaveDuration,asc') ? '↑' : ''}
+                    <button
+                      onClick={() => handleSortChange("leaveDuration,desc")}
+                      className="flex items-center gap-1"
+                    >
+                      Duration{" "}
+                      {pagination.sort.includes("leaveDuration,desc")
+                        ? "↓"
+                        : pagination.sort.includes("leaveDuration,asc")
+                          ? "↑"
+                          : ""}
                     </button>
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Financial Type
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('fromDate,desc')} className="flex items-center gap-1">
-                      From Date {pagination.sort.includes('fromDate,desc') ? '↓' : pagination.sort.includes('fromDate,asc') ? '↑' : ''}
+                    <button
+                      onClick={() => handleSortChange("fromDate,desc")}
+                      className="flex items-center gap-1"
+                    >
+                      From Date{" "}
+                      {pagination.sort.includes("fromDate,desc")
+                        ? "↓"
+                        : pagination.sort.includes("fromDate,asc")
+                          ? "↑"
+                          : ""}
                     </button>
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('toDate,desc')} className="flex items-center gap-1">
-                      To Date {pagination.sort.includes('toDate,desc') ? '↓' : pagination.sort.includes('toDate,asc') ? '↑' : ''}
+                    <button
+                      onClick={() => handleSortChange("toDate,desc")}
+                      className="flex items-center gap-1"
+                    >
+                      To Date{" "}
+                      {pagination.sort.includes("toDate,desc")
+                        ? "↓"
+                        : pagination.sort.includes("toDate,asc")
+                          ? "↑"
+                          : ""}
                     </button>
                   </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button onClick={() => handleSortChange('status,desc')} className="flex items-center gap-1">
-                      Status {pagination.sort.includes('status,desc') ? '↓' : pagination.sort.includes('status,asc') ? '↑' : ''}
+                    <button
+                      onClick={() => handleSortChange("status,desc")}
+                      className="flex items-center gap-1"
+                    >
+                      Status{" "}
+                      {pagination.sort.includes("status,desc")
+                        ? "↓"
+                        : pagination.sort.includes("status,asc")
+                          ? "↑"
+                          : ""}
                     </button>
                   </th>
-                  {activeTab === 'pending' && (
+                  {activeTab === "pending" && (
                     <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Remaining Leaves
                     </th>
@@ -577,89 +720,101 @@ const Leavespage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
-                  <tr
-                    key={leave.leaveId}
-                    ref={(el) => {
-                      if (leave.leaveId) {
-                        rowRefs.current[leave.leaveId] = el;
-                      }
-                    }}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
-                      {leave.employeeName ?? 'Unknown'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.leaveCategoryType ? getLabel(leave.leaveCategoryType) : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.leaveDuration ?? 0} days
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.financialType ? getLabel(leave.financialType) : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === 'APPROVED'
-                          ? 'bg-green-100 text-green-800'
-                          : leave.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : leave.status === 'REJECTED'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                      >
-                        {leave.status ?? 'PENDING'}
-                      </span>
-                    </td>
-                    {activeTab === 'pending' && (
-                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {(leave as PendingLeavesResponseDTO).remainingLeaves}
+                {(activeTab === "pending" ? pendingLeaves : allLeaves).map(
+                  (leave) => (
+                    <tr
+                      key={leave.leaveId}
+                      ref={(el) => {
+                        if (leave.leaveId) {
+                          rowRefs.current[leave.leaveId] = el;
+                        }
+                      }}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
+                        {leave.employeeName ?? "Unknown"}
                       </td>
-                    )}
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                      {leave.attachmentUrl ? (
-                        <a
-                          href={leave.attachmentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-indigo-600 hover:underline"
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {leave.leaveCategoryType
+                          ? getLabel(leave.leaveCategoryType)
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {leave.leaveDuration ?? 0} days
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {leave.financialType
+                          ? getLabel(leave.financialType)
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {leave.fromDate
+                          ? new Date(leave.fromDate).toLocaleDateString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {leave.toDate
+                          ? new Date(leave.toDate).toLocaleDateString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-base">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === "APPROVED"
+                            ? "bg-green-100 text-green-800"
+                            : leave.status === "PENDING"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : leave.status === "REJECTED"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
                         >
-                          View
-                        </a>
-                      ) : (
-                        'None'
+                          {leave.status ?? "PENDING"}
+                        </span>
+                      </td>
+                      {activeTab === "pending" && (
+                        <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                          {(leave as PendingLeavesResponseDTO).remainingLeaves}
+                        </td>
                       )}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-base text-center">
-                      {leave.status === 'PENDING' ? (
-                        <button
-                          onClick={() => handleReviewLeave(leave)}
-                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                        >
-                          Review
-                        </button>
-                      ) : (
-                        <span className="text-gray-500 text-sm">-</span>
-                      )}
-                    </td>
-
-                  </tr>
-                ))}
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {leave.attachmentUrl ? (
+                          <a
+                            href={leave.attachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 hover:underline"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          "None"
+                        )}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-base text-center">
+                        {leave.status === "PENDING" ? (
+                          <button
+                            onClick={() => handleReviewLeave(leave)}
+                            className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                          >
+                            Review
+                          </button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
-            {activeTab === 'all' && (
+            {activeTab === "all" && (
               <div className="flex justify-between items-center mt-4 px-2">
                 <button
                   onClick={() =>
-                    setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))
+                    setPagination((prev) => ({
+                      ...prev,
+                      page: Math.max(prev.page - 1, 0),
+                    }))
                   }
                   disabled={pagination.page === 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
@@ -686,7 +841,9 @@ const Leavespage: React.FC = () => {
             )}
           </div>
         ) : (
-          <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
+          <p className="text-gray-600">
+            No {activeTab === "pending" ? "pending" : "leave"} requests found.
+          </p>
         )}
       </div>
     </div>

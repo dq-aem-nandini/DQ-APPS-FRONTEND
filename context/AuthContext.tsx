@@ -91,19 +91,18 @@ const handlePostAuthRedirect = (user: LoggedInUser, currentPath: string, router:
 };
 
 // Helper to get preferred storage for auth (local if rememberMe and not private, else session)
-const getAuthStorage = (rememberMe?: boolean): Storage => {
+const getAuthStorage = (rememberMe = false): Storage => {
   if (typeof window === 'undefined') throw new Error('No storage available');
-  
-  const privateMode = isPrivateMode();
-  if (privateMode || !rememberMe) {
-    return sessionStorage;
-  }
-  // Test localStorage writability
+
+  // Always try localStorage first if writable — this enables sharing in incognito
   try {
-    localStorage.setItem('_test_auth', '1');
-    localStorage.removeItem('_test_auth');
+    const testKey = '_test_auth_' + Date.now();
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    console.log('[STORAGE] localStorage writable → using localStorage (shared in incognito!)');
     return localStorage;
-  } catch {
+  } catch (e) {
+    console.warn('[STORAGE] localStorage blocked → fallback to sessionStorage (tab-isolated)', e);
     return sessionStorage;
   }
 };
@@ -111,9 +110,22 @@ const getAuthStorage = (rememberMe?: boolean): Storage => {
 // Helper to load from storage (check local first, then session)
 const loadFromStorage = (key: string): string | null => {
   if (typeof window === 'undefined') return null;
+
+  // In private mode, localStorage is temp, but we still check it first as per your original
   let value = localStorage.getItem(key);
-  if (value !== null) return value;
-  return sessionStorage.getItem(key);
+  if (value !== null) {
+    console.log(`[STORAGE LOAD] ${key} found in localStorage`);
+    return value;
+  }
+
+  value = sessionStorage.getItem(key);
+  if (value !== null) {
+    console.log(`[STORAGE LOAD] ${key} found in sessionStorage`);
+    return value;
+  }
+
+  console.log(`[STORAGE LOAD] ${key} NOT found in either storage`);
+  return null;
 };
 
 // Helper to clear auth storage (both)
@@ -125,7 +137,7 @@ const clearAuthStorage = () => {
     'refreshToken',
     'tempPassword'
   ];
-    authKeys.forEach(key => {
+  authKeys.forEach(key => {
     localStorage.removeItem(key);
     sessionStorage.removeItem(key);
   });
@@ -136,124 +148,115 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   // Auto-initialize user from storage
-      useEffect(() => {
-        const initAuth = () => {
-          if (typeof window === 'undefined') {
+  useEffect(() => {
+    const initAuth = () => {
+
+      if (typeof window === 'undefined') {
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
+      }
+      console.log('[INIT AUTH] Running in path:', window.location.pathname);
+      console.log('[INIT AUTH] isPrivateMode check (if you still use it):', isPrivateMode?.() ?? 'not called');
+      const token = loadFromStorage('accessToken');
+      console.log('[INIT AUTH] accessToken:', token ? 'found' : 'missing');
+      const refreshToken = loadFromStorage('refreshToken');
+      console.log('[INIT AUTH] refreshToken:', refreshToken ? 'found' : 'missing');
+      const userStr = loadFromStorage('user');
+      console.log('[INIT AUTH] user:', userStr ? 'found' : 'missing');
+      const currentPath = window.location.pathname;
+
+      if (userStr && userStr !== 'null' && userStr !== 'undefined') {
+        try {
+          const user: LoggedInUser = JSON.parse(userStr);
+
+          if (user?.role?.roleName && token) {
+            dispatch({
+              type: 'LOGIN_SUCCESS',
+              payload: { user, accessToken: token, refreshToken },
+            });
+
+            setTimeout(() => {
+              handlePostAuthRedirect(user, currentPath, router);
+            }, 0);
+
             dispatch({ type: 'SET_LOADING', payload: false });
             return;
           }
-
-          const token = loadFromStorage('accessToken');
-          const refreshToken = loadFromStorage('refreshToken');
-          const userStr = loadFromStorage('user');
-          const currentPath = window.location.pathname;
-
-          if (userStr && userStr !== 'null' && userStr !== 'undefined') {
-            try {
-              const user: LoggedInUser = JSON.parse(userStr);
-
-              if (user?.role?.roleName && token) {
-                dispatch({
-                  type: 'LOGIN_SUCCESS',
-                  payload: { user, accessToken: token, refreshToken },
-                });
-
-                setTimeout(() => {
-                  handlePostAuthRedirect(user, currentPath, router);
-                }, 0);
-
-                dispatch({ type: 'SET_LOADING', payload: false });
-                return;
-              }
-            } catch {
-              // fall through and clear
-            }
-          }
-
-          clearAuthStorage();
-          dispatch({ type: 'SET_LOADING', payload: false });
-        };
-
-        initAuth();
-      }, [router]);
-
-        const login = async (
-          credentials: { inputKey: string; password: string },
-          rememberMe = false
-        ) => {
-          try {
-            console.log('🚀 Login start - rememberMe flag:', rememberMe);
-
-            const { user, accessToken, refreshToken } =
-              await authService.login(credentials);
-
-            const storage = getAuthStorage(rememberMe);
-
-            storage.setItem('user', JSON.stringify(user));
-            storage.setItem('accessToken', accessToken ?? '');
-            storage.setItem('refreshToken', refreshToken ?? '');
-
-            // ✅✅✅ THIS IS MANDATORY
-            if (rememberMe) {
-              console.log('💾 Saving remembered username');
-              localStorage.setItem(
-                'rememberedUsername',
-                credentials.inputKey
-              );
-            } else {
-              localStorage.removeItem('rememberedUsername');
-              sessionStorage.removeItem('rememberedUsername');
-            }
-
-            dispatch({
-              type: 'LOGIN_SUCCESS',
-              payload: {
-                user,
-                accessToken: accessToken ?? null,
-                refreshToken: refreshToken ?? null,
-              },
-            });
-          } catch (error) {
-            throw error;
-          }
-        };
-
-
-
-      // In logout: ADD CONFIRM CLEAR
-      const logout = () => {
-        clearAuthStorage();
-          try {
-            const hadUsername = localStorage.getItem("rememberedUsername") || sessionStorage.getItem("rememberedUsername");
-          
-            console.log('🚪 Username cleared on logout - had value?', !!hadUsername); // NEW: Was there anything?
-          } catch {}
-          dispatch({ type: 'LOGOUT' });
-          router.push('/auth/login');
-        };
-  
-  
-
-      // Update user info
-      const updateUser = (updatedUser: Partial<LoggedInUser>) => {
-        const clean = Object.fromEntries(
-          Object.entries(updatedUser).filter(([, v]) => v !== undefined)
-        );
-
-        dispatch({ type: 'UPDATE_USER', payload: clean });
-
-        if (state.user) {
-          const merged = { ...state.user, ...clean } as LoggedInUser;
-          
-          // Update in both storages for safety
-          const userStr = JSON.stringify(merged);
-          localStorage.setItem('user', userStr);
-          sessionStorage.setItem('user', userStr);
-
-          handlePostAuthRedirect(merged, window.location.pathname, router);
+        } catch {
+          // fall through and clear
         }
-      };
+      }
 
+      clearAuthStorage();
+      dispatch({ type: 'SET_LOADING', payload: false });
+    };
+
+    initAuth();
+  }, [router]);
+
+  const login = async (
+    credentials: { inputKey: string; password: string },
+    rememberMe = false
+  ) => {
+    try {
+      console.log('🚀 Login start - rememberMe flag:', rememberMe);
+
+      const { user, accessToken, refreshToken } =
+        await authService.login(credentials);
+
+      const storage = getAuthStorage(rememberMe);
+
+      storage.setItem('user', JSON.stringify(user));
+      storage.setItem('accessToken', accessToken ?? '');
+      storage.setItem('refreshToken', refreshToken ?? '');
+      if (rememberMe) {
+        console.log('💾 Saving remembered username to chosen storage');
+        const storage = getAuthStorage(rememberMe);  // note: no separate variable name
+        storage.setItem('rememberedUsername', credentials.inputKey);
+      } else {
+        localStorage.removeItem('rememberedUsername');
+        sessionStorage.removeItem('rememberedUsername');
+      }
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: {
+          user,
+          accessToken: accessToken ?? null,
+          refreshToken: refreshToken ?? null,
+        },
+      });
+    } catch (error) {
+      throw error;
+    }
+  };
+  // In logout: ADD CONFIRM CLEAR
+  const logout = () => {
+    clearAuthStorage();
+    localStorage.removeItem('rememberedUsername');
+    sessionStorage.removeItem('rememberedUsername');
+    try {
+      const hadUsername = localStorage.getItem("rememberedUsername") || sessionStorage.getItem("rememberedUsername");
+      console.log('🚪 Username cleared on logout - had value?', !!hadUsername); // NEW: Was there anything?
+    } catch { }
+    dispatch({ type: 'LOGOUT' });
+    router.push('/auth/login');
+  };
+  // Update user info
+  const updateUser = (updatedUser: Partial<LoggedInUser>) => {
+    const clean = Object.fromEntries(
+      Object.entries(updatedUser).filter(([, v]) => v !== undefined)
+    );
+    dispatch({ type: 'UPDATE_USER', payload: clean });
+    // In updateUser:
+    if (state.user) {
+      const merged = { ...state.user, ...clean } as LoggedInUser;
+      const userStr = JSON.stringify(merged);
+      const storage = getAuthStorage(true);  // force try local
+      storage.setItem('user', userStr);
+      sessionStorage.setItem('user', userStr); // fallback / sync
+      handlePostAuthRedirect(merged, window.location.pathname, router);
+    }
+  };
   return (
     <AuthContext.Provider value={{ state, login, logout, updateUser }}>
       {children}
