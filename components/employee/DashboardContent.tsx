@@ -17,9 +17,15 @@ export default function EmployeeDashboard() {
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidaysDTO[]>([]);
   const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatusDTO | null>(null);
   const [punchLoading, setPunchLoading] = useState(false);
-
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
-
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000); // update every 1 second
+  
+    return () => clearInterval(timer); // cleanup
+  }, []);
   const handlePunch = async () => {
     try {
       setPunchLoading(true);
@@ -136,12 +142,12 @@ export default function EmployeeDashboard() {
               {/* LEFT SIDE – Time + Date + Status */}
               <div>
                 <div className="text-4xl font-bold text-gray-900 mb-2">
-                  {format(new Date(), 'hh:mm a')}
+                {format(currentTime, 'hh:mm a')}
                 </div>
 
                 <div className="text-gray-500 mb-6">
-                  {format(new Date(), 'EEEE, dd MMMM yyyy')}
-                </div>
+                {format(currentTime, 'EEEE, dd MMMM yyyy')}
+                                </div>
 
                 <span
                   className={`inline-block px-6 py-2 text-sm font-semibold rounded-full tracking-wide ${
