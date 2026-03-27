@@ -15,18 +15,9 @@ export const sidebarConfig = {
 
   ],
   Employee: [
-    { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
+    // { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
   ],
-  // HR_COMMON: [
-  //   { label: "Employees", href: "/admin-dashboard/employees" },
-  //   { label: "Clients", href: "/admin-dashboard/clients" },
-  //   // { label: "Organization", href: "/admin-dashboard/organization" },
-  //   { label: "Leave Calendar", href: "/admin-dashboard/leaveCalendar" },
-  //   { label: "Employee Leaves", href: "/admin-dashboard/leaves" },
-  //   { label: "Add Holiday", href: "/admin-dashboard/holiday" },
-  // ],
-
-
+ 
   SUPER_HR: [
     { label: "Dashboard", href: "/dashboard" },
     { permission: "ADD_HOLIDAY", label: "Add Holiday", href: "/superhr/addHoliday", },
@@ -34,10 +25,9 @@ export const sidebarConfig = {
     { label: 'Leaves', href: '/superhr/leaves', },
     { permission: "SUBMIT_TIMESHEET", label: "Timesheet", href: "/dashboard/SHR-Timesheet", },
     { label: "Change Password", href: "/superhr/changePassword", },
-    { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
+    // { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
 
   ],
-
 
   MANAGER: [
     { permission: "MANAGE_TEAM", label: "Team", href: '/manager/employees' },
@@ -55,7 +45,7 @@ export const sidebarConfig = {
     { label: "Leave Calendar", href: "/admin-dashboard/leaveCalendar" },
     { label: "Employee Leaves", href: "/admin-dashboard/leaves" },
     { label: "Add Holiday", href: "/admin-dashboard/holiday" },
-    { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
+    // { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
     // { permission: "VIEW_EMP_DASHBOARD", label: "Employee Records", href: "/hr/employees" },
     // { permission: "VIEW_PAYROLL", label: "Payroll", href: "/hr/payroll" },
     // { permission: "VIEW_INVOICE", label: "Invoices", href: "/hr/invoices" },
@@ -74,7 +64,7 @@ export const sidebarConfig = {
     { permission: "MANAGE_PAYROLL", label: "Manage Payroll", href: "/finance/payroll/manage" },
     { permission: "VIEW_INVOICE", label: "Invoices", href: "/finance/invoices" },
     { permission: "GENERATE_INVOICE", label: "Generate Invoice", href: "/finance/invoices/create" },
-    { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
+    // { permission: "REGULARIZATION_REQUEST", label: "Regularization Requests", href: "/dashboard/regularization", },
 
   ],
 };
