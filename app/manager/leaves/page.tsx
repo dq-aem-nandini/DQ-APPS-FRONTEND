@@ -634,10 +634,10 @@ const Leavespage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200 text-center">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Employee
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange("leaveCategoryType,desc")}
                       className="flex items-center gap-1"
@@ -651,7 +651,7 @@ const Leavespage: React.FC = () => {
                     </button>
                   </th>
 
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange("leaveDuration,desc")}
                       className="flex items-center gap-1"
@@ -664,10 +664,10 @@ const Leavespage: React.FC = () => {
                           : ""}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Financial Type
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange("fromDate,desc")}
                       className="flex items-center gap-1"
@@ -680,7 +680,7 @@ const Leavespage: React.FC = () => {
                           : ""}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange("toDate,desc")}
                       className="flex items-center gap-1"
@@ -693,7 +693,7 @@ const Leavespage: React.FC = () => {
                           : ""}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange("status,desc")}
                       className="flex items-center gap-1"
@@ -707,17 +707,17 @@ const Leavespage: React.FC = () => {
                     </button>
                   </th>
                   {activeTab === "pending" && (
-                    <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Remaining Leaves
                     </th>
                   )}
-                 <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                 <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Approved By
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Attachment
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
