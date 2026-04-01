@@ -26,6 +26,8 @@ import {
 } from "@/lib/api/types";
 import Swal from "sweetalert2";
 import { adminService } from '@/lib/api/adminService';
+import { useSearchParams, useRouter } from 'next/navigation';
+
 dayjs.extend(weekday);
 dayjs.extend(isoWeek);
 
@@ -59,7 +61,7 @@ function getBackendError(error: any): string {
   // const TEST_TODAY = '2025-10-3'; 
   // const now = TEST_TODAY ? dayjs(TEST_TODAY) : dayjs();
   // const todayKey = now.format('YYYY-MM-DD');
-
+  const router = useRouter();
   const todayKey = dayjs().format('YYYY-MM-DD');
   const now = dayjs();
   const currentMonday = now.startOf('isoWeek');
@@ -69,7 +71,24 @@ function getBackendError(error: any): string {
   const [joiningDate, setJoiningDate] = useState<dayjs.Dayjs | null>(null);
   const [dojLoading, setDojLoading] = useState(true);
   const [clients, setClients] = useState<ClientMinDTO[]>([]);
-  const [weekStart, setWeekStart] = useState(() => dayjs().startOf('isoWeek')); // Monday
+  // const [weekStart, setWeekStart] = useState(() => dayjs().startOf('isoWeek')); // Monday
+
+  const searchParams = useSearchParams();
+
+  const [weekStart, setWeekStart] = useState(() => {
+    const weekParam = searchParams.get('week');
+    if (weekParam) {
+      const parsedDate = dayjs(weekParam);
+      if (parsedDate.isValid()) {
+        return parsedDate.startOf('isoWeek');
+      }
+    }
+    // Fallback to current week
+    return dayjs().startOf('isoWeek');
+  });
+
+
+
   const [weekStatus, setWeekStatus] = useState<'DRAFTED' | 'APPROVED' | 'PENDING' | 'REJECTED' | ''>('');
   // const [selectedDate, setSelectedDate] = useState(weekStart.format('YYYY-MM-DD'));
   const [selectedSubmitDate, setSelectedSubmitDate] = useState<string | null>(null);
@@ -235,7 +254,18 @@ function getBackendError(error: any): string {
     }
   }, [weekStart]);
 
-  const [displayDate, setDisplayDate] = useState<string>(''); // New state for input display
+  // const [displayDate, setDisplayDate] = useState<string>(''); // New state for input display
+
+  const [displayDate, setDisplayDate] = useState(() => {
+    const weekParam = searchParams.get('week');
+    if (weekParam) {
+      const parsedDate = dayjs(weekParam);
+      if (parsedDate.isValid()) {
+        return parsedDate.format('YYYY-MM-DD');
+      }
+    }
+    return dayjs().startOf('isoWeek').format('YYYY-MM-DD');
+  });
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -262,6 +292,10 @@ function getBackendError(error: any): string {
     setDisplayDate(value);
     // setSelectedDate(selectedMonday.format('YYYY-MM-DD'));
     setSelectedSubmitDate(null);
+
+    const params = new URLSearchParams(window.location.search);
+  params.set('week', selectedMonday.format('YYYY-MM-DD'));
+  router.push(`?${params.toString()}`, { scroll: false });
   };
 
       useEffect(() => {

@@ -212,6 +212,27 @@ const AddEmployeePage = () => {
   const [designations, setDesignations] = useState<
     { id: string; name: string }[]
   >([]);
+
+  const [nationalities, setNationalities] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchNationalities = async () => {
+      try {
+        const res = await adminService.getNationalities();
+
+        // Remove empty string if needed
+        const cleaned = res.filter(n => n.trim() !== "");
+
+        setNationalities(cleaned);
+      } catch (err: any) {
+        console.error(err);
+      }
+    };
+
+    fetchNationalities();
+  }, []);
+
+
   const handleChange = (e: any) => {
     const target = e?.target;
     const name: string | undefined = target?.name;
@@ -1267,7 +1288,7 @@ const AddEmployeePage = () => {
                     {fieldError(errors, "dateOfBirth")}
                   </div>
                   {/* Nationality */}
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nationality <span className="text-red-500">*</span>
                       <TooltipHint hint="Usually 'Indian'. Enter as per passport or official ID." />
@@ -1282,7 +1303,37 @@ const AddEmployeePage = () => {
                       className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     />
                     {fieldError(errors, "nationality")}
+                  </div> */}
+
+                  {/* Nationality */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Nationality <span className="text-red-500">*</span>
+                      <TooltipHint hint="Usually 'Indian'. Enter as per passport or official ID." />
+                    </Label>
+
+                    <select
+                      name="nationality"
+                      value={formData.nationality}
+                      required
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("nationality")}
+                      className="h-12 w-full text-base border border-gray-300 rounded-md px-3
+                                focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500
+                                outline-none bg-white cursor-pointer"
+                    >
+                      <option value="">Select Nationality</option>
+
+                      {nationalities.map((n, index) => (
+                        <option key={index} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+
+                    {fieldError(errors, "nationality")}
                   </div>
+                  
                   {/* Gender */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">

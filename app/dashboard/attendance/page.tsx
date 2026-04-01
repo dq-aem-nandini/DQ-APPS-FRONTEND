@@ -9,7 +9,9 @@ import {
   subWeeks,
   startOfMonth,
   endOfMonth,
-  isAfter
+  isAfter,
+  addMonths, 
+  subMonths
 } from "date-fns";
 import { employeePunchService } from "@/lib/api/EmployeePunchService";
 import { employeeService } from "@/lib/api/employeeService";
@@ -63,6 +65,12 @@ function AttendancePage() {
     clockOut: "",
     reason: "",
   });
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const isNextMonthDisabled = isAfter( addMonths(currentMonth, 1),new Date());
+
+
   // =========================
   // Fetch Employee First
   // =========================
@@ -107,7 +115,7 @@ function AttendancePage() {
     if (!employeeId) return;
 
     fetchAttendance();
-  }, [employeeId, currentWeekStart, viewMode]);
+  }, [employeeId, currentWeekStart, viewMode, currentMonth]);
 
   async function fetchAttendance() {
     try {
@@ -120,9 +128,7 @@ function AttendancePage() {
         fromDate = format(weekStart, "yyyy-MM-dd");
         toDate = format(weekEnd, "yyyy-MM-dd");
       } else {
-        const monthStart = startOfMonth(new Date());
-        const monthEnd = endOfMonth(new Date());
-
+        
         fromDate = format(monthStart, "yyyy-MM-dd");
         toDate = format(monthEnd, "yyyy-MM-dd");
       }
@@ -366,6 +372,44 @@ function AttendancePage() {
         >
           Add Regularisation
         </button>
+
+        {viewMode === "month" && (
+          <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl shadow-sm">
+            
+            <button
+              disabled={loading}
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className={`px-3 py-1 rounded-lg text-sm ${
+                loading
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              ←
+            </button>
+
+            <p className="text-sm font-medium">
+              {format(currentMonth, "MMMM yyyy")}
+            </p>
+
+            <button
+              disabled={isNextMonthDisabled || loading}
+              onClick={() => {
+                if (!isNextMonthDisabled) {
+                setCurrentMonth(addMonths(currentMonth, 1))
+                }
+              }}
+              className={`px-3 py-1 rounded-lg text-sm ${
+                isNextMonthDisabled || loading
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              →
+            </button>
+          </div>
+        )}
+
         {/* RIGHT – Toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
           <button

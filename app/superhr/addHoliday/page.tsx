@@ -150,7 +150,7 @@ export default function addHoliday() {
       });
       return;
     }
-
+    setIsDialogOpen(false);
     if (holidayNameError) {
       await Swal.fire({
         icon: 'error',

@@ -621,8 +621,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount  ?? 0}
-                                            onKeyDown={(e) => e.preventDefault()}
+                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount  ?? ""}
+                                            // onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -638,8 +638,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.compOffDaysCount  ?? 0}
-                                            onKeyDown={(e) => e.preventDefault()}
+                                            value={extraInputs[emp.employeeId]?.compOffDaysCount  ?? ""}
+                                            // onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -1070,8 +1070,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount ?? 0}
-                                            onKeyDown={(e) => e.preventDefault()}
+                                            value={extraInputs[emp.employeeId]?.extraPayDaysCount ?? ""}
+                                            // onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
@@ -1087,8 +1087,8 @@ export default function AdminPage() {
                                             type="number"
                                             min="0"
                                             className="border rounded p-1 w-20"
-                                            value={extraInputs[emp.employeeId]?.compOffDaysCount ?? 0}
-                                            onKeyDown={(e) => e.preventDefault()}
+                                            value={extraInputs[emp.employeeId]?.compOffDaysCount ?? ""}
+                                            // onKeyDown={(e) => e.preventDefault()}
                                             onChange={(e) =>
                                               handleExtraInputChange(
                                                 emp.employeeId,
