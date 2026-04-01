@@ -68,6 +68,7 @@ export default function AddOrganizationPage() {
     domain: "" as Domain, // Default
     establishedDate: "",
     timezone: "", // Default
+    autoClockOutEnabled: false,
     autoClockOutTime: "",
     currencyCode: "" as CurrencyCode, // Default
     accountNumber: "",
@@ -399,6 +400,15 @@ export default function AddOrganizationPage() {
     setIsSubmitting(true);
     setErrors({});
 
+    // ✅ ADD HERE
+    if (formData.autoClockOutEnabled && !formData.autoClockOutTime) {
+      setErrors((prev) => ({
+        ...prev,
+        autoClockOutTime: "Auto Clock-Out Time is required",
+      }));
+      setIsSubmitting(false); // important
+      return;
+    }
     try {
       const formDataToSend = new FormData();
 
@@ -425,9 +435,17 @@ export default function AddOrganizationPage() {
       formDataToSend.append("establishedDate", formData.establishedDate || "");
       formDataToSend.append("timezone", formData.timezone || "");
       formDataToSend.append(
-        "autoClockOutTime",
-        formData.autoClockOutTime ? `${formData.autoClockOutTime}:00` : ""
+        "autoClockOutEnabled",
+        String(formData.autoClockOutEnabled)
       );
+      if (formData.autoClockOutEnabled && formData.autoClockOutTime) {
+        formDataToSend.append(
+          "autoClockOutTime",
+          `${formData.autoClockOutTime}:00`
+        );
+      } else {
+        formDataToSend.append("autoClockOutTime", "");
+      }
       formDataToSend.append("currencyCode", formData.currencyCode || "");
       formDataToSend.append("accountNumber", formData.accountNumber || "");
       formDataToSend.append(
@@ -553,662 +571,716 @@ export default function AddOrganizationPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Info Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Organization Name */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Organization Name <span className="text-red-500">*</span>
-                    <TooltipHint hint="Display name of the organization. Must be unique." />
-                  </Label>
-                  <Input
-                    required
-                    name="organizationName"
-                    value={formData.organizationName}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("organizationName")}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter organization name"
-                    maxLength={100}
-                  />
-                  {fieldError(errors, "organizationName")}
-                </div>
-
-                {/* Legal Name */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Legal Name <span className="text-red-500">*</span>
-                    <TooltipHint hint="Full legal name as registered with government authorities." />
-                  </Label>
-                  <Input
-                    required
-                    name="organizationLegalName"
-                    value={formData.organizationLegalName}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("organizationLegalName")}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter legal name"
-                    maxLength={100}
-                  />
-                  {fieldError(errors, "organizationLegalName")}
-                </div>
-
-                {/* Registration Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Registration Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="Company registration number (e.g., UDYAM-AB-12-0001234, ROC number). Alphanumeric only, converted to uppercase." />
-                  </Label>
-                  <Input
-                    required
-                    name="registrationNumber"
-                    value={formData.registrationNumber}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("registrationNumber")(e);
-                      handleUniqueBlur(
-                        "REGISTRATION_NUMBER",
-                        "registration_number",
-                        "registrationNumber",
-                        null,
-                        3
-                      )(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
-                    placeholder="e.g., UDYAM-AB-12-0001234"
-                    maxLength={50}
-                  />
-                  {fieldError(errors, "registrationNumber")}
-                </div>
-
-                {/* GST Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    GST Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="15-digit GSTIN (e.g., 22AAAAA0000A1Z5). Automatically converted to uppercase." />
-                  </Label>
-                  <Input
-                    required
-                    name="gstNumber"
-                    value={formData.gstNumber}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("gstNumber")(e);
-                      handleUniqueBlur(
-                        "GST",
-                        "gst_number",
-                        "gstNumber",
-                        null,
-                        15
-                      )(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
-                    placeholder="Enter GST number"
-                    maxLength={15}
-                  />
-                  {fieldError(errors, "gstNumber")}
-                </div>
-
-                {/* PAN Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    PAN Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="10-character PAN (e.g., ABCDE1234F). Automatically converted to uppercase." />
-                  </Label>
-                  <Input
-                    required
-                    name="panNumber"
-                    value={formData.panNumber}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("panNumber")(e);
-                      handleUniqueBlur(
-                        "PAN_NUMBER",
-                        "pan_number",
-                        "panNumber",
-                        null,
-                        10
-                      )(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
-                    placeholder="Enter PAN number"
-                    maxLength={10}
-                  />
-                  {fieldError(errors, "panNumber")}
-                </div>
-
-                {/* CIN Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    CIN Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="21-character Corporate Identity Number (e.g., L12345MH2020PLC123456). Automatically uppercase." />
-                  </Label>
-                  <Input
-                    required
-                    name="cinNumber"
-                    value={formData.cinNumber}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("cinNumber")(e);
-                      handleUniqueBlur(
-                        "CIN_NUMBER",
-                        "cin_number",
-                        "cinNumber",
-                        null,
-                        21
-                      )(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
-                    placeholder="Enter CIN number"
-                    maxLength={21}
-                  />
-                  {fieldError(errors, "cinNumber")}
-                </div>
-
-                {/* Website */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Website
-                    <TooltipHint hint="Official website URL (include https://). Example: https://company.com" />
-                  </Label>
-                  <Input
-                    name="website"
-                    value={formData.website}
-                    onChange={handleValidatedChange}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="https://example.com"
-                  />
-                  {fieldError(errors, "website")}
-                </div>
-
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Email <span className="text-red-500">*</span>
-                    <TooltipHint hint="Official organization email. Must be unique and in lowercase only." />
-                  </Label>
-                  <Input
-                    required
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("email")(e);
-                      handleUniqueBlur("EMAIL", "email", "email", null)(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter email"
-                  />
-                  {fieldError(errors, "email")}
-                </div>
-
-                {/* Contact Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Contact Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="10-digit Indian mobile number starting with 6-9." />
-                  </Label>
-                  <Input
-                    required
-                    name="contactNumber"
-                    value={formData.contactNumber}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("contactNumber")(e);
-                      handleUniqueBlur(
-                        "CONTACT_NUMBER",
-                        "contact_number",
-                        "contactNumber",
-                        null,
-                        10
-                      )(e);
-                    }}
-                    maxLength={10}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter 10-digit mobile"
-                  />
-                  {fieldError(errors, "contactNumber")}
-                </div>
-
-                {/* Domain */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Domain <span className="text-red-500">*</span>
-                    <TooltipHint hint="Primary industry domain of the organization." />
-                  </Label>
-                  <select
-                    required
-                    name="domain"
-                    value={formData.domain}
-                    onChange={(e) => {
-                      handleValidatedChange(e);
-                    }}
-                    onBlur={handleBlurValidation("domain")}
-                    className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Select Domain</option>
-                    {DOMAIN_OPTIONS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldError(errors, "domain")}
-                </div>
-
-                {/* Industry Type */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Industry Type <span className="text-red-500">*</span>
-                    <TooltipHint hint="Specific industry type within the chosen domain." />
-                  </Label>
-                  <select
-                    required
-                    name="industryType"
-                    value={formData.industryType}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("industryType")}
-                    className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Select Industry Type</option>
-                    {INDUSTRY_TYPE_OPTIONS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-
-                  {fieldError(errors, "industryType")}
-                </div>
-
-                {/* Established Date */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Established Date <span className="text-red-500">*</span>
-                    <TooltipHint hint="Date when the organization was officially incorporated." />
-                  </Label>
-                  <Input
-                    required
-                    name="establishedDate"
-                    type="date"
-                    value={formData.establishedDate}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("establishedDate")}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                  {fieldError(errors, "establishedDate")}
-                </div>
-
-                {/* Timezone */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Timezone
-                  </Label>
-                  <select
-                    name="timezone"
-                    value={formData.timezone || ""}
-                    onChange={handleValidatedChange}
-                    className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
-                  >
-                    <option value="">Select Timezone</option>
-                    {TIMEZONES.map((tz) => (
-                      <option key={tz} value={tz}>
-                        {tz}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Auto Clock-Out Time */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Auto Clock-Out Time <span className="text-red-500">*</span>
-                  </Label>
-
-                  <Input
-                    required
-                    name="autoClockOutTime"
-                    type="time"
-                    step="60"
-                    value={formData.autoClockOutTime ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("autoClockOutTime")}
-                    className="h-12"
-                  />
-
-                  {fieldError(errors, "autoClockOutTime")}
-                </div>
-
-                {/* Currency Code */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Currency Code <span className="text-red-500">*</span>
-                    <TooltipHint hint="Primary currency for financial transactions (e.g., INR, USD)." />
-                  </Label>
-                  <select
-                    required
-                    name="currencyCode"
-                    value={formData.currencyCode}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        currencyCode: e.target.value as CurrencyCode,
-                        addresses: [
-                          {
-                            addressId: null,
-                            houseNo: "",
-                            streetName: "",
-                            city: "",
-                            state: "",
-                            pincode: "",
-                            country: "",
-                            addressType: undefined,
-                          },
-                        ],
-                      }))
-                    }
-                    onBlur={handleBlurValidation("currencyCode")}
-                    className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Select Currency</option>
-                    {CURRENCY_CODE_OPTIONS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-
-                  {fieldError(errors, "currencyCode")}
-                </div>
-
-                {/* Absent Max Minutes */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Absent Max Hours<span className="text-red-500">*</span>
-                    <TooltipHint hint="Maximum hours of absence allowed before marking as absent. Enter in hours (e.g., 0.5 for 30 minutes)." />
-                  </Label>
-                  <Input
-                    required
-                    type="text"
-                    onWheel={preventWheelChange}
-                    inputMode="numeric"
-                    name="attendancePolicy.absentMaxMinutes"
-                    value={formData.attendancePolicy.absentMaxMinutes ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("attendancePolicy.absentMaxMinutes")}
-                    className="h-12"
-                    placeholder="e.g. 30"
-                  />
-                  {fieldError(errors, "attendancePolicy.absentMaxMinutes")}
-
-                </div>
-
-                {/* Full Day Minimum Minutes */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Full Day Min Hours<span className="text-red-500">*</span>
-                    <TooltipHint hint="Minimum hours required to be considered a full day. Enter in hours (e.g., 8 for 8 hours)." />
-                  </Label>
-                  <Input
-                    required
-                    type="text"
-                    onWheel={preventWheelChange}
-                    inputMode="numeric"
-                    name="attendancePolicy.fullDayMinMinutes"
-                    value={formData.attendancePolicy.fullDayMinMinutes ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("attendancePolicy.fullDayMinMinutes")}
-                    className="h-12"
-                    placeholder="e.g. 480"
-                  />
-                  {fieldError(errors, "attendancePolicy.fullDayMinMinutes")}
-
-                </div>
-              </div>
-
-              {/* Logo Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Logo
-                  <TooltipHint hint="Upload organization logo (JPEG, PNG). Max size 2MB." />
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      handleFileChange("logo", e.target.files?.[0] || null)
-                    }
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                  <Upload className="h-5 w-5 text-gray-400" />
-                </div>
-                {formData.logo && (
-                  <p className="text-sm text-gray-600">
-                    Selected: {formData.logo.name}
-                  </p>
-                )}
-                {errors.logo && (
-                  <p className="text-red-500 text-xs mt-1">{errors.logo}</p>
-                )}
-              </div>
-
-              {/* Bank Details Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Account Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Account Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="Bank account number (9-18 digits only)." />
-                  </Label>
-                  <Input
-                    required
-                    name="accountNumber"
-                    value={formData.accountNumber ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("accountNumber")(e);
-                      handleUniqueBlur(
-                        "ACCOUNT_NUMBER",
-                        "account_number",
-                        "accountNumber",
-                        null,
-                        9
-                      )(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Enter account number"
-                  />
-                  {fieldError(errors, "accountNumber")}
-                </div>
-
-                {/* Account Holder Name */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Account Holder Name <span className="text-red-500">*</span>
-                    <TooltipHint hint="Full name as per bank records. Only letters and spaces allowed." />
-                  </Label>
-                  <Input
-                    required
-                    name="accountHolderName"
-                    value={formData.accountHolderName ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={(e) => {
-                      handleBlurValidation("accountHolderName")(e);
-                      handleUniqueBlur(
-                        "ACCOUNT_HOLDER_NAME",
-                        "account_holder_name",
-                        "accountHolderName",
-                        null,
-                        3
-                      )(e);
-                    }}
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="ABC Company Private Limited"
-                  />
-                  {fieldError(errors, "accountHolderName")}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    IFSC Code <span className="text-red-500">*</span>
-                    <TooltipHint hint="11-character IFSC code. Auto-fills bank & branch name on blur." />
-                  </Label>
-                  <div className="relative">
+              <div className="border-t border-gray-200 pt-6 pb-6">
+                <h3 className="text-2xl font-bold mb-6">Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Organization Name */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Organization Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Display name of the organization. Must be unique." />
+                    </Label>
                     <Input
                       required
-                      name="ifscCode"
-                      value={formData.ifscCode ?? ""}
-                      onChange={handleValidatedChange} // ← centralized formatting + validation
-                      onBlur={(e) => {
-                        handleBlurValidation("ifscCode")(e);
-                        handleIfscLookup(formData.ifscCode ?? "");
-                      }}
-                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-10 uppercase"
-                      placeholder="Enter IFSC (auto-fills bank/branch)"
-                      maxLength={11}
+                      name="organizationName"
+                      value={formData.organizationName}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("organizationName")}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Enter organization name"
+                      maxLength={100}
                     />
-                    {isLookingUp && (
-                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                    {fieldError(errors, "organizationName")}
+                  </div>
+
+                  {/* Legal Name */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Legal Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Full legal name as registered with government authorities." />
+                    </Label>
+                    <Input
+                      required
+                      name="organizationLegalName"
+                      value={formData.organizationLegalName}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("organizationLegalName")}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Enter legal name"
+                      maxLength={100}
+                    />
+                    {fieldError(errors, "organizationLegalName")}
+                  </div>
+
+                  {/* Registration Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Registration Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="Company registration number (e.g., UDYAM-AB-12-0001234, ROC number). Alphanumeric only, converted to uppercase." />
+                    </Label>
+                    <Input
+                      required
+                      name="registrationNumber"
+                      value={formData.registrationNumber}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("registrationNumber")(e);
+                        handleUniqueBlur(
+                          "REGISTRATION_NUMBER",
+                          "registration_number",
+                          "registrationNumber",
+                          null,
+                          3
+                        )(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                      placeholder="e.g., UDYAM-AB-12-0001234"
+                      maxLength={50}
+                    />
+                    {fieldError(errors, "registrationNumber")}
+                  </div>
+
+                  {/* GST Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      GST Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="15-digit GSTIN (e.g., 22AAAAA0000A1Z5). Automatically converted to uppercase." />
+                    </Label>
+                    <Input
+                      required
+                      name="gstNumber"
+                      value={formData.gstNumber}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("gstNumber")(e);
+                        handleUniqueBlur(
+                          "GST",
+                          "gst_number",
+                          "gstNumber",
+                          null,
+                          15
+                        )(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                      placeholder="Enter GST number"
+                      maxLength={15}
+                    />
+                    {fieldError(errors, "gstNumber")}
+                  </div>
+
+                  {/* PAN Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      PAN Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="10-character PAN (e.g., ABCDE1234F). Automatically converted to uppercase." />
+                    </Label>
+                    <Input
+                      required
+                      name="panNumber"
+                      value={formData.panNumber}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("panNumber")(e);
+                        handleUniqueBlur(
+                          "PAN_NUMBER",
+                          "pan_number",
+                          "panNumber",
+                          null,
+                          10
+                        )(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                      placeholder="Enter PAN number"
+                      maxLength={10}
+                    />
+                    {fieldError(errors, "panNumber")}
+                  </div>
+
+                  {/* CIN Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      CIN Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="21-character Corporate Identity Number (e.g., L12345MH2020PLC123456). Automatically uppercase." />
+                    </Label>
+                    <Input
+                      required
+                      name="cinNumber"
+                      value={formData.cinNumber}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("cinNumber")(e);
+                        handleUniqueBlur(
+                          "CIN_NUMBER",
+                          "cin_number",
+                          "cinNumber",
+                          null,
+                          21
+                        )(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 uppercase"
+                      placeholder="Enter CIN number"
+                      maxLength={21}
+                    />
+                    {fieldError(errors, "cinNumber")}
+                  </div>
+
+                  {/* Website */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Website
+                      <TooltipHint hint="Official website URL (include https://). Example: https://company.com" />
+                    </Label>
+                    <Input
+                      name="website"
+                      value={formData.website}
+                      onChange={handleValidatedChange}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="https://example.com"
+                    />
+                    {fieldError(errors, "website")}
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Email <span className="text-red-500">*</span>
+                      <TooltipHint hint="Official organization email. Must be unique and in lowercase only." />
+                    </Label>
+                    <Input
+                      required
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("email")(e);
+                        handleUniqueBlur("EMAIL", "email", "email", null)(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Enter email"
+                    />
+                    {fieldError(errors, "email")}
+                  </div>
+
+                  {/* Contact Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Contact Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="10-digit Indian mobile number starting with 6-9." />
+                    </Label>
+                    <Input
+                      required
+                      name="contactNumber"
+                      value={formData.contactNumber}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("contactNumber")(e);
+                        handleUniqueBlur(
+                          "CONTACT_NUMBER",
+                          "contact_number",
+                          "contactNumber",
+                          null,
+                          10
+                        )(e);
+                      }}
+                      maxLength={10}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Enter 10-digit mobile"
+                    />
+                    {fieldError(errors, "contactNumber")}
+                  </div>
+
+                  {/* Domain */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Domain <span className="text-red-500">*</span>
+                      <TooltipHint hint="Primary industry domain of the organization." />
+                    </Label>
+                    <select
+                      required
+                      name="domain"
+                      value={formData.domain}
+                      onChange={(e) => {
+                        handleValidatedChange(e);
+                      }}
+                      onBlur={handleBlurValidation("domain")}
+                      className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Domain</option>
+                      {DOMAIN_OPTIONS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldError(errors, "domain")}
+                  </div>
+
+                  {/* Industry Type */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Industry Type <span className="text-red-500">*</span>
+                      <TooltipHint hint="Specific industry type within the chosen domain." />
+                    </Label>
+                    <select
+                      required
+                      name="industryType"
+                      value={formData.industryType}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("industryType")}
+                      className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Industry Type</option>
+                      {INDUSTRY_TYPE_OPTIONS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+
+                    {fieldError(errors, "industryType")}
+                  </div>
+
+                  {/* Established Date */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Established Date <span className="text-red-500">*</span>
+                      <TooltipHint hint="Date when the organization was officially incorporated." />
+                    </Label>
+                    <Input
+                      required
+                      name="establishedDate"
+                      type="date"
+                      value={formData.establishedDate}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("establishedDate")}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                    {fieldError(errors, "establishedDate")}
+                  </div>
+
+                  {/* Timezone */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Timezone
+                    </Label>
+                    <select
+                      name="timezone"
+                      value={formData.timezone || ""}
+                      onChange={handleValidatedChange}
+                      className="h-12 w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:border-indigo-500 focus:ring-indigo-500 bg-white"
+                    >
+                      <option value="">Select Timezone</option>
+                      {TIMEZONES.map((tz) => (
+                        <option key={tz} value={tz}>
+                          {tz}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Currency Code */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Currency Code <span className="text-red-500">*</span>
+                      <TooltipHint hint="Primary currency for financial transactions (e.g., INR, USD)." />
+                    </Label>
+                    <select
+                      required
+                      name="currencyCode"
+                      value={formData.currencyCode}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          currencyCode: e.target.value as CurrencyCode,
+                          addresses: [
+                            {
+                              addressId: null,
+                              houseNo: "",
+                              streetName: "",
+                              city: "",
+                              state: "",
+                              pincode: "",
+                              country: "",
+                              addressType: undefined,
+                            },
+                          ],
+                        }))
+                      }
+                      onBlur={handleBlurValidation("currencyCode")}
+                      className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Currency</option>
+                      {CURRENCY_CODE_OPTIONS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+
+                    {fieldError(errors, "currencyCode")}
+                  </div>
+                </div>
+              </div>
+              {/*Auto Clock-Out Settings  */}
+              <div className="border-t border-gray-200 pt-6 pb-6">
+                <h3 className="text-2xl font-bold mb-6">
+                  Auto Clock-Out Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.autoClockOutEnabled}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+
+                          setFormData((prev) => ({
+                            ...prev,
+                            autoClockOutEnabled: checked,
+                            autoClockOutTime: checked ? prev.autoClockOutTime : "", // clear if unchecked
+                          }));
+                        }}
+                      />
+                      Enable Auto Clock-Out
+                    </label>
+                  </div>
+                  {/* Auto Clock-Out Time */}
+                  {formData.autoClockOutEnabled && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Auto Clock-Out Time <span className="text-red-500">*</span>
+                      </Label>
+
+                      <Input
+                        name="autoClockOutTime"
+                        type="time"
+                        step="60"
+                        value={formData.autoClockOutTime ?? ""}
+                        onChange={handleValidatedChange}
+                        onBlur={handleBlurValidation("autoClockOutTime")}
+                        className="h-12"
+                      />
+
+                      {fieldError(errors, "autoClockOutTime")}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Attendance policy */}
+              <div className="border-t border-gray-200 pt-6 pb-6">
+                <h3 className="text-2xl font-bold mb-6">
+                  Attendance Policy
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Absent Max Minutes */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Absent Max Hours<span className="text-red-500">*</span>
+                      <TooltipHint hint="Maximum hours of absence allowed before marking as absent. Enter in hours (e.g., 0.5 for 30 minutes)." />
+                    </Label>
+                    <Input
+                      required
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric"
+                      name="attendancePolicy.absentMaxMinutes"
+                      value={formData.attendancePolicy.absentMaxMinutes ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("attendancePolicy.absentMaxMinutes")}
+                      className="h-12"
+                      placeholder="e.g. 30"
+                    />
+                    {fieldError(errors, "attendancePolicy.absentMaxMinutes")}
+
+                  </div>
+
+                  {/* Full Day Minimum Minutes */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Full Day Min Hours<span className="text-red-500">*</span>
+                      <TooltipHint hint="Minimum hours required to be considered a full day. Enter in hours (e.g., 8 for 8 hours)." />
+                    </Label>
+                    <Input
+                      required
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric"
+                      name="attendancePolicy.fullDayMinMinutes"
+                      value={formData.attendancePolicy.fullDayMinMinutes ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("attendancePolicy.fullDayMinMinutes")}
+                      className="h-12"
+                      placeholder="e.g. 480"
+                    />
+                    {fieldError(errors, "attendancePolicy.fullDayMinMinutes")}
+
+                  </div>
+                </div>
+              </div>
+              {/* Bank Details Section */}
+              <div className="border-t border-gray-200 pt-6 pb-6">
+                <h3 className="text-2xl font-bold mb-6">
+                  Bank Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Account Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Account Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="Bank account number (9-18 digits only)." />
+                    </Label>
+                    <Input
+                      required
+                      name="accountNumber"
+                      value={formData.accountNumber ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("accountNumber")(e);
+                        handleUniqueBlur(
+                          "ACCOUNT_NUMBER",
+                          "account_number",
+                          "accountNumber",
+                          null,
+                          9
+                        )(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Enter account number"
+                    />
+                    {fieldError(errors, "accountNumber")}
+                  </div>
+
+                  {/* Account Holder Name */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Account Holder Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Full name as per bank records. Only letters and spaces allowed." />
+                    </Label>
+                    <Input
+                      required
+                      name="accountHolderName"
+                      value={formData.accountHolderName ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={(e) => {
+                        handleBlurValidation("accountHolderName")(e);
+                        handleUniqueBlur(
+                          "ACCOUNT_HOLDER_NAME",
+                          "account_holder_name",
+                          "accountHolderName",
+                          null,
+                          3
+                        )(e);
+                      }}
+                      className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="ABC Company Private Limited"
+                    />
+                    {fieldError(errors, "accountHolderName")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      IFSC Code <span className="text-red-500">*</span>
+                      <TooltipHint hint="11-character IFSC code. Auto-fills bank & branch name on blur." />
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        required
+                        name="ifscCode"
+                        value={formData.ifscCode ?? ""}
+                        onChange={handleValidatedChange} // ← centralized formatting + validation
+                        onBlur={(e) => {
+                          handleBlurValidation("ifscCode")(e);
+                          handleIfscLookup(formData.ifscCode ?? "");
+                        }}
+                        className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-10 uppercase"
+                        placeholder="Enter IFSC (auto-fills bank/branch)"
+                        maxLength={11}
+                      />
+                      {isLookingUp && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                      )}
+                    </div>
+                    {fieldError(errors, "ifscCode")}
+                  </div>
+
+                  {/* Bank Name (auto-filled, read-only) */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Bank Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Auto-filled based on IFSC code." />
+                    </Label>
+                    <Input
+                      required
+                      name="bankName"
+                      value={formData.bankName ?? ""}
+                      readOnly
+                      className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
+                      placeholder="auto-filled"
+                    />
+                    {fieldError(errors, "bankName")}
+                  </div>
+
+                  {/* Branch Name (auto-filled, read-only) */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Branch Name <span className="text-red-500">*</span>
+                      <TooltipHint hint="Auto-filled based on IFSC code." />
+                    </Label>
+                    <Input
+                      required
+                      name="branchName"
+                      value={formData.branchName ?? ""}
+                      readOnly
+                      className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
+                      placeholder="auto-filled"
+                    />
+                    {fieldError(errors, "branchName")}
+                  </div>
+                </div>
+              </div>
+              {/* Media Uploads */}
+              <div className="border-t border-gray-200 pt-6 pb-6">
+                <h3 className="text-2xl font-bold mb-6">
+                  Media Uploads
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Logo Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Logo
+                      <TooltipHint hint="Upload organization logo (JPEG, PNG). Max size 2MB." />
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleFileChange("logo", e.target.files?.[0] || null)
+                        }
+                        className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      />
+                      <Upload className="h-5 w-5 text-gray-400" />
+                    </div>
+                    {formData.logo && (
+                      <p className="text-sm text-gray-600">
+                        Selected: {formData.logo.name}
+                      </p>
+                    )}
+                    {errors.logo && (
+                      <p className="text-red-500 text-xs mt-1">{errors.logo}</p>
                     )}
                   </div>
-                  {fieldError(errors, "ifscCode")}
-                </div>
-
-                {/* Bank Name (auto-filled, read-only) */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Bank Name <span className="text-red-500">*</span>
-                    <TooltipHint hint="Auto-filled based on IFSC code." />
-                  </Label>
-                  <Input
-                    required
-                    name="bankName"
-                    value={formData.bankName ?? ""}
-                    readOnly
-                    className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
-                    placeholder="auto-filled"
-                  />
-                  {fieldError(errors, "bankName")}
-                </div>
-
-                {/* Branch Name (auto-filled, read-only) */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Branch Name <span className="text-red-500">*</span>
-                    <TooltipHint hint="Auto-filled based on IFSC code." />
-                  </Label>
-                  <Input
-                    required
-                    name="branchName"
-                    value={formData.branchName ?? ""}
-                    readOnly
-                    className="h-12 text-base border-gray-300 bg-gray-50 cursor-not-allowed"
-                    placeholder="auto-filled"
-                  />
-                  {fieldError(errors, "branchName")}
+                  {/* Digital Signature Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Digital Signature
+                      <TooltipHint hint="Upload digital signature image (JPEG, PNG). Max size 2MB." />
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleFileChange(
+                            "digitalSignature",
+                            e.target.files?.[0] || null
+                          )
+                        }
+                        className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      />
+                      <Upload className="h-5 w-5 text-gray-400" />
+                    </div>
+                    {formData.digitalSignature && (
+                      <p className="text-sm text-gray-600">
+                        Selected: {formData.digitalSignature.name}
+                      </p>
+                    )}
+                    {errors.digitalSignature && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.digitalSignature}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-              {/* Prefix */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Prefix <span className="text-red-500">*</span>
-                    <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
-                  </Label>
-                  <Input
-                    required
-                    name="prefix"
-                    value={formData.prefix ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("prefix")}
-                    className="h-12"
-                    placeholder="INV"
-                    maxLength={10}
-                  />
-                  {fieldError(errors, "prefix")}
-                </div>
+              {/* Invoice Configuration */}
+              <div className="border-t border-gray-200 pt-6 pb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  Invoice Configuration
+                </h3>
+                {/* Prefix */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Prefix <span className="text-red-500">*</span>
+                      <TooltipHint hint="Invoice or organization prefix (e.g., INV, ORG)" />
+                    </Label>
+                    <Input
+                      required
+                      name="prefix"
+                      value={formData.prefix ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("prefix")}
+                      className="h-12"
+                      placeholder="INV"
+                      maxLength={10}
+                    />
+                    {fieldError(errors, "prefix")}
+                  </div>
 
-                {/* Sequence Number */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Sequence Number <span className="text-red-500">*</span>
-                    <TooltipHint hint="Starting sequence number (e.g., 1001)" />
-                  </Label>
-                  <Input
-                    required
-                    name="sequenceNumber"
-                    type="text"
-                    onWheel={preventWheelChange}
-                    inputMode="numeric"
-                    value={formData.sequenceNumber ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("sequenceNumber")}
-                    className="h-12"
-                    placeholder="1001"
-                  />
-                  {fieldError(errors, "sequenceNumber")}
-                </div>
+                  {/* Sequence Number */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Sequence Number <span className="text-red-500">*</span>
+                      <TooltipHint hint="Starting sequence number (e.g., 1001)" />
+                    </Label>
+                    <Input
+                      required
+                      name="sequenceNumber"
+                      type="text"
+                      onWheel={preventWheelChange}
+                      inputMode="numeric"
+                      value={formData.sequenceNumber ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("sequenceNumber")}
+                      className="h-12"
+                      placeholder="1001"
+                    />
+                    {fieldError(errors, "sequenceNumber")}
+                  </div>
 
-                {/* Company Type */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Company Type <span className="text-red-500">*</span>
-                    <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
-                  </Label>
-                  <Input
-                    required
-                    name="companyType"
-                    value={formData.companyType ?? ""}
-                    onChange={handleValidatedChange}
-                    onBlur={handleBlurValidation("companyType")}
-                    className="h-12"
-                    placeholder="Private Limited"
-                    maxLength={50}
-                  />
-                  {fieldError(errors, "companyType")}
+                  {/* Company Type */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Company Type <span className="text-red-500">*</span>
+                      <TooltipHint hint="e.g. Private Limited, LLP, Partnership" />
+                    </Label>
+                    <Input
+                      required
+                      name="companyType"
+                      value={formData.companyType ?? ""}
+                      onChange={handleValidatedChange}
+                      onBlur={handleBlurValidation("companyType")}
+                      className="h-12"
+                      placeholder="Private Limited"
+                      maxLength={50}
+                    />
+                    {fieldError(errors, "companyType")}
+                  </div>
                 </div>
               </div>
 
-              {/* Digital Signature Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Digital Signature
-                  <TooltipHint hint="Upload digital signature image (JPEG, PNG). Max size 2MB." />
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      handleFileChange(
-                        "digitalSignature",
-                        e.target.files?.[0] || null
-                      )
-                    }
-                    className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                  <Upload className="h-5 w-5 text-gray-400" />
-                </div>
-                {formData.digitalSignature && (
-                  <p className="text-sm text-gray-600">
-                    Selected: {formData.digitalSignature.name}
-                  </p>
-                )}
-                {errors.digitalSignature && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.digitalSignature}
-                  </p>
-                )}
-              </div>
               {/* ==================== TAX DETAILS ==================== */}
-              <div className="border-t border-gray-200 pt-10 pb-6">
+              <div className="border-t border-gray-200 pt-6 pb-6">
 
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">
                   Tax Configuration
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
                   {/* CGST */}
                   <div className="space-y-2">
@@ -1275,7 +1347,7 @@ export default function AddOrganizationPage() {
               </div>
 
               {/* ==================== ADDRESSES (OPTIONAL) ==================== */}
-              <div className="border-t border-gray-200 pt-10 pb-6">
+              <div className="border-t border-gray-200 pt-6 pb-6">
                 <div className="flex justify-between items-center mb-8">
                   <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                     <MapPin className="h-7 w-7 text-indigo-600" />

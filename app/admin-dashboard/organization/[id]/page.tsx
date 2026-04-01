@@ -8,7 +8,6 @@ import {
   Mail,
   Phone,
   Globe,
-  MapPin,
   Calendar,
   IndianRupee,
   FileText,
@@ -16,7 +15,6 @@ import {
   Loader2,
   Edit3,
   ExternalLink,
-  CheckCircle2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -262,8 +260,8 @@ export default function ViewOrganizationPage() {
                   </div>
                 </div>
               </Card>
-  {/* Attendance Policy */}
-  <Card className="border-0 shadow-sm">
+              {/* Attendance Policy */}
+              <Card className="border-0 shadow-sm">
                 <div className="p-8">
                   <h3 className="text-xl font-bold mb-6 text-gray-800">
                     Attendance Policy
@@ -290,6 +288,22 @@ export default function ViewOrganizationPage() {
                         {org.attendancePolicyDto?.fullDayMinMinutes != null
                           ? org.attendancePolicyDto.fullDayMinMinutes / 60
                           : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">
+                        Auto Clock-Out
+                      </p>
+
+                      <p className="text-lg font-semibold flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-gray-400" />
+
+                        {org.autoClockOutEnabled
+                          ? `Enabled ${org.autoClockOutTime
+                            ? `(${org.autoClockOutTime.slice(0, 5)})`
+                            : ""
+                          }`
+                          : "Disabled"}
                       </p>
                     </div>
                   </div>
@@ -399,7 +413,7 @@ export default function ViewOrganizationPage() {
                   </div>
                 </div>
               </Card>
-            
+
 
               {/* Bank */}
               <Card className="border-0 shadow-sm">

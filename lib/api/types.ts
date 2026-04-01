@@ -1268,6 +1268,7 @@ export interface OrganizationRequestDTO {
   sequenceNumber?: number;
   companyType?: string;
   attendancePolicy: AttendancePolicyDTO;
+  autoClockOutEnabled:boolean;
 }
 
 export interface OrganizationResponseDTO {
@@ -1306,6 +1307,8 @@ export interface OrganizationResponseDTO {
   createdAt: string;
   updatedAt: string;
   status: "ACTIVE" | "INACTIVE";
+  autoClockOutEnabled:boolean;
+
 }
 
 export interface WebResponseDTOListOrganizationResponseDTO {

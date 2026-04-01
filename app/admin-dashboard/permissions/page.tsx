@@ -20,7 +20,7 @@ export default function PermissionsPage() {
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [employeePermissions, setEmployeePermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-
+  const [originalPermissions, setOriginalPermissions] = useState<string[]>([]);
   // ===============================
   // LOAD DATA
   // ===============================
@@ -62,11 +62,13 @@ export default function PermissionsPage() {
     try {
       setSelectedEmployee(employeeId);
       const res = await employeeService.getPermissionsByEmployee(employeeId);
-      setEmployeePermissions(res.response || []);
+      
+      const perms = res.response || [];
+      setEmployeePermissions(perms);
+      setOriginalPermissions(perms); // ✅ store original
     } catch (error) {
       console.error("Employee permissions error", error);
     }
-
   };
 
   // =============================== 
@@ -85,6 +87,20 @@ export default function PermissionsPage() {
   // ===============================
   const updatePermissions = async () => {
    if (!selectedEmployee) return;
+     // ✅ Compare arrays (important)
+  const isSame =
+  originalPermissions.length === employeePermissions.length &&
+  originalPermissions.every(p => employeePermissions.includes(p));
+
+if (isSame) {
+  Swal.fire({
+    icon: "info",
+    title: "No Changes",
+    text: "Permissions already assigned",
+    confirmButtonColor: "#6366f1",
+  });
+  return; // ❌ stop API call
+}
     try {
       setLoading(true);
       const res = await employeeService.updateEmployeePermissions(
