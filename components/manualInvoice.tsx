@@ -8,12 +8,12 @@ import {
   ManualInvoiceRequestDTO,
   ClientEmployeeMinResponseDTO,
 } from "@/lib/api/types";
- 
+
 import Swal from "sweetalert2";
 import { se } from "date-fns/locale";
- 
+
 const YEARS = [2025, 2026, 2027, 2028, 2029];
- 
+
 const MONTHS = [
   { value: 1, label: "January" },
   { value: 2, label: "February" },
@@ -28,7 +28,7 @@ const MONTHS = [
   { value: 11, label: "November" },
   { value: 12, label: "December" },
 ];
- 
+
 function getBackendError(error: any): string {
   return (
     error?.response?.data?.message ||
@@ -38,7 +38,7 @@ function getBackendError(error: any): string {
     "Something went wrong. Please try again."
   );
 }
- 
+
 export default function ManualInvoice() {
   const [clients, setClients] = useState<ClientMinDTO[]>([]);
   const [employees, setEmployees] = useState<EmployeeMinDTO[]>([]);
@@ -51,36 +51,36 @@ export default function ManualInvoice() {
 
 
   // Instead of empty strings/numbers
-const [filterMonth, setFilterMonth] = useState<string>(() => {
-  return String(new Date().getMonth() + 1);
-});
+  const [filterMonth, setFilterMonth] = useState<string>(() => {
+    return String(new Date().getMonth() + 1);
+  });
 
-const [filterYear, setFilterYear] = useState<string>(() => {
-  return String(new Date().getFullYear());
-});
+  const [filterYear, setFilterYear] = useState<string>(() => {
+    return String(new Date().getFullYear());
+  });
 
-const [invoiceMonth, setInvoiceMonth] = useState<number | "">(() => {
-  return new Date().getMonth() + 1;
-});
+  const [invoiceMonth, setInvoiceMonth] = useState<number | "">(() => {
+    return new Date().getMonth() + 1;
+  });
 
-const [invoiceYear, setInvoiceYear] = useState<number | "">(() => {
-  return new Date().getFullYear();
-});
+  const [invoiceYear, setInvoiceYear] = useState<number | "">(() => {
+    return new Date().getFullYear();
+  });
 
-const [dueDate, setDueDate] = useState<string>(() => {
-  const now = new Date();
-  const d = now.getDate().toString().padStart(2, '0');
-  const m = (now.getMonth() + 1).toString().padStart(2, '0');
-  const y = now.getFullYear();
-  return `${y}-${m}-${d}`;
-});
-  
+  const [dueDate, setDueDate] = useState<string>(() => {
+    const now = new Date();
+    const d = now.getDate().toString().padStart(2, '0');
+    const m = (now.getMonth() + 1).toString().padStart(2, '0');
+    const y = now.getFullYear();
+    return `${y}-${m}-${d}`;
+  });
+
   const [items, setItems] = useState<
     Record<string, { hoursWorked: number; description: string; ratePerHour: number; courierAmount?: number; }>
   >({});
- 
+
   const today = new Date().toISOString().split("T")[0];
- 
+
   const minDueDate = useMemo(() => {
     if (!invoiceYear || !invoiceMonth) return today;
     const y = Number(invoiceYear);
@@ -93,13 +93,13 @@ const [dueDate, setDueDate] = useState<string>(() => {
     }
     return `${nextY}-${String(nextM).padStart(2, "0")}-01`;
   }, [invoiceYear, invoiceMonth]);
- 
+
   // const [dueDate, setDueDate] = useState(today);
- 
+
   useEffect(() => {
     if (dueDate < minDueDate) setDueDate(minDueDate);
   }, [minDueDate]);
- 
+
   useEffect(() => {
     async function loadClients() {
       try {
@@ -113,16 +113,16 @@ const [dueDate, setDueDate] = useState<string>(() => {
   }, []);
 
 
- // Reset everything when tab changes
+  // Reset everything when tab changes
 
- const resetForm = () => {
-  setClientId("");
-  setEmployees([]);
-  setItems({});
-  setSelectedEmployees(new Set());
-  setCurrency(null);
-  setApiError(null);
-};
+  const resetForm = () => {
+    setClientId("");
+    setEmployees([]);
+    setItems({});
+    setSelectedEmployees(new Set());
+    setCurrency(null);
+    setApiError(null);
+  };
 
   useEffect(() => {
     setClientId("");
@@ -140,23 +140,23 @@ const [dueDate, setDueDate] = useState<string>(() => {
       setItems({});
       return;
     }
- 
+
     async function loadEmployees() {
       try {
         const isForCourierInvoice = activeTab === "courier";
-        const res = await manualInvoiceService.getEmployeesByClientId(clientId, isForCourierInvoice, parseInt(filterMonth), parseInt(filterYear) );
-    
+        const res = await manualInvoiceService.getEmployeesByClientId(clientId, isForCourierInvoice, parseInt(filterMonth), parseInt(filterYear));
+
         const data: ClientEmployeeMinResponseDTO | null = Array.isArray(res.response) ? res.response[0] : res.response ?? null;
         if (!data) return;
-    
+
         setCurrency(data.currency);          // currency
         setEmployees(data.employees);        // employees array
-    
+
         const initialItems: Record<
           string,
-          { hoursWorked: number; description: string; ratePerHour: number; courierAmount: number;}
+          { hoursWorked: number; description: string; ratePerHour: number; courierAmount: number; }
         > = {};
-    
+
         data.employees.forEach((e) => {
           initialItems[e.employeeId] = {
             hoursWorked: 0,
@@ -165,9 +165,9 @@ const [dueDate, setDueDate] = useState<string>(() => {
             courierAmount: 0,
           };
         });
-    
+
         setItems(initialItems);
-        setSelectedEmployees(new Set()); 
+        setSelectedEmployees(new Set());
       } catch (e: any) {
         Swal.fire({
           icon: "error",
@@ -176,19 +176,18 @@ const [dueDate, setDueDate] = useState<string>(() => {
         });
       }
     }
-    
+
     loadEmployees();
   }, [clientId, activeTab, filterMonth, filterYear]);
- 
+
   const generateInvoice = async () => {
     setApiError(null);
- 
-    if (!clientId || !invoiceYear || !invoiceMonth)
-        {
+
+    if (!clientId || !invoiceYear || !invoiceMonth) {
       Swal.fire({ icon: "warning", title: "Missing Fields", text: "Please fill all required fields." });
       return;
     }
- 
+
     const invoiceItems: ManualInvoiceItemRequestDTO[] = employees
       .filter((e) => selectedEmployees.has(e.employeeId))
       .map((e) => ({
@@ -211,12 +210,12 @@ const [dueDate, setDueDate] = useState<string>(() => {
 
         description: items[e.employeeId]?.description?.trim() ?? "",
       }));
- 
+
     if (invoiceItems.length === 0) {
       Swal.fire({ icon: "warning", title: "No Hours", text: "Please enter hours for at least one employee." });
       return;
     }
- 
+
     const payload: ManualInvoiceRequestDTO = {
       clientId,
       year: Number(invoiceYear),
@@ -226,7 +225,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
       // dueDate,
       items: invoiceItems,
     };
- 
+
     try {
       const isForCourierInvoice = activeTab === "courier";
       await manualInvoiceService.generateManualInvoice(payload, isForCourierInvoice);
@@ -246,7 +245,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
 
   const isFormValid = useMemo(() => {
     if (!clientId || !invoiceYear || !invoiceMonth) return false;
-  
+
     return employees.some((emp) => {
       if (activeTab === "manual") {
         return (
@@ -254,11 +253,11 @@ const [dueDate, setDueDate] = useState<string>(() => {
           (items[emp.employeeId]?.hoursWorked ?? 0) > 0
         );
       }
-  
+
       if (activeTab === "courier") {
         return (items[emp.employeeId]?.courierAmount ?? 0) > 0;
       }
-  
+
       return false;
     });
   }, [clientId, invoiceYear, invoiceMonth, employees, items, activeTab]);
@@ -268,18 +267,17 @@ const [dueDate, setDueDate] = useState<string>(() => {
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden">
         {/* Heading */}
         <div className="px-8 pt-6">
-          <div className="inline-flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-            
+          <div className="inline-flex bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+
             <button
               onClick={() => {
                 resetForm();
                 setActiveTab("manual");
               }}
-              className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
-                activeTab === "manual"
-                  ? "bg-blue-600 text-white shadow-sm"
+              className={`px-8 py-3 text-base font-semibold rounded-md transition-all ${activeTab === "manual"
+                  ? "bg-blue-600 text-white shadow-md"
                   : "text-gray-600 hover:bg-gray-100"
-              }`}
+                }`}
             >
               Generate Manual Invoice
             </button>
@@ -289,11 +287,10 @@ const [dueDate, setDueDate] = useState<string>(() => {
                 resetForm();
                 setActiveTab("courier");
               }}
-              className={`px-5 py-2.5 text-sm font-medium rounded-md transition-all ${
-                activeTab === "courier"
-                  ? "bg-blue-600 text-white shadow-sm"
+              className={`px-8 py-3 text-base font-semibold rounded-md transition-all ${activeTab === "courier"
+                  ? "bg-blue-600 text-white shadow-md"
                   : "text-gray-600 hover:bg-gray-100"
-              }`}
+                }`}
             >
               Expense Invoice Generation
             </button>
@@ -304,10 +301,9 @@ const [dueDate, setDueDate] = useState<string>(() => {
         {activeTab === "manual" && (
           <>
             <div className="p-6 md:p-9 lg:p-10 space-y-10">
-              
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Row 1: Client + Load employees from */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -316,7 +312,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                   <select
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-slate-800 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none transition cursor-pointer"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none transition cursor-pointer"
                   >
                     <option value="">Select client</option>
                     {clients.map((c) => (
@@ -331,11 +327,12 @@ const [dueDate, setDueDate] = useState<string>(() => {
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Load employees from
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-4 gap-4">
+
                     <select
                       value={filterMonth}
                       onChange={(e) => setFilterMonth(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                      className="col-span-2 w-full border border-slate-200 rounded-xl px-5 py-3.5 pr-10 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
                     >
                       <option value="">Month</option>
                       {MONTHS.map((m) => (
@@ -352,8 +349,9 @@ const [dueDate, setDueDate] = useState<string>(() => {
                       placeholder="Year"
                       min={2020}
                       max={2030}
-                      className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                      className="col-span-2 w-full border border-slate-200 rounded-xl px-5 py-3.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
                     />
+
                   </div>
                 </div>
 
@@ -362,11 +360,11 @@ const [dueDate, setDueDate] = useState<string>(() => {
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Generated On  <span className="text-teal-600">*</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-4 gap-4">
                     <select
                       value={invoiceMonth}
                       onChange={(e) => setInvoiceMonth(e.target.value ? Number(e.target.value) : "")}
-                      className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                      className="col-span-2 w-full border border-slate-200 rounded-xl px-5 py-3.5 pr-10 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
                     >
                       <option value="">Month</option>
                       {MONTHS.map((m) => (
@@ -379,7 +377,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                     <select
                       value={invoiceYear}
                       onChange={(e) => setInvoiceYear(e.target.value ? Number(e.target.value) : "")}
-                      className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                      className="col-span-2 w-full border border-slate-200 rounded-xl px-5 py-3.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
                     >
                       <option value="">Year</option>
                       {YEARS.map((y) => (
@@ -390,38 +388,240 @@ const [dueDate, setDueDate] = useState<string>(() => {
                     </select>
                   </div>
                 </div>
-
-                {/* <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Due Date <span className="text-teal-600">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    min={minDueDate}
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
-                  />
-                </div> */}
-
               </div>
-    
+
               {apiError && (
                 <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 text-rose-800 text-sm">
                   {apiError}
                 </div>
               )}
-    
+
               {employees.length > 0 && (
                 <div className="space-y-5">
                   <h2 className="text-lg font-medium text-slate-800">Employees</h2>
-    
+
                   <div className="border border-slate-100 rounded-lg shadow-sm overflow-hidden">
+                    <div className="max-h-[420px] overflow-y-auto">
+                      <table className="w-full border-collapse min-w-[960px]">
+                        <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-6 py-3.5 text-left font-medium">
+                              <input
+                                type="checkbox"
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedEmployees(new Set(employees.map(emp => emp.employeeId)));
+                                  } else {
+                                    setSelectedEmployees(new Set());
+                                  }
+                                }}
+                                checked={
+                                  employees.length > 0 &&
+                                  selectedEmployees.size === employees.length
+                                }
+                              />
+                            </th>
+                            <th className="px-6 py-3.5 text-left font-medium">Employee</th>
+                            <th className="px-6 py-3.5 text-left font-medium">Company ID</th>
+                            {/* <th className="px-6 py-3.5 text-right font-medium">Rate/hr</th> */}
+                            <th className="px-6 py-3.5 text-right font-medium">
+                              Rate / hr {currency && `(${currency})`}</th>
+                            <th className="px-6 py-3.5 text-right font-medium">Hours</th>
+                            <th className="px-6 py-3.5 font-medium">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {employees.map((emp) => (
+                            <tr key={emp.employeeId} className="hover:bg-teal-50/20 transition-colors">
+                              <td className="px-6 py-3.5">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedEmployees.has(emp.employeeId)}
+                                  onChange={(e) => {
+                                    setSelectedEmployees(prev => {
+                                      const updated = new Set(prev);
+                                      if (e.target.checked) {
+                                        updated.add(emp.employeeId);
+                                      } else {
+                                        updated.delete(emp.employeeId);
+                                      }
+                                      return updated;
+                                    });
+                                  }}
+                                />
+                              </td>
+                              <td className="px-6 py-3.5">{emp.employeeName}</td>
+                              <td className="px-6 py-3.5 text-slate-600">{emp.companyId || "—"}</td>
+                              <td className="px-6 py-3.5 text-right font-medium">
+                                {emp.rateCard != null ? (
+                                  `${emp.rateCard.toFixed(2)}`
+                                ) : (
+                                  <span className="text-rose-600 text-sm">Missing</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-3.5">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={0.25}
+                                  className="w-20 border border-slate-200 rounded px-3 py-1.5 text-right focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                                  value={items[emp.employeeId]?.hoursWorked ?? ""}
+                                  onChange={(e) =>
+                                    setItems((prev) => ({
+                                      ...prev,
+                                      [emp.employeeId]: {
+                                        ...prev[emp.employeeId],
+                                        hoursWorked: Number(e.target.value) || 0,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </td>
+                              <td className="px-6 py-3.5">
+                                <input
+                                  className="w-full border border-slate-200 rounded px-3 py-1.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                                  placeholder="Project / remarks"
+                                  value={items[emp.employeeId]?.description ?? ""}
+                                  onChange={(e) =>
+                                    setItems((prev) => ({
+                                      ...prev,
+                                      [emp.employeeId]: {
+                                        ...prev[emp.employeeId],
+                                        description: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-6">
+                <button
+                  onClick={generateInvoice}
+                  disabled={!isFormValid}
+                  className={`
+                    px-10 py-3 rounded-xl font-medium text-base transition-all duration-200 shadow-sm
+                    ${isFormValid
+                      ? "bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white cursor-pointer hover:scale-105 active:scale-98 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:ring-offset-2"
+                      : "bg-slate-200 text-slate-500 cursor-not-allowed"}
+                  `}
+                >
+                  Generate Invoice
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "courier" && (
+          <div className="p-6 md:p-9 lg:p-10 space-y-10">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Row 1: Client + Load employees from */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Client <span className="text-teal-600">*</span>
+                </label>
+                <select
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-slate-800 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none transition cursor-pointer"
+                >
+                  <option value="">Select client</option>
+                  {clients.map((c) => (
+                    <option key={c.clientId} value={c.clientId}>
+                      {c.companyName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Load employees from
+                </label>
+                <div className="grid grid-cols-4 gap-4">
+                  <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(e.target.value)}
+                    className="col-span-2 w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Month</option>
+                    {MONTHS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="number"
+                    value={filterYear}
+                    onChange={(e) => setFilterYear(e.target.value)}
+                    placeholder="Year"
+                    min={2020}
+                    max={2030}
+                    className="col-span-2 w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Invoice Month + Due Date */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Generated On  <span className="text-teal-600">*</span>
+                </label>
+                <div className="grid grid-cols-4 gap-4">
+                  <select
+                    value={invoiceMonth}
+                    onChange={(e) => setInvoiceMonth(e.target.value ? Number(e.target.value) : "")}
+                    className="col-span-2 w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Month</option>
+                    {MONTHS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={invoiceYear}
+                    onChange={(e) => setInvoiceYear(e.target.value ? Number(e.target.value) : "")}
+                    className="col-span-2 w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Year</option>
+                    {YEARS.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {apiError && (
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 text-rose-800 text-sm">
+                {apiError}
+              </div>
+            )}
+
+            {employees.length > 0 && (
+              <div className="space-y-5">
+                <h2 className="text-lg font-medium text-slate-800">Employees</h2>
+                <div className="border border-slate-100 rounded-lg shadow-sm overflow-hidden">
                   <div className="max-h-[420px] overflow-y-auto">
                     <table className="w-full border-collapse min-w-[960px]">
                       <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10">
                         <tr>
-                        <th className="px-6 py-3.5 text-left font-medium">
+                          <th className="px-6 py-3.5 text-left font-medium">
                             <input
                               type="checkbox"
                               onChange={(e) => {
@@ -442,7 +642,7 @@ const [dueDate, setDueDate] = useState<string>(() => {
                           {/* <th className="px-6 py-3.5 text-right font-medium">Rate/hr</th> */}
                           <th className="px-6 py-3.5 text-right font-medium">
                             Rate / hr {currency && `(${currency})`}</th>
-                          <th className="px-6 py-3.5 text-right font-medium">Hours</th>
+                          <th className="px-6 py-3.5 text-right font-medium">Amount</th>
                           <th className="px-6 py-3.5 font-medium">Description</th>
                         </tr>
                       </thead>
@@ -469,8 +669,25 @@ const [dueDate, setDueDate] = useState<string>(() => {
                             <td className="px-6 py-3.5">{emp.employeeName}</td>
                             <td className="px-6 py-3.5 text-slate-600">{emp.companyId || "—"}</td>
                             <td className="px-6 py-3.5 text-right font-medium">
-                              {emp.rateCard != null ? (
-                                `${emp.rateCard.toFixed(2)}`
+                              {activeTab === "courier" ? (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  className="w-24 border border-slate-200 rounded px-3 py-1.5 text-right focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
+                                  value={items[emp.employeeId]?.ratePerHour ?? 0}
+                                  onChange={(e) =>
+                                    setItems((prev) => ({
+                                      ...prev,
+                                      [emp.employeeId]: {
+                                        ...prev[emp.employeeId],
+                                        ratePerHour: Number(e.target.value) || 0,
+                                      },
+                                    }))
+                                  }
+                                />
+                              ) : emp.rateCard != null ? (
+                                emp.rateCard.toFixed(2)
                               ) : (
                                 <span className="text-rose-600 text-sm">Missing</span>
                               )}
@@ -481,13 +698,13 @@ const [dueDate, setDueDate] = useState<string>(() => {
                                 min={0}
                                 step={0.25}
                                 className="w-20 border border-slate-200 rounded px-3 py-1.5 text-right focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
-                                value={items[emp.employeeId]?.hoursWorked ?? ""}
+                                value={items[emp.employeeId]?.courierAmount ?? ""}
                                 onChange={(e) =>
                                   setItems((prev) => ({
                                     ...prev,
                                     [emp.employeeId]: {
                                       ...prev[emp.employeeId],
-                                      hoursWorked: Number(e.target.value) || 0,
+                                      courierAmount: Number(e.target.value) || 0,
                                     },
                                   }))
                                 }
@@ -513,274 +730,26 @@ const [dueDate, setDueDate] = useState<string>(() => {
                         ))}
                       </tbody>
                     </table>
-                  </div>  
                   </div>
                 </div>
-              )}
-    
-              <div className="flex justify-end pt-6">
-                <button
-                  onClick={generateInvoice}
-                  disabled={!isFormValid}
-                  className={`
-                    px-10 py-3 rounded-xl font-medium text-base transition-all duration-200 shadow-sm
-                    ${isFormValid
-                      ? "bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white cursor-pointer hover:scale-105 active:scale-98 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:ring-offset-2"
-                      : "bg-slate-200 text-slate-500 cursor-not-allowed"}
-                  `}
-                >
-                  Generate Invoice
-                </button>
               </div>
-            </div>
-          </>
-        )}
+            )}
 
-        {activeTab === "courier" && (
-          <div className="p-6 md:p-9 lg:p-10 space-y-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-            {/* Row 1: Client + Load employees from */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Client <span className="text-teal-600">*</span>
-              </label>
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-slate-800 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none transition cursor-pointer"
-              >
-                <option value="">Select client</option>
-                {clients.map((c) => (
-                  <option key={c.clientId} value={c.clientId}>
-                    {c.companyName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Load employees from
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
-                >
-                  <option value="">Month</option>
-                  {MONTHS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-
-                <input
-                  type="number"
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  placeholder="Year"
-                  min={2020}
-                  max={2030}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Row 2: Invoice Month + Due Date */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Generated On  <span className="text-teal-600">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <select
-                  value={invoiceMonth}
-                  onChange={(e) => setInvoiceMonth(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
-                >
-                  <option value="">Month</option>
-                  {MONTHS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={invoiceYear}
-                  onChange={(e) => setInvoiceYear(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
-                >
-                  <option value="">Year</option>
-                  {YEARS.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Due Date <span className="text-teal-600">*</span>
-              </label>
-              <input
-                type="date"
-                min={minDueDate}
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-4 py-2.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none cursor-pointer"
-              />
-            </div> */}
-
-          </div>
-
-          {apiError && (
-            <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 text-rose-800 text-sm">
-              {apiError}
-            </div>
-          )}
-
-          {employees.length > 0 && (
-            <div className="space-y-5">
-              <h2 className="text-lg font-medium text-slate-800">Employees</h2>
-              <div className="border border-slate-100 rounded-lg shadow-sm overflow-hidden">
-              <div className="max-h-[420px] overflow-y-auto">
-                <table className="w-full border-collapse min-w-[960px]">
-                  <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10">
-                    <tr>
-                    <th className="px-6 py-3.5 text-left font-medium">
-                        <input
-                          type="checkbox"
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedEmployees(new Set(employees.map(emp => emp.employeeId)));
-                            } else {
-                              setSelectedEmployees(new Set());
-                            }
-                          }}
-                          checked={
-                            employees.length > 0 &&
-                            selectedEmployees.size === employees.length
-                          }
-                        />
-                      </th>
-                      <th className="px-6 py-3.5 text-left font-medium">Employee</th>
-                      <th className="px-6 py-3.5 text-left font-medium">Company ID</th>
-                      {/* <th className="px-6 py-3.5 text-right font-medium">Rate/hr</th> */}
-                      <th className="px-6 py-3.5 text-right font-medium">
-                        Rate / hr {currency && `(${currency})`}</th>
-                      <th className="px-6 py-3.5 text-right font-medium">Amount</th>
-                      <th className="px-6 py-3.5 font-medium">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {employees.map((emp) => (
-                      <tr key={emp.employeeId} className="hover:bg-teal-50/20 transition-colors">
-                        <td className="px-6 py-3.5">
-                          <input
-                            type="checkbox"
-                            checked={selectedEmployees.has(emp.employeeId)}
-                            onChange={(e) => {
-                              setSelectedEmployees(prev => {
-                                const updated = new Set(prev);
-                                if (e.target.checked) {
-                                  updated.add(emp.employeeId);
-                                } else {
-                                  updated.delete(emp.employeeId);
-                                }
-                                return updated;
-                              });
-                            }}
-                          />
-                        </td>
-                        <td className="px-6 py-3.5">{emp.employeeName}</td>
-                        <td className="px-6 py-3.5 text-slate-600">{emp.companyId || "—"}</td>
-                        <td className="px-6 py-3.5 text-right font-medium">
-                          {activeTab === "courier" ? (
-                            <input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              className="w-24 border border-slate-200 rounded px-3 py-1.5 text-right focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
-                              value={items[emp.employeeId]?.ratePerHour ?? 0}
-                              onChange={(e) =>
-                                setItems((prev) => ({
-                                  ...prev,
-                                  [emp.employeeId]: {
-                                    ...prev[emp.employeeId],
-                                    ratePerHour: Number(e.target.value) || 0,
-                                  },
-                                }))
-                              }
-                            />
-                          ) : emp.rateCard != null ? (
-                            emp.rateCard.toFixed(2)
-                          ) : (
-                            <span className="text-rose-600 text-sm">Missing</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.25}
-                            className="w-20 border border-slate-200 rounded px-3 py-1.5 text-right focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
-                            value={items[emp.employeeId]?.courierAmount ?? ""}
-                            onChange={(e) =>
-                              setItems((prev) => ({
-                                ...prev,
-                                [emp.employeeId]: {
-                                  ...prev[emp.employeeId],
-                                  courierAmount: Number(e.target.value) || 0,
-                                },
-                              }))
-                            }
-                          />
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <input
-                            className="w-full border border-slate-200 rounded px-3 py-1.5 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:outline-none"
-                            placeholder="Project / remarks"
-                            value={items[emp.employeeId]?.description ?? ""}
-                            onChange={(e) =>
-                              setItems((prev) => ({
-                                ...prev,
-                                [emp.employeeId]: {
-                                  ...prev[emp.employeeId],
-                                  description: e.target.value,
-                                },
-                              }))
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>  
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end pt-6">
-            <button
-              onClick={generateInvoice}
-              disabled={!isFormValid}
-              className={`
+            <div className="flex justify-end pt-6">
+              <button
+                onClick={generateInvoice}
+                disabled={!isFormValid}
+                className={`
                 px-10 py-3 rounded-xl font-medium text-base transition-all duration-200 shadow-sm
                 ${isFormValid
-                  ? "bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white cursor-pointer hover:scale-105 active:scale-98 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:ring-offset-2"
-                  : "bg-slate-200 text-slate-500 cursor-not-allowed"}
+                    ? "bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white cursor-pointer hover:scale-105 active:scale-98 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:ring-offset-2"
+                    : "bg-slate-200 text-slate-500 cursor-not-allowed"}
               `}
-            >
-              Generate Invoice
-            </button>
+              >
+                Generate Invoice
+              </button>
+            </div>
           </div>
-        </div>
         )}
       </div>
     </div>

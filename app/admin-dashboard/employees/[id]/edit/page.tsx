@@ -115,7 +115,25 @@ export const FileInput: React.FC<FileInputProps> = ({
           id={id}
           type="file"
           className="hidden"
-          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+
+            if (!file) return;
+
+            // 🚫 File name length validation
+            if (file.name.length > 100) {
+              Swal.fire({
+                icon: "error",
+                title: "File name too long",
+                text: "File name must not exceed 100 characters.",
+              });
+
+              e.target.value = ""; // 🔥 reset input
+              return;
+            }
+
+            onChange(file);
+          }}
         />
 
         <label
@@ -133,8 +151,12 @@ export const FileInput: React.FC<FileInputProps> = ({
         {currentFile && (
           <button
             type="button"
-            onClick={onClear}
-            className="text-red-600 text-sm hover:underline"
+            onClick={() => {
+              onClear();
+
+              const input = document.getElementById(id) as HTMLInputElement;
+              if (input) input.value = "";
+            }} className="text-red-600 text-sm hover:underline"
           >
             Clear
           </button>

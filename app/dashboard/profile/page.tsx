@@ -31,6 +31,7 @@ import {
   EmployeeDTO,
   AddressModel,
   DOCUMENT_TYPE_OPTIONS,
+  ADDRESS_TYPE_OPTIONS
 } from "@/lib/api/types";
 import { useUniquenessCheck } from "@/hooks/useUniqueCheck";
 import { useOrganizationFieldValidation } from "@/hooks/organizationValidator";
@@ -40,6 +41,8 @@ import { adminService } from "@/lib/api/adminService";
 const EMPLOYEE_ALLOWED_DOCUMENTS = DOCUMENT_TYPE_OPTIONS.filter(
   (doc) => doc !== "OFFER_LETTER" && doc !== "CONTRACT"
 );
+const formatDocumentType = (type: string) =>
+  type.replace(/_/g, " ");
 // Safe value
 const safe = (val: any) =>
   val === null || val === undefined ? "—" : String(val);
@@ -237,7 +240,7 @@ const ProfilePage = () => {
           status: "unchanged" as const,
         }))
       );
-   
+
     } catch (err: any) {
       setError(err.message || "Failed to load profile");
     } finally {
@@ -643,6 +646,11 @@ const ProfilePage = () => {
     // validateField(name, normalizedValue);
   };
   const addAddress = () => {
+    if (addresses.length >= ADDRESS_TYPE_OPTIONS.length) {
+      Swal.fire("Limit reached", "All address types already added", "warning");
+      return;
+    }
+
     const newAddr: AddressModel = {
       addressId: `temp-${uuidv4()}`,
       houseNo: "",
@@ -653,6 +661,7 @@ const ProfilePage = () => {
       pincode: "",
       addressType: undefined,
     };
+
     setAddresses((prev) => [...prev, newAddr]);
   };
 
@@ -824,6 +833,10 @@ const ProfilePage = () => {
     }
     return <Info label={label} value={value} required={required} />;
   };
+
+  const selectedAddressTypes = addresses
+    .map(a => a.addressType)
+    .filter(Boolean);
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="container mx-auto max-w-7xl">
@@ -1075,8 +1088,8 @@ const ProfilePage = () => {
                         name="numberOfChildren"
                         type="text"
                         onWheel={preventWheelChange}
-                        inputMode="numeric"                       
-                          value={formData?.numberOfChildren ?? ""}
+                        inputMode="numeric"
+                        value={formData?.numberOfChildren ?? ""}
                         onChange={handleValidatedChange}
                         min="0"
                       />
@@ -1399,7 +1412,9 @@ const ProfilePage = () => {
                           onChange={(e) =>
                             updateAddress(i, "addressType", e.target.value)
                           }
-                          options={["PERMANENT", "CURRENT"]}
+                          options={ADDRESS_TYPE_OPTIONS.filter(type =>
+                            !selectedAddressTypes.includes(type) || addr.addressType === type
+                          )}
                         />
                         {errors[`addresses[${i}].addressType`] && (
                           <p className="text-red-500 text-xs mt-1">
@@ -1490,6 +1505,17 @@ const ProfilePage = () => {
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0] || null;
+
+                              if (file && file.name.length > 100) {
+                                Swal.fire(
+                                  "Invalid File",
+                                  "File name must not exceed 100 characters",
+                                  "error"
+                                );
+                                e.target.value = "";
+                                return;
+                              }
+
                               updateDocument(i, "fileObj", file);
                             }}
                           />
@@ -2180,7 +2206,7 @@ const Select = ({
       <option value="">Select</option>
       {options.map((opt) => (
         <option key={opt} value={opt}>
-          {opt.charAt(0) + opt.slice(1).toLowerCase()}
+          {opt.replace(/_/g, " ")}
         </option>
       ))}
     </select>

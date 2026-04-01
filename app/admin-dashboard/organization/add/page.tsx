@@ -187,6 +187,9 @@ export default function AddOrganizationPage() {
     });
   };
   const [countries, setCountries] = useState<string[]>([]);
+  const selectedAddressTypes = (formData.addresses || [])
+  .map((a) => a.addressType)
+  .filter((type): type is AddressType => !!type);
   const [statesByCountry, setStatesByCountry] = useState<
     Record<string, string[]>
   >({});
@@ -353,6 +356,11 @@ export default function AddOrganizationPage() {
 
   // Add/Remove address
   const addAddress = () => {
+    if ((formData.addresses || []).length >= ADDRESS_TYPE_OPTIONS.length) {
+      Swal.fire("Limit reached", "All address types already added", "warning");
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       addresses: [
@@ -365,7 +373,7 @@ export default function AddOrganizationPage() {
           state: "",
           country: "",
           pincode: "",
-          addressType: "OFFICE" as AddressType,
+          addressType: undefined, // ✅ IMPORTANT
         },
       ],
     }));
@@ -407,6 +415,17 @@ export default function AddOrganizationPage() {
         autoClockOutTime: "Auto Clock-Out Time is required",
       }));
       setIsSubmitting(false); // important
+      return;
+    }
+    const addressTypes = formData.addresses
+      .map(a => a.addressType)
+      .filter(Boolean);
+
+    const uniqueTypes = new Set(addressTypes);
+
+    if (addressTypes.length !== uniqueTypes.size) {
+      Swal.fire("Error", "Duplicate address types are not allowed", "error");
+      setIsSubmitting(false);
       return;
     }
     try {
@@ -1157,9 +1176,25 @@ export default function AddOrganizationPage() {
                       <Input
                         type="file"
                         accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange("logo", e.target.files?.[0] || null)
-                        }
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                        
+                          if (!file) return;
+                        
+                          // 🚫 File name validation
+                          if (file.name.length > 100) {
+                            Swal.fire({
+                              icon: "error",
+                              title: "File name too long",
+                              text: "File name must not exceed 100 characters.",
+                            });
+                        
+                            e.target.value = ""; // 🔥 reset input
+                            return;
+                          }
+                        
+                          handleFileChange("logo", file);
+                        }}
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       />
                       <Upload className="h-5 w-5 text-gray-400" />
@@ -1183,12 +1218,25 @@ export default function AddOrganizationPage() {
                       <Input
                         type="file"
                         accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "digitalSignature",
-                            e.target.files?.[0] || null
-                          )
-                        }
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                        
+                          if (!file) return;
+                        
+                          // 🚫 File name validation
+                          if (file.name.length > 100) {
+                            Swal.fire({
+                              icon: "error",
+                              title: "File name too long",
+                              text: "File name must not exceed 100 characters.",
+                            });
+                        
+                            e.target.value = ""; // 🔥 reset input
+                            return;
+                          }
+                        
+                          handleFileChange("digitalSignature", file);
+                        }}
                         className="h-12 text-base border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                       />
                       <Upload className="h-5 w-5 text-gray-400" />
@@ -1359,6 +1407,7 @@ export default function AddOrganizationPage() {
                     variant="outline"
                     size="lg"
                     onClick={addAddress}
+                    disabled={(formData.addresses || []).length >= ADDRESS_TYPE_OPTIONS.length}
                     className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-medium shadow-sm"
                   >
                     <Plus className="h-5 w-5 mr-2" />
@@ -1587,9 +1636,16 @@ export default function AddOrganizationPage() {
                               className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
                             >
                               <option value="">Select Address Type</option>
-                              {ADDRESS_TYPE_OPTIONS.map((d) => (
-                                <option key={d} value={d}>
-                                  {d}
+                              {ADDRESS_TYPE_OPTIONS.map((type) => (
+                                <option
+                                  key={type}
+                                  value={type}
+                                  disabled={
+                                    selectedAddressTypes.includes(type) &&
+                                    address.addressType !== type
+                                  }
+                                >
+                                  {type}
                                 </option>
                               ))}
                             </select>

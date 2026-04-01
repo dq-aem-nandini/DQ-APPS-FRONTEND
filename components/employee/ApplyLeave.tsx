@@ -23,6 +23,7 @@ const ApplyLeavePage: React.FC = () => {
   const [hasCalculated, setHasCalculated] = useState(false);
   const [employeeId, setEmployeeId] = useState<string>('');
   const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
+  const joiningDate = employee?.dateOfJoining;
   const [loadingEmployee, setLoadingEmployee] = useState(true);
   const [formData, setFormData] = useState<LeaveRequestDTO>({
     leaveId: leaveId || undefined,
@@ -385,7 +386,7 @@ const ApplyLeavePage: React.FC = () => {
               onChange={handleInputChange}
               className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
               required
-              // min={minDate}   restricting too much, allowing past 3 days for corrections
+              min={joiningDate} 
             />
           </div>
           <div>
@@ -398,7 +399,8 @@ const ApplyLeavePage: React.FC = () => {
               className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
               required
               disabled={!formData.fromDate}
-              min={formData.fromDate}
+              // min={formData.fromDate}
+              min={formData.fromDate || joiningDate}
             />
           </div>
         </div>

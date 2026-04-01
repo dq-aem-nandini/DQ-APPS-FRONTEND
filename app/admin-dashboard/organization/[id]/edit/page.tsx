@@ -104,7 +104,9 @@ export default function EditOrganizationPage() {
 
   const { checkUniqueness, checking } = useUniquenessCheck(setErrors);
   const { validateField } = useOrganizationFieldValidation();
-
+  const selectedAddressTypes = (formData.addresses || [])
+    .map((a) => a.addressType)
+    .filter((type): type is AddressType => !!type);
   const { handleValidatedChange, handleUniqueBlur, fieldError } =
     useFormFieldHandlers(
       (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -390,6 +392,11 @@ export default function EditOrganizationPage() {
   };
 
   const addAddress = () => {
+    if ((formData.addresses || []).length >= ADDRESS_TYPES.length) {
+      Swal.fire("Limit reached", "All address types already added", "warning");
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       addresses: [
@@ -402,7 +409,7 @@ export default function EditOrganizationPage() {
           state: "",
           country: "",
           pincode: "",
-          addressType: "OFFICE" as AddressType,
+          addressType: undefined,
         },
       ],
     }));
@@ -532,7 +539,17 @@ export default function EditOrganizationPage() {
       setSaving(false);
       return;
     }
+    const addressTypes = formData.addresses
+      .map(a => a.addressType)
+      .filter(Boolean);
 
+    const uniqueTypes = new Set(addressTypes);
+
+    if (addressTypes.length !== uniqueTypes.size) {
+      Swal.fire("Error", "Duplicate address types are not allowed", "error");
+      setSaving(false);
+      return;
+    }
     try {
       const fd = new FormData();
 
@@ -1185,10 +1202,24 @@ export default function EditOrganizationPage() {
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
+                        const file = e.target.files?.[0];
+                      
+                        if (!file) return;
+                      
+                        // 🚫 File name validation
+                        if (file.name.length > 100) {
+                          Swal.fire({
+                            icon: "error",
+                            title: "File name too long",
+                            text: "File name must not exceed 100 characters.",
+                          });
+                      
+                          e.target.value = ""; // reset input
+                          return;
+                        }
+                      
                         handleFileChange("logo", file);
-                        if (file) setLogoPreview(URL.createObjectURL(file));
-                        else setLogoPreview("");
+                        setLogoPreview(URL.createObjectURL(file));
                       }}
                       className="h-12 text-base border-gray-300"
                     />
@@ -1210,14 +1241,26 @@ export default function EditOrganizationPage() {
                       type="file"
                       accept=".p12,.pfx,.cer,image/*"
                       onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
+                        const file = e.target.files?.[0];
+                      
+                        if (!file) return;
+                      
+                        // 🚫 File name validation
+                        if (file.name.length > 100) {
+                          Swal.fire({
+                            icon: "error",
+                            title: "File name too long",
+                            text: "File name must not exceed 100 characters.",
+                          });
+                      
+                          e.target.value = ""; // reset input
+                          return;
+                        }
+                      
                         handleFileChange("digitalSignature", file);
-                        if (file) {
-                          if (file.type.startsWith("image/")) {
-                            setSignaturePreview(URL.createObjectURL(file));
-                          } else {
-                            setSignaturePreview("");
-                          }
+                      
+                        if (file.type.startsWith("image/")) {
+                          setSignaturePreview(URL.createObjectURL(file));
                         } else {
                           setSignaturePreview("");
                         }
@@ -1488,6 +1531,8 @@ export default function EditOrganizationPage() {
                     variant="outline"
                     size="lg"
                     onClick={addAddress}
+                    disabled={(formData.addresses || []).length >= ADDRESS_TYPES.length}
+
                     className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-medium shadow-sm"
                   >
                     <Plus className="h-5 w-5 mr-2" />
@@ -1745,9 +1790,16 @@ export default function EditOrganizationPage() {
                             <option value="" >
                               Select type
                             </option>
-                            {ADDRESS_TYPES.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
+                            {ADDRESS_TYPES.map((type) => (
+                              <option
+                                key={type}
+                                value={type}
+                                disabled={
+                                  selectedAddressTypes.includes(type) &&
+                                  address.addressType !== type
+                                }
+                              >
+                                {type}
                               </option>
                             ))}
                           </select>

@@ -22,14 +22,13 @@ import {
 } from "@/lib/api/types";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
 import { Trash2 } from "lucide-react";
-
+const MAX_POCS = 5;
 export default function AddClientPage() {
   const router = useRouter();
   const { loading, withLoading } = useLoading();
   const [organizations, setOrganizations] = useState<OrganizationResponseDTO[]>([]);
   const [filtered, setFiltered] = useState<OrganizationResponseDTO[]>([]);
-  // const [rendering, setLoading] = useState(true);
-  // const [error, setError] = useState('');
+
   const [formData, setFormData] = useState<ClientModel>({
     companyName: "",
     contactNumber: "",
@@ -161,24 +160,26 @@ export default function AddClientPage() {
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [error, setError] = useState("");
   const [loadings, setLoading] = useState(true);
+  const selectedAddressTypes = (formData.addresses || [])
+    .map((a) => a.addressType)
+    .filter(Boolean);
+  // Fetch clients
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const data = await adminService.getAllClients();
+        const clientList: ClientDTO[] = data.response || [];
+        setClients(clientList);
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch clients");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClients();
+  }, []);
 
-   // Fetch clients
-    useEffect(() => {
-      const fetchClients = async () => {
-        try {
-          const data = await adminService.getAllClients();
-          const clientList: ClientDTO[] = data.response || [];
-          setClients(clientList);
-        } catch (err: any) {
-          setError(err.message || "Failed to fetch clients");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchClients();
-    }, []);
 
-    
   const selectedCountry = formData.addresses?.[0]?.country;
 
   // Real-time duplicate detection between main fields and POCs
@@ -251,6 +252,11 @@ export default function AddClientPage() {
 
   const addItem = (section: "addresses" | "clientPocs") => {
     if (section === "addresses") {
+      if ((formData.addresses || []).length >= ADDRESS_TYPE_OPTIONS.length) {
+        Swal.fire("Limit reached", "All address types already added", "warning");
+        return;
+      }
+
       setFormData((prev) => ({
         ...prev,
         addresses: [
@@ -267,7 +273,13 @@ export default function AddClientPage() {
           },
         ],
       }));
-    } else if (section === "clientPocs") {
+    }
+    else if (section === "clientPocs") {
+      if ((formData.clientPocs || []).length >= MAX_POCS) {
+        Swal.fire("Limit reached", `Maximum ${MAX_POCS} POCs allowed`, "warning");
+        return;
+      }
+
       setFormData((prev) => ({
         ...prev,
         clientPocs: [
@@ -384,7 +396,14 @@ export default function AddClientPage() {
       setIsSubmitting(false);
       return;
     }
+    const addressTypes = (formData.addresses ?? []).map(a => a.addressType);
+    const uniqueTypes = new Set(addressTypes);
 
+    if (addressTypes.length !== uniqueTypes.size) {
+      Swal.fire("Error", "Duplicate address types are not allowed", "error");
+      setIsSubmitting(false);
+      return;
+    }
     try {
       await withLoading(async () => {
         const payload = {
@@ -498,7 +517,6 @@ export default function AddClientPage() {
       ? countries.filter((country) => country === "India")
       : countries.filter((country) => country !== "India")
     : countries;
-
   return (
     <ProtectedRoute allowedRoles={["ADMIN", "HR", "HR_MANAGER"]}>
       <div className="min-h-screen bg-gray-50 p-8">
@@ -539,7 +557,7 @@ export default function AddClientPage() {
                         "COMPANY_NAME",
                         "company_name",
                         "companyName"
-                      )(e); 
+                      )(e);
                     }}
                     placeholder="e.g. Digiquads Pvt Ltd"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
@@ -751,8 +769,8 @@ export default function AddClientPage() {
               </div>
             </div>
 
-              {/* ==================== CLIENT BRANCH NAME ==================== */}
-              <div className="border-b border-gray-200 pb-6">
+            {/* ==================== CLIENT BRANCH NAME ==================== */}
+            <div className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Client Branch Name
               </h3>
@@ -1008,7 +1026,6 @@ export default function AddClientPage() {
                       {fieldError(errors, `addresses.${i}.pincode`)}
                     </div>
 
-                    {/* Address Type */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Address Type <span className="text-red-500">*</span>
@@ -1018,16 +1035,22 @@ export default function AddClientPage() {
                         name={`addresses.${i}.addressType`}
                         value={addr.addressType || ""}
                         onChange={(e) => handleChange(e, i, "addresses")}
-                        onBlur={handleBlurValidation(
-                          `addresses.${i}.addressType`
-                        )}
+                        onBlur={handleBlurValidation(`addresses.${i}.addressType`)}
                         required
-                        className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md text-gray-700 focus:outline-none"
+                        className="!h-11 w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         <option value="">Select Address Type</option>
-                        {ADDRESS_TYPE_OPTIONS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
+
+                        {ADDRESS_TYPE_OPTIONS.map((type) => (
+                          <option
+                            key={type}
+                            value={type}
+                            disabled={
+                              selectedAddressTypes.includes(type) &&
+                              type !== addr.addressType
+                            }
+                          >
+                            {type}
                           </option>
                         ))}
                       </select>
@@ -1059,7 +1082,8 @@ export default function AddClientPage() {
                 <button
                   type="button"
                   onClick={() => addItem("clientPocs")}
-                  className="text-indigo-600 text-sm hover:underline font-medium"
+                  disabled={(formData.clientPocs || []).length >= MAX_POCS}
+                  className="text-indigo-600 text-sm hover:underline font-medium disabled:opacity-50"
                 >
                   + Add POC
                 </button>

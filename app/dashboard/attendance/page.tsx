@@ -56,7 +56,9 @@ function AttendancePage() {
   const isNextDisabled = isAfter(nextWeekStart, systemWeekStart);
   const [submitting, setSubmitting] = useState(false);
   const [showRegularizationModal, setShowRegularizationModal] = useState(false);
-
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [regularizations, setRegularizations] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [form, setForm] = useState({
     date: "",
     clockIn: "",
@@ -141,6 +143,21 @@ function AttendancePage() {
     }
   }
 
+  async function fetchRegularizationHistory() {
+    try {
+      setHistoryLoading(true);
+  
+      const res = await employeePunchService.getEmployeeRegularizations();
+  
+      if (res.flag) {
+        setRegularizations(res.response || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch regularization history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   // =========================
   // Timeline Utilities
@@ -297,8 +314,8 @@ function AttendancePage() {
     );
   }
   return (
-    <div className="p-8 space-y-6">
-
+<div className="w-full overflow-x-auto">
+<div className="p-6 space-y-6 min-w-[1000px]">
       {/* ================= HEADER ================= */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
@@ -366,6 +383,15 @@ function AttendancePage() {
         >
           Add Regularisation
         </button>
+        <button
+  onClick={() => {
+    setShowHistoryModal(true);
+    fetchRegularizationHistory();
+  }}
+  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+>
+  Regularisation History
+</button>
         {/* RIGHT – Toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
           <button
@@ -616,6 +642,71 @@ function AttendancePage() {
           </div>
         </div>
       )}
+
+      {/* historymodal */}
+      {showHistoryModal && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white w-[700px] max-h-[80vh] overflow-y-auto rounded-xl shadow-lg p-6">
+
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">
+          Regularization History
+        </h2>
+
+        <button
+          onClick={() => setShowHistoryModal(false)}
+          className="text-gray-500"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* LOADING */}
+      {historyLoading ? (
+        <div className="text-center py-6">Loading...</div>
+      ) : regularizations.length === 0 ? (
+        <div className="text-center py-6 text-gray-500">
+          No records found
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {regularizations.map((item) => (
+            <div
+              key={item.id}
+              className="border rounded-lg p-4 flex justify-between items-start"
+            >
+              <div>
+                <p className="font-medium">
+                  {item.attendanceDate}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {item.reason}
+                </p>
+                <p className="text-xs text-gray-400">
+                  In: {item.correctedIn || "-"} | Out: {item.correctedOut || "-"}
+                </p>
+              </div>
+
+              <span
+                className={`text-xs px-3 py-1 rounded-full ${
+                  item.status === "PENDING"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : item.status === "APPROVED"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-600"
+                }`}
+              >
+                {item.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
+    </div>
     </div>
   );
 }

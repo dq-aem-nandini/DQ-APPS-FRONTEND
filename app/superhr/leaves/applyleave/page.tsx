@@ -278,7 +278,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
   const selectedEmployee = employees.find(
     emp => emp.employeeId === selectedEmployeeId
   );
-
+  const joiningDate = selectedEmployee?.dateOfJoining;
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-6">
@@ -370,6 +370,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
                 type="date"
                 name="fromDate"
                 value={formData.fromDate}
+                min={joiningDate || ""} 
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -386,7 +387,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
                 className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={!formData.fromDate}
-                min={formData.fromDate}
+                min={formData.fromDate || joiningDate || ""}
               />
             </div>
           </div>

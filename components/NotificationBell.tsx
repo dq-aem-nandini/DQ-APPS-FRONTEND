@@ -93,6 +93,12 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
           if (message.body) {
             try {
               const data = JSON.parse(message.body);
+              if (data.type === "DELETE") {
+        setNotifications((prev) =>
+          prev.filter((n) => n.id !== data.notificationId)
+        );
+        return;
+      }
               const newNotifications = Array.isArray(data) ? data : [data];
 
               setNotifications((prev) => {
@@ -354,10 +360,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               userRole === "ADMIN"
                 ? "/admin-dashboard/timesheet"
                 : "/manager/timesheets";
-      
-            window.location.href =
-              `${base}?employeeId=${notification.employeeId}` +
-              `&week=${weekStart.format("YYYY-MM-DD")}`;
+                router.push(
+                  `${base}?employeeId=${notification.employeeId}&week=${weekStart.format("YYYY-MM-DD")}`
+                );
       
             return;
           } catch (err) {

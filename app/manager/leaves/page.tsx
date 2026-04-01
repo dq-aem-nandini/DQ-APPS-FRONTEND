@@ -711,6 +711,9 @@ const Leavespage: React.FC = () => {
                       Remaining Leaves
                     </th>
                   )}
+                 <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Approved By
+                  </th>
                   <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Attachment
                   </th>
@@ -776,6 +779,9 @@ const Leavespage: React.FC = () => {
                           {(leave as PendingLeavesResponseDTO).remainingLeaves}
                         </td>
                       )}
+                       <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                        {"approverName" in leave ? leave.approverName ?? "-" : "-"}
+                      </td>
                       <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
                         {leave.attachmentUrl ? (
                           <a
