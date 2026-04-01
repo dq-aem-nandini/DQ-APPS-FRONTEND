@@ -157,7 +157,7 @@ const ApplyLeavePage: React.FC = () => {
         employeeId,
         leaveId || undefined
       );
-            const calculatedDuration = response.leaveDuration || 0;
+      const calculatedDuration = response.leaveDuration || 0;
 
       setFormData((prev) => ({ ...prev, leaveDuration: calculatedDuration }));
       setHasCalculated(true);
@@ -307,7 +307,7 @@ const ApplyLeavePage: React.FC = () => {
   };
   useEffect(() => {
   }, [employeeId]);
-  
+
   useEffect(() => {
     if (error) {
       Swal.fire({
@@ -316,7 +316,7 @@ const ApplyLeavePage: React.FC = () => {
         text: error,
         confirmButtonText: 'OK',
       });
-  
+
       // Optional: Clear error after showing
       setError(null);
     }
@@ -343,7 +343,7 @@ const ApplyLeavePage: React.FC = () => {
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-4">
         {/* Leave Type */}
         <div>
-          <label className="block text-sm font-medium mb-1">Leave Type</label>
+          <label className="block text-sm font-medium mb-1">Leave Type <span className="text-red-500">*</span></label>
           <select
             name="categoryType"
             value={formData.categoryType}
@@ -351,7 +351,7 @@ const ApplyLeavePage: React.FC = () => {
             className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
             required
           >
-            <option value="">Select Leave Type</option>
+            <option value="">Select Leave Type </option>
             {categoryTypes.map((type) => (
               <option key={type} value={type}>
                 {getLabel(type, true)}
@@ -370,7 +370,7 @@ const ApplyLeavePage: React.FC = () => {
               onChange={handleInputChange}
               className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"
             />
-            <label className="text-sm font-medium">Partial Day</label>
+            <label className="text-sm font-medium">Partial Day <span className="text-red-500">*</span></label>
           </div>
         )}
 
@@ -378,7 +378,7 @@ const ApplyLeavePage: React.FC = () => {
         {/* Dates */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">From Date</label>
+            <label className="block text-sm font-medium mb-1">From Date <span className="text-red-500">*</span></label>
             <input
               type="date"
               name="fromDate"
@@ -386,11 +386,11 @@ const ApplyLeavePage: React.FC = () => {
               onChange={handleInputChange}
               className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
               required
-              min={joiningDate} 
+              min={joiningDate}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">To Date</label>
+            <label className="block text-sm font-medium mb-1">To Date <span className="text-red-500">*</span></label>
             <input
               type="date"
               name="toDate"
@@ -415,8 +415,8 @@ const ApplyLeavePage: React.FC = () => {
               !hasCalculated
                 ? '' // do not show zero before calculation
                 : calculating
-                ? '' // show placeholder while calculating
-                : formData.leaveDuration // show final value
+                  ? '' // show placeholder while calculating
+                  : formData.leaveDuration // show final value
             }
             onChange={handleInputChange}
             min="0.5"
@@ -426,17 +426,17 @@ const ApplyLeavePage: React.FC = () => {
             required
             readOnly
           />
-            {calculating && (
-              <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
-            )}
-            {!calculating && hasCalculated && formData.leaveDuration === 0 && !calculationFailed && (
-              <p className="text-xs text-amber-600 mt-1">Selected dates are weekends/holiday </p>
-            )}
+          {calculating && (
+            <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
+          )}
+          {!calculating && hasCalculated && formData.leaveDuration === 0 && !calculationFailed && (
+            <p className="text-xs text-amber-600 mt-1">Selected dates are weekends/holiday </p>
+          )}
         </div>
 
         {/* Financial Type */}
         <div>
-          <label className="block text-sm font-medium mb-1">Financial Type</label>
+          <label className="block text-sm font-medium mb-1">Financial Type <span className="text-red-500">*</span></label>
           <select
             name="financialType"
             value={formData.financialType}
@@ -455,7 +455,7 @@ const ApplyLeavePage: React.FC = () => {
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+          <label className="block text-sm font-medium mb-1">Description <span className="text-red-500">*</span></label>
           <textarea
             name="context"
             value={formData.context}
@@ -479,17 +479,6 @@ const ApplyLeavePage: React.FC = () => {
           />
         </div>
 
-        {/* Error Display */}
-        {/* {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            <p className="text-sm">{error}</p>
-            {insufficientLeave && formData.financialType === 'PAID' && (
-              <p className="text-xs mt-1">
-                Please switch to <strong>UNPAID</strong> to continue.
-              </p>
-            )}
-          </div>
-        )} */}
 
         {/* Submit Button */}
         <button
