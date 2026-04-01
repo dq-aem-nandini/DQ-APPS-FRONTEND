@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Swal from 'sweetalert2';
 import { format, parseISO, getYear, getMonth } from 'date-fns';
 import { Plus, Edit2, Trash2, Search, Loader2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -149,7 +150,16 @@ export default function HolidayListPage() {
 
   // Delete holiday
   const handleDelete = async (holidayId: string) => {
-    if (!confirm('Are you sure you want to delete this holiday?')) return;
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You want to delete this holiday',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!',
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       await holidayService.deleteHoliday(holidayId);

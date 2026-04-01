@@ -178,6 +178,27 @@ const EditEmployeePage = () => {
     e.preventDefault();
     e.currentTarget.blur();
   };
+  const [nationalities, setNationalities] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchNationalities = async () => {
+      try {
+        const res = await adminService.getNationalities();
+
+        // Remove empty string if needed
+        const cleaned = res.filter(n => n.trim() !== "");
+
+        setNationalities(cleaned);
+      } catch (err: any) {
+        console.error(err);
+      }
+    };
+
+    fetchNationalities();
+  }, []);
+
+
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -1646,7 +1667,7 @@ const EditEmployeePage = () => {
                   </div>
 
                   {/* Nationality */}
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
                       Nationality <span className="text-red-500">*</span>
                       <TooltipHint hint="Usually 'Indian'. Enter as per passport or official ID." />
@@ -1661,7 +1682,53 @@ const EditEmployeePage = () => {
                       className="!h-12 text-base w-full"
                     />
                     {fieldError(errors, "nationality")}
-                  </div>
+                  </div> */}
+
+                    {/* Nationality - Dropdown */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Nationality <span className="text-red-500">*</span>
+                        <TooltipHint hint="Usually 'Indian'. Select from the list or as per passport/official ID." />
+                      </Label>
+                      
+                      <Select
+                        value={formData.nationality ?? ""}
+                        onValueChange={(value) => {
+                          setIsDirty(true);
+                          setFormData((prev) =>
+                            prev
+                              ? { ...prev, nationality: value }
+                              : prev
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="!h-12 text-base w-full">
+                          <SelectValue placeholder="Select Nationality" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {nationalities.length > 0 ? (
+                            nationalities.map((nat) => (
+                              <SelectItem key={nat} value={nat}>
+                                {nat}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="Indian" disabled>
+                              Loading nationalities...
+                            </SelectItem>
+                          )}
+                          
+                          {/* Fallback option in case API fails or "Indian" is missing */}
+                          {!nationalities.includes("Indian") && (
+                            <SelectItem value="Indian">Indian</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      {fieldError(errors, "nationality")}
+                    </div>
+
+
                   {/* Gender */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">

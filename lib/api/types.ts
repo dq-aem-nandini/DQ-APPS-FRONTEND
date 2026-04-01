@@ -1610,6 +1610,7 @@ export interface InvoiceDTO {
   invoiceId: string; // UUID
   clientId: string;
   clientName: string;
+  currency: string;
   invoiceNumber: string;
   subtotal: number;
   taxAmount: number;
@@ -1892,4 +1893,11 @@ export interface ExtraDecisionRequestDTO {
   month: string; // format: "YYYY-MM"
   extraPayDaysCount: number; 
   compOffDaysCount : number; 
+}
+
+export interface InvoiceTotalResponseDTO {
+  inrTotal: number;
+  usdConvertedToInrTotal: number;
+  finalTotalInInr: number;
+  usdToInrRate: number;
 }

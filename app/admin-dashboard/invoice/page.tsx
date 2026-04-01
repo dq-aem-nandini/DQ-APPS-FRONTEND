@@ -10,6 +10,7 @@ import {
   InvoiceDTO,
   ClientInvoiceSummaryDTO,
   INVOICE_STATUS_OPTIONS,
+  InvoiceTotalResponseDTO
 } from "@/lib/api/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,9 +63,8 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceDTO[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
-  const [lockingInvoices, setLockingInvoices] = useState<Set<string>>(
-    new Set()
-  );
+  const [lockingInvoices, setLockingInvoices] = useState<Set<string>>(new Set());
+  const [invoiceTotals, setInvoiceTotals] = useState<InvoiceTotalResponseDTO | null>(null);
   // 1. Add these states (replace old fromDate/toDate)
   const [selectedYear, setSelectedYear] = useState<number | "">("");
   const [selectedMonth, setSelectedMonth] = useState<number | "">("");
@@ -100,6 +100,19 @@ export default function InvoicesPage() {
     // fromDate: "",
     // toDate: "",
   });
+
+  useEffect(() => {
+    const fetchTotals = async () => {
+      try {
+        const res = await invoiceService.getApprovedInvoicesTotalInINR();
+        setInvoiceTotals(res);
+      } catch (err: any) {
+        console.error(err);
+      }
+    };
+  
+    fetchTotals();
+  }, []);
 
   /* -------------------------- FETCH CLIENTS -------------------------- */
   useEffect(() => {
@@ -386,6 +399,18 @@ export default function InvoicesPage() {
     }
   };
 
+
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: currency || 'INR',
+      }).format(amount);
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`;
+    }
+  };
+
   /* -------------------------- LOADING STATE -------------------------- */
   if (loadingClients) {
     return <InvoicesSkeleton />;
@@ -416,11 +441,13 @@ export default function InvoicesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Paid Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              ₹ {invoiceTotals ? invoiceTotals.finalTotalInInr.toFixed(2) : "0.00"}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -666,10 +693,10 @@ export default function InvoicesPage() {
                           {inv.taxAmount.toFixed(2)}
                         </TableCell> */}
                         <TableCell className="text-right font-medium">
-                          {inv.subtotal.toFixed(2)}
+                          {formatCurrency(inv.subtotal, inv.currency)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {inv.totalAmount.toFixed(2)}
+                        {formatCurrency(inv.totalAmount, inv.currency)}
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(inv.status)}>
