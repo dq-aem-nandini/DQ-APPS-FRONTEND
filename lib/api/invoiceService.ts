@@ -7,7 +7,8 @@ import {
   WebResponseDTOListClientInvoiceSummaryDTO,
   WebResponseDTOListInvoiceDTO,
   EligibleEmployeeDTO,
-  WebResponseDTO
+  WebResponseDTO,
+  InvoiceTotalResponseDTO
 } from './types';
 import { AxiosResponse, AxiosError } from 'axios';
 
@@ -330,6 +331,32 @@ async getEligibleEmployees(
   } catch (error: unknown) {
     console.error('Error fetching eligible employees:', error);
     throw error;
+  }
+}
+
+/**
+ * Get total approved invoices converted to INR
+ * Endpoint: GET /web/api/v1/invoice/approved/total-in-inr
+ */
+async getApprovedInvoicesTotalInINR(): Promise<InvoiceTotalResponseDTO> {
+  try {
+    const response: AxiosResponse<WebResponseDTO<InvoiceTotalResponseDTO>> =
+      await api.get('/invoice/approved/total-in-inr');
+
+    console.log('Full total-in-INR API response:', response.data);
+
+    if (response.data?.flag && response.data.response) {
+      return response.data.response;
+    }
+
+    throw new Error(
+      response.data?.message ||
+        'Invalid response: No total invoice data returned'
+    );
+  } catch (error: unknown) {
+    console.error('Error fetching total invoice amount in INR:', error);
+    const errorMessage = this.getErrorMessage(error);
+    throw new Error(errorMessage);
   }
 }
 }

@@ -334,11 +334,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
       } 
   
       else if (type.includes("TIMESHEET")) {
-        // MANAGER / HR_MANAGER / ADMIN
         if (
           userRole === "MANAGER" ||
           userRole === "HR_MANAGER" ||
-          userRole === "ADMIN"
+          userRole === "ADMIN" ||
+          userRole === "EMPLOYEE"
         ) {
           try {
             const res = await timesheetService.getTimesheetById(
@@ -354,15 +354,28 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
             }
       
             const workDate = dayjs(ts.workDate);
-            const weekStart = workDate.startOf("isoWeek");
+            const weekStartDate = workDate.startOf("isoWeek");
       
-            const base =
-              userRole === "ADMIN"
-                ? "/admin-dashboard/timesheet"
-                : "/manager/timesheets";
-                router.push(
-                  `${base}?employeeId=${notification.employeeId}&week=${weekStart.format("YYYY-MM-DD")}`
-                );
+            const roleBasePath = {
+              ADMIN: "/admin-dashboard/timesheet",
+              MANAGER: "/manager/timesheets",
+              HR_MANAGER: "/manager/timesheets",
+              EMPLOYEE: "/dashboard/SHR-Timesheet",
+            };
+      
+            const base = roleBasePath[userRole as keyof typeof roleBasePath];
+      
+            // Build query parameters
+            const params = new URLSearchParams();
+            if (notification.employeeId) {
+              params.set("employeeId", notification.employeeId);
+            }
+            params.set("week", weekStartDate.format("YYYY-MM-DD"));
+      
+            const finalUrl = `${base}?${params.toString()}`;
+            console.log("Final timesheet URL:", finalUrl);
+      
+            router.push(finalUrl);   // ← This is the correct Next.js way
       
             return;
           } catch (err) {

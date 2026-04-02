@@ -815,7 +815,7 @@ export default function ManagerTimesheetReview() {
 
           {/* Approve / Reject */}
           <div className="flex justify-end gap-4 p-4 border-t bg-gray-50">
-            {timesheets.length > 0 && timesheets[0].status !== "APPROVED" && (
+            {timesheets.length > 0 && timesheets[0].status !== "APPROVED" && timesheets[0].status !== "REJECTED" && (
               <button
                 onClick={() => handleApproveReject("APPROVE")}
                 className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700"
@@ -824,7 +824,7 @@ export default function ManagerTimesheetReview() {
               </button>
             )}
             {timesheets.length > 0 &&
-              ["PENDING", "REJECTED"].includes(timesheets[0].status) && (
+              ["PENDING", ].includes(timesheets[0].status) && (
                 <button
                   onClick={() => handleApproveReject("REJECT")}
                   className="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700"
@@ -833,7 +833,7 @@ export default function ManagerTimesheetReview() {
                 </button>
               )}
             {timesheets.length > 0 &&
-              ["APPROVED"].includes(timesheets[0].status) && (
+              ["APPROVED", "REJECTED"].includes(timesheets[0].status) && (
                 <button
                   onClick={() => setShowRevertModal(true)}
                   className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700"

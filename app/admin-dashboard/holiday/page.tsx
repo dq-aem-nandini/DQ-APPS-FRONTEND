@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Swal from 'sweetalert2';
 import { format, parseISO, getYear, getMonth } from 'date-fns';
 import { Plus, Edit2, Trash2, Search, Loader2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';

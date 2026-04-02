@@ -133,6 +133,10 @@ export default function RegularizationPage() {
     }
   }
 
+  const pendingCount = requests.filter(
+    (req) => req.status === "PENDING"
+  ).length;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -153,7 +157,7 @@ export default function RegularizationPage() {
             Regularization Requests
           </h1>
           <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-1xl font-medium text-indigo-700">
-            {requests.length} pending
+            {pendingCount} pending
           </span>
         </div>
 

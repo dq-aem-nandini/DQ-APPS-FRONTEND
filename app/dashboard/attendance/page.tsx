@@ -9,7 +9,9 @@ import {
   subWeeks,
   startOfMonth,
   endOfMonth,
-  isAfter
+  isAfter,
+  addMonths, 
+  subMonths
 } from "date-fns";
 import { employeePunchService } from "@/lib/api/EmployeePunchService";
 import { employeeService } from "@/lib/api/employeeService";
@@ -65,6 +67,12 @@ function AttendancePage() {
     clockOut: "",
     reason: "",
   });
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const isNextMonthDisabled = isAfter( addMonths(currentMonth, 1),new Date());
+
+
   // =========================
   // Fetch Employee First
   // =========================
@@ -109,7 +117,7 @@ function AttendancePage() {
     if (!employeeId) return;
 
     fetchAttendance();
-  }, [employeeId, currentWeekStart, viewMode]);
+  }, [employeeId, currentWeekStart, viewMode, currentMonth]);
 
   async function fetchAttendance() {
     try {
@@ -122,9 +130,7 @@ function AttendancePage() {
         fromDate = format(weekStart, "yyyy-MM-dd");
         toDate = format(weekEnd, "yyyy-MM-dd");
       } else {
-        const monthStart = startOfMonth(new Date());
-        const monthEnd = endOfMonth(new Date());
-
+        
         fromDate = format(monthStart, "yyyy-MM-dd");
         toDate = format(monthEnd, "yyyy-MM-dd");
       }
@@ -305,6 +311,17 @@ function AttendancePage() {
   }
 
 
+  function getOrdinalSuffix(day: number) {
+    if (day > 3 && day < 21) return "th";
+    switch (day % 10) {
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
+    }
+  }
+
+
   if (loading || !employeeId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-3">
@@ -366,32 +383,63 @@ function AttendancePage() {
                 }`}
             >
               →
+                </button>
+              </div>
+            )}
+
+            {/* CENTER – Month Navigation */}
+        {viewMode === "month" && (
+          <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl shadow-sm">
+            
+            <button
+              disabled={loading}
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className={`px-3 py-1 rounded-lg text-sm ${
+                loading
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              ←
+            </button>
+
+            <p className="text-sm font-medium">
+              {format(currentMonth, "MMMM yyyy")}
+            </p>
+
+            <button
+              disabled={isNextMonthDisabled || loading}
+              onClick={() => {
+                if (!isNextMonthDisabled) {
+                setCurrentMonth(addMonths(currentMonth, 1))
+                }
+              }}
+              className={`px-3 py-1 rounded-lg text-sm ${
+                isNextMonthDisabled || loading
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              →
             </button>
           </div>
         )}
-    <button
-          onClick={() => {
-            setForm({
-              date: "",
-              clockIn: "",
-              clockOut: "",
-              reason: "",
-            });
-            setShowRegularizationModal(true);
-          }}
-          className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800"
-        >
-          Add Regularisation
-        </button>
-        <button
-  onClick={() => {
-    setShowHistoryModal(true);
-    fetchRegularizationHistory();
-  }}
-  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
->
-  Regularisation History
-</button>
+
+            <button
+              onClick={() => {
+                setForm({
+                  date: "",
+                  clockIn: "",
+                  clockOut: "",
+                  reason: "",
+                });
+                setShowRegularizationModal(true);
+              }}
+              className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800"
+            >
+              Add Regularisation
+            </button>
+
         {/* RIGHT – Toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
           <button
@@ -444,9 +492,18 @@ function AttendancePage() {
               {/* LEFT */}
               <div className="col-span-3 sm:col-span-2">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium">
+
+                   {/* Show day , e.g., "Monday" */}
+                  {/* <p className="font-medium">
                     {format(dateObj, "EEEE")}
-                  </p>
+                  </p> */}
+
+                    {/* Show date with ordinal suffix, e.g., "21st Jan" */}
+                    <p className="font-medium">
+                      {dateObj.getDate()}
+                      {getOrdinalSuffix(dateObj.getDate())}{" "}
+                      {format(dateObj, "MMMM yyyy")}
+                    </p>
 
                   {isWeekend && (
                     <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">

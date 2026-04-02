@@ -596,5 +596,29 @@ async getStatesByCountryV1(country: string): Promise<string[]> {
     throw new Error(getBackendError(error));
   }
 }
+
+/**
+ * Get all nationalities
+ * Endpoint: GET /web/api/v1/locations/nationality
+ */
+async getNationalities(): Promise<string[]> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListString> =
+      await api.get('/locations/nationality');
+
+    console.log('Full nationality API response:', response.data);
+
+    if (response.data?.flag && Array.isArray(response.data.response)) {
+      return response.data.response;
+    }
+
+    throw new Error(
+      response.data?.message || 'Invalid response: No nationality data found'
+    );
+  } catch (error: any) {
+    console.error('Error fetching nationalities:', error);
+    throw new Error(getBackendError(error));
+  }
+}
 }
 export const adminService = new AdminService();
