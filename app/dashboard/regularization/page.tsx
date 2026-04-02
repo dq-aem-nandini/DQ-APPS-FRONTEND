@@ -133,6 +133,10 @@ export default function RegularizationPage() {
     }
   }
 
+  const pendingCount = requests.filter(
+    (req) => req.status === "PENDING"
+  ).length;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -153,7 +157,7 @@ export default function RegularizationPage() {
             Regularization Requests
           </h1>
           <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-1xl font-medium text-indigo-700">
-            {requests.length} pending
+            {pendingCount} pending
           </span>
         </div>
 
@@ -249,24 +253,31 @@ export default function RegularizationPage() {
                           {req.status}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-right text-sm font-medium sm:pr-6  text-center">
+                      <td className="whitespace-nowrap px-4 py-4 text-right text-sm font-medium sm:pr-6 text-center">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleApprove(req.id)}
-                            disabled={actionLoading === req.id}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleReject(req.id)}
-                            disabled={actionLoading === req.id}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                            Reject
-                          </button>
+
+                          {req.status !== "APPROVED" && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(req.id)}
+                                disabled={actionLoading === req.id}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                Approve
+                              </button>
+
+                              <button
+                                onClick={() => handleReject(req.id)}
+                                disabled={actionLoading === req.id}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                Reject
+                              </button>
+                            </>
+                          )}
+
                         </div>
                       </td>
                     </tr>
