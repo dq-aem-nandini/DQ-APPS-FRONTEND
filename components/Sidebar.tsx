@@ -152,7 +152,7 @@ export default function Sidebar() {
 
         {/* MANAGER or HR_MANAGER */}
 
-        {(role === "MANAGER" || (role === "HR_MANAGER" && hasSubordinates)) &&
+        {(role === "MANAGER" || role === "HR_MANAGER") &&
           renderSection("Manager", sidebarConfig.MANAGER)}
       </div>
     </aside>

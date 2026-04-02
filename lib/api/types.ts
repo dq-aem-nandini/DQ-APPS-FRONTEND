@@ -299,7 +299,7 @@ export interface RegularizationRequestDTO {
  */
 export interface AttendanceRegularization {
   id: string;
-  // attendanceId: string;
+  attendanceId: string;
   employeeName: string;
   designation:Designation;
   employeeId: string;
@@ -1346,7 +1346,19 @@ export interface WebResponseDTOClientDTO {
   totalRecords: number; // int64
   otherInfo: Record<string, any>;
 }
+export interface EmployeeDropdownDTO {
+  employeeId: string;
+  employeeName: string;
+}
 
+export interface WebResponseDTOListEmployeeDropdownDTO {
+  flag: boolean;
+  message: string;
+  status: number;
+  response: EmployeeDropdownDTO[];
+  totalRecords: number;
+  otherInfo: any;
+}
 export interface WebResponseDTOListClientDTO {
   flag: boolean;
   message: string;

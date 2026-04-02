@@ -143,7 +143,23 @@ async getMonthlyAttendance(
       throw new Error(getBackendError(error));
     }
   }
+/**
+ * Employee - Get All Regularizations
+ * GET /web/api/v1/employee/regularizations
+ */
+async getEmployeeRegularizations(): Promise<
+  WebResponseDTO<AttendanceRegularization[]>
+> {
+  try {
+    const response = await api.get(
+      "/employee/regularizations"
+    );
 
+    return response.data;
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
 }
 
 export const employeePunchService = new EmployeePunchService();

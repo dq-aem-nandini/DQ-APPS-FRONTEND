@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Add this import if not present
 import { holidayService } from '@/lib/api/holidayService';
 import type { HolidaysDTO, HolidaysModel } from '@/lib/api/types';
@@ -29,6 +28,7 @@ export default function HolidayListPage() {
   const [editingHoliday, setEditingHoliday] = useState<HolidaysDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [duplicateError, setDuplicateError] = useState("");
   const [formData, setFormData] = useState<HolidaysModel>({
     holidayName: '',
     holidayDate: '',
@@ -47,7 +47,11 @@ export default function HolidayListPage() {
         );
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load holidays');
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message || "Failed to load holidays",
+      });
     } finally {
       setLoading(false);
     }
@@ -108,7 +112,11 @@ export default function HolidayListPage() {
           });
         }
       } catch (err: any) {
-        toast.error(err.message || 'Failed to load holiday');
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.message || "Failed to load holiday",
+        });
         return;
       }
     } else {
@@ -122,9 +130,14 @@ export default function HolidayListPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.holidayName.trim() || !formData.holidayDate) {
-      toast.error('Holiday name and date are required');
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Holiday name and date are required",
+      });
       return;
     }
+
     try {
       setSubmitting(true);
       const payload: HolidaysModel = {
@@ -134,15 +147,39 @@ export default function HolidayListPage() {
       };
       if (editingHoliday) {
         await holidayService.updateHoliday(editingHoliday.holidayId, payload);
-        toast.success('Holiday updated successfully');
+        Swal.fire({
+          icon: "success",
+          title: "Updated!",
+          text: "Holiday updated successfully",
+          confirmButtonColor: "#6366f1",
+        });
       } else {
         await holidayService.addHoliday(payload);
-        toast.success('Holiday added successfully');
+        Swal.fire({
+          icon: "success",
+          title: "Added!",
+          text: "Holiday added successfully",
+          confirmButtonColor: "#6366f1",
+        });
       }
       setIsDialogOpen(false);
       fetchHolidays(selectedYear);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save holiday');
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Failed to save holiday";
+
+      setIsDialogOpen(false); // 🔥 close dialog first
+
+      setTimeout(() => {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: message,
+          confirmButtonColor: "#d33",
+        });
+      }, 100);
     } finally {
       setSubmitting(false);
     }
@@ -151,22 +188,31 @@ export default function HolidayListPage() {
   // Delete holiday
   const handleDelete = async (holidayId: string) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You want to delete this holiday',
-      icon: 'warning',
+      title: "Are you sure?",
+      text: "You want to delete this holiday",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!',
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
     });
 
     if (!result.isConfirmed) return;
-
     try {
       await holidayService.deleteHoliday(holidayId);
-      toast.success('Holiday deleted successfully');
+      Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: "Holiday deleted successfully",
+        confirmButtonColor: "#6366f1",
+      });
       fetchHolidays(selectedYear);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete holiday');
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message || "Failed to delete holiday",
+      });
     }
   };
 

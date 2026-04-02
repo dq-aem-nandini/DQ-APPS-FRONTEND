@@ -66,19 +66,7 @@ export default function UpdateRequestPage() {
     };
     useEffect(() => {
         if (requests.length === 0) return;
-
-        // ❌ Skip highlight on page refresh
-        const navEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-
-        const isReload = navEntry?.type === "reload";
-
-
-        if (isReload) {
-            console.log('[Highlight Debug] Page refreshed — skipping highlight');
-            setHighlightedId(null);
-            return;
-        }
-
+        
         const hl = searchParams.get('requestId');
 
         console.log('[Highlight Debug] URL ?requestId=', hl);

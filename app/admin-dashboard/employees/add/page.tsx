@@ -450,25 +450,37 @@ const AddEmployeePage = () => {
     field: "docType" | "file",
     value: DocumentType | File | null
   ) => {
+
+    // 🚫 FILE NAME LENGTH VALIDATION (UI restriction)
+    if (field === "file" && value instanceof File) {
+      if (value.name.length > 100) {
+        Swal.fire({
+          icon: "error",
+          title: "File name too long",
+          text: "File name must not exceed 100 characters.",
+        });
+
+        return; // ❌ stop further execution
+      }
+    }
+
     setFormData((prev) => {
       if (!prev) return prev;
 
       const updatedDocs = prev.documents.map((doc, i) => {
         if (i !== index) return doc;
 
-        // When changing the file
         if (field === "file") {
           return {
             ...doc,
-            file: value as File | null, // ✅ only assign File here
-            fileUrl: value ? "PENDING_UPLOAD" : doc.fileUrl ?? null, // ✅ keep string | null
+            file: value as File | null,
+            fileUrl: value ? "PENDING_UPLOAD" : doc.fileUrl ?? null,
             documentId: doc.documentId ?? null,
             uploadedAt: doc.uploadedAt || new Date().toISOString(),
             verified: doc.verified || false,
           };
         }
 
-        // When changing docType
         if (field === "docType") {
           return {
             ...doc,
@@ -485,7 +497,7 @@ const AddEmployeePage = () => {
       };
     });
 
-    // Update separate File list for uploading
+    // Update file list
     if (field === "file") {
       setDocumentFilesList((prev) => {
         const updated = [...prev];
@@ -2356,14 +2368,14 @@ const AddEmployeePage = () => {
                           required={!!(formData.rateCard && formData.rateCard > 0)}
                           onChange={(e) => {
                             const value = e.target.value as RateCardType;
-                          
+
                             setFormData((prev) => ({
                               ...prev,
                               rateCardType: value,
                             }));
-                          
+
                             const error = validateField("rateCardType", value, formData);
-                          
+
                             setErrors((prev) => {
                               const next = { ...prev };
                               if (error) next.rateCardType = error;
@@ -2886,13 +2898,25 @@ const AddEmployeePage = () => {
                         <Input
                           type="file"
                           accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) =>
-                            handleDocumentChange(
-                              i,
-                              "file",
-                              e.target.files?.[0] || null
-                            )
-                          }
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+
+                            if (!file) return;
+
+                            // 🚫 Validation here (UI level)
+                            if (file.name.length > 100) {
+                              Swal.fire({
+                                icon: "error",
+                                title: "File name too long",
+                                text: "File name must not exceed 100 characters.",
+                              });
+
+                              e.target.value = ""; // 🔥 IMPORTANT: reset input
+                              return;
+                            }
+
+                            handleDocumentChange(i, "file", file);
+                          }}
                           className="!h-12 text-base file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
                         />
                       </div>

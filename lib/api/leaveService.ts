@@ -23,7 +23,8 @@ import {
   WebResponseDTOLeaveStatusCount,
   LeaveAdjustmentRequestDTO,
   LeaveAdjustmentResponse,
-  WebResponseDTOListEmployeeDTO
+  WebResponseDTOListEmployeeDTO,
+  WebResponseDTOListEmployeeDropdownDTO
 } from './types';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 function getBackendError(error: any): string {
@@ -540,6 +541,72 @@ export const leaveService = {
     } catch (error: any) {
       throw new Error(getBackendError(error));
     }
-  }
+  },
+  /**
+ * Get Leave Approval History (Manager / HR)
+ */
+async getLeaveApprovalHistory(
+  employeeId?: string,
+  month?: string,
+  financialType?: FinancialType,
+  leaveCategory?: LeaveCategoryType,
+  status?: LeaveStatus,
+  date?: string,
+  page: number = 0,
+  size: number = 10,
+  sort: string = 'createdAt,desc'
+): Promise<WebResponseDTOPageLeaveResponseDTO> {
+  try {
+    const params = new URLSearchParams();
 
+    if (employeeId) params.append('employeeId', employeeId);
+    if (month) params.append('month', month);
+    if (financialType) params.append('financialType', financialType);
+    if (leaveCategory) params.append('leaveCategory', leaveCategory);
+    if (status) params.append('status', status);
+    if (date) params.append('date', date);
+
+    params.append('page', page.toString());
+    params.append('size', size.toString());
+    params.append('sort', sort);
+
+    const response: AxiosResponse<WebResponseDTOPageLeaveResponseDTO> =
+      await api.get(`/employee/leave/approval/history`, { params });
+
+    console.log('🧩 Leave Approval History API response:', response.data);
+
+    if (response.data.flag && response.data.response) {
+      return response.data;
+    }
+
+    throw new Error(
+      response.data.message || 'Failed to fetch leave approval history'
+    );
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+},
+/**
+ * Get Employees for Leave Approval Dropdown (Manager / HR)
+ */
+async getApprovalEmployees(): Promise<WebResponseDTOListEmployeeDropdownDTO> {
+  try {
+    const response: AxiosResponse<WebResponseDTOListEmployeeDropdownDTO> =
+      await api.get(`/employee/leave/approval/employees`, {
+        headers: { Accept: '*/*' }
+      });
+
+    console.log('🧩 Approval Employees API response:', response.data);
+
+    if (response.data.flag && response.data.response) {
+      return response.data;
+    }
+
+    throw new Error(
+      response.data.message || 'Failed to fetch approval employees'
+    );
+  } catch (error: any) {
+    throw new Error(getBackendError(error));
+  }
+}
 };

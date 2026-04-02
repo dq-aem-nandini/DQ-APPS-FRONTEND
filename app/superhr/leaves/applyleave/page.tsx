@@ -45,7 +45,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [insufficientLeave, setInsufficientLeave] = useState(false);
   const [error, setError] = useState<string | null>(null);
-   const [calculationFailed, setCalculationFailed] = useState(false);
+  const [calculationFailed, setCalculationFailed] = useState(false);
   /* =========================
      DATE LIMITS
   ========================= */
@@ -262,23 +262,23 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
     }
   };
 
-   useEffect(() => {
-      if (error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error,
-          confirmButtonText: 'OK',
-        });
-    
-        // Optional: Clear error after showing
-        setError(null);
-      }
-    }, [error]);
+  useEffect(() => {
+    if (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error,
+        confirmButtonText: 'OK',
+      });
+
+      // Optional: Clear error after showing
+      setError(null);
+    }
+  }, [error]);
   const selectedEmployee = employees.find(
     emp => emp.employeeId === selectedEmployeeId
   );
-
+  const joiningDate = selectedEmployee?.dateOfJoining;
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-6">
@@ -293,35 +293,52 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
 
         {/* Client & Employee */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <select
-            value={selectedClientId}
-            onChange={e => setSelectedClientId(e.target.value)}
-            className="border rounded-lg px-4 py-2"
-          >
-            <option value="">Select Client</option>
-            {clients.map(c => (
-              <option key={c.clientId} value={c.clientId}>
-                {c.companyName}
-              </option>
-            ))}
-          </select>
 
-          <select
-            value={selectedEmployeeId}
-            onChange={e => setSelectedEmployeeId(e.target.value)}
-            disabled={!selectedClientId}
-            className="border rounded-lg px-4 py-2"
-          >
-            <option value="">
-              {!selectedClientId ? 'Select client first' : 'Select employee'}
-            </option>
-            {employees.map(emp => (
-              <option key={emp.employeeId} value={emp.employeeId}>
-                {emp.employeeName}
+          {/* Client */}
+          <div>
+            <label className="block mb-1 font-medium">
+              Client <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedClientId}
+              onChange={e => setSelectedClientId(e.target.value)}
+              className="border rounded-lg px-4 py-2 w-full"
+              required
+            >
+              <option value="">Select Client</option>
+              {clients.map(c => (
+                <option key={c.clientId} value={c.clientId}>
+                  {c.companyName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Employee */}
+          <div>
+            <label className="block mb-1 font-medium">
+              Employee <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedEmployeeId}
+              onChange={e => setSelectedEmployeeId(e.target.value)}
+              disabled={!selectedClientId}
+              className="border rounded-lg px-4 py-2 w-full"
+              required
+            >
+              <option value="">
+                {!selectedClientId ? 'Select client first' : 'Select employee'}
               </option>
-            ))}
-          </select>
+              {employees.map(emp => (
+                <option key={emp.employeeId} value={emp.employeeId}>
+                  {emp.employeeName}
+                </option>
+              ))}
+            </select>
+          </div>
+
         </div>
+
 
         {selectedEmployee && (
           <div className=" border rounded-lg p-3 text-sm">
@@ -336,18 +353,24 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
 
         {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <select
-            name="categoryType"
-            value={formData.categoryType}
-            onChange={handleInputChange}
-            required
-            className="w-full border rounded-lg px-4 py-2"
-          >
-            <option value="">Select Leave Type</option>
-            {LEAVE_CATEGORY_OPTIONS.map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+          <div>
+            <label className="block mb-1 font-medium">
+              Leave Type <span className="text-red-500">*</span>
+            </label>
+
+            <select
+              name="categoryType"
+              value={formData.categoryType}
+              onChange={handleInputChange}
+              required
+              className="w-full border rounded-lg px-4 py-2"
+            >
+              <option value="">Select Leave Type</option>
+              {LEAVE_CATEGORY_OPTIONS.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
           {/* Partial Day */}
           {hasCalculated &&
             (formData.leaveDuration === 1 || formData.partialDay) && (
@@ -365,11 +388,12 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">From Date</label>
+              <label className="block text-sm font-medium mb-1">From Date <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 name="fromDate"
                 value={formData.fromDate}
+                min={joiningDate || ""}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -377,7 +401,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">To Date</label>
+              <label className="block text-sm font-medium mb-1">To Date <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 name="toDate"
@@ -386,7 +410,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
                 className="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={!formData.fromDate}
-                min={formData.fromDate}
+                min={formData.fromDate || joiningDate || ""}
               />
             </div>
           </div>
@@ -415,14 +439,14 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
             {calculating && (
               <p className="text-xs text-gray-500 mt-1">Calculating duration...</p>
             )}
-            {!calculating && hasCalculated && formData.leaveDuration === 0 &&  !calculationFailed && (
+            {!calculating && hasCalculated && formData.leaveDuration === 0 && !calculationFailed && (
               <p className="text-xs text-amber-600 mt-1">Selected dates are weekends/holiday </p>
             )}
           </div>
 
           {/* Financial Type */}
           <div>
-            <label className="block text-sm font-medium mb-1">Financial Type</label>
+            <label className="block text-sm font-medium mb-1">Financial Type <span className="text-red-500">*</span></label>
             <select
               name="financialType"
               value={formData.financialType}
@@ -441,7 +465,7 @@ const ApplyLeaveSuperHRPage: React.FC = () => {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
+            <label className="block text-sm font-medium mb-1">Description <span className="text-red-500">*</span></label>
             <textarea
               name="context"
               value={formData.context}

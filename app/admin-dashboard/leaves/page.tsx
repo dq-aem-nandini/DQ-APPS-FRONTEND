@@ -11,7 +11,8 @@ import {
   LeaveStatus,
   LeaveCategoryType,
   EmployeeDTO,
-  LEAVE_STATUS_OPTIONS
+  LEAVE_STATUS_OPTIONS,
+  EmployeeDropdownDTO
 } from '@/lib/api/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -21,7 +22,7 @@ const Leavespage: React.FC = () => {
   const { state: { accessToken, user } } = useAuth();
   const isHR = user?.role?.roleName === 'HR' || user?.role?.roleName === 'HR_MANAGER';
   const isAdmin = user?.role?.roleName === 'ADMIN';
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'adjust'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'adjust' | 'approvals'>('pending');
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeavesResponseDTO[]>([]);
   const [allLeaves, setAllLeaves] = useState<LeaveResponseDTO[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -31,6 +32,8 @@ const Leavespage: React.FC = () => {
   const [adjustments, setAdjustments] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [adjustPage, setAdjustPage] = useState(0);
+  const [approvalLeaves, setApprovalLeaves] = useState<LeaveResponseDTO[]>([]);
+  const [approvalEmployees, setApprovalEmployees] = useState<EmployeeDropdownDTO[]>([]);
   const ADJUST_PAGE_SIZE = 6;
   const searchParams = useSearchParams();
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
@@ -75,29 +78,29 @@ const Leavespage: React.FC = () => {
   };
   useEffect(() => {
     if (!openLeaveId) return;
-  
+
     autoOpenRef.current = {
       leaveId: openLeaveId,
       type: null,
     };
-  
+
     // 🔥 Clear URL so refresh does NOTHING
     router.replace(window.location.pathname, { scroll: false });
-  
+
   }, []); // ⛔ DO NOT ADD DEPENDENCIES
   useEffect(() => {
     if (!openLeaveId) return;
-  
+
     console.log("[INIT] Storing leaveId for auto-open/highlight:", openLeaveId);
-  
+
     autoOpenRef.current = {
       leaveId: openLeaveId,
       type: null,
     };
-  
+
     // Store persistently so it survives URL clear + loading
     pendingHighlightLeaveId.current = openLeaveId;
-  
+
     router.replace(window.location.pathname, { scroll: false });
   }, []);
 
@@ -105,135 +108,135 @@ const Leavespage: React.FC = () => {
     if (!autoOpenRef.current) return;
     if (activeTab !== "pending") return;
     if (hasOpenedModal.current) return; // Prevent double open
-  
+
     const found = pendingLeaves.find(
       l => l.leaveId === autoOpenRef.current!.leaveId
     );
-  
+
     if (!found) return;
-  
+
     console.log("✅ AUTO OPEN → PENDING MODAL");
-  
+
     hasOpenedModal.current = true;
-  
+
     setTimeout(() => {
       handleReviewLeave(found);
       autoOpenRef.current = null;
     }, 5000);
-  
+
   }, [activeTab]); // Removed pendingLeaves to prevent re-trigger
 
-const effectRunCount = useRef(0);
+  const effectRunCount = useRef(0);
 
-useEffect(() => {
-  const targetLeaveId = pendingHighlightLeaveId.current;
-  if (!targetLeaveId) return;
+  useEffect(() => {
+    const targetLeaveId = pendingHighlightLeaveId.current;
+    if (!targetLeaveId) return;
 
-  if (hasOpenedModal.current) return;
+    if (hasOpenedModal.current) return;
 
-  // ────────────────────────────────────────────────────────────────
-  // Critical: do NOT early-return on loading here anymore
-  // We want to keep running even during brief loading phases after page change
-  // ────────────────────────────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────────
+    // Critical: do NOT early-return on loading here anymore
+    // We want to keep running even during brief loading phases after page change
+    // ────────────────────────────────────────────────────────────────
 
-  const clearAfter = () => {
-    pendingHighlightLeaveId.current = null;
-    autoOpenRef.current = null;
-  };
-
-  // Pending modal (highest priority)
-  const pending = pendingLeaves.find(l => l.leaveId === targetLeaveId);
-  if (pending) {
-    hasOpenedModal.current = true;
-    setActiveTab("pending");
-    setTimeout(() => {
-      handleReviewLeave(pending);
-      clearAfter();
-    }, 200); // faster modal open
-    return;
-  }
-
-  // Force tab switch (only once)
-  if (activeTab !== "all") {
-    setActiveTab("all");
-    return;
-  }
-
-  // ────────────────────────────────────────────────────────────────
-  // Highlight if already visible (fast path)
-  // ────────────────────────────────────────────────────────────────
-  if (allLeaves.some(l => l.leaveId === targetLeaveId) && rowRefs.current[targetLeaveId]) {
-    setTimeout(() => {
-      scrollAndHighlight(targetLeaveId);
-      hasOpenedModal.current = true;
-      clearAfter();
-    }, 120);
-    return;
-  }
-
-  // ────────────────────────────────────────────────────────────────
-  // Only do BIG fetch if we haven't already started a jump
-  // ────────────────────────────────────────────────────────────────
-  if (pendingHighlightLeaveId.current !== targetLeaveId) return;
-
-  (async () => {
-    try {
-      const BIG_PAGE = 60;
-
-      const res = await leaveService.getLeaveSummary(
-        selectedEmployeeId,
-        filters.month,
-        filters.leaveCategory,
-        filters.status,
-        undefined,
-        filters.futureApproved,
-        undefined,
-        0,
-        BIG_PAGE,
-        pagination.sort
-      );
-
-      if (!res.flag || !res.response?.content) return;
-
-      const index = res.response.content.findIndex(l => l.leaveId === targetLeaveId);
-      if (index === -1) return;
-
-      const targetPage = Math.floor(index / pagination.size);
-
-      // Only jump if we're not already on the correct page
-      if (pagination.page !== targetPage) {
-        setPagination(prev => ({ ...prev, page: targetPage }));
-      }
-
-      // Clear immediately after decision → stops duplicate calls
+    const clearAfter = () => {
       pendingHighlightLeaveId.current = null;
+      autoOpenRef.current = null;
+    };
 
-      // Wait just long enough for most real APIs + React render
+    // Pending modal (highest priority)
+    const pending = pendingLeaves.find(l => l.leaveId === targetLeaveId);
+    if (pending) {
+      hasOpenedModal.current = true;
+      setActiveTab("pending");
       setTimeout(() => {
-        if (rowRefs.current[targetLeaveId]) {
-          scrollAndHighlight(targetLeaveId);
-        }
+        handleReviewLeave(pending);
+        clearAfter();
+      }, 200); // faster modal open
+      return;
+    }
+
+    // Force tab switch (only once)
+    if (activeTab !== "all") {
+      setActiveTab("all");
+      return;
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Highlight if already visible (fast path)
+    // ────────────────────────────────────────────────────────────────
+    if (allLeaves.some(l => l.leaveId === targetLeaveId) && rowRefs.current[targetLeaveId]) {
+      setTimeout(() => {
+        scrollAndHighlight(targetLeaveId);
         hasOpenedModal.current = true;
         clearAfter();
-      }, 800); // 800 ms — sweet spot for most real apps
-
-    } catch {
-      // silent in production
-      pendingHighlightLeaveId.current = null;
+      }, 120);
+      return;
     }
-  })();
-}, [
-  loading,               // still needed — but we no longer early return on it
-  activeTab,
-  pendingLeaves,
-  allLeaves,
-  selectedEmployeeId,
-  filters.month,
-  filters.leaveCategory,
-  filters.status,
-  filters.futureApproved,
-  pagination.sort,
-]);
+
+    // ────────────────────────────────────────────────────────────────
+    // Only do BIG fetch if we haven't already started a jump
+    // ────────────────────────────────────────────────────────────────
+    if (pendingHighlightLeaveId.current !== targetLeaveId) return;
+
+    (async () => {
+      try {
+        const BIG_PAGE = 60;
+
+        const res = await leaveService.getLeaveSummary(
+          selectedEmployeeId,
+          filters.month,
+          filters.leaveCategory,
+          filters.status,
+          undefined,
+          filters.futureApproved,
+          undefined,
+          0,
+          BIG_PAGE,
+          pagination.sort
+        );
+
+        if (!res.flag || !res.response?.content) return;
+
+        const index = res.response.content.findIndex(l => l.leaveId === targetLeaveId);
+        if (index === -1) return;
+
+        const targetPage = Math.floor(index / pagination.size);
+
+        // Only jump if we're not already on the correct page
+        if (pagination.page !== targetPage) {
+          setPagination(prev => ({ ...prev, page: targetPage }));
+        }
+
+        // Clear immediately after decision → stops duplicate calls
+        pendingHighlightLeaveId.current = null;
+
+        // Wait just long enough for most real APIs + React render
+        setTimeout(() => {
+          if (rowRefs.current[targetLeaveId]) {
+            scrollAndHighlight(targetLeaveId);
+          }
+          hasOpenedModal.current = true;
+          clearAfter();
+        }, 800); // 800 ms — sweet spot for most real apps
+
+      } catch {
+        // silent in production
+        pendingHighlightLeaveId.current = null;
+      }
+    })();
+  }, [
+    loading,               // still needed — but we no longer early return on it
+    activeTab,
+    pendingLeaves,
+    allLeaves,
+    selectedEmployeeId,
+    filters.month,
+    filters.leaveCategory,
+    filters.status,
+    filters.futureApproved,
+    pagination.sort,
+  ]);
 
   const handleSubmitAdjustments = async () => {
     const payload = Object.entries(adjustments)
@@ -349,7 +352,7 @@ useEffect(() => {
       } else if (activeTab === 'adjust') {
         let response;
 
-        if (isHR ) {
+        if (isHR) {
           response = await leaveService.getAllEmployeesExceptLoginHR();
         } else if (isAdmin) {
           response = await adminService.getAllEmployees();
@@ -367,6 +370,35 @@ useEffect(() => {
         );
 
         setEmployees(activeEmployees);
+      }
+      else if (activeTab === 'approvals' && user?.role?.roleName !== 'HR_MANAGER') {
+        // ✅ Load employees (dropdown)
+        if (approvalEmployees.length === 0) {
+          const empRes = await leaveService.getApprovalEmployees();
+          if (empRes.flag) {
+            setApprovalEmployees(empRes.response);
+          }
+        }
+
+        // ✅ Load approval history
+        const res = await leaveService.getLeaveApprovalHistory(
+          selectedEmployeeId,
+          filters.month,
+          undefined,
+          filters.leaveCategory,
+          filters.status,
+          undefined,
+          pagination.page,
+          pagination.size,
+          'createdAt,desc'
+        );
+
+        if (!res.flag || !res.response) {
+          throw new Error(res.message || 'Failed to fetch approval history');
+        }
+
+        setApprovalLeaves(res.response.content);
+        setTotalPages(res.response.totalPages || 1);
       }
 
     } catch (err: any) {
@@ -398,7 +430,7 @@ useEffect(() => {
     }));
     setPagination((prev) => ({ ...prev, page: 0 }));
   };
- 
+
   // Handle review leave
   const handleReviewLeave = (
     leave: LeaveResponseDTO | PendingLeavesResponseDTO
@@ -546,9 +578,9 @@ useEffect(() => {
   const scrollAndHighlight = (leaveId: string) => {
     const row = rowRefs.current[leaveId];
     if (!row) return;
-  
+
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  
+
     // Strong visual feedback
     row.classList.add(
       'ring-4',
@@ -559,7 +591,7 @@ useEffect(() => {
       'transition-all',
       'duration-700'
     );
-  
+
     setTimeout(() => {
       row.classList.remove(
         'ring-4',
@@ -669,10 +701,24 @@ useEffect(() => {
         >
           Adjust Leaves
         </button>
+        {user?.role?.roleName !== 'HR_MANAGER' && (
+          <button
+            className={`px-4 py-2 font-medium ${activeTab === 'approvals'
+              ? 'border-b-2 border-indigo-600 text-indigo-600'
+              : 'text-gray-600'
+              }`}
+            onClick={() => {
+              setActiveTab('approvals');
+              setPagination((prev) => ({ ...prev, page: 0 }));
+            }}
+          >
+            My Approvals
+          </button>
+        )}
       </div>
 
       {/* Filters for All Leaves */}
-      {activeTab === 'all' && (
+      {(activeTab === 'all' || activeTab === 'approvals') && (
         <div className="mb-6 bg-white shadow-md rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Filters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -681,7 +727,7 @@ useEffect(() => {
               <select
                 value={filters.status || ''}
                 onChange={(e) => handleFilterChange('status', e.target.value as LeaveStatus)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
                 {LEAVE_STATUS_OPTIONS.map((status) => (
@@ -702,14 +748,21 @@ useEffect(() => {
                   setFilters(prev => ({ ...prev, employeeId: value }));
                   setPagination(prev => ({ ...prev, page: 0 }));
                 }}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All Employees</option>
-                {allEmployees.map(emp => (
-                  <option key={emp.employeeId} value={emp.employeeId}>
-                    {emp.firstName} {emp.lastName}
-                  </option>
-                ))}
+
+                {activeTab === 'approvals'
+                  ? approvalEmployees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.employeeName}
+                    </option>
+                  ))
+                  : allEmployees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.firstName} {emp.lastName}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -718,7 +771,7 @@ useEffect(() => {
               <select
                 value={filters.leaveCategory || ''}
                 onChange={(e) => handleFilterChange('leaveCategory', e.target.value as LeaveCategoryType)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               >
                 <option value="">All</option>
                 {categoryTypes.map((type) => (
@@ -732,7 +785,7 @@ useEffect(() => {
                 type="month"
                 value={filters.month || ''}
                 onChange={(e) => handleFilterChange('month', e.target.value)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
               />
             </div>
             <div className="flex items-center">
@@ -755,11 +808,17 @@ useEffect(() => {
             ? 'Pending Leave Requests'
             : activeTab === 'all'
               ? 'All Leave Requests'
-              : 'Adjust Leaves'}
+              : activeTab === 'adjust'
+                ? 'Adjust Leaves'
+                : 'My Approval History'}
         </h3>
 
-        {(activeTab === 'pending' || activeTab === 'all') && (
-          (activeTab === 'pending' ? pendingLeaves : allLeaves).length > 0 ? (
+        {(activeTab === 'pending' || activeTab === 'all' || activeTab === 'approvals') && (
+          (activeTab === 'pending'
+            ? pendingLeaves
+            : activeTab === 'all'
+              ? allLeaves
+              : approvalLeaves).length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-center">
                 <thead className="bg-gray-50">
@@ -769,11 +828,11 @@ useEffect(() => {
                     </th>
 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                        Type 
+                      Type
                     </th>
 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                        Duration 
+                      Duration
                     </th>
 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
@@ -781,19 +840,23 @@ useEffect(() => {
                     </th>
 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                        From Date 
+                      From Date
                     </th>
 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                      
-                        To Date 
+
+                      To Date
                     </th>
 
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
-                     
-                        Status 
-                    </th>
 
+                      Status
+                    </th>
+                    {(activeTab === "all") && (
+                      <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                        Approved By
+                      </th>
+                    )}
                     <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Attachment
                     </th>
@@ -808,7 +871,12 @@ useEffect(() => {
                 </thead>
 
                 <tbody className="divide-y divide-gray-200 text-center">
-                  {(activeTab === 'pending' ? pendingLeaves : allLeaves).map((leave) => (
+                  {(activeTab === 'pending'
+                    ? pendingLeaves
+                    : activeTab === 'all'
+                      ? allLeaves
+                      : approvalLeaves
+                  ).map((leave) => (
                     <tr
                       key={leave.leaveId}
                       ref={(el) => {
@@ -853,7 +921,12 @@ useEffect(() => {
                           {leave.status ?? 'PENDING'}
                         </span>
                       </td>
-
+                      {/* All Leaves Only */}
+                      {(activeTab === "all") && (
+                        <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                          {"approverName" in leave ? leave.approverName ?? "-" : "-"}
+                        </td>
+                      )}
                       <td className="px-6 py-5 text-base text-center">
                         {leave.attachmentUrl ? (
                           <a
@@ -888,31 +961,35 @@ useEffect(() => {
                   ))}
                 </tbody>
               </table>
-              {activeTab === 'all' && (
-                <div className="flex justify-between items-center mt-4">
-                  <button
-                    onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))}
-                    disabled={pagination.page === 0}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                  >
-                    <ChevronLeft size={20} />
-                    <span>Previous</span>
-                  </button>
-                  <span className="text-sm text-gray-600">Page {pagination.page + 1} of {totalPages}</span>
-                  <button
-                    onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
-                    disabled={pagination.page >= totalPages - 1}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                  >
-                    <span>Next</span>
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
+              {(activeTab === 'all' || activeTab === 'approvals') && (<div className="flex justify-between items-center mt-4">
+                <button
+                  onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))}
+                  disabled={pagination.page === 0}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <ChevronLeft size={20} />
+                  <span>Previous</span>
+                </button>
+                <span className="text-sm text-gray-600">Page {pagination.page + 1} of {totalPages}</span>
+                <button
+                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={pagination.page >= totalPages - 1}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={20} />
+                </button>
+              </div>
               )}
             </div>
           ) : (
-            <p className="text-gray-600">No {activeTab === 'pending' ? 'pending' : 'leave'} requests found.</p>
-          )
+            <p className="text-gray-600">
+              {activeTab === 'pending'
+                ? 'No pending requests found.'
+                : activeTab === 'all'
+                  ? 'No leave requests found.'
+                  : 'No approval history found.'}
+            </p>)
         )}
 
 

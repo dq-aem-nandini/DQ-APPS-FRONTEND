@@ -27,11 +27,10 @@ import {
   CurrencyCode,
   CURRENCY_CODE_OPTIONS,
   ADDRESS_TYPE_OPTIONS,
-  COUNTRY_CURRENCY_MAP,
   ClientDTO,
 } from "@/lib/api/types";
 import { useClientFieldValidation } from "@/hooks/useClientFieldValidation";
-import { organizationService } from "@/lib/api/organizationService";
+const MAX_POCS = 5;
 
 export default function EditClientPage() {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +57,9 @@ export default function EditClientPage() {
   const [statesMap, setStatesMap] = useState<Record<number, string[]>>({});
   const [originalData, setOriginalData] = useState<ClientModel | null>(null);
   const [countries, setCountries] = useState<string[]>([]);
+  const selectedAddressTypes = (formData.addresses || [])
+    .map((a) => a.addressType)
+    .filter(Boolean);
   const { validateField } = useClientFieldValidation();
   const { checkUniqueness } = useUniquenessCheck(setErrors);
   const handleChange = (
@@ -132,7 +134,7 @@ export default function EditClientPage() {
           tanNumber: dto.tanNumber || "",
           currency: (dto.currency as CurrencyCode) || "",
           netTerms: dto.netTerms ?? null,
-          branchEntityIds: dto.branchEntities? dto.branchEntities.map(([id]) => id): [],
+          branchEntityIds: dto.branchEntities ? dto.branchEntities.map(([id]) => id) : [],
 
           addresses: dto.addresses?.length
             ? dto.addresses.map(
@@ -222,21 +224,21 @@ export default function EditClientPage() {
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [error, setError] = useState("");
   // const [loadings, setLoading] = useState(true);
-   // Fetch clients
-    useEffect(() => {
-      const fetchClients = async () => {
-        try {
-          const data = await adminService.getAllClients();
-          const clientList: ClientDTO[] = data.response || [];
-          setClients(clientList);
-        } catch (err: any) {
-          setError(err.message || "Failed to fetch clients");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchClients();
-    }, []);
+  // Fetch clients
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const data = await adminService.getAllClients();
+        const clientList: ClientDTO[] = data.response || [];
+        setClients(clientList);
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch clients");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClients();
+  }, []);
 
   // ──────────────────────────────────────────────────────────────
   //           Add this new memoized value
@@ -312,8 +314,13 @@ export default function EditClientPage() {
     section: "addresses" | "clientPocs"
   ) => {
     if (section === "addresses") {
+      if ((formData.addresses || []).length >= ADDRESS_TYPE_OPTIONS.length) {
+        Swal.fire("Limit reached", "All address types already added", "warning");
+        return;
+      }
+  
       const newIndex = formData.addresses?.length || 0;
-
+  
       setFormData((prev) => ({
         ...prev,
         addresses: [
@@ -330,11 +337,15 @@ export default function EditClientPage() {
           },
         ],
       }));
-
-      // 🔥 load states for new address
+  
       loadStates("India", newIndex);
-
+  
     } else if (section === "clientPocs") {
+      if ((formData.clientPocs || []).length >= MAX_POCS) {
+        Swal.fire("Limit reached", `Maximum ${MAX_POCS} POCs allowed`, "warning");
+        return;
+      }
+  
       setFormData((prev) => ({
         ...prev,
         clientPocs: [
@@ -349,7 +360,6 @@ export default function EditClientPage() {
         ],
       }));
     }
-
   };
 
   const removeItem = (
@@ -388,7 +398,15 @@ export default function EditClientPage() {
     }
 
     setErrors({});
+    const addressTypes = (formData.addresses ?? [])
+      .map(a => a.addressType)
+      .filter(Boolean);
+    const uniqueTypes = new Set(addressTypes);
 
+    if (addressTypes.length !== uniqueTypes.size) {
+      await Swal.fire("Error", "Duplicate address types are not allowed", "error");
+      return;
+    }
     try {
       const payload = {
         companyName: formData.companyName.trim(),
@@ -747,7 +765,7 @@ export default function EditClientPage() {
                           houseNo: "",
                           streetName: "",
                           pincode: "",
-                        })),             
+                        })),
                       }))
                     }
                   >
@@ -845,7 +863,8 @@ export default function EditClientPage() {
                 <button
                   type="button"
                   onClick={() => addItem("addresses")}
-                  className="text-indigo-600 text-sm hover:underline"
+                  disabled={(formData.addresses || []).length >= ADDRESS_TYPE_OPTIONS.length}
+                  className="text-indigo-600 text-sm hover:underline disabled:opacity-50"
                 >
                   + Add Address
                 </button>
@@ -1052,9 +1071,16 @@ export default function EditClientPage() {
                         required
                       >
                         <option value="">Select Address Type</option>
-                        {ADDRESS_TYPE_OPTIONS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
+                        {ADDRESS_TYPE_OPTIONS.map((type) => (
+                          <option
+                            key={type}
+                            value={type}
+                            disabled={
+                              selectedAddressTypes.includes(type) &&
+                              addr.addressType !== type
+                            }
+                          >
+                            {type}
                           </option>
                         ))}
                       </select>
@@ -1086,7 +1112,8 @@ export default function EditClientPage() {
                 <button
                   type="button"
                   onClick={() => addItem("clientPocs")}
-                  className="text-indigo-600 text-sm hover:underline font-medium"
+                  disabled={(formData.clientPocs || []).length >= MAX_POCS}
+                  className="text-indigo-600 text-sm hover:underline font-medium disabled:opacity-50"
                 >
                   + Add POC
                 </button>

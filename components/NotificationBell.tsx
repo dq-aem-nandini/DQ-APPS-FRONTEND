@@ -93,6 +93,12 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
           if (message.body) {
             try {
               const data = JSON.parse(message.body);
+              if (data.type === "DELETE") {
+        setNotifications((prev) =>
+          prev.filter((n) => n.id !== data.notificationId)
+        );
+        return;
+      }
               const newNotifications = Array.isArray(data) ? data : [data];
 
               setNotifications((prev) => {
@@ -327,7 +333,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   
       } 
   
-
       else if (type.includes("TIMESHEET")) {
         if (
           userRole === "MANAGER" ||

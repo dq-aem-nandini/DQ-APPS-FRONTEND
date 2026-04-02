@@ -12,6 +12,7 @@ import {
   EmployeeDTO,
   LEAVE_STATUS_OPTIONS,
   LEAVE_CATEGORY_OPTIONS,
+  EmployeeDropdownDTO,
 } from "@/lib/api/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Swal from "sweetalert2";
@@ -23,7 +24,7 @@ const Leavespage: React.FC = () => {
     state: { accessToken, user },
   } = useAuth();
   const isHRManager = user?.role?.roleName === "HR_MANAGER";
-  const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "all" | "approvals">("pending");
   const [pendingLeaves, setPendingLeaves] = useState<
     PendingLeavesResponseDTO[]
   >([]);
@@ -43,6 +44,8 @@ const Leavespage: React.FC = () => {
   const [managerEmployees, setManagerEmployees] = useState<EmployeeDTO[]>([]);
   const isAutoNavigatingRef = useRef(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(""); // '' = all
+  const [approvalLeaves, setApprovalLeaves] = useState<LeaveResponseDTO[]>([]);
+  const [approvalEmployees, setApprovalEmployees] = useState<EmployeeDropdownDTO[]>([]);
   const [filters, setFilters] = useState<{
     status?: LeaveStatus;
     leaveCategory?: LeaveCategoryType;
@@ -225,6 +228,34 @@ const Leavespage: React.FC = () => {
         }
         setAllLeaves(response.response.content);
         setTotalPages(response.response.totalPages || 1);
+      } else if (activeTab === "approvals") {
+        // 1️⃣ Fetch dropdown employees
+        if (approvalEmployees.length === 0) {
+          const empRes = await leaveService.getApprovalEmployees();
+          if (empRes.flag) {
+            setApprovalEmployees(empRes.response);
+          }
+        }
+
+        // 2️⃣ Fetch approval history
+        const res = await leaveService.getLeaveApprovalHistory(
+          selectedEmployeeId || undefined,
+          filters.month,
+          undefined,
+          filters.leaveCategory,
+          filters.status,
+          undefined,
+          pagination.page,
+          pagination.size,
+          "createdAt,desc"
+        );
+
+        if (!res.flag || !res.response) {
+          throw new Error(res.message || "Failed to fetch approval history");
+        }
+
+        setApprovalLeaves(res.response.content);
+        setTotalPages(res.response.totalPages || 1);
       }
     } catch (err: any) {
       setError(
@@ -274,15 +305,15 @@ const Leavespage: React.FC = () => {
   };
 
   // Handle sort changes
-  const handleSortChange = (newSort: string) => {
-    setPagination((prev) => ({
-      ...prev,
-      sort: newSort.includes(",desc")
-        ? newSort.replace(",desc", ",asc")
-        : newSort.replace(",asc", ",desc"),
-      page: isAutoNavigatingRef.current ? prev.page : 0,
-    }));
-  };
+  // const handleSortChange = (newSort: string) => {
+  //   setPagination((prev) => ({
+  //     ...prev,
+  //     sort: newSort.includes(",desc")
+  //       ? newSort.replace(",desc", ",asc")
+  //       : newSort.replace(",asc", ",desc"),
+  //     page: isAutoNavigatingRef.current ? prev.page : 0,
+  //   }));
+  // };
 
   const handleReviewLeave = (
     leave: LeaveResponseDTO | PendingLeavesResponseDTO
@@ -426,6 +457,12 @@ const Leavespage: React.FC = () => {
           leave.leaveId === leaveId ? { ...leave, status } : leave
         )
       );
+    } else if (activeTab === "approvals") {
+      setApprovalLeaves((prev) =>
+        prev.map((leave) =>
+          leave.leaveId === leaveId ? { ...leave, status } : leave
+        )
+      );
     }
   };
 
@@ -514,10 +551,22 @@ const Leavespage: React.FC = () => {
         >
           All Leaves
         </button>
+        <button
+          className={`px-4 py-2 font-medium ${activeTab === "approvals"
+            ? "border-b-2 border-indigo-600 text-indigo-600"
+            : "text-gray-600"
+            }`}
+          onClick={() => {
+            setActiveTab("approvals");
+            setPagination((prev) => ({ ...prev, page: 0 })); // reset page
+          }}
+        >
+          My Approvals
+        </button>
       </div>
 
       {/* Filters for All Leaves */}
-      {activeTab === "all" && (
+      {(activeTab === "all" || activeTab === "approvals") && (
         <div className="mb-6 bg-white shadow-md rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Filters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -545,31 +594,47 @@ const Leavespage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-600">
                 Employee
               </label>
-              <select
-                value={selectedEmployeeId}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedEmployeeId(value);
-                  setFilters((prev) => ({
-                    ...prev,
-                    employeeId: value || undefined,
-                  }));
-                  if (!isAutoNavigatingRef.current) {
+
+              {activeTab === "approvals" ? (
+                // ✅ NEW API dropdown
+                <select
+                  value={selectedEmployeeId}
+                  onChange={(e) => {
+                    setSelectedEmployeeId(e.target.value);
                     setPagination((prev) => ({ ...prev, page: 0 }));
-                  }
-                }}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2"
-              >
-                <option value="">All Employees</option>
-                {managerEmployees.map((emp) => (
-                  <option key={emp.employeeId} value={emp.employeeId}>
-                    {emp.firstName} {emp.lastName}
-                    {emp.companyEmail
-                      ? ` (${emp.companyEmail.split("@")[0]})`
-                      : ""}
-                  </option>
-                ))}
-              </select>
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md p-2"
+                >
+                  <option value="">All Employees</option>
+                  {approvalEmployees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.employeeName}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                // ✅ EXISTING dropdown (All tab)
+                <select
+                  value={selectedEmployeeId}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedEmployeeId(value);
+                    setFilters((prev) => ({
+                      ...prev,
+                      employeeId: value || undefined,
+                    }));
+                    setPagination((prev) => ({ ...prev, page: 0 }));
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md p-2"
+                >
+                  <option value="">All Employees</option>
+                  {managerEmployees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.firstName} {emp.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
@@ -627,18 +692,25 @@ const Leavespage: React.FC = () => {
         <h3 className="text-xl font-semibold text-gray-800 mb-4">
           {activeTab === "pending"
             ? "Pending Leave Requests"
-            : "All Leave Requests"}
+            : activeTab === "all"
+              ? "All Leave Requests"
+              : "My Approval History"}
         </h3>
-        {(activeTab === "pending" ? pendingLeaves : allLeaves).length > 0 ? (
+        {(activeTab === "pending"
+          ? pendingLeaves
+          : activeTab === "all"
+            ? allLeaves
+            : approvalLeaves).length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-center">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Employee
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Category Type
+                    {/* <button
                       onClick={() => handleSortChange("leaveCategoryType,desc")}
                       className="flex items-center gap-1"
                     >
@@ -648,11 +720,12 @@ const Leavespage: React.FC = () => {
                         : pagination.sort.includes("leaveCategoryType,asc")
                           ? "↑"
                           : ""}
-                    </button>
+                    </button> */}
                   </th>
 
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Duration
+                    {/* <button
                       onClick={() => handleSortChange("leaveDuration,desc")}
                       className="flex items-center gap-1"
                     >
@@ -662,13 +735,14 @@ const Leavespage: React.FC = () => {
                         : pagination.sort.includes("leaveDuration,asc")
                           ? "↑"
                           : ""}
-                    </button>
+                    </button> */}
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Financial Type
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    From Date
+                    {/* <button
                       onClick={() => handleSortChange("fromDate,desc")}
                       className="flex items-center gap-1"
                     >
@@ -678,10 +752,11 @@ const Leavespage: React.FC = () => {
                         : pagination.sort.includes("fromDate,asc")
                           ? "↑"
                           : ""}
-                    </button>
+                    </button> */}
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    To Date
+                    {/* <button
                       onClick={() => handleSortChange("toDate,desc")}
                       className="flex items-center gap-1"
                     >
@@ -691,10 +766,11 @@ const Leavespage: React.FC = () => {
                         : pagination.sort.includes("toDate,asc")
                           ? "↑"
                           : ""}
-                    </button>
+                    </button> */}
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
-                    <button
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Status
+                    {/* <button
                       onClick={() => handleSortChange("status,desc")}
                       className="flex items-center gap-1"
                     >
@@ -704,140 +780,164 @@ const Leavespage: React.FC = () => {
                         : pagination.sort.includes("status,asc")
                           ? "↑"
                           : ""}
-                    </button>
+                    </button> */}
                   </th>
                   {activeTab === "pending" && (
-                    <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                       Remaining Leaves
                     </th>
                   )}
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  {(activeTab === "all" || activeTab === "approvals") && (
+                    <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
+                      Approved By
+                    </th>
+                  )}
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Attachment
                   </th>
-                  <th className="px-6 py-5 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                  <th className="px-6 py-5 text-center text-sm font-medium text-gray-900 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {(activeTab === "pending" ? pendingLeaves : allLeaves).map(
-                  (leave) => (
-                    <tr
-                      key={leave.leaveId}
-                      ref={(el) => {
-                        if (leave.leaveId) {
-                          rowRefs.current[leave.leaveId] = el;
-                        }
-                      }}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
-                        {leave.employeeName ?? "Unknown"}
-                      </td>
+                {(activeTab === "pending"
+                  ? pendingLeaves
+                  : activeTab === "all"
+                    ? allLeaves
+                    : approvalLeaves
+                ).map((leave) => (
+                  <tr
+                    key={leave.leaveId}
+                    ref={(el) => {
+                      if (leave.leaveId) {
+                        rowRefs.current[leave.leaveId] = el;
+                      }
+                    }}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-6 py-5 whitespace-nowrap text-base font-medium text-gray-900">
+                      {leave.employeeName ?? "Unknown"}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.leaveCategoryType
+                        ? getLabel(leave.leaveCategoryType)
+                        : "N/A"}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.leaveDuration ?? 0} days
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.financialType
+                        ? getLabel(leave.financialType)
+                        : "N/A"}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.fromDate
+                        ? new Date(leave.fromDate).toLocaleDateString()
+                        : "N/A"}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.toDate
+                        ? new Date(leave.toDate).toLocaleDateString()
+                        : "N/A"}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === "APPROVED"
+                          ? "bg-green-100 text-green-800"
+                          : leave.status === "PENDING"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : leave.status === "REJECTED"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                      >
+                        {leave.status ?? "PENDING"}
+                      </span>
+                    </td>
+
+                    {/* Pending Only */}
+                    {activeTab === "pending" && (
                       <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {leave.leaveCategoryType
-                          ? getLabel(leave.leaveCategoryType)
-                          : "N/A"}
+                        {(leave as PendingLeavesResponseDTO).remainingLeaves}
                       </td>
+                    )}
+
+                    {/* All Leaves Only */}
+                    {(activeTab === "all" || activeTab === "approvals") && (
                       <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {leave.leaveDuration ?? 0} days
+                        {"approverName" in leave ? leave.approverName ?? "-" : "-"}
                       </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {leave.financialType
-                          ? getLabel(leave.financialType)
-                          : "N/A"}
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {leave.fromDate
-                          ? new Date(leave.fromDate).toLocaleDateString()
-                          : "N/A"}
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {leave.toDate
-                          ? new Date(leave.toDate).toLocaleDateString()
-                          : "N/A"}
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-base">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${leave.status === "APPROVED"
-                            ? "bg-green-100 text-green-800"
-                            : leave.status === "PENDING"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : leave.status === "REJECTED"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
+                    )}
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
+                      {leave.attachmentUrl ? (
+                        <a
+                          href={leave.attachmentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:underline"
                         >
-                          {leave.status ?? "PENDING"}
-                        </span>
-                      </td>
-                      {activeTab === "pending" && (
-                        <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                          {(leave as PendingLeavesResponseDTO).remainingLeaves}
-                        </td>
+                          View
+                        </a>
+                      ) : (
+                        "None"
                       )}
-                      <td className="px-6 py-5 whitespace-nowrap text-base text-gray-500">
-                        {leave.attachmentUrl ? (
-                          <a
-                            href={leave.attachmentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-600 hover:underline"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          "None"
-                        )}
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-base text-center">
-                        {leave.status === "PENDING" ? (
-                          <button
-                            onClick={() => handleReviewLeave(leave)}
-                            className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                          >
-                            Review
-                          </button>
-                        ) : (
-                          <span className="text-gray-500 text-sm">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                )}
+                    </td>
+
+                    <td className="px-6 py-5 whitespace-nowrap text-base text-center">
+                      {leave.status === "PENDING" ? (
+                        <button
+                          onClick={() => handleReviewLeave(leave)}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <span className="text-gray-500 text-sm">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-            {activeTab === "all" && (
-              <div className="flex justify-between items-center mt-4 px-2">
-                <button
-                  onClick={() =>
-                    setPagination((prev) => ({
-                      ...prev,
-                      page: Math.max(prev.page - 1, 0),
-                    }))
-                  }
-                  disabled={pagination.page === 0}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <ChevronLeft size={20} />
-                  <span>Previous</span>
-                </button>
+            {(activeTab === "all" || activeTab === "approvals") && (<div className="flex justify-between items-center mt-4 px-2">
+              <button
+                onClick={() =>
+                  setPagination((prev) => ({
+                    ...prev,
+                    page: Math.max(prev.page - 1, 0),
+                  }))
+                }
+                disabled={pagination.page === 0}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+              >
+                <ChevronLeft size={20} />
+                <span>Previous</span>
+              </button>
 
-                <span className="text-sm text-gray-600 whitespace-nowrap">
-                  Page {pagination.page + 1} of {totalPages}
-                </span>
+              <span className="text-sm text-gray-600 whitespace-nowrap">
+                Page {pagination.page + 1} of {totalPages}
+              </span>
 
-                <button
-                  onClick={() =>
-                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
-                  }
-                  disabled={pagination.page >= totalPages - 1}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
-                >
-                  <span>Next</span>
-                  <ChevronRight size={20} />
-                </button>
-              </div>
+              <button
+                onClick={() =>
+                  setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                }
+                disabled={pagination.page >= totalPages - 1}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 flex items-center space-x-2"
+              >
+                <span>Next</span>
+                <ChevronRight size={20} />
+              </button>
+            </div>
             )}
           </div>
         ) : (
