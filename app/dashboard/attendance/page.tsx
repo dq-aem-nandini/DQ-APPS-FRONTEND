@@ -294,6 +294,17 @@ function AttendancePage() {
   }
 
 
+  function getOrdinalSuffix(day: number) {
+    if (day > 3 && day < 21) return "th";
+    switch (day % 10) {
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
+    }
+  }
+
+
   if (loading || !employeeId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-3">
@@ -355,24 +366,11 @@ function AttendancePage() {
                 }`}
             >
               →
-            </button>
-          </div>
-        )}
-    <button
-          onClick={() => {
-            setForm({
-              date: "",
-              clockIn: "",
-              clockOut: "",
-              reason: "",
-            });
-            setShowRegularizationModal(true);
-          }}
-          className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800"
-        >
-          Add Regularisation
-        </button>
+                </button>
+              </div>
+            )}
 
+            {/* CENTER – Month Navigation */}
         {viewMode === "month" && (
           <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl shadow-sm">
             
@@ -409,6 +407,21 @@ function AttendancePage() {
             </button>
           </div>
         )}
+
+            <button
+              onClick={() => {
+                setForm({
+                  date: "",
+                  clockIn: "",
+                  clockOut: "",
+                  reason: "",
+                });
+                setShowRegularizationModal(true);
+              }}
+              className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800"
+            >
+              Add Regularisation
+            </button>
 
         {/* RIGHT – Toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
@@ -462,9 +475,18 @@ function AttendancePage() {
               {/* LEFT */}
               <div className="col-span-3 sm:col-span-2">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium">
+
+                   {/* Show day , e.g., "Monday" */}
+                  {/* <p className="font-medium">
                     {format(dateObj, "EEEE")}
-                  </p>
+                  </p> */}
+
+                    {/* Show date with ordinal suffix, e.g., "21st Jan" */}
+                    <p className="font-medium">
+                      {dateObj.getDate()}
+                      {getOrdinalSuffix(dateObj.getDate())}{" "}
+                      {format(dateObj, "MMMM yyyy")}
+                    </p>
 
                   {isWeekend && (
                     <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
